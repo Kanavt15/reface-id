@@ -1,0 +1,55 @@
+.status-bar {
+  height: 28px;
+  background: var(--primary-medium);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--spacing-md);
+  font-size: var(--font-xs);
+  user-select: none;
+}
+
+.status-left,
+.status-center,
+.status-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.status-label {
+  color: var(--text-muted);
+}
+
+.status-value {
+  color: var(--text-secondary);
+}
+
+.status-ready {
+  color: var(--success);
+}
+
+.status-highlight {
+  color: var(--accent-cyan);
+}
+
+.status-indicator {
+  padding: 2px 6px;
+  background: var(--primary-dark);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.status-indicator.active {
+  background: var(--accent-cyan);
+  color: var(--primary-dark);
+}

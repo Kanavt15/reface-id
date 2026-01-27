@@ -1,0 +1,116 @@
+.main-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--primary-dark);
+}
+
+.layout-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 320px;
+  min-width: 280px;
+  max-width: 400px;
+  background: var(--primary-medium);
+  border-color: var(--border-color);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: width var(--transition-normal);
+}
+
+.sidebar-left {
+  border-right: 1px solid var(--border-color);
+}
+
+.sidebar-right {
+  border-left: 1px solid var(--border-color);
+}
+
+.main-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--primary-dark);
+}
+
+/* Resizable sidebar handle */
+.sidebar-resize-handle {
+  width: 4px;
+  cursor: ew-resize;
+  background: transparent;
+  transition: background var(--transition-fast);
+}
+
+.sidebar-resize-handle:hover {
+  background: var(--accent-cyan);
+}
+
+/* Collapsed sidebar state */
+.sidebar.collapsed {
+  width: 48px;
+  min-width: 48px;
+}
+
+.sidebar.collapsed .sidebar-content {
+  display: none;
+}
+
+/* Sidebar sections */
+.sidebar-section {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-section:last-child {
+  border-bottom: none;
+}
+
+.sidebar-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sm) var(--spacing-md);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transition-fast);
+}
+
+.sidebar-section-header:hover {
+  background: var(--border-color);
+}
+
+.sidebar-section-title {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sidebar-section-toggle {
+  color: var(--text-muted);
+  transition: transform var(--transition-fast);
+}
+
+.sidebar-section-toggle.expanded {
+  transform: rotate(180deg);
+}
+
+.sidebar-section-content {
+  padding: var(--spacing-sm) var(--spacing-md);
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height var(--transition-normal), padding var(--transition-normal);
+}
+
+.sidebar-section-content.expanded {
+  max-height: 500px;
+  padding: var(--spacing-md);
+}
