@@ -1,0 +1,702 @@
+/**
+ * UIController.js
+ * Connects all UI elements to the 3D scene, morpher, hair system, and backend.
+ * Handles all DOM interactions, panel switching, slider updates, etc.
+ */
+
+class UIController {
+  constructor(sceneManager, faceMorpher, hairSystem, backendAPI, caseManager) {
+    this.scene = sceneManager;
+    this.morpher = faceMorpher;
+    this.hair = hairSystem;
+    this.api = backendAPI;
+    this.caseManager = caseManager;
+    this.historyLog = [];
+  }
+
+  init() {
+    this.bindTitleBar();
+    this.bindToolbar();
+    this.bindPanelTabs();
+    this.bindMorphSliders();
+    this.bindHairControls();
+    this.bindAppearanceControls();
+    this.bindCaseControls();
+    this.bindGroupCollapse();
+    this.bindKeyboardShortcuts();
+    this.bindBackendStatus();
+
+    // Initial state
+    this.updatePropertyPanel();
+    this.addHistory('Session started');
+  }
+
+  // ─── Title Bar ───────────────────────────────────────────────────────────
+
+  bindTitleBar() {
+    document.getElementById('btnMinimize')?.addEventListener('click', () => {
+      window.electronAPI?.minimize();
+    });
+    document.getElementById('btnMaximize')?.addEventListener('click', () => {
+      window.electronAPI?.maximize();
+    });
+    document.getElementById('btnClose')?.addEventListener('click', () => {
+      window.electronAPI?.close();
+    });
+  }
+
+  // ─── Toolbar ─────────────────────────────────────────────────────────────
+
+  bindToolbar() {
+    // View presets
+    document.getElementById('btnFrontView')?.addEventListener('click', () => {
+      this.scene.setView('front');
+      this.updateViewAngle('Front');
+    });
+    document.getElementById('btnSideView')?.addEventListener('click', () => {
+      this.scene.setView('side');
+      this.updateViewAngle('Side');
+    });
+    document.getElementById('btn34View')?.addEventListener('click', () => {
+      this.scene.setView('34');
+      this.updateViewAngle('3/4');
+    });
+    document.getElementById('btnTopView')?.addEventListener('click', () => {
+      this.scene.setView('top');
+      this.updateViewAngle('Top');
+    });
+
+    // Wireframe toggle
+    document.getElementById('btnWireframe')?.addEventListener('click', (e) => {
+      const active = this.scene.toggleWireframe();
+      e.currentTarget.classList.toggle('active', active);
+      this.addHistory(`Wireframe ${active ? 'ON' : 'OFF'}`);
+    });
+
+    // Lighting cycle
+    document.getElementById('btnLighting')?.addEventListener('click', () => {
+      const mode = this.scene.cycleLighting();
+      this.addHistory(`Lighting: ${mode}`);
+    });
+
+    // Screenshot
+    document.getElementById('btnScreenshot')?.addEventListener('click', () => {
+      this.takeScreenshot();
+    });
+
+    // Export button
+    document.getElementById('btnExport')?.addEventListener('click', () => {
+      this.showExportDialog();
+    });
+
+    // Undo/Redo
+    document.getElementById('btnUndo')?.addEventListener('click', () => this.undo());
+    document.getElementById('btnRedo')?.addEventListener('click', () => this.redo());
+  }
+
+  // ─── Panel Tabs ──────────────────────────────────────────────────────────
+
+  bindPanelTabs() {
+    document.querySelectorAll('.panel-tab').forEach(tab => {
+      tab.addEventListener('click', (e) => {
+        // Deactivate all tabs and panels
+        document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel-content').forEach(p => p.classList.remove('active'));
+
+        // Activate selected
+        e.currentTarget.classList.add('active');
+        const panelId = 'panel-' + e.currentTarget.dataset.panel;
+        document.getElementById(panelId)?.classList.add('active');
+      });
+    });
+  }
+
+  // ─── Morph Sliders ───────────────────────────────────────────────────────
+
+  bindMorphSliders() {
+    document.querySelectorAll('.morph-slider').forEach(slider => {
+      const control = slider.closest('.slider-control');
+      const param = control?.dataset.param;
+      const valueDisplay = control?.querySelector('.slider-value');
+
+      slider.addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        if (valueDisplay) valueDisplay.textContent = value;
+
+        if (param) {
+          this.morpher.setMorphValue(param, value);
+          this.caseManager.updateMorphTargets(this.morpher.exportState());
+          this.updatePropertyPanel();
+        }
+      });
+
+      // Push undo state on mouseup
+      slider.addEventListener('mouseup', () => {
+        this.caseManager.pushState(`Modified ${param}`);
+        this.addHistory(`Changed ${this.formatParamName(param)}`);
+      });
+    });
+
+    // Reset all morphs
+    document.getElementById('btnResetAllMorphs')?.addEventListener('click', () => {
+      this.morpher.resetAll();
+      // Reset all slider UI
+      document.querySelectorAll('.morph-slider').forEach(slider => {
+        slider.value = 50;
+        const valueDisplay = slider.closest('.slider-control')?.querySelector('.slider-value');
+        if (valueDisplay) valueDisplay.textContent = '50';
+      });
+      this.caseManager.pushState('Reset all morphs');
+      this.addHistory('Reset all facial features');
+      this.updatePropertyPanel();
+    });
+
+    // Reset group buttons
+    document.querySelectorAll('.btn-reset-group').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const group = btn.dataset.group;
+        this.morpher.resetGroup(group);
+
+        // Reset sliders in this group
+        const groupBody = btn.closest('.control-group')?.querySelector('.control-group-body');
+        if (groupBody) {
+          groupBody.querySelectorAll('.morph-slider').forEach(slider => {
+            slider.value = 50;
+            const valueDisplay = slider.closest('.slider-control')?.querySelector('.slider-value');
+            if (valueDisplay) valueDisplay.textContent = '50';
+          });
+        }
+
+        this.caseManager.pushState(`Reset ${group}`);
+        this.addHistory(`Reset ${group} features`);
+        this.updatePropertyPanel();
+      });
+    });
+  }
+
+  // ─── Hair Controls ───────────────────────────────────────────────────────
+
+  bindHairControls() {
+    // Hair style cards
+    document.querySelectorAll('.hair-style-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        document.querySelectorAll('.hair-style-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+
+        const style = card.dataset.style;
+        this.hair.setStyle(style);
+        this.caseManager.updateHairParams(this.hair.getParams());
+        this.caseManager.pushState(`Hair style: ${style}`);
+        this.addHistory(`Hair style: ${this.formatStyleName(style)}`);
+        this.updatePropertyPanel();
+      });
+    });
+
+    // Hair property sliders
+    document.querySelectorAll('.hair-slider').forEach(slider => {
+      const control = slider.closest('.slider-control');
+      const param = control?.dataset.param;
+      const valueDisplay = control?.querySelector('.slider-value');
+
+      slider.addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        if (valueDisplay) valueDisplay.textContent = value;
+
+        if (param) {
+          if (param.startsWith('hair')) {
+            const key = param.replace('hair', '').toLowerCase();
+            this.hair.setParam(key, value);
+          }
+        }
+      });
+
+      slider.addEventListener('mouseup', () => {
+        this.caseManager.updateHairParams(this.hair.getParams());
+        this.caseManager.pushState(`Modified hair ${param}`);
+      });
+    });
+
+    // Hair color presets
+    document.querySelectorAll('#hairColorPresets .color-swatch').forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        document.querySelectorAll('#hairColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
+        swatch.classList.add('active');
+
+        const color = swatch.dataset.color;
+        this.hair.setColor(color);
+        document.getElementById('hairColorPicker').value = color;
+        this.caseManager.updateHairParams(this.hair.getParams());
+        this.addHistory('Changed hair color');
+      });
+    });
+
+    // Hair color picker
+    document.getElementById('hairColorPicker')?.addEventListener('input', (e) => {
+      this.hair.setColor(e.target.value);
+      // Deselect presets
+      document.querySelectorAll('#hairColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
+    });
+
+    // Facial hair
+    document.getElementById('facialHairStyle')?.addEventListener('change', (e) => {
+      this.hair.setFacialHair(e.target.value);
+      this.caseManager.updateHairParams(this.hair.getParams());
+      this.caseManager.pushState(`Facial hair: ${e.target.value}`);
+      this.addHistory(`Facial hair: ${e.target.value}`);
+    });
+
+    // Render with Blender
+    document.getElementById('btnRenderBlender')?.addEventListener('click', async () => {
+      this.showLoading('Rendering with Blender (this may take a minute)...');
+
+      // Gather render settings from UI
+      const engine = document.getElementById('renderEngine')?.value || 'EEVEE';
+      const quality = document.getElementById('renderQuality')?.value || 'medium';
+
+      // Gather scene data to send to Blender
+      const hairParams = this.hair.getParams();
+      const skinColor = document.getElementById('skinColorPicker')?.value || '#d4a574';
+      const hairColor = document.getElementById('hairColorPicker')?.value || '#2c1b0e';
+
+      const result = await this.api.renderScene({
+        hairStyle: hairParams.style || 'hair1',
+        hairColor: hairColor,
+        skinColor: skinColor,
+        engine: engine,
+        quality: quality,
+      });
+
+      this.hideLoading();
+
+      if (result?.error) {
+        this.addHistory('Blender render failed: ' + result.error);
+        alert('Render failed: ' + result.error);
+      } else if (result?.render_url) {
+        // Open rendered image in a new window or download it
+        const renderUrl = `http://127.0.0.1:5001${result.render_url}`;
+        const win = window.open(renderUrl, '_blank', 'width=1280,height=720');
+        if (!win) {
+          // Fallback: download
+          const link = document.createElement('a');
+          link.href = renderUrl;
+          link.download = result.filename || 'render.png';
+          link.click();
+        }
+        this.addHistory('Blender render complete');
+      } else {
+        this.addHistory('Blender render returned no image');
+      }
+    });
+  }
+
+  // ─── Appearance Controls ─────────────────────────────────────────────────
+
+  bindAppearanceControls() {
+    // Skin tone swatches
+    document.querySelectorAll('#skinToneGrid .skin-swatch').forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        document.querySelectorAll('#skinToneGrid .skin-swatch').forEach(s => s.classList.remove('active'));
+        swatch.classList.add('active');
+
+        const color = swatch.dataset.color;
+        this.scene.setSkinColor(color);
+        document.getElementById('skinColorPicker').value = color;
+        this.caseManager.updateAppearance('skinColor', color);
+        this.caseManager.pushState('Changed skin tone');
+        this.addHistory('Changed skin tone');
+        this.updatePropertyPanel();
+      });
+    });
+
+    // Skin color picker
+    document.getElementById('skinColorPicker')?.addEventListener('input', (e) => {
+      this.scene.setSkinColor(e.target.value);
+      document.querySelectorAll('#skinToneGrid .skin-swatch').forEach(s => s.classList.remove('active'));
+      this.caseManager.updateAppearance('skinColor', e.target.value);
+    });
+
+    // Eye color
+    document.querySelectorAll('#eyeColorPresets .color-swatch').forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        document.querySelectorAll('#eyeColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
+        swatch.classList.add('active');
+
+        this.caseManager.updateAppearance('eyeColor', swatch.dataset.color);
+        this.addHistory('Changed eye color');
+        this.updatePropertyPanel();
+      });
+    });
+
+    // Demographics
+    document.getElementById('ageRange')?.addEventListener('change', (e) => {
+      this.caseManager.updateAppearance('ageRange', e.target.value);
+    });
+    document.getElementById('sexSelect')?.addEventListener('change', (e) => {
+      this.caseManager.updateAppearance('sex', e.target.value);
+    });
+  }
+
+  // ─── Case Controls ───────────────────────────────────────────────────────
+
+  bindCaseControls() {
+    // Save
+    document.getElementById('btnSaveCase')?.addEventListener('click', async () => {
+      this.updateCaseFromUI();
+      const result = await this.caseManager.save();
+      if (result?.success) {
+        this.addHistory('Case saved');
+        this.updateCaseTitle();
+      } else {
+        this.addHistory('Save failed: ' + (result?.error || 'Unknown error'));
+      }
+    });
+
+    // Load
+    document.getElementById('btnLoadCase')?.addEventListener('click', async () => {
+      if (window.electronAPI) {
+        const result = await window.electronAPI.openDialog({
+          title: 'Open Case File',
+          filters: [{ name: 'REface Case', extensions: ['rfc'] }],
+          properties: ['openFile'],
+        });
+        if (!result.canceled && result.filePaths?.length > 0) {
+          await this.loadCase(result.filePaths[0]);
+        }
+      }
+    });
+
+    // New case
+    document.getElementById('btnNewCase')?.addEventListener('click', () => {
+      this.newCase();
+    });
+
+    // Export buttons
+    ['OBJ', 'FBX', 'GLB'].forEach(format => {
+      document.getElementById(`btnExport${format}`)?.addEventListener('click', () => {
+        this.exportModel(format.toLowerCase());
+      });
+    });
+
+    // Screenshot
+    document.getElementById('btnExportPNG')?.addEventListener('click', () => {
+      this.takeScreenshot();
+    });
+
+    // Case info fields — auto-update
+    ['caseNumber', 'caseName', 'investigator'].forEach(field => {
+      document.getElementById(field)?.addEventListener('input', (e) => {
+        this.caseManager.updateCaseInfo(field, e.target.value);
+        if (field === 'caseName' || field === 'caseNumber') {
+          this.updateCaseTitle();
+        }
+      });
+    });
+    document.getElementById('caseDescription')?.addEventListener('input', (e) => {
+      this.caseManager.updateCaseInfo('description', e.target.value);
+    });
+    document.getElementById('caseNotes')?.addEventListener('input', (e) => {
+      this.caseManager.updateCaseInfo('notes', e.target.value);
+    });
+  }
+
+  // ─── Group Collapse ──────────────────────────────────────────────────────
+
+  bindGroupCollapse() {
+    document.querySelectorAll('.control-group-header').forEach(header => {
+      header.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-reset-group')) return; // Don't toggle when clicking reset
+
+        const body = header.nextElementSibling;
+        if (body) {
+          body.classList.toggle('collapsed');
+          header.classList.toggle('collapsed');
+        }
+      });
+    });
+  }
+
+  // ─── Keyboard Shortcuts ──────────────────────────────────────────────────
+
+  bindKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case 'z':
+            e.preventDefault();
+            this.undo();
+            break;
+          case 'y':
+            e.preventDefault();
+            this.redo();
+            break;
+          case 's':
+            e.preventDefault();
+            document.getElementById('btnSaveCase')?.click();
+            break;
+        }
+      }
+
+      // Number keys for views
+      if (e.key === '1') this.scene.setView('front');
+      if (e.key === '3') this.scene.setView('side');
+      if (e.key === '7') this.scene.setView('top');
+      if (e.key === '5') this.scene.setView('34');
+    });
+  }
+
+  // ─── Backend Status ──────────────────────────────────────────────────────
+
+  bindBackendStatus() {
+    this.api.onStatusChange = (connected, data) => {
+      const statusDot = document.querySelector('#backendStatus .status-dot');
+      const statusText = document.querySelector('#backendStatus .status-text');
+      const statusBar = document.getElementById('statusBackend');
+      const blenderStatus = document.getElementById('statusBlender');
+
+      if (connected) {
+        statusDot?.classList.add('connected');
+        if (statusText) statusText.textContent = 'Connected';
+        if (statusBar) statusBar.innerHTML = '<span class="status-dot-small connected"></span> Backend: Connected';
+
+        if (data?.blender_available) {
+          if (blenderStatus) blenderStatus.innerHTML = '<i class="fas fa-blender"></i> Blender: Ready';
+          blenderStatus?.classList.add('ready');
+        } else {
+          if (blenderStatus) blenderStatus.innerHTML = '<i class="fas fa-blender"></i> Blender: Not Found';
+        }
+      } else {
+        statusDot?.classList.remove('connected');
+        if (statusText) statusText.textContent = 'Offline';
+        if (statusBar) statusBar.innerHTML = '<span class="status-dot-small"></span> Backend: Offline';
+        if (blenderStatus) blenderStatus.innerHTML = '<i class="fas fa-blender"></i> Blender: N/A';
+      }
+    };
+
+    this.api.startHealthCheck(5000);
+  }
+
+  // ─── Helper Methods ──────────────────────────────────────────────────────
+
+  updateCaseFromUI() {
+    this.caseManager.updateCaseInfo('caseNumber', document.getElementById('caseNumber')?.value || '');
+    this.caseManager.updateCaseInfo('caseName', document.getElementById('caseName')?.value || 'Untitled');
+    this.caseManager.updateCaseInfo('investigator', document.getElementById('investigator')?.value || '');
+    this.caseManager.updateCaseInfo('description', document.getElementById('caseDescription')?.value || '');
+    this.caseManager.updateCaseInfo('notes', document.getElementById('caseNotes')?.value || '');
+    this.caseManager.updateMorphTargets(this.morpher.exportState());
+    this.caseManager.updateHairParams(this.hair.getParams());
+    this.caseManager.currentCase.cameraState = this.scene.getCameraState();
+  }
+
+  updateCaseTitle() {
+    const titleEl = document.getElementById('caseTitle');
+    if (titleEl) titleEl.textContent = this.caseManager.getTitle();
+  }
+
+  updateViewAngle(name) {
+    const el = document.getElementById('viewAngle');
+    if (el) el.textContent = name;
+  }
+
+  updatePropertyPanel() {
+    const modCount = document.getElementById('modifiedCount');
+    if (modCount) modCount.textContent = this.morpher.getModifiedCount();
+
+    const hairStyleEl = document.getElementById('currentHairStyle');
+    if (hairStyleEl) hairStyleEl.textContent = this.formatStyleName(this.hair.currentStyle);
+
+    const skinToneEl = document.getElementById('currentSkinTone');
+    const skinColor = this.caseManager.currentCase.appearance.skinColor;
+    if (skinToneEl) {
+      skinToneEl.innerHTML = `<span class="mini-swatch" style="background: ${skinColor};"></span>`;
+    }
+
+    const eyeColorEl = document.getElementById('currentEyeColor');
+    const eyeColor = this.caseManager.currentCase.appearance.eyeColor;
+    if (eyeColorEl) {
+      eyeColorEl.innerHTML = `<span class="mini-swatch" style="background: ${eyeColor};"></span>`;
+    }
+
+    // Vertex count
+    const polyEl = document.getElementById('polyCount');
+    if (polyEl) polyEl.textContent = `Vertices: ${this.scene.getVertexCount().toLocaleString()}`;
+  }
+
+  addHistory(message) {
+    this.historyLog.unshift(message);
+    if (this.historyLog.length > 30) this.historyLog.pop();
+
+    const historyList = document.getElementById('historyList');
+    if (historyList) {
+      const item = document.createElement('div');
+      item.className = 'history-item';
+      item.textContent = message;
+      historyList.prepend(item);
+
+      // Limit displayed items
+      while (historyList.children.length > 20) {
+        historyList.removeChild(historyList.lastChild);
+      }
+    }
+  }
+
+  showLoading(text = 'Processing...') {
+    const overlay = document.getElementById('loadingOverlay');
+    const loadingText = document.getElementById('loadingText');
+    if (overlay) overlay.style.display = 'flex';
+    if (loadingText) loadingText.textContent = text;
+  }
+
+  hideLoading() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  async takeScreenshot() {
+    const dataUrl = this.scene.takeScreenshot();
+    if (window.electronAPI) {
+      const result = await window.electronAPI.saveDialog({
+        title: 'Save Screenshot',
+        defaultPath: `reface_screenshot_${Date.now()}.png`,
+        filters: [{ name: 'PNG Image', extensions: ['png'] }],
+      });
+      if (!result.canceled && result.filePath) {
+        // Convert data URL to buffer and save (would need fs access)
+        this.addHistory('Screenshot saved');
+      }
+    } else {
+      // Browser fallback — download
+      const link = document.createElement('a');
+      link.download = `reface_screenshot_${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+      this.addHistory('Screenshot downloaded');
+    }
+  }
+
+  async exportModel(format) {
+    this.updateCaseFromUI();
+    this.showLoading(`Exporting as ${format.toUpperCase()}...`);
+
+    const result = await this.api.exportModel(format, this.caseManager.getExportData());
+    this.hideLoading();
+
+    if (result?.error) {
+      this.addHistory(`Export failed: ${result.error}`);
+    } else {
+      this.addHistory(`Exported as ${format.toUpperCase()}`);
+    }
+  }
+
+  async showExportDialog() {
+    // Switch to case panel and scroll to export
+    document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel-content').forEach(p => p.classList.remove('active'));
+    document.querySelector('[data-panel="case"]')?.classList.add('active');
+    document.getElementById('panel-case')?.classList.add('active');
+  }
+
+  newCase() {
+    this.caseManager.newCase();
+    this.morpher.resetAll();
+    this.hair.setStyle('hair1');
+    this.hair.setColor('#2c1b0e');
+    this.scene.setSkinColor('#d4a574');
+
+    // Reset UI
+    document.querySelectorAll('.morph-slider').forEach(s => {
+      s.value = 50;
+      const v = s.closest('.slider-control')?.querySelector('.slider-value');
+      if (v) v.textContent = '50';
+    });
+    document.getElementById('caseNumber').value = '';
+    document.getElementById('caseName').value = '';
+    document.getElementById('investigator').value = '';
+    document.getElementById('caseDescription').value = '';
+    document.getElementById('caseNotes').value = '';
+
+    this.updateCaseTitle();
+    this.updatePropertyPanel();
+    this.addHistory('New case created');
+  }
+
+  async loadCase(filePath) {
+    this.showLoading('Loading case...');
+    const data = await this.caseManager.load(filePath);
+    this.hideLoading();
+
+    if (data && !data.error) {
+      // Restore morph values
+      if (data.morphTargets) {
+        this.morpher.loadState(data.morphTargets);
+      }
+      // Restore hair
+      if (data.hairParams) {
+        this.hair.loadState(data.hairParams);
+      }
+      // Restore appearance
+      if (data.appearance?.skinColor) {
+        this.scene.setSkinColor(data.appearance.skinColor);
+      }
+      // Restore camera
+      if (data.cameraState) {
+        this.scene.loadCameraState(data.cameraState);
+      }
+      // Update UI fields
+      document.getElementById('caseNumber').value = data.caseNumber || '';
+      document.getElementById('caseName').value = data.caseName || '';
+      document.getElementById('investigator').value = data.investigator || '';
+      document.getElementById('caseDescription').value = data.description || '';
+      document.getElementById('caseNotes').value = data.notes || '';
+
+      this.updateCaseTitle();
+      this.updatePropertyPanel();
+      this.addHistory(`Loaded case: ${data.caseName || 'Untitled'}`);
+    } else {
+      this.addHistory('Failed to load case');
+    }
+  }
+
+  undo() {
+    const state = this.caseManager.undo();
+    if (state) {
+      this.restoreState(state);
+      this.addHistory('Undo');
+    }
+  }
+
+  redo() {
+    const state = this.caseManager.redo();
+    if (state) {
+      this.restoreState(state);
+      this.addHistory('Redo');
+    }
+  }
+
+  restoreState(state) {
+    if (state.morphTargets) {
+      Object.entries(state.morphTargets).forEach(([param, value]) => {
+        this.morpher.morphValues[param] = value;
+        const slider = document.querySelector(`[data-param="${param}"] .morph-slider`);
+        if (slider) {
+          slider.value = value;
+          const v = slider.closest('.slider-control')?.querySelector('.slider-value');
+          if (v) v.textContent = value;
+        }
+      });
+      this.morpher.applyAllMorphs();
+    }
+    this.updatePropertyPanel();
+  }
+
+  formatParamName(param) {
+    return param.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
+  }
+
+  formatStyleName(style) {
+    return style.replace(/_/g, ' ').replace(/^./, s => s.toUpperCase());
+  }
+}
+
+window.UIController = UIController;

@@ -1,0 +1,436 @@
+/* ══════════════════════════════════════════════════════════════════════
+   REface ID — Main Stylesheet
+   Forensic 3D Facial Reconstruction Desktop Application
+   Dark theme with forensic-grade precision aesthetics
+   ══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Core palette */
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #101018;
+  --bg-tertiary: #16161f;
+  --bg-elevated: #1a1a26;
+  --bg-hover: #22222e;
+  --bg-active: #2a2a3a;
+
+  /* Borders */
+  --border-primary: #2a2a36;
+  --border-secondary: #1e1e28;
+  --border-accent: #3a3a4f;
+
+  /* Text */
+  --text-primary: #e8e8f0;
+  --text-secondary: #9898a8;
+  --text-muted: #5a5a6a;
+  --text-accent: #7aa2f7;
+
+  /* Accent colors */
+  --accent-primary: #7aa2f7;
+  --accent-primary-dim: #5580d4;
+  --accent-secondary: #9ece6a;
+  --accent-warning: #e0af68;
+  --accent-danger: #f7768e;
+  --accent-success: #73daca;
+
+  /* Sizes */
+  --titlebar-height: 36px;
+  --toolbar-height: 42px;
+  --statusbar-height: 24px;
+  --panel-width: 340px;
+  --mini-panel-width: 200px;
+  --border-radius: 6px;
+  --border-radius-sm: 4px;
+
+  /* Fonts */
+  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
+}
+
+/* ─── Base Reset ────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-main);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  font-size: 12px;
+  line-height: 1.5;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-accent);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ─── Custom Title Bar ──────────────────────────────────────────────── */
+
+#titlebar {
+  height: var(--titlebar-height);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+  -webkit-app-region: drag;
+  z-index: 100;
+}
+
+.titlebar-drag {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.titlebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--accent-primary);
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-logo i {
+  font-size: 14px;
+}
+
+.titlebar-version {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.titlebar-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+.titlebar-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  -webkit-app-region: no-drag;
+}
+
+.backend-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 12px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-danger);
+  transition: background var(--transition-normal);
+}
+
+.status-dot.connected {
+  background: var(--accent-success);
+  box-shadow: 0 0 6px var(--accent-success);
+}
+
+.titlebar-btn {
+  width: 46px;
+  height: var(--titlebar-height);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: background var(--transition-fast);
+}
+
+.titlebar-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.titlebar-btn.btn-close:hover {
+  background: var(--accent-danger);
+  color: white;
+}
+
+/* ─── Toolbar ───────────────────────────────────────────────────────── */
+
+#toolbar {
+  height: var(--toolbar-height);
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-secondary);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 4px;
+  z-index: 50;
+}
+
+.toolbar-group {
+  display: flex;
+  gap: 2px;
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 24px;
+  background: var(--border-primary);
+  margin: 0 6px;
+}
+
+.tool-btn {
+  width: 34px;
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: var(--border-radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  transition: all var(--transition-fast);
+}
+
+.tool-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-primary);
+  color: var(--text-primary);
+}
+
+.tool-btn.active {
+  background: var(--bg-active);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.tool-btn.accent {
+  color: var(--accent-primary);
+}
+
+.tool-btn.accent:hover {
+  background: rgba(122, 162, 247, 0.15);
+  border-color: var(--accent-primary);
+}
+
+/* ─── Main Layout ───────────────────────────────────────────────────── */
+
+#app-container {
+  display: flex;
+  height: calc(100vh - var(--titlebar-height) - var(--toolbar-height) - var(--statusbar-height));
+}
+
+/* ─── Viewport ──────────────────────────────────────────────────────── */
+
+#viewport {
+  flex: 1;
+  position: relative;
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+#viewport-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+
+#viewport-canvas:active {
+  cursor: grabbing;
+}
+
+.viewport-info {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.viewport-axes {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  width: 60px;
+  height: 60px;
+  pointer-events: none;
+}
+
+.axis-label {
+  position: absolute;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.axis-x { bottom: 0; right: 0; color: #f7768e; }
+.axis-y { top: 0; right: 0; color: #9ece6a; }
+.axis-z { top: 0; left: 8px; color: #7aa2f7; }
+
+/* Loading Overlay */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 15, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 200;
+  backdrop-filter: blur(4px);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border-accent);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* ─── Status Bar ────────────────────────────────────────────────────── */
+
+#statusbar {
+  height: var(--statusbar-height);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  font-size: 10px;
+  color: var(--text-muted);
+  z-index: 50;
+}
+
+.status-left, .status-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.status-dot-small {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent-danger);
+}
+
+.status-dot-small.connected {
+  background: var(--accent-success);
+}
+
+.status-item.ready {
+  color: var(--accent-success);
+}
+
+/* ─── Buttons ───────────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid transparent;
+  border-radius: var(--border-radius-sm);
+  font-family: var(--font-main);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  border-color: var(--accent-primary);
+}
+
+.btn-primary:hover {
+  background: var(--accent-primary-dim);
+  border-color: var(--accent-primary-dim);
+}
+
+.btn-secondary {
+  background: var(--bg-active);
+  color: var(--text-primary);
+  border-color: var(--border-accent);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border-accent);
+}
+
+.btn-outline:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}

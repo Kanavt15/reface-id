@@ -1,25 +1,1001 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' http://localhost:* ws://localhost:*">
-  <title>REface - Forensic Facial Reconstruction</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    /* Fallback font stack in case Google Fonts fails */
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-    }
-  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>REface ID — 3D Forensic Facial Reconstruction</title>
+  <link rel="stylesheet" href="styles/main.css" />
+  <link rel="stylesheet" href="styles/panels.css" />
+  <link rel="stylesheet" href="styles/controls.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet" />
 </head>
 <body>
-  <div id="root"></div>
-  <noscript>
-    <div style="padding: 40px; text-align: center; color: #e94560; background: #1a1a2e; height: 100vh;">
-      <h1>JavaScript Required</h1>
-      <p>REface requires JavaScript to run. Please enable JavaScript in your browser settings.</p>
+  <!-- ─── Custom Title Bar ─────────────────────────────────────────────── -->
+  <div id="titlebar">
+    <div class="titlebar-drag">
+      <div class="titlebar-logo">
+        <i class="fas fa-cube"></i>
+        <span>REface ID</span>
+        <span class="titlebar-version">v1.0</span>
+      </div>
     </div>
-  </noscript>
+    <div class="titlebar-center" id="caseTitle">New Case — Untitled</div>
+    <div class="titlebar-controls">
+      <div class="backend-status" id="backendStatus">
+        <span class="status-dot"></span>
+        <span class="status-text">Backend</span>
+      </div>
+      <button class="titlebar-btn" id="btnMinimize" title="Minimize">
+        <i class="fas fa-minus"></i>
+      </button>
+      <button class="titlebar-btn" id="btnMaximize" title="Maximize">
+        <i class="far fa-square"></i>
+      </button>
+      <button class="titlebar-btn btn-close" id="btnClose" title="Close">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ─── Toolbar ──────────────────────────────────────────────────────── -->
+  <div id="toolbar">
+    <div class="toolbar-group">
+      <button class="tool-btn active" data-tool="orbit" title="Orbit (Right Click Drag)">
+        <i class="fas fa-sync-alt"></i>
+      </button>
+      <button class="tool-btn" data-tool="pan" title="Pan (Middle Click Drag)">
+        <i class="fas fa-arrows-alt"></i>
+      </button>
+      <button class="tool-btn" data-tool="zoom" title="Zoom (Scroll)">
+        <i class="fas fa-search-plus"></i>
+      </button>
+    </div>
+    <div class="toolbar-separator"></div>
+    <div class="toolbar-group">
+      <button class="tool-btn" id="btnFrontView" title="Front View">
+        <i class="fas fa-portrait"></i>
+      </button>
+      <button class="tool-btn" id="btnSideView" title="Side View">
+        <i class="fas fa-user"></i>
+      </button>
+      <button class="tool-btn" id="btn34View" title="3/4 View">
+        <i class="fas fa-street-view"></i>
+      </button>
+      <button class="tool-btn" id="btnTopView" title="Top View">
+        <i class="fas fa-arrow-down"></i>
+      </button>
+    </div>
+    <div class="toolbar-separator"></div>
+    <div class="toolbar-group">
+      <button class="tool-btn" id="btnWireframe" title="Toggle Wireframe">
+        <i class="fas fa-border-all"></i>
+      </button>
+      <button class="tool-btn" id="btnNormals" title="Toggle Normals View">
+        <i class="fas fa-arrows-alt-v"></i>
+      </button>
+      <button class="tool-btn" id="btnLighting" title="Cycle Lighting">
+        <i class="fas fa-lightbulb"></i>
+      </button>
+    </div>
+    <div class="toolbar-separator"></div>
+    <div class="toolbar-group">
+      <button class="tool-btn" id="btnUndo" title="Undo (Ctrl+Z)">
+        <i class="fas fa-undo"></i>
+      </button>
+      <button class="tool-btn" id="btnRedo" title="Redo (Ctrl+Y)">
+        <i class="fas fa-redo"></i>
+      </button>
+    </div>
+    <div class="toolbar-separator"></div>
+    <div class="toolbar-group">
+      <button class="tool-btn accent" id="btnScreenshot" title="Take Screenshot">
+        <i class="fas fa-camera"></i>
+      </button>
+      <button class="tool-btn accent" id="btnExport" title="Export Model">
+        <i class="fas fa-file-export"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ─── Main Layout ──────────────────────────────────────────────────── -->
+  <div id="app-container">
+    
+    <!-- Left Panel — Controls -->
+    <div id="left-panel" class="panel">
+      <div class="panel-tabs">
+        <button class="panel-tab active" data-panel="face">
+          <i class="fas fa-head-side"></i> Face
+        </button>
+        <button class="panel-tab" data-panel="hair">
+          <i class="fas fa-cut"></i> Hair
+        </button>
+        <button class="panel-tab" data-panel="appearance">
+          <i class="fas fa-palette"></i> Look
+        </button>
+        <button class="panel-tab" data-panel="case">
+          <i class="fas fa-folder-open"></i> Case
+        </button>
+      </div>
+
+      <!-- Face Morphing Panel -->
+      <div class="panel-content active" id="panel-face">
+        <div class="panel-scroll">
+          
+          <!-- Skull Structure -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-brain"></i>
+              <span>Skull Structure</span>
+              <button class="btn-reset-group" data-group="skull" title="Reset">
+                <i class="fas fa-undo-alt"></i>
+              </button>
+            </div>
+            <div class="control-group-body">
+              <div class="slider-control" data-param="headWidth">
+                <label>Head Width</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="headHeight">
+                <label>Head Height</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="headDepth">
+                <label>Head Depth</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Forehead -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-chevron-up"></i>
+              <span>Forehead</span>
+              <button class="btn-reset-group" data-group="forehead" title="Reset">
+                <i class="fas fa-undo-alt"></i>
+              </button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="slider-control" data-param="foreheadHeight">
+                <label>Height</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="foreheadWidth">
+                <label>Width</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="foreheadSlope">
+                <label>Slope</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="browRidgeDepth">
+                <label>Brow Ridge</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Eyes -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-eye"></i>
+              <span>Eyes</span>
+              <button class="btn-reset-group" data-group="eyes" title="Reset">
+                <i class="fas fa-undo-alt"></i>
+              </button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="slider-control" data-param="eyeSpacing">
+                <label>Spacing</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyeSize">
+                <label>Size</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyeHeight">
+                <label>Height Position</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyeDepth">
+                <label>Depth</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyeTilt">
+                <label>Tilt</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Nose -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-nose"></i>
+              <span>Nose</span>
+              <button class="btn-reset-group" data-group="nose" title="Reset">
+                <i class="fas fa-undo-alt"></i>
+              </button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="slider-control" data-param="noseLength">
+                <label>Length</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="noseWidth">
+                <label>Width</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="noseBridge">
+                <label>Bridge Width</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="noseProtrusion">
+                <label>Protrusion</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="noseTipShape">
+                <label>Tip Shape</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cheeks -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-face-smile"></i>
+              <span>Cheeks</span>
+              <button class="btn-reset-group" data-group="cheeks" title="Reset">
+                <i class="fas fa-undo-alt"></i>
+              </button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="slider-control" data-param="cheekboneWidth">
+                <label>Cheekbone Width</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="cheekboneHeight">
+                <label>Cheekbone Height</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="cheekFullness">
+                <label>Fullness</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mouth -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-lips"></i>
+              <span>Mouth</span>
+              <button class="btn-reset-group" data-group="mouth" title="Reset">
+                <i class="fas fa-undo-alt"></i>
+              </button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="slider-control" data-param="mouthWidth">
+                <label>Width</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="lipThicknessUpper">
+                <label>Upper Lip</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="lipThicknessLower">
+                <label>Lower Lip</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="mouthProtrusion">
+                <label>Protrusion</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Jaw & Chin -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-teeth"></i>
+              <span>Jaw & Chin</span>
+              <button class="btn-reset-group" data-group="jaw" title="Reset">
+                <i class="fas fa-undo-alt"></i>
+              </button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="slider-control" data-param="jawWidth">
+                <label>Jaw Width</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="jawAngle">
+                <label>Jaw Angle</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="chinHeight">
+                <label>Chin Height</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="chinWidth">
+                <label>Chin Width</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="chinProtrusion">
+                <label>Chin Protrusion</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="chinShape">
+                <label>Chin Shape</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ears -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-ear-listen"></i>
+              <span>Ears</span>
+              <button class="btn-reset-group" data-group="ears" title="Reset">
+                <i class="fas fa-undo-alt"></i>
+              </button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="slider-control" data-param="earSize">
+                <label>Size</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="earAngle">
+                <label>Angle</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Neck -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-ruler-vertical"></i>
+              <span>Neck</span>
+              <button class="btn-reset-group" data-group="neck" title="Reset">
+                <i class="fas fa-undo-alt"></i>
+              </button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="slider-control" data-param="neckWidth">
+                <label>Width</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="neckLength">
+                <label>Length</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Reset All -->
+          <div class="panel-actions">
+            <button class="btn btn-secondary" id="btnResetAllMorphs">
+              <i class="fas fa-undo"></i> Reset All Features
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Hair Panel -->
+      <div class="panel-content" id="panel-hair">
+        <div class="panel-scroll">
+          
+          <!-- Hair Style -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-cut"></i>
+              <span>Hair Style</span>
+            </div>
+            <div class="control-group-body">
+              <div class="hair-style-grid" id="hairStyleGrid">
+                <div class="hair-style-card active" data-style="hair1">
+                  <div class="hair-icon"><i class="fas fa-user"></i></div>
+                  <span>Hair 1</span>
+                </div>
+                <div class="hair-style-card" data-style="hair2">
+                  <div class="hair-icon"><i class="fas fa-user-tie"></i></div>
+                  <span>Hair 2</span>
+                </div>
+                <div class="hair-style-card" data-style="hair3">
+                  <div class="hair-icon"><i class="fas fa-user-long"></i></div>
+                  <span>Hair 3</span>
+                </div>
+                <div class="hair-style-card" data-style="hair4">
+                  <div class="hair-icon"><i class="fas fa-cloud"></i></div>
+                  <span>Hair 4</span>
+                </div>
+                <div class="hair-style-card" data-style="bald">
+                  <div class="hair-icon"><i class="fas fa-ban"></i></div>
+                  <span>Bald</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hair Properties -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-sliders-h"></i>
+              <span>Hair Properties</span>
+            </div>
+            <div class="control-group-body">
+              <div class="slider-control" data-param="hairLength">
+                <label>Length</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="hair-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="hairDensity">
+                <label>Density</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="70" class="hair-slider" />
+                  <span class="slider-value">70</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="hairVolume">
+                <label>Volume</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="hair-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="hairCurl">
+                <label>Curl / Wave</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="0" class="hair-slider" />
+                  <span class="slider-value">0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hair Color -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-fill-drip"></i>
+              <span>Hair Color</span>
+            </div>
+            <div class="control-group-body">
+              <div class="color-picker-row">
+                <label>Color</label>
+                <div class="color-presets" id="hairColorPresets">
+                  <button class="color-swatch active" data-color="#0a0a0a" style="background: #0a0a0a" title="Black"></button>
+                  <button class="color-swatch" data-color="#2c1b0e" style="background: #2c1b0e" title="Dark Brown"></button>
+                  <button class="color-swatch" data-color="#6b3a2a" style="background: #6b3a2a" title="Brown"></button>
+                  <button class="color-swatch" data-color="#b5651d" style="background: #b5651d" title="Light Brown"></button>
+                  <button class="color-swatch" data-color="#d4a23f" style="background: #d4a23f" title="Blonde"></button>
+                  <button class="color-swatch" data-color="#e8c87a" style="background: #e8c87a" title="Light Blonde"></button>
+                  <button class="color-swatch" data-color="#8b2500" style="background: #8b2500" title="Red"></button>
+                  <button class="color-swatch" data-color="#c4c4c4" style="background: #c4c4c4" title="Grey"></button>
+                  <button class="color-swatch" data-color="#f5f5f5" style="background: #f5f5f5" title="White"></button>
+                </div>
+                <input type="color" id="hairColorPicker" value="#2c1b0e" class="color-input" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Facial Hair -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-mask"></i>
+              <span>Facial Hair</span>
+            </div>
+            <div class="control-group-body">
+              <div class="select-control">
+                <label>Style</label>
+                <select id="facialHairStyle" class="custom-select">
+                  <option value="none">None</option>
+                  <option value="stubble">Stubble</option>
+                  <option value="short_beard">Short Beard</option>
+                  <option value="full_beard">Full Beard</option>
+                  <option value="goatee">Goatee</option>
+                  <option value="mustache">Mustache</option>
+                  <option value="sideburns">Sideburns</option>
+                </select>
+              </div>
+              <div class="slider-control" data-param="facialHairDensity">
+                <label>Density</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="70" class="hair-slider" />
+                  <span class="slider-value">70</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Eyebrows -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-minus"></i>
+              <span>Eyebrows</span>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="slider-control" data-param="eyebrowThickness">
+                <label>Thickness</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="hair-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyebrowArch">
+                <label>Arch</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="hair-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyebrowSpacing">
+                <label>Spacing</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="hair-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-actions" style="flex-direction: column; gap: 8px;">
+            <div style="display: flex; gap: 8px; width: 100%;">
+              <div style="flex: 1;">
+                <label style="font-size: 11px; color: var(--text-muted); margin-bottom: 2px; display: block;">Engine</label>
+                <select id="renderEngine" class="param-select" style="width: 100%; padding: 6px 8px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); font-size: 12px;">
+                  <option value="EEVEE" selected>EEVEE (Fast)</option>
+                  <option value="CYCLES">Cycles (Realistic)</option>
+                </select>
+              </div>
+              <div style="flex: 1;">
+                <label style="font-size: 11px; color: var(--text-muted); margin-bottom: 2px; display: block;">Quality</label>
+                <select id="renderQuality" class="param-select" style="width: 100%; padding: 6px 8px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); font-size: 12px;">
+                  <option value="preview">Preview (Fast)</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="high">High Quality</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-primary" id="btnRenderBlender" style="width: 100%;">
+              <i class="fas fa-camera"></i> Render with Blender
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Appearance Panel -->
+      <div class="panel-content" id="panel-appearance">
+        <div class="panel-scroll">
+          
+          <!-- Skin -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-hand"></i>
+              <span>Skin Tone</span>
+            </div>
+            <div class="control-group-body">
+              <div class="skin-tone-grid" id="skinToneGrid">
+                <button class="skin-swatch" data-color="#f5deb3" style="background: #f5deb3" title="Very Light"></button>
+                <button class="skin-swatch" data-color="#f0c8a0" style="background: #f0c8a0" title="Light"></button>
+                <button class="skin-swatch active" data-color="#d4a574" style="background: #d4a574" title="Medium Light"></button>
+                <button class="skin-swatch" data-color="#c68642" style="background: #c68642" title="Medium"></button>
+                <button class="skin-swatch" data-color="#a0522d" style="background: #a0522d" title="Medium Dark"></button>
+                <button class="skin-swatch" data-color="#8b6914" style="background: #8b6914" title="Olive"></button>
+                <button class="skin-swatch" data-color="#704214" style="background: #704214" title="Dark"></button>
+                <button class="skin-swatch" data-color="#3b2010" style="background: #3b2010" title="Very Dark"></button>
+              </div>
+              <div class="color-picker-row">
+                <label>Custom Color</label>
+                <input type="color" id="skinColorPicker" value="#d4a574" class="color-input" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Skin Properties -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-adjust"></i>
+              <span>Skin Properties</span>
+            </div>
+            <div class="control-group-body">
+              <div class="slider-control" data-param="skinRoughness">
+                <label>Roughness</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="appearance-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="skinAge">
+                <label>Age Lines</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="20" class="appearance-slider" />
+                  <span class="slider-value">20</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="skinFreckles">
+                <label>Freckles / Marks</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="0" class="appearance-slider" />
+                  <span class="slider-value">0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Eye Color -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-eye"></i>
+              <span>Eye Color</span>
+            </div>
+            <div class="control-group-body">
+              <div class="color-presets" id="eyeColorPresets">
+                <button class="color-swatch active" data-color="#634e34" style="background: #634e34" title="Brown"></button>
+                <button class="color-swatch" data-color="#2e536f" style="background: #2e536f" title="Blue"></button>
+                <button class="color-swatch" data-color="#3d671d" style="background: #3d671d" title="Green"></button>
+                <button class="color-swatch" data-color="#7b6544" style="background: #7b6544" title="Hazel"></button>
+                <button class="color-swatch" data-color="#808080" style="background: #808080" title="Grey"></button>
+                <button class="color-swatch" data-color="#1a1a2e" style="background: #1a1a2e" title="Dark Brown"></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Accessories -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-glasses"></i>
+              <span>Accessories</span>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="select-control">
+                <label>Glasses</label>
+                <select id="glassesStyle" class="custom-select">
+                  <option value="none">None</option>
+                  <option value="rectangular">Rectangular</option>
+                  <option value="round">Round</option>
+                  <option value="aviator">Aviator</option>
+                  <option value="cat_eye">Cat Eye</option>
+                  <option value="rimless">Rimless</option>
+                </select>
+              </div>
+              <div class="checkbox-control">
+                <input type="checkbox" id="hasScar" />
+                <label for="hasScar">Facial Scar</label>
+              </div>
+              <div class="checkbox-control">
+                <input type="checkbox" id="hasMole" />
+                <label for="hasMole">Mole / Beauty Mark</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Demographics -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-id-card"></i>
+              <span>Demographics</span>
+            </div>
+            <div class="control-group-body">
+              <div class="select-control">
+                <label>Estimated Age Range</label>
+                <select id="ageRange" class="custom-select">
+                  <option value="18-25">18–25</option>
+                  <option value="25-35" selected>25–35</option>
+                  <option value="35-45">35–45</option>
+                  <option value="45-55">45–55</option>
+                  <option value="55-65">55–65</option>
+                  <option value="65+">65+</option>
+                </select>
+              </div>
+              <div class="select-control">
+                <label>Sex</label>
+                <select id="sexSelect" class="custom-select">
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+              </div>
+              <div class="slider-control" data-param="weight">
+                <label>Weight Build</label>
+                <div class="slider-row">
+                  <span class="slider-label-left">Thin</span>
+                  <input type="range" min="0" max="100" value="50" class="appearance-slider" />
+                  <span class="slider-label-right">Heavy</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Case Management Panel -->
+      <div class="panel-content" id="panel-case">
+        <div class="panel-scroll">
+          
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-file-alt"></i>
+              <span>Case Information</span>
+            </div>
+            <div class="control-group-body">
+              <div class="input-control">
+                <label>Case Number</label>
+                <input type="text" id="caseNumber" class="text-input" placeholder="e.g., FR-2026-0042" />
+              </div>
+              <div class="input-control">
+                <label>Case Name</label>
+                <input type="text" id="caseName" class="text-input" placeholder="e.g., Doe, John — Unidentified" />
+              </div>
+              <div class="input-control">
+                <label>Investigator</label>
+                <input type="text" id="investigator" class="text-input" placeholder="Lead investigator name" />
+              </div>
+              <div class="input-control">
+                <label>Description</label>
+                <textarea id="caseDescription" class="text-area" rows="3" placeholder="Brief case description..."></textarea>
+              </div>
+              <div class="input-control">
+                <label>Notes</label>
+                <textarea id="caseNotes" class="text-area" rows="4" placeholder="Witness descriptions, distinguishing features..."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-actions">
+            <button class="btn btn-primary" id="btnSaveCase">
+              <i class="fas fa-save"></i> Save Case
+            </button>
+            <button class="btn btn-secondary" id="btnLoadCase">
+              <i class="fas fa-folder-open"></i> Load Case
+            </button>
+            <button class="btn btn-secondary" id="btnNewCase">
+              <i class="fas fa-plus"></i> New Case
+            </button>
+          </div>
+
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-file-export"></i>
+              <span>Export</span>
+            </div>
+            <div class="control-group-body">
+              <div class="export-buttons">
+                <button class="btn btn-outline" id="btnExportOBJ">
+                  <i class="fas fa-cube"></i> Export OBJ
+                </button>
+                <button class="btn btn-outline" id="btnExportFBX">
+                  <i class="fas fa-cube"></i> Export FBX
+                </button>
+                <button class="btn btn-outline" id="btnExportGLB">
+                  <i class="fas fa-cube"></i> Export GLB
+                </button>
+                <button class="btn btn-outline" id="btnExportPNG">
+                  <i class="fas fa-image"></i> Screenshot
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- 3D Viewport -->
+    <div id="viewport">
+      <canvas id="viewport-canvas"></canvas>
+      
+      <!-- Viewport overlays -->
+      <div class="viewport-info" id="viewportInfo">
+        <span id="viewAngle">Front</span>
+        <span id="polyCount">Vertices: 0</span>
+      </div>
+      
+      <div class="viewport-axes" id="viewportAxes">
+        <div class="axis-label axis-x">X</div>
+        <div class="axis-label axis-y">Y</div>
+        <div class="axis-label axis-z">Z</div>
+      </div>
+
+      <!-- Loading overlay -->
+      <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <p class="loading-text" id="loadingText">Processing...</p>
+      </div>
+    </div>
+
+    <!-- Right Panel — Quick Info -->
+    <div id="right-panel" class="panel mini-panel">
+      <div class="mini-panel-header">
+        <i class="fas fa-info-circle"></i> Properties
+      </div>
+      <div class="property-list" id="propertyList">
+        <div class="property-item">
+          <span class="prop-label">Modified params</span>
+          <span class="prop-value" id="modifiedCount">0</span>
+        </div>
+        <div class="property-item">
+          <span class="prop-label">Hair style</span>
+          <span class="prop-value" id="currentHairStyle">Short Cropped</span>
+        </div>
+        <div class="property-item">
+          <span class="prop-label">Skin tone</span>
+          <span class="prop-value" id="currentSkinTone">
+            <span class="mini-swatch" style="background: #d4a574;"></span>
+          </span>
+        </div>
+        <div class="property-item">
+          <span class="prop-label">Eye color</span>
+          <span class="prop-value" id="currentEyeColor">
+            <span class="mini-swatch" style="background: #634e34;"></span>
+          </span>
+        </div>
+      </div>
+      
+      <div class="mini-panel-header" style="margin-top: 12px;">
+        <i class="fas fa-history"></i> History
+      </div>
+      <div class="history-list" id="historyList">
+        <div class="history-item">Session started</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div id="statusbar">
+    <div class="status-left">
+      <span class="status-item">
+        <i class="fas fa-cube"></i>
+        <span id="statusMeshInfo">Ready</span>
+      </span>
+    </div>
+    <div class="status-right">
+      <span class="status-item" id="statusBackend">
+        <span class="status-dot-small"></span> Backend: Connecting...
+      </span>
+      <span class="status-item" id="statusBlender">
+        <i class="fas fa-blender"></i> Blender: Checking...
+      </span>
+      <span class="status-item">
+        <i class="fas fa-database"></i> REface ID v1.0
+      </span>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script>
+    // Resolve Three.js from node_modules using absolute path in Electron
+    const path = typeof require !== 'undefined' ? require('path') : null;
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+  </script>
+  <script src="../../node_modules/three/build/three.min.js"></script>
+  <script src="js/vendor/OrbitControls.js"></script>
+  <script src="js/vendor/OBJLoader.js"></script>
+  <script src="js/vendor/GLBLoader.js"></script>
+  <script src="js/BaseFaceGeometry.js"></script>
+  <script src="js/FaceMorpher.js"></script>
+  <script src="js/OBJMorpher.js"></script>
+  <script src="js/HairSystem.js"></script>
+  <script src="js/SceneManager.js"></script>
+  <script src="js/UIController.js"></script>
+  <script src="js/BackendAPI.js"></script>
+  <script src="js/CaseManager.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>

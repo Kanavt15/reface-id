@@ -1,0 +1,277 @@
+/* ══════════════════════════════════════════════════════════════════════
+   REface ID — Form Controls & Sliders
+   Custom styled inputs for the forensic UI
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ─── Slider Controls ───────────────────────────────────────────────── */
+
+.slider-control {
+  margin-bottom: 8px;
+}
+
+.slider-control:last-child {
+  margin-bottom: 0;
+}
+
+.slider-control label {
+  display: block;
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  font-weight: 400;
+}
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.slider-value {
+  min-width: 24px;
+  text-align: right;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--accent-primary);
+  font-weight: 500;
+}
+
+.slider-label-left,
+.slider-label-right {
+  font-size: 9px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Custom range slider */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  background: var(--bg-primary);
+}
+
+/* Track */
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    var(--accent-primary) 0%,
+    var(--accent-primary) var(--slider-fill, 50%),
+    var(--bg-primary) var(--slider-fill, 50%),
+    var(--bg-primary) 100%
+  );
+}
+
+/* Thumb */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-primary);
+  border: 2px solid var(--accent-primary);
+  margin-top: -5px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: var(--accent-primary);
+  transform: scale(1.2);
+  box-shadow: 0 0 8px rgba(122, 162, 247, 0.4);
+}
+
+input[type="range"]:active::-webkit-slider-thumb {
+  background: var(--accent-primary);
+  box-shadow: 0 0 12px rgba(122, 162, 247, 0.6);
+}
+
+/* Morph slider color variation */
+.morph-slider::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, var(--accent-primary-dim), var(--accent-primary));
+}
+
+.hair-slider::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, var(--accent-warning), var(--accent-primary));
+}
+
+.appearance-slider::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, var(--accent-secondary), var(--accent-primary));
+}
+
+/* ─── Select Controls ───────────────────────────────────────────────── */
+
+.select-control {
+  margin-bottom: 10px;
+}
+
+.select-control label {
+  display: block;
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.custom-select {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  font-size: 11px;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235a5a6a'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+  transition: border-color var(--transition-fast);
+}
+
+.custom-select:hover {
+  border-color: var(--text-muted);
+}
+
+.custom-select:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(122, 162, 247, 0.15);
+}
+
+.custom-select option {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  padding: 4px;
+}
+
+/* ─── Text Inputs ───────────────────────────────────────────────────── */
+
+.input-control {
+  margin-bottom: 10px;
+}
+
+.input-control label {
+  display: block;
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.text-input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  font-size: 11px;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.text-input::placeholder {
+  color: var(--text-muted);
+}
+
+.text-input:hover {
+  border-color: var(--text-muted);
+}
+
+.text-input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(122, 162, 247, 0.15);
+}
+
+.text-area {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  font-size: 11px;
+  outline: none;
+  resize: vertical;
+  min-height: 50px;
+  transition: border-color var(--transition-fast);
+}
+
+.text-area::placeholder {
+  color: var(--text-muted);
+}
+
+.text-area:hover {
+  border-color: var(--text-muted);
+}
+
+.text-area:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(122, 162, 247, 0.15);
+}
+
+/* ─── Checkbox ──────────────────────────────────────────────────────── */
+
+.checkbox-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.checkbox-control input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border-accent);
+  border-radius: 3px;
+  background: var(--bg-primary);
+  cursor: pointer;
+  position: relative;
+  transition: all var(--transition-fast);
+}
+
+.checkbox-control input[type="checkbox"]:hover {
+  border-color: var(--text-muted);
+}
+
+.checkbox-control input[type="checkbox"]:checked {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.checkbox-control input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 11px;
+  color: var(--bg-primary);
+  font-weight: 600;
+}
+
+.checkbox-control label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+/* ─── Slider fill update via JS ─────────────────────────────────────── */
+
+/* We use a CSS gradient trick for the filled portion of the slider track.
+   This is updated dynamically when the slider value changes. */

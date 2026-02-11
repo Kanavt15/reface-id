@@ -1,34 +1,7 @@
-# Dependencies
 node_modules/
-
-# Build outputs
 dist/
-public/bundle.js
-public/bundle.js.map
-public/bundle.js.LICENSE.txt
-
-# Environment files
+backend/exports/
+backend/cases/
+*.pyc
+__pycache__/
 .env
-.env.local
-.env.*.local
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-npm-debug.log*
-
-# Test
-coverage/
-
-# Electron
-release/
-out/
