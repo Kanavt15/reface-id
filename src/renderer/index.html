@@ -122,16 +122,30 @@
       <div class="panel-content active" id="panel-face">
         <div class="panel-scroll">
           
-          <!-- Skull Structure -->
+          <!-- Head / Face Structure -->
           <div class="control-group">
             <div class="control-group-header">
               <i class="fas fa-brain"></i>
-              <span>Skull Structure</span>
+              <span>Head / Face Structure</span>
               <button class="btn-reset-group" data-group="skull" title="Reset">
                 <i class="fas fa-undo-alt"></i>
               </button>
             </div>
             <div class="control-group-body">
+              <div class="slider-control" data-param="faceWidth">
+                <label>Face Width</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="faceLength">
+                <label>Face Length</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
               <div class="slider-control" data-param="headWidth">
                 <label>Head Width</label>
                 <div class="slider-row">
@@ -139,15 +153,15 @@
                   <span class="slider-value">50</span>
                 </div>
               </div>
-              <div class="slider-control" data-param="headHeight">
-                <label>Head Height</label>
+              <div class="slider-control" data-param="headLength">
+                <label>Head Length</label>
                 <div class="slider-row">
                   <input type="range" min="0" max="100" value="50" class="morph-slider" />
                   <span class="slider-value">50</span>
                 </div>
               </div>
-              <div class="slider-control" data-param="headDepth">
-                <label>Head Depth</label>
+              <div class="slider-control" data-param="faceTaper">
+                <label>Face Taper</label>
                 <div class="slider-row">
                   <input type="range" min="0" max="100" value="50" class="morph-slider" />
                   <span class="slider-value">50</span>
@@ -173,13 +187,6 @@
                   <span class="slider-value">50</span>
                 </div>
               </div>
-              <div class="slider-control" data-param="foreheadWidth">
-                <label>Width</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
               <div class="slider-control" data-param="foreheadSlope">
                 <label>Slope</label>
                 <div class="slider-row">
@@ -187,8 +194,70 @@
                   <span class="slider-value">50</span>
                 </div>
               </div>
-              <div class="slider-control" data-param="browRidgeDepth">
-                <label>Brow Ridge</label>
+              <div class="slider-control" data-param="foreheadWidth">
+                <label>Width</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="templeWidth">
+                <label>Temple Width</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="foreheadBulge">
+                <label>Bulge</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Brows -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-minus"></i>
+              <span>Brows</span>
+              <button class="btn-reset-group" data-group="brows" title="Reset">
+                <i class="fas fa-undo-alt"></i>
+              </button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="slider-control" data-param="browHeight">
+                <label>Height</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="browSpacing">
+                <label>Spacing</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="browProminence">
+                <label>Prominence</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="browArch">
+                <label>Arch</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="browThickness">
+                <label>Thickness</label>
                 <div class="slider-row">
                   <input type="range" min="0" max="100" value="50" class="morph-slider" />
                   <span class="slider-value">50</span>
@@ -214,13 +283,6 @@
                   <span class="slider-value">50</span>
                 </div>
               </div>
-              <div class="slider-control" data-param="eyeSize">
-                <label>Size</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
               <div class="slider-control" data-param="eyeHeight">
                 <label>Height Position</label>
                 <div class="slider-row">
@@ -235,8 +297,22 @@
                   <span class="slider-value">50</span>
                 </div>
               </div>
+              <div class="slider-control" data-param="eyeSize">
+                <label>Size</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
               <div class="slider-control" data-param="eyeTilt">
                 <label>Tilt</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyeOpenness">
+                <label>Openness</label>
                 <div class="slider-row">
                   <input type="range" min="0" max="100" value="50" class="morph-slider" />
                   <span class="slider-value">50</span>
@@ -269,22 +345,36 @@
                   <span class="slider-value">50</span>
                 </div>
               </div>
-              <div class="slider-control" data-param="noseBridge">
+              <div class="slider-control" data-param="noseBridgeWidth">
                 <label>Bridge Width</label>
                 <div class="slider-row">
                   <input type="range" min="0" max="100" value="50" class="morph-slider" />
                   <span class="slider-value">50</span>
                 </div>
               </div>
-              <div class="slider-control" data-param="noseProtrusion">
-                <label>Protrusion</label>
+              <div class="slider-control" data-param="noseBridgeHeight">
+                <label>Bridge Height</label>
                 <div class="slider-row">
                   <input type="range" min="0" max="100" value="50" class="morph-slider" />
                   <span class="slider-value">50</span>
                 </div>
               </div>
-              <div class="slider-control" data-param="noseTipShape">
-                <label>Tip Shape</label>
+              <div class="slider-control" data-param="noseTipHeight">
+                <label>Tip Height</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="noseTipWidth">
+                <label>Tip Width</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="nostrilFlare">
+                <label>Nostril Flare</label>
                 <div class="slider-row">
                   <input type="range" min="0" max="100" value="50" class="morph-slider" />
                   <span class="slider-value">50</span>
@@ -303,22 +393,29 @@
               </button>
             </div>
             <div class="control-group-body collapsed">
-              <div class="slider-control" data-param="cheekboneWidth">
-                <label>Cheekbone Width</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="cheekboneHeight">
-                <label>Cheekbone Height</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
               <div class="slider-control" data-param="cheekFullness">
                 <label>Fullness</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="cheekboneProminence">
+                <label>Cheekbone Prominence</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="cheekHeight">
+                <label>Height</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="nasolabialDepth">
+                <label>Nasolabial Depth</label>
                 <div class="slider-row">
                   <input type="range" min="0" max="100" value="50" class="morph-slider" />
                   <span class="slider-value">50</span>
@@ -344,22 +441,57 @@
                   <span class="slider-value">50</span>
                 </div>
               </div>
-              <div class="slider-control" data-param="lipThicknessUpper">
+              <div class="slider-control" data-param="mouthHeight">
+                <label>Height</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="lipProtrusion">
+                <label>Lip Protrusion</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="upperLipThickness">
                 <label>Upper Lip</label>
                 <div class="slider-row">
                   <input type="range" min="0" max="100" value="50" class="morph-slider" />
                   <span class="slider-value">50</span>
                 </div>
               </div>
-              <div class="slider-control" data-param="lipThicknessLower">
+              <div class="slider-control" data-param="lowerLipThickness">
                 <label>Lower Lip</label>
                 <div class="slider-row">
                   <input type="range" min="0" max="100" value="50" class="morph-slider" />
                   <span class="slider-value">50</span>
                 </div>
               </div>
-              <div class="slider-control" data-param="mouthProtrusion">
-                <label>Protrusion</label>
+              <div class="slider-control" data-param="cupidBow">
+                <label>Cupid's Bow</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="philtrumDepth">
+                <label>Philtrum Depth</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="philtrumWidth">
+                <label>Philtrum Width</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="lipCornerAngle">
+                <label>Lip Corner Angle</label>
                 <div class="slider-row">
                   <input type="range" min="0" max="100" value="50" class="morph-slider" />
                   <span class="slider-value">50</span>
@@ -380,13 +512,6 @@
             <div class="control-group-body collapsed">
               <div class="slider-control" data-param="jawWidth">
                 <label>Jaw Width</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="jawAngle">
-                <label>Jaw Angle</label>
                 <div class="slider-row">
                   <input type="range" min="0" max="100" value="50" class="morph-slider" />
                   <span class="slider-value">50</span>
@@ -413,8 +538,8 @@
                   <span class="slider-value">50</span>
                 </div>
               </div>
-              <div class="slider-control" data-param="chinShape">
-                <label>Chin Shape</label>
+              <div class="slider-control" data-param="jawDefinition">
+                <label>Jaw Definition</label>
                 <div class="slider-row">
                   <input type="range" min="0" max="100" value="50" class="morph-slider" />
                   <span class="slider-value">50</span>
@@ -440,35 +565,22 @@
                   <span class="slider-value">50</span>
                 </div>
               </div>
-              <div class="slider-control" data-param="earAngle">
-                <label>Angle</label>
+              <div class="slider-control" data-param="earProtrusion">
+                <label>Protrusion</label>
                 <div class="slider-row">
                   <input type="range" min="0" max="100" value="50" class="morph-slider" />
                   <span class="slider-value">50</span>
                 </div>
               </div>
-            </div>
-          </div>
-
-          <!-- Neck -->
-          <div class="control-group">
-            <div class="control-group-header">
-              <i class="fas fa-ruler-vertical"></i>
-              <span>Neck</span>
-              <button class="btn-reset-group" data-group="neck" title="Reset">
-                <i class="fas fa-undo-alt"></i>
-              </button>
-            </div>
-            <div class="control-group-body collapsed">
-              <div class="slider-control" data-param="neckWidth">
-                <label>Width</label>
+              <div class="slider-control" data-param="earHeight">
+                <label>Height</label>
                 <div class="slider-row">
                   <input type="range" min="0" max="100" value="50" class="morph-slider" />
                   <span class="slider-value">50</span>
                 </div>
               </div>
-              <div class="slider-control" data-param="neckLength">
-                <label>Length</label>
+              <div class="slider-control" data-param="earlobeSize">
+                <label>Earlobe Size</label>
                 <div class="slider-row">
                   <input type="range" min="0" max="100" value="50" class="morph-slider" />
                   <span class="slider-value">50</span>
@@ -556,6 +668,54 @@
                 <div class="slider-row">
                   <input type="range" min="0" max="100" value="0" class="hair-slider" />
                   <span class="slider-value">0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hair Position -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-arrows-alt"></i>
+              <span>Hair Position</span>
+              <button class="btn-reset-group" id="btnResetHairPosition" title="Reset">
+                <i class="fas fa-undo-alt"></i>
+              </button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="slider-control" data-param="hairPosX">
+                <label>Horizontal (L/R)</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="hair-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="hairPosY">
+                <label>Vertical (Up/Down)</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="hair-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="hairPosZ">
+                <label>Depth (Fwd/Back)</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="hair-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="hairRotY">
+                <label>Rotation</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="hair-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="hairScale">
+                <label>Scale</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="hair-slider" />
+                  <span class="slider-value">50</span>
                 </div>
               </div>
             </div>

@@ -9,6 +9,7 @@ import json
 import sys
 import os
 import math
+import mathutils
 
 
 def get_args():
@@ -139,17 +140,47 @@ def setup_studio_lighting():
 
 
 def setup_camera():
-    """Set up camera aimed at the head."""
+    """Set up camera aimed at the head, auto-framed to scene content."""
     cam_data = bpy.data.cameras.new(name="RenderCam")
-    cam_data.lens = 85  # Portrait lens
+    cam_data.lens = 50  # Natural portrait lens
     cam_data.clip_start = 0.01
     cam_data.clip_end = 100
 
     cam_obj = bpy.data.objects.new("RenderCam", cam_data)
     bpy.context.collection.objects.link(cam_obj)
 
-    # Position for a portrait-style shot
-    cam_obj.location = (0, -3.5, 0.2)
+    # Calculate scene bounding box to frame properly
+    min_co = [1e9, 1e9, 1e9]
+    max_co = [-1e9, -1e9, -1e9]
+    found_mesh = False
+    for obj in bpy.data.objects:
+        if obj.type != 'MESH':
+            continue
+        found_mesh = True
+        bbox = [obj.matrix_world @ mathutils.Vector(c) for c in obj.bound_box]
+        for v in bbox:
+            for i in range(3):
+                min_co[i] = min(min_co[i], v[i])
+                max_co[i] = max(max_co[i], v[i])
+
+    if found_mesh:
+        center_x = (min_co[0] + max_co[0]) / 2
+        center_y = (min_co[1] + max_co[1]) / 2
+        center_z = (min_co[2] + max_co[2]) / 2
+        size_x = max_co[0] - min_co[0]
+        size_z = max_co[2] - min_co[2]
+        max_extent = max(size_x, size_z, 1.0)
+
+        # Distance to frame entire head+hair with some padding
+        fov = 2 * math.atan(cam_data.sensor_width / (2 * cam_data.lens))
+        cam_dist = (max_extent * 0.65) / math.tan(fov / 2)
+        cam_dist = max(cam_dist, 2.5)  # minimum distance
+
+        cam_obj.location = (center_x, center_y - cam_dist, center_z + max_extent * 0.05)
+    else:
+        cam_obj.location = (0, -4.5, 0.5)
+
+    # Look at the center of the scene
     cam_obj.rotation_euler = (math.radians(90), 0, 0)
 
     bpy.context.scene.camera = cam_obj
@@ -163,8 +194,8 @@ def configure_render(engine='EEVEE', quality='medium', output_path=''):
     # Quality presets
     quality_settings = {
         'preview': {'res_x': 960, 'res_y': 540, 'samples': 32, 'eevee_samples': 16},
-        'medium':  {'res_x': 1920, 'res_y': 1080, 'samples': 128, 'eevee_samples': 64},
-        'high':    {'res_x': 2560, 'res_y': 1440, 'samples': 512, 'eevee_samples': 128},
+        'medium':  {'res_x': 1920, 'res_y': 1080, 'samples': 64, 'eevee_samples': 32},
+        'high':    {'res_x': 2560, 'res_y': 1440, 'samples': 128, 'eevee_samples': 64},
     }
     q = quality_settings.get(quality, quality_settings['medium'])
 

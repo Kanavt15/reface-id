@@ -27,7 +27,8 @@ class HairSystem {
     // State
     this.currentStyle = 'hair1';
     this.hairColor = '#2c1b0e';
-    this.params = { length: 50, density: 50, volume: 50, curl: 0 };
+    this.params = { length: 50, density: 50, volume: 50, curl: 0,
+                     posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 };
     this.facialHairStyle = 'none';
     this.eyebrowParams = { thickness: 50, arch: 50, spacing: 50 };
 
@@ -233,11 +234,26 @@ class HairSystem {
     const curlF   = this.params.curl / 100;
     const density  = this.params.density;
 
-    container.scale.set(baseScale * volumeF, baseScale * lengthF, baseScale * volumeF);
-    container.position.copy(targetPos);
+    // User position offsets (slider 50 = center, range ±0.8 world units)
+    const posOffsetX = ((this.params.posx - 50) / 50) * 0.8;
+    const posOffsetY = ((this.params.posy - 50) / 50) * 0.8;
+    const posOffsetZ = ((this.params.posz - 50) / 50) * 0.8;
 
-    if (curlF > 0) container.rotation.y = curlF * 0.15;
-    else container.rotation.y = 0;
+    // User rotation (slider 50 = 0, range ±90 degrees)
+    const rotOffsetY = ((this.params.roty - 50) / 50) * (Math.PI / 2);
+
+    // User scale (slider 50 = 1.0, range 0.3 – 2.0)
+    const scaleF = 0.3 + (this.params.scale / 100) * 1.7;
+
+    container.scale.set(baseScale * volumeF * scaleF, baseScale * lengthF * scaleF, baseScale * volumeF * scaleF);
+    container.position.set(
+      targetPos.x + posOffsetX,
+      targetPos.y + posOffsetY,
+      targetPos.z + posOffsetZ
+    );
+
+    // Rotation: curl + user rotation
+    container.rotation.y = (curlF > 0 ? curlF * 0.15 : 0) + rotOffsetY;
 
     // Density → opacity
     const opacity = 0.5 + (density / 100) * 0.5;
@@ -366,6 +382,9 @@ class HairSystem {
       style: this.currentStyle, color: this.hairColor,
       length: this.params.length / 100, density: this.params.density / 100,
       volume: this.params.volume / 100, curl: this.params.curl / 100,
+      posX: this.params.posx / 100, posY: this.params.posy / 100,
+      posZ: this.params.posz / 100, rotY: this.params.roty / 100,
+      hairScale: this.params.scale / 100,
       facialHair: { style: this.facialHairStyle },
       eyebrows: { ...this.eyebrowParams },
     };
@@ -379,6 +398,11 @@ class HairSystem {
     if (state.density !== undefined) this.params.density = Math.round(state.density * 100);
     if (state.volume !== undefined) this.params.volume = Math.round(state.volume * 100);
     if (state.curl !== undefined) this.params.curl = Math.round(state.curl * 100);
+    if (state.posX !== undefined) this.params.posx = Math.round(state.posX * 100);
+    if (state.posY !== undefined) this.params.posy = Math.round(state.posY * 100);
+    if (state.posZ !== undefined) this.params.posz = Math.round(state.posZ * 100);
+    if (state.rotY !== undefined) this.params.roty = Math.round(state.rotY * 100);
+    if (state.hairScale !== undefined) this.params.scale = Math.round(state.hairScale * 100);
     if (state.facialHair) this.facialHairStyle = state.facialHair.style || 'none';
     this.generate();
     this.generateFacialHair();

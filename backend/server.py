@@ -91,7 +91,7 @@ def run_blender_script(script_name, args_dict=None):
             cmd,
             capture_output=True,
             text=True,
-            timeout=120
+            timeout=300
         )
         
         # Clean up args file

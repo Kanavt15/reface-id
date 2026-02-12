@@ -217,6 +217,25 @@ class UIController {
       });
     });
 
+    // Reset hair position button
+    document.getElementById('btnResetHairPosition')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      ['posx', 'posy', 'posz', 'roty', 'scale'].forEach(key => {
+        this.hair.setParam(key, 50);
+      });
+      const posGroup = e.currentTarget.closest('.control-group')?.querySelector('.control-group-body');
+      if (posGroup) {
+        posGroup.querySelectorAll('.hair-slider').forEach(slider => {
+          slider.value = 50;
+          const vd = slider.closest('.slider-control')?.querySelector('.slider-value');
+          if (vd) vd.textContent = '50';
+        });
+      }
+      this.caseManager.updateHairParams(this.hair.getParams());
+      this.caseManager.pushState('Reset hair position');
+      this.addHistory('Reset hair position');
+    });
+
     // Hair color presets
     document.querySelectorAll('#hairColorPresets .color-swatch').forEach(swatch => {
       swatch.addEventListener('click', () => {
