@@ -100,6 +100,17 @@ def run_blender_script(script_name, args_dict=None):
         
         # Parse output for JSON result
         output = result.stdout
+        
+        # Log Blender output for debugging
+        if output.strip():
+            print(f"[Blender stdout] {script_name}:")
+            for line in output.strip().split('\n'):
+                print(f"  {line}")
+        if result.stderr and result.stderr.strip():
+            print(f"[Blender stderr] {script_name}:")
+            for line in result.stderr.strip().split('\n')[-20:]:
+                print(f"  {line}")
+        
         for line in output.split('\n'):
             if line.startswith('RESULT:'):
                 return json.loads(line[7:])
@@ -261,9 +272,28 @@ def load_case():
 RENDERS_DIR = BASE_DIR / 'renders'
 RENDERS_DIR.mkdir(parents=True, exist_ok=True)
 
+
+@app.route('/api/render/upload-mesh', methods=['POST'])
+def upload_morphed_mesh():
+    """Receive the morphed head mesh OBJ from the frontend and save it
+    so the Blender render script can import it instead of the base model."""
+    data = request.json
+    obj_data = data.get('objData', '')
+    if not obj_data:
+        return jsonify({"error": "No OBJ data provided"}), 400
+
+    mesh_file = EXPORTS_DIR / 'morphed_head_for_render.obj'
+    with open(mesh_file, 'w') as f:
+        f.write(obj_data)
+
+    return jsonify({"success": True, "path": str(mesh_file).replace('\\', '/')})
+
+
 @app.route('/api/render', methods=['POST'])
 def render_scene():
-    """Render the current scene with Blender for a realistic output image."""
+    """Render the current scene with Blender for a realistic output image.
+    If a morphed mesh was uploaded via /api/render/upload-mesh, it will be
+    used in place of the base head.glb."""
     data = request.json
     hair_style = data.get('hairStyle', 'hair1')
     hair_color = data.get('hairColor', '#2c1b0e')
@@ -274,6 +304,12 @@ def render_scene():
     render_filename = f"render_{uuid.uuid4().hex[:8]}"
     render_path = str(RENDERS_DIR / render_filename)
 
+    # Check if a morphed mesh exists (uploaded before this render call)
+    morphed_mesh_path = str(EXPORTS_DIR / 'morphed_head_for_render.obj')
+    use_morphed = os.path.exists(morphed_mesh_path)
+
+    hair_transform = data.get('hairTransform', None)
+
     result = run_blender_script('render_scene.py', {
         'hairStyle': hair_style,
         'hairColor': hair_color,
@@ -282,6 +318,8 @@ def render_scene():
         'quality': quality,
         'output_path': render_path,
         'models_dir': str(MODELS_DIR),
+        'morphed_mesh_path': morphed_mesh_path if use_morphed else '',
+        'hairTransform': hair_transform,
     })
 
     if result.get('error'):

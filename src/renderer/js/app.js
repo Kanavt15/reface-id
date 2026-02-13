@@ -27,6 +27,9 @@
   const api = new BackendAPI('http://127.0.0.1:5001');
   const caseManager = new CaseManager(api);
 
+  // Face Point Editor (initialized after model loads)
+  let facePointEditor = null;
+
   // Use OBJMorpher as the default morpher passed to UI
   // (falls back to FaceMorpher only if OBJ load fails)
   let activeMorpher = objMorpher;
@@ -89,6 +92,25 @@
       hairSystem.generate();
       hairSystem.generateFacialHair();
 
+      // ── Initialize Face Point Editor ──
+      facePointEditor = new FacePointEditor(sceneManager, objMorpher);
+
+      // Refresh editor points when morphs change
+      const origOnMorph = objMorpher.onMorphApplied;
+      objMorpher.onMorphApplied = () => {
+        if (origOnMorph) origOnMorph();
+        if (facePointEditor && facePointEditor.enabled) {
+          facePointEditor.refreshPoints();
+        }
+      };
+
+      facePointEditor.onPointEdited = (name) => {
+        if (ui) {
+          ui.addHistory(`Dragged point: ${name}`);
+          ui.updatePropertyPanel();
+        }
+      };
+
     } else {
       // ── OBJ failed — use procedural head ──
       console.warn('OBJ load failed, using procedural head');
@@ -103,10 +125,77 @@
 
     // NOW create and init UI with the correct morpher
     ui = new UIController(sceneManager, activeMorpher, hairSystem, api, caseManager);
+    ui.facePointEditor = facePointEditor;   // expose for render pipeline
     ui.init();
     ui.updatePropertyPanel();
     ui.addHistory(group ? 'Base face model loaded (OBJ)' : 'Using procedural head');
+
+    // ── Bind Face Point Editor UI controls ──
+    _bindPointEditorUI(facePointEditor, ui);
   });
+
+  // ─── Point Editor UI Bindings ──────────────────────────────────────────
+
+  function _bindPointEditorUI(editor, uiCtrl) {
+    const btnToolbar = document.getElementById('btnEditPoints');
+    const btnToggle = document.getElementById('btnTogglePointEdit');
+    const radiusSlider = document.getElementById('pointEditRadius');
+    const radiusValue = document.getElementById('pointEditRadiusValue');
+    const sizeSlider = document.getElementById('pointEditSize');
+    const sizeValue = document.getElementById('pointEditSizeValue');
+    const falloffSlider = document.getElementById('pointEditFalloff');
+    const falloffValue = document.getElementById('pointEditFalloffValue');
+    const btnReset = document.getElementById('btnResetPointEdits');
+    const btnUndo = document.getElementById('btnUndoPointEdit');
+
+    function toggleEditor() {
+      if (!editor) return;
+      const active = editor.toggle();
+      btnToolbar?.classList.toggle('active', active);
+      if (btnToggle) {
+        btnToggle.classList.toggle('active', active);
+        btnToggle.innerHTML = active
+          ? '<i class="fas fa-times"></i> Disable Point Editing'
+          : '<i class="fas fa-hand-pointer"></i> Enable Point Editing';
+      }
+      if (uiCtrl) {
+        uiCtrl.addHistory(active ? 'Point editing enabled' : 'Point editing disabled');
+      }
+    }
+
+    btnToolbar?.addEventListener('click', toggleEditor);
+    btnToggle?.addEventListener('click', toggleEditor);
+
+    radiusSlider?.addEventListener('input', (e) => {
+      const v = parseInt(e.target.value) / 100;
+      if (editor) editor.setInfluenceRadius(v);
+      if (radiusValue) radiusValue.textContent = v.toFixed(2);
+    });
+
+    sizeSlider?.addEventListener('input', (e) => {
+      const v = parseInt(e.target.value) / 1000;
+      if (editor) editor.setPointSize(v);
+      if (sizeValue) sizeValue.textContent = v.toFixed(3);
+    });
+
+    falloffSlider?.addEventListener('input', (e) => {
+      const v = parseInt(e.target.value) / 10;
+      if (editor) editor.falloffStrength = v;
+      if (falloffValue) falloffValue.textContent = v.toFixed(1);
+    });
+
+    btnReset?.addEventListener('click', () => {
+      if (!editor) return;
+      editor.resetAllEdits();
+      if (uiCtrl) uiCtrl.addHistory('Reset all manual point edits');
+    });
+
+    btnUndo?.addEventListener('click', () => {
+      if (!editor) return;
+      editor._popUndo();
+      if (uiCtrl) uiCtrl.addHistory('Undo manual point edit');
+    });
+  }
 
   // ─── Menu Events (from Electron) ───────────────────────────────────────
 

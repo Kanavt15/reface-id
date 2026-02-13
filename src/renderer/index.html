@@ -80,6 +80,12 @@
     </div>
     <div class="toolbar-separator"></div>
     <div class="toolbar-group">
+      <button class="tool-btn" id="btnEditPoints" title="Edit Facial Points (drag to deform)">
+        <i class="fas fa-hand-pointer"></i>
+      </button>
+    </div>
+    <div class="toolbar-separator"></div>
+    <div class="toolbar-group">
       <button class="tool-btn" id="btnUndo" title="Undo (Ctrl+Z)">
         <i class="fas fa-undo"></i>
       </button>
@@ -589,6 +595,51 @@
             </div>
           </div>
 
+          <!-- Manual Point Editing -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-hand-pointer"></i>
+              <span>Manual Point Editing</span>
+            </div>
+            <div class="control-group-body collapsed">
+              <p class="edit-points-desc">Click and drag facial landmarks to manually stretch and reshape the face. Use +/- keys to adjust influence radius.</p>
+              <div class="edit-points-controls">
+                <button class="btn btn-accent" id="btnTogglePointEdit">
+                  <i class="fas fa-hand-pointer"></i> Enable Point Editing
+                </button>
+              </div>
+              <div class="slider-control" id="pointEditRadiusControl" style="margin-top: 8px;">
+                <label>Influence Radius</label>
+                <div class="slider-row">
+                  <input type="range" min="2" max="50" value="12" id="pointEditRadius" class="morph-slider" />
+                  <span class="slider-value" id="pointEditRadiusValue">0.12</span>
+                </div>
+              </div>
+              <div class="slider-control" id="pointEditSizeControl">
+                <label>Point Size</label>
+                <div class="slider-row">
+                  <input type="range" min="5" max="40" value="18" id="pointEditSize" class="morph-slider" />
+                  <span class="slider-value" id="pointEditSizeValue">0.018</span>
+                </div>
+              </div>
+              <div class="slider-control" id="pointEditFalloffControl">
+                <label>Falloff Strength</label>
+                <div class="slider-row">
+                  <input type="range" min="5" max="50" value="20" id="pointEditFalloff" class="morph-slider" />
+                  <span class="slider-value" id="pointEditFalloffValue">2.0</span>
+                </div>
+              </div>
+              <div class="edit-points-controls" style="margin-top: 8px; gap: 6px;">
+                <button class="btn btn-secondary btn-sm" id="btnResetPointEdits">
+                  <i class="fas fa-undo"></i> Reset Manual Edits
+                </button>
+                <button class="btn btn-secondary btn-sm" id="btnUndoPointEdit">
+                  <i class="fas fa-undo-alt"></i> Undo Last
+                </button>
+              </div>
+            </div>
+          </div>
+
           <!-- Reset All -->
           <div class="panel-actions">
             <button class="btn btn-secondary" id="btnResetAllMorphs">
@@ -806,7 +857,8 @@
             </div>
           </div>
 
-          <div class="panel-actions" style="flex-direction: column; gap: 8px;">
+          <!-- TODO: Re-enable render feature when hair transform pipeline is fixed -->
+          <div class="panel-actions" style="flex-direction: column; gap: 8px; display: none;" id="renderSection">
             <div style="display: flex; gap: 8px; width: 100%;">
               <div style="flex: 1;">
                 <label style="font-size: 11px; color: var(--text-muted); margin-bottom: 2px; display: block;">Engine</label>
@@ -1153,6 +1205,7 @@
   <script src="js/OBJMorpher.js"></script>
   <script src="js/HairSystem.js"></script>
   <script src="js/SceneManager.js"></script>
+  <script src="js/FacePointEditor.js"></script>
   <script src="js/UIController.js"></script>
   <script src="js/BackendAPI.js"></script>
   <script src="js/CaseManager.js"></script>

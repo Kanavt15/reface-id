@@ -134,7 +134,7 @@ ipcMain.handle('window:maximize', () => {
 ipcMain.handle('window:close', () => mainWindow.close());
 
 // App lifecycle
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   startBackend();
   createWindow();
 });

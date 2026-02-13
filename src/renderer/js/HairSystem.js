@@ -390,6 +390,54 @@ class HairSystem {
     };
   }
 
+  /**
+   * Return the final world-space transform so Blender can replicate it.
+   * Computes the combined matrix of container * offsetGroup and decomposes
+   * it into position, quaternion, scale so Blender can apply it directly.
+   * Falls back to raw slider parameters if the container isn't ready.
+   */
+  getRenderTransform() {
+    // Always include the raw params so Blender can recompute if needed
+    const raw = {
+      length: this.params.length,
+      density: this.params.density,
+      volume: this.params.volume,
+      curl: this.params.curl,
+      posx: this.params.posx,
+      posy: this.params.posy,
+      posz: this.params.posz,
+      roty: this.params.roty,
+      scale: this.params.scale,
+      headWidth: this.headWidth,
+      headTop: this.headTop,
+      modelCenterX: this.modelCenter.x,
+      modelCenterY: this.modelCenter.y,
+      modelCenterZ: this.modelCenter.z,
+      modelHeight: this.modelHeight,
+      opacity: 0.5 + (this.params.density / 100) * 0.5,
+    };
+
+    if (!this._hairContainer || !this._headGroup || this.currentStyle === 'bald') {
+      // Return raw params so Blender can compute alignment itself
+      return { rawParams: raw, matrix: null };
+    }
+
+    const c = this._hairContainer;
+    const o = c.children[0]; // offsetGroup
+
+    // Compute the combined world matrix of container → offset
+    c.updateWorldMatrix(true, false);
+    o.updateWorldMatrix(true, false);
+    const combinedMatrix = o.matrixWorld;
+
+    return {
+      // Raw matrix elements (column-major, as Three.js stores them)
+      matrix: Array.from(combinedMatrix.elements),
+      rawParams: raw,
+      opacity: raw.opacity,
+    };
+  }
+
   loadState(state) {
     if (!state) return;
     if (state.style) this.currentStyle = state.style;

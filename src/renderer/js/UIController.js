@@ -265,8 +265,29 @@ class UIController {
       this.addHistory(`Facial hair: ${e.target.value}`);
     });
 
-    // Render with Blender
+    // ── Render with Blender (disabled — re-enable when hair transform pipeline is fixed) ──
+    // To re-enable: uncomment the block below and unhide #renderSection in index.html
+    /*
     document.getElementById('btnRenderBlender')?.addEventListener('click', async () => {
+      this.showLoading('Preparing morphed mesh for render...');
+
+      // ── Upload current morphed mesh to backend so Blender uses it ──
+      try {
+        if (this.facePointEditor) {
+          const objData = this.facePointEditor.exportCurrentMeshAsOBJ();
+          if (objData) {
+            const uploadResult = await this.api.uploadMorphedMesh(objData);
+            if (uploadResult?.error) {
+              console.warn('Mesh upload failed, Blender will use base model:', uploadResult.error);
+            } else {
+              console.log('Morphed mesh uploaded for render');
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Mesh export/upload error, Blender will use base model:', err);
+      }
+
       this.showLoading('Rendering with Blender (this may take a minute)...');
 
       // Gather render settings from UI
@@ -278,12 +299,17 @@ class UIController {
       const skinColor = document.getElementById('skinColorPicker')?.value || '#d4a574';
       const hairColor = document.getElementById('hairColorPicker')?.value || '#2c1b0e';
 
+      // Get the precise hair transform from the frontend scene
+      const hairTransform = this.hair.getRenderTransform();
+      console.log('Hair transform for render:', JSON.stringify(hairTransform));
+
       const result = await this.api.renderScene({
         hairStyle: hairParams.style || 'hair1',
         hairColor: hairColor,
         skinColor: skinColor,
         engine: engine,
         quality: quality,
+        hairTransform: hairTransform,
       });
 
       this.hideLoading();
@@ -307,6 +333,7 @@ class UIController {
         this.addHistory('Blender render returned no image');
       }
     });
+    */
   }
 
   // ─── Appearance Controls ─────────────────────────────────────────────────

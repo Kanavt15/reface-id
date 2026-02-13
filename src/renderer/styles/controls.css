@@ -275,3 +275,66 @@ input[type="range"]:active::-webkit-slider-thumb {
 
 /* We use a CSS gradient trick for the filled portion of the slider track.
    This is updated dynamically when the slider value changes. */
+
+/* ─── Face Point Editor Controls ────────────────────────────────────── */
+
+.edit-points-desc {
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 10px;
+  padding: 6px 8px;
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius-sm);
+  border-left: 2px solid var(--accent-primary);
+}
+
+.edit-points-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.edit-points-controls .btn {
+  flex: 1;
+  min-width: 100px;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 10px;
+}
+
+.btn-accent {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  border: 1px solid var(--accent-primary);
+  font-weight: 600;
+  transition: var(--transition-fast);
+}
+
+.btn-accent:hover {
+  background: var(--accent-primary-dim);
+  border-color: var(--accent-primary-dim);
+}
+
+.btn-accent.active {
+  background: var(--accent-danger);
+  border-color: var(--accent-danger);
+}
+
+#btnEditPoints.active {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  border-color: var(--accent-primary);
+}
+
+#btnTogglePointEdit.active {
+  background: var(--accent-danger);
+  border-color: var(--accent-danger);
+}
+
+#btnTogglePointEdit.active i::before {
+  content: '\f00d';  /* fa-times */
+}
+

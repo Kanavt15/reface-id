@@ -1,0 +1,50 @@
+=== Blender Render Debug Log ===
+Args: hairStyle=hair1, models_dir=E:\Kanav\Projects\REface id\assets\models
+morphed_mesh_path=E:\Kanav\Projects\REface id\backend\exports\morphed_head_for_render.obj
+hairTransform=None
+Hair style requested: 'hair1'
+Hair transform from frontend: None
+Hair path: E:\Kanav\Projects\REface id\assets\models\Hair1.glb, exists: True
+Hair import returned 31 objects: ['Eyebrow3(EMPTY)', 'RootNode(EMPTY)', 'hair06(EMPTY)', 'Eyebrow1(EMPTY)', 'Eyebrow6(EMPTY)', 'Eyebrow9(EMPTY)', 'hair10cap(EMPTY)', 'hair11(EMPTY)', 'Sketchfab_model(EMPTY)', 'Eyebrow11(EMPTY)', 'Eyebrow7(EMPTY)', 'hair02(EMPTY)', 'hair07(EMPTY)', 'hair12(EMPTY)', 'Eyebrow12(EMPTY)', 'Eyebrow5(EMPTY)', 'hair01(EMPTY)', 'hair08(EMPTY)', 'hair12cap(EMPTY)', 'hair03(EMPTY)', 'hair09(EMPTY)', 'hair4(EMPTY)', 'Eyebrow2(EMPTY)', 'hair09_hair09_0(MESH)', 'hair9cap(EMPTY)', 'Eyebrow4(EMPTY)', 'hair05(EMPTY)', '89aa60f377fa4c6db97f009dccaef75e.fbx(EMPTY)', 'Eyebrow10(EMPTY)', 'Eyebrow8(EMPTY)', 'hair10(EMPTY)']
+  GLB empty: Eyebrow3
+  GLB empty: RootNode
+  GLB empty: hair06
+  GLB empty: Eyebrow1
+  GLB empty: Eyebrow6
+  GLB empty: Eyebrow9
+  GLB empty: hair10cap
+  GLB empty: hair11
+  GLB empty: Sketchfab_model
+  GLB empty: Eyebrow11
+  GLB empty: Eyebrow7
+  GLB empty: hair02
+  GLB empty: hair07
+  GLB empty: hair12
+  GLB empty: Eyebrow12
+  GLB empty: Eyebrow5
+  GLB empty: hair01
+  GLB empty: hair08
+  GLB empty: hair12cap
+  GLB empty: hair03
+  GLB empty: hair09
+  GLB empty: hair4
+  GLB empty: Eyebrow2
+  Kept hair mesh: hair09_hair09_0, parent=hair09, loc=(-14.7001, -5.068, -40.8868)
+  GLB empty: hair9cap
+  GLB empty: Eyebrow4
+  GLB empty: hair05
+  GLB empty: 89aa60f377fa4c6db97f009dccaef75e.fbx
+  GLB empty: Eyebrow10
+  GLB empty: Eyebrow8
+  GLB empty: hair10
+  Clearing parent of hair09_hair09_0 (was hair09)
+  WARNING: No hair transform from frontend — hair at default position
+Hair import complete: kept 1 mesh(es)
+=== Scene objects before render ===
+  FillLight (type=LIGHT, loc=(-2.5, -1.5, 2.0), world=(0.0, 0.0, 0.0), hide_render=False, parent=None)
+  hair09_hair09_0 (type=MESH, loc=(-0.147, -0.051, -0.409), world=(-0.147, -0.051, -0.409), hide_render=False, parent=None)
+  KeyLight (type=LIGHT, loc=(2.5, -2.5, 3.0), world=(0.0, 0.0, 0.0), hide_render=False, parent=None)
+  mesh_0 (type=MESH, loc=(0.0, 0.0, 0.0), world=(0.0, 0.0, 0.0), hide_render=False, parent=None)
+  RenderCam (type=CAMERA, loc=(-0.237, -8.856, -0.113), world=(0.0, 0.0, 0.0), hide_render=False, parent=None)
+  RimLight (type=LIGHT, loc=(0.0, 3.0, 2.5), world=(0.0, 0.0, 0.0), hide_render=False, parent=None)
+=== End scene objects ===

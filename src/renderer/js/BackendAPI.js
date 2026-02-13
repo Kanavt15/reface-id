@@ -98,6 +98,13 @@ class BackendAPI {
   }
 
   /**
+   * Upload morphed mesh OBJ data so Blender render uses it
+   */
+  async uploadMorphedMesh(objData) {
+    return this._post('/api/render/upload-mesh', { objData });
+  }
+
+  /**
    * Generic POST request
    */
   async _post(endpoint, data) {
