@@ -28,6 +28,7 @@ class CaseManager {
         ageRange: '25-35',
         sex: 'male',
       },
+      skinMarks: [],
       cameraState: null,
       createdAt: new Date().toISOString(),
       modifiedAt: new Date().toISOString(),
@@ -108,6 +109,14 @@ class CaseManager {
    */
   updateAppearance(key, value) {
     this.currentCase.appearance[key] = value;
+    this.currentCase.modifiedAt = new Date().toISOString();
+  }
+
+  /**
+   * Update skin marks data
+   */
+  updateSkinMarks(marksArray) {
+    this.currentCase.skinMarks = marksArray ? [...marksArray] : [];
     this.currentCase.modifiedAt = new Date().toISOString();
   }
 

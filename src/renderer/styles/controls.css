@@ -338,3 +338,22 @@ input[type="range"]:active::-webkit-slider-thumb {
   content: '\f00d';  /* fa-times */
 }
 
+/* ─── Skin Mark Controls ───────────────────────────────────────────── */
+
+#btnToggleSkinMarks.active {
+  background: var(--accent-danger);
+  border-color: var(--accent-danger);
+}
+
+#btnSkinMarks.active {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  border-color: var(--accent-primary);
+}
+
+#skinMarkProperties {
+  border-top: 1px solid var(--border-accent);
+  padding-top: 4px;
+  margin-top: 4px;
+}
+

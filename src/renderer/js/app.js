@@ -29,6 +29,7 @@
 
   // Face Point Editor (initialized after model loads)
   let facePointEditor = null;
+  let skinMarkSystem = null;
 
   // Use OBJMorpher as the default morpher passed to UI
   // (falls back to FaceMorpher only if OBJ load fails)
@@ -95,13 +96,17 @@
       // ── Initialize Face Point Editor ──
       facePointEditor = new FacePointEditor(sceneManager, objMorpher);
 
-      // Refresh editor points when morphs change
+      // ── Initialize Skin Mark System ──
+      skinMarkSystem = new SkinMarkSystem(sceneManager, objMorpher);
+
+      // Refresh editor points and skin marks when morphs change
       const origOnMorph = objMorpher.onMorphApplied;
       objMorpher.onMorphApplied = () => {
         if (origOnMorph) origOnMorph();
         if (facePointEditor && facePointEditor.enabled) {
           facePointEditor.refreshPoints();
         }
+        skinMarkSystem.refreshMarksAfterMorph();
       };
 
       facePointEditor.onPointEdited = (name) => {
@@ -126,6 +131,7 @@
     // NOW create and init UI with the correct morpher
     ui = new UIController(sceneManager, activeMorpher, hairSystem, api, caseManager);
     ui.facePointEditor = facePointEditor;   // expose for render pipeline
+    ui.skinMarkSystem = skinMarkSystem;     // expose for skin marks UI
     ui.init();
     ui.updatePropertyPanel();
     ui.addHistory(group ? 'Base face model loaded (OBJ)' : 'Using procedural head');
@@ -150,6 +156,16 @@
 
     function toggleEditor() {
       if (!editor) return;
+      // Disable skin marks if active (mutual exclusion)
+      if (skinMarkSystem && skinMarkSystem.enabled) {
+        skinMarkSystem.disable();
+        document.getElementById('btnSkinMarks')?.classList.remove('active');
+        const btnSM = document.getElementById('btnToggleSkinMarks');
+        if (btnSM) {
+          btnSM.classList.remove('active');
+          btnSM.innerHTML = '<i class="fas fa-crosshairs"></i> Enable Mark Placement';
+        }
+      }
       const active = editor.toggle();
       btnToolbar?.classList.toggle('active', active);
       if (btnToggle) {

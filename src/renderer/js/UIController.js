@@ -11,6 +11,7 @@ class UIController {
     this.hair = hairSystem;
     this.api = backendAPI;
     this.caseManager = caseManager;
+    this.skinMarkSystem = null;
     this.historyLog = [];
   }
 
@@ -21,6 +22,7 @@ class UIController {
     this.bindMorphSliders();
     this.bindHairControls();
     this.bindAppearanceControls();
+    this.bindSkinMarkControls();
     this.bindCaseControls();
     this.bindGroupCollapse();
     this.bindKeyboardShortcuts();
@@ -383,6 +385,130 @@ class UIController {
     });
   }
 
+  // ─── Skin Mark Controls ──────────────────────────────────────────────────
+
+  bindSkinMarkControls() {
+    const skinMarks = this.skinMarkSystem;
+    if (!skinMarks) return;
+
+    const btnToggle = document.getElementById('btnToggleSkinMarks');
+    const btnToolbar = document.getElementById('btnSkinMarks');
+
+    const toggleSkinMarks = () => {
+      // Disable point editor if active (mutual exclusion)
+      if (this.facePointEditor && this.facePointEditor.enabled) {
+        this.facePointEditor.disable();
+        document.getElementById('btnEditPoints')?.classList.remove('active');
+        const btnPE = document.getElementById('btnTogglePointEdit');
+        if (btnPE) {
+          btnPE.classList.remove('active');
+          btnPE.innerHTML = '<i class="fas fa-hand-pointer"></i> Enable Point Editing';
+        }
+      }
+
+      const active = skinMarks.toggle();
+      btnToggle?.classList.toggle('active', active);
+      btnToolbar?.classList.toggle('active', active);
+      if (btnToggle) {
+        btnToggle.innerHTML = active
+          ? '<i class="fas fa-times"></i> Disable Mark Placement'
+          : '<i class="fas fa-crosshairs"></i> Enable Mark Placement';
+      }
+      this.addHistory(active ? 'Skin mark placement enabled' : 'Skin mark placement disabled');
+    };
+
+    btnToggle?.addEventListener('click', toggleSkinMarks);
+    btnToolbar?.addEventListener('click', toggleSkinMarks);
+
+    // Mark type selector
+    document.getElementById('skinMarkType')?.addEventListener('change', (e) => {
+      skinMarks.activeMarkType = e.target.value;
+      const typeDef = SkinMarkSystem.MARK_TYPES[e.target.value];
+      if (typeDef) {
+        document.getElementById('skinMarkColor').value = typeDef.defaultColor;
+      }
+    });
+
+    // Size slider
+    document.getElementById('skinMarkSize')?.addEventListener('input', (e) => {
+      const sizeNorm = parseInt(e.target.value) / 100;
+      const actualSize = 0.005 + sizeNorm * 0.095;
+      skinMarks.updateSelectedMark('size', actualSize);
+      document.getElementById('skinMarkSizeValue').textContent = actualSize.toFixed(3);
+    });
+    document.getElementById('skinMarkSize')?.addEventListener('mouseup', () => {
+      this.caseManager.pushState('Modified skin mark size');
+    });
+
+    // Rotation slider
+    document.getElementById('skinMarkRotation')?.addEventListener('input', (e) => {
+      const degrees = parseInt(e.target.value);
+      const radians = (degrees * Math.PI) / 180;
+      skinMarks.updateSelectedMark('rotation', radians);
+      document.getElementById('skinMarkRotationValue').textContent = degrees + '\u00B0';
+    });
+    document.getElementById('skinMarkRotation')?.addEventListener('mouseup', () => {
+      this.caseManager.pushState('Modified skin mark rotation');
+    });
+
+    // Color picker
+    document.getElementById('skinMarkColor')?.addEventListener('input', (e) => {
+      skinMarks.updateSelectedMark('color', e.target.value);
+    });
+    document.getElementById('skinMarkColor')?.addEventListener('change', () => {
+      this.caseManager.pushState('Modified skin mark color');
+    });
+
+    // Delete button
+    document.getElementById('btnDeleteMark')?.addEventListener('click', () => {
+      skinMarks.deleteSelectedMark();
+      this.caseManager.pushState('Deleted skin mark');
+      this.addHistory('Deleted skin mark');
+    });
+
+    // Clear all marks
+    document.getElementById('btnClearAllMarks')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      skinMarks.clearAll();
+      this.caseManager.pushState('Cleared all skin marks');
+      this.addHistory('Cleared all skin marks');
+    });
+
+    // Callback: update UI when marks change
+    skinMarks.onMarkChanged = () => {
+      const count = skinMarks.getMarkCount();
+      const countEl = document.getElementById('skinMarkCount');
+      if (countEl) countEl.textContent = count;
+      const propEl = document.getElementById('currentSkinMarkCount');
+      if (propEl) propEl.textContent = count;
+
+      // Show/hide selected-mark properties
+      const propsPanel = document.getElementById('skinMarkProperties');
+      if (propsPanel) {
+        propsPanel.style.display = skinMarks.selectedMarkIndex >= 0 ? 'block' : 'none';
+      }
+
+      // Update property controls to reflect selected mark
+      if (skinMarks.selectedMarkIndex >= 0) {
+        const mark = skinMarks.marks[skinMarks.selectedMarkIndex];
+        const sizeSlider = document.getElementById('skinMarkSize');
+        const sizeValue = document.getElementById('skinMarkSizeValue');
+        const rotSlider = document.getElementById('skinMarkRotation');
+        const rotValue = document.getElementById('skinMarkRotationValue');
+        const colorPicker = document.getElementById('skinMarkColor');
+
+        if (sizeSlider) sizeSlider.value = Math.round(((mark.size - 0.005) / 0.095) * 100);
+        if (sizeValue) sizeValue.textContent = mark.size.toFixed(3);
+        if (rotSlider) rotSlider.value = Math.round((mark.rotation * 180) / Math.PI);
+        if (rotValue) rotValue.textContent = Math.round((mark.rotation * 180) / Math.PI) + '\u00B0';
+        if (colorPicker) colorPicker.value = mark.color;
+      }
+
+      this.caseManager.updateSkinMarks(skinMarks.exportState());
+      this.updatePropertyPanel();
+    };
+  }
+
   // ─── Case Controls ───────────────────────────────────────────────────────
 
   bindCaseControls() {
@@ -532,6 +658,9 @@ class UIController {
     this.caseManager.updateCaseInfo('notes', document.getElementById('caseNotes')?.value || '');
     this.caseManager.updateMorphTargets(this.morpher.exportState());
     this.caseManager.updateHairParams(this.hair.getParams());
+    if (this.skinMarkSystem) {
+      this.caseManager.updateSkinMarks(this.skinMarkSystem.exportState());
+    }
     this.caseManager.currentCase.cameraState = this.scene.getCameraState();
   }
 
@@ -562,6 +691,11 @@ class UIController {
     const eyeColor = this.caseManager.currentCase.appearance.eyeColor;
     if (eyeColorEl) {
       eyeColorEl.innerHTML = `<span class="mini-swatch" style="background: ${eyeColor};"></span>`;
+    }
+
+    const markCountEl = document.getElementById('currentSkinMarkCount');
+    if (markCountEl && this.skinMarkSystem) {
+      markCountEl.textContent = this.skinMarkSystem.getMarkCount();
     }
 
     // Vertex count
@@ -650,6 +784,7 @@ class UIController {
     this.hair.setStyle('hair1');
     this.hair.setColor('#2c1b0e');
     this.scene.setSkinColor('#d4a574');
+    if (this.skinMarkSystem) this.skinMarkSystem.clearAll();
 
     // Reset UI
     document.querySelectorAll('.morph-slider').forEach(s => {
@@ -685,6 +820,10 @@ class UIController {
       // Restore appearance
       if (data.appearance?.skinColor) {
         this.scene.setSkinColor(data.appearance.skinColor);
+      }
+      // Restore skin marks
+      if (data.skinMarks && this.skinMarkSystem) {
+        this.skinMarkSystem.loadState(data.skinMarks);
       }
       // Restore camera
       if (data.cameraState) {
@@ -733,6 +872,9 @@ class UIController {
         }
       });
       this.morpher.applyAllMorphs();
+    }
+    if (state.skinMarks && this.skinMarkSystem) {
+      this.skinMarkSystem.loadState(state.skinMarks);
     }
     this.updatePropertyPanel();
   }
