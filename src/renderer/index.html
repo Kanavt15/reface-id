@@ -834,26 +834,103 @@
             <div class="control-group-header">
               <i class="fas fa-minus"></i>
               <span>Eyebrows</span>
+              <button class="btn-reset-group" id="btnResetEyebrows" title="Reset Eyebrows">
+                <i class="fas fa-undo-alt"></i>
+              </button>
             </div>
             <div class="control-group-body collapsed">
+              <!-- Eyebrow Color -->
+              <div class="color-picker-row">
+                <label>Eyebrow Color</label>
+                <div class="color-presets" id="eyebrowColorPresets">
+                  <button class="color-swatch active" data-color="#0a0a0a" style="background: #0a0a0a" title="Black"></button>
+                  <button class="color-swatch" data-color="#2c1b0e" style="background: #2c1b0e" title="Dark Brown"></button>
+                  <button class="color-swatch" data-color="#6b3a2a" style="background: #6b3a2a" title="Brown"></button>
+                  <button class="color-swatch" data-color="#b5651d" style="background: #b5651d" title="Light Brown"></button>
+                  <button class="color-swatch" data-color="#d4a23f" style="background: #d4a23f" title="Blonde"></button>
+                  <button class="color-swatch" data-color="#8b2500" style="background: #8b2500" title="Red"></button>
+                  <button class="color-swatch" data-color="#c4c4c4" style="background: #c4c4c4" title="Grey"></button>
+                </div>
+                <input type="color" id="eyebrowColorPicker" value="#2c1b0e" class="color-input" />
+              </div>
+
+              <!-- Shape controls -->
               <div class="slider-control" data-param="eyebrowThickness">
                 <label>Thickness</label>
                 <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="hair-slider" />
+                  <input type="range" min="0" max="100" value="50" class="eyebrow-slider" />
                   <span class="slider-value">50</span>
                 </div>
               </div>
               <div class="slider-control" data-param="eyebrowArch">
                 <label>Arch</label>
                 <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="hair-slider" />
+                  <input type="range" min="0" max="100" value="50" class="eyebrow-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyebrowStraighten">
+                <label>Straighten</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="eyebrow-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyebrowTiltX">
+                <label>Tilt (Fwd/Back)</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="eyebrow-slider" />
                   <span class="slider-value">50</span>
                 </div>
               </div>
               <div class="slider-control" data-param="eyebrowSpacing">
                 <label>Spacing</label>
                 <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="hair-slider" />
+                  <input type="range" min="0" max="100" value="50" class="eyebrow-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyebrowDensity">
+                <label>Density</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="70" class="eyebrow-slider" />
+                  <span class="slider-value">70</span>
+                </div>
+              </div>
+
+              <!-- Position controls -->
+              <div class="slider-control" data-param="eyebrowPosX">
+                <label>Position X (L/R)</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="eyebrow-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyebrowPosY">
+                <label>Position Y (Up/Down)</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="eyebrow-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyebrowPosZ">
+                <label>Position Z (Fwd/Back)</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="eyebrow-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyebrowRotation">
+                <label>Rotation / Tilt</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="eyebrow-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyebrowScale">
+                <label>Overall Scale</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="eyebrow-slider" />
                   <span class="slider-value">50</span>
                 </div>
               </div>

@@ -2,6 +2,7 @@
  * HairSystem.js – GLB model-based hair for forensic facial reconstruction.
  *
  * Loads 4 real hair GLB models (Hair1-4.glb) and aligns them to the head.
+ * Loads eyebrow GLB model and aligns to brow region.
  * Adjustment sliders (length, density, volume, curl) control transforms.
  * Facial hair remains procedural (region-based from trimesh data).
  * Auto-refreshes when head morphs change.
@@ -30,7 +31,11 @@ class HairSystem {
     this.params = { length: 50, density: 50, volume: 50, curl: 0,
                      posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 };
     this.facialHairStyle = 'none';
-    this.eyebrowParams = { thickness: 50, arch: 50, spacing: 50 };
+    this.eyebrowParams = { thickness: 50, arch: 50, spacing: 50,
+                           density: 70, posX: 50, posY: 50, posZ: 50,
+                           rotation: 50, scale: 50,
+                           straighten: 50, tiltX: 50 };
+    this.eyebrowColor = '#2c1b0e';
 
     // Head metrics (updated on morph)
     this.modelCenter = new THREE.Vector3();
@@ -46,6 +51,21 @@ class HairSystem {
     this._hairContainer = null;
     this._alignmentScale = 1;
 
+    // Eyebrow model
+    this._eyebrowContainer = null;
+    this._eyebrowGroup = new THREE.Group();
+    this._eyebrowGroup.name = 'EyebrowSystem';
+    this.scene.add(this._eyebrowGroup);
+
+    this._eyebrowMat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(this.eyebrowColor),
+      roughness: 0.50,
+      metalness: 0.08,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.85,
+    });
+
     // Facial hair vertex data
     this.scalpVerts = [];
     this.chinVerts = [];
@@ -58,6 +78,9 @@ class HairSystem {
       hair4: { file: '../../assets/models/Hair4.glb', meshName: 'hair11_hair11_0' },
       bald:  { file: null },
     };
+
+    // Eyebrow model config
+    this.eyebrowModel = { file: '../../assets/models/eyebrows.glb', meshName: null };
 
     // Hair material
     this._hairMat = new THREE.MeshStandardMaterial({
@@ -87,6 +110,9 @@ class HairSystem {
       this._alignAndAdjust();
     }
     this.generateFacialHair();
+    if (this._eyebrowContainer) {
+      this._alignAndAdjustEyebrows();
+    }
   }
 
   _computeHeadMetrics() {
@@ -269,6 +295,165 @@ class HairSystem {
     this._alignAndAdjust();
   }
 
+  // ── Eyebrows (GLB model) ──
+
+  setEyebrowColor(color) {
+    this.eyebrowColor = color;
+    this._eyebrowMat.color.set(color);
+    this._eyebrowGroup.traverse(child => {
+      if (child.isMesh && child.material) child.material.color.set(color);
+    });
+  }
+
+  setEyebrowParam(param, value) {
+    this.eyebrowParams[param] = value;
+    if (this._eyebrowContainer) this._alignAndAdjustEyebrows();
+  }
+
+  generateEyebrows() {
+    this._clearGroup(this._eyebrowGroup);
+    this._eyebrowContainer = null;
+
+    const config = this.eyebrowModel;
+    if (!config || !config.file) return;
+
+    if (this._modelCache['eyebrows']) {
+      this._showCachedEyebrows();
+      return;
+    }
+
+    const loader = new THREE.GLBLoader();
+    loader.load(
+      config.file,
+      (group) => {
+        if (config.meshName) {
+          const filtered = new THREE.Group();
+          filtered.name = group.name;
+          group.traverse(child => {
+            if (child.isMesh && child.name === config.meshName) {
+              filtered.add(child.clone());
+            }
+          });
+          this._modelCache['eyebrows'] = filtered;
+        } else {
+          this._modelCache['eyebrows'] = group;
+        }
+        this._showCachedEyebrows();
+      },
+      null,
+      (err) => { console.error('Failed to load eyebrow model:', config.file, err); }
+    );
+  }
+
+  _showCachedEyebrows() {
+    this._clearGroup(this._eyebrowGroup);
+    const cached = this._modelCache['eyebrows'];
+    if (!cached) return;
+
+    const container = new THREE.Group();
+    container.name = 'EyebrowContainer';
+
+    const offsetGroup = new THREE.Group();
+    offsetGroup.name = 'EyebrowOffset';
+
+    cached.traverse(child => {
+      if (child.isMesh) {
+        const clone = child.clone();
+        clone.material = this._eyebrowMat.clone();
+        clone.material.color.set(this.eyebrowColor);
+        clone.castShadow = true;
+        clone.receiveShadow = true;
+        offsetGroup.add(clone);
+      }
+    });
+
+    container.add(offsetGroup);
+    this._eyebrowGroup.add(container);
+    this._eyebrowContainer = container;
+
+    this._alignAndAdjustEyebrows();
+  }
+
+  _alignAndAdjustEyebrows() {
+    if (!this._eyebrowContainer || !this._headGroup) return;
+
+    const container = this._eyebrowContainer;
+    const offsetGroup = container.children[0];
+    const ep = this.eyebrowParams;
+
+    // Reset transforms for bbox computation
+    container.scale.set(1, 1, 1);
+    container.position.set(0, 0, 0);
+    container.rotation.set(0, 0, 0);
+    offsetGroup.position.set(0, 0, 0);
+
+    // Compute eyebrow model bounding box
+    const browBox = new THREE.Box3().setFromObject(container);
+    const browCenter = new THREE.Vector3();
+    browBox.getCenter(browCenter);
+    const browSize = new THREE.Vector3();
+    browBox.getSize(browSize);
+
+    if (browSize.x < 0.001) return;
+
+    // Center eyebrow model at origin
+    offsetGroup.position.set(-browCenter.x, -browCenter.y, -browCenter.z);
+
+    // Target: brow region on the head (from OBJMorpher landmarks)
+    // brow_left/right_center Y≈0.40, Z≈1.00; outer brows span ~0.90 in X
+    const browRegionWidth = 0.90;
+    const browRegionY = 0.39;
+    const browRegionZ = 1.02;
+
+    // Base scale: match brow region width
+    const baseScale = browRegionWidth / browSize.x;
+
+    // Slider-driven adjustments
+    const thicknessF = 0.5 + (ep.thickness / 100) * 1.0;
+    const archF = ((ep.arch - 50) / 50) * 0.08;
+    const spacingOffset = ((ep.spacing - 50) / 50) * 0.15;
+    const density = ep.density;
+    const scaleF = 0.5 + (ep.scale / 100) * 1.0;
+    const rotZ = ((ep.rotation - 50) / 50) * (Math.PI / 6);
+    // Straighten: X-rotation flattens the natural arch curve (±45°)
+    const straightenF = ((ep.straighten - 50) / 50) * (Math.PI / 4);
+    // Tilt X: forward/backward tilt (±30°)
+    const tiltXF = ((ep.tiltX - 50) / 50) * (Math.PI / 6);
+
+    // Position offsets (range ±0.3)
+    const posOffsetX = ((ep.posX - 50) / 50) * 0.3;
+    const posOffsetY = ((ep.posY - 50) / 50) * 0.3;
+    const posOffsetZ = ((ep.posZ - 50) / 50) * 0.3;
+
+    container.scale.set(
+      baseScale * scaleF,
+      baseScale * thicknessF * scaleF,
+      baseScale * scaleF
+    );
+
+    container.position.set(
+      this.modelCenter.x + spacingOffset + posOffsetX,
+      browRegionY + archF + posOffsetY,
+      browRegionZ + posOffsetZ
+    );
+
+    container.rotation.set(straightenF + tiltXF, 0, rotZ);
+
+    // Density → opacity
+    const opacity = 0.4 + (density / 100) * 0.6;
+    container.traverse(child => {
+      if (child.isMesh && child.material) {
+        child.material.opacity = opacity;
+        child.material.transparent = opacity < 1.0;
+      }
+    });
+  }
+
+  clearEyebrows() {
+    this._clearGroup(this._eyebrowGroup);
+    this._eyebrowContainer = null;
+  }
+
   // ── Facial Hair (procedural) ──
 
   _extractFacialHairVerts() {
@@ -386,7 +571,7 @@ class HairSystem {
       posZ: this.params.posz / 100, rotY: this.params.roty / 100,
       hairScale: this.params.scale / 100,
       facialHair: { style: this.facialHairStyle },
-      eyebrows: { ...this.eyebrowParams },
+      eyebrows: { ...this.eyebrowParams, color: this.eyebrowColor },
     };
   }
 
@@ -452,8 +637,19 @@ class HairSystem {
     if (state.rotY !== undefined) this.params.roty = Math.round(state.rotY * 100);
     if (state.hairScale !== undefined) this.params.scale = Math.round(state.hairScale * 100);
     if (state.facialHair) this.facialHairStyle = state.facialHair.style || 'none';
+    if (state.eyebrows) {
+      const eb = state.eyebrows;
+      for (const key of ['thickness', 'arch', 'spacing', 'density', 'posX', 'posY', 'posZ', 'rotation', 'scale', 'straighten', 'tiltX']) {
+        if (eb[key] !== undefined) this.eyebrowParams[key] = eb[key];
+      }
+      if (eb.color) {
+        this.eyebrowColor = eb.color;
+        this._eyebrowMat.color.set(eb.color);
+      }
+    }
     this.generate();
     this.generateFacialHair();
+    this.generateEyebrows();
   }
 }
 

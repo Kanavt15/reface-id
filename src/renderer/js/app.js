@@ -92,6 +92,7 @@
       // Generate initial hair
       hairSystem.generate();
       hairSystem.generateFacialHair();
+      hairSystem.generateEyebrows();
 
       // ── Initialize Face Point Editor ──
       facePointEditor = new FacePointEditor(sceneManager, objMorpher);

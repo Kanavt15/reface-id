@@ -107,6 +107,10 @@ input[type="range"]:active::-webkit-slider-thumb {
   background: linear-gradient(to right, var(--accent-secondary), var(--accent-primary));
 }
 
+.eyebrow-slider::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, var(--accent-danger), var(--accent-primary));
+}
+
 /* ─── Select Controls ───────────────────────────────────────────────── */
 
 .select-control {

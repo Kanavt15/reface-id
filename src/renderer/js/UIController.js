@@ -21,6 +21,7 @@ class UIController {
     this.bindPanelTabs();
     this.bindMorphSliders();
     this.bindHairControls();
+    this.bindEyebrowControls();
     this.bindAppearanceControls();
     this.bindSkinMarkControls();
     this.bindCaseControls();
@@ -359,6 +360,107 @@ class UIController {
       }
     });
     */
+  }
+
+  // ─── Eyebrow Controls ───────────────────────────────────────────────────
+
+  bindEyebrowControls() {
+    // Eyebrow param sliders
+    document.querySelectorAll('.eyebrow-slider').forEach(slider => {
+      const control = slider.closest('.slider-control');
+      const param = control?.dataset.param;
+      const valueDisplay = control?.querySelector('.slider-value');
+
+      slider.addEventListener('mousedown', () => {
+        this.caseManager.beginAction(`Modified eyebrow ${param}`);
+      });
+
+      slider.addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        if (valueDisplay) valueDisplay.textContent = value;
+
+        if (param) {
+          const key = param.replace('eyebrow', '');
+          const ebKey = key.charAt(0).toLowerCase() + key.slice(1);
+          this.hair.setEyebrowParam(ebKey, value);
+        }
+      });
+
+      slider.addEventListener('mouseup', () => {
+        this.caseManager.updateHairParams(this.hair.getParams());
+        this.caseManager.endAction();
+      });
+    });
+
+    // Eyebrow color presets
+    document.querySelectorAll('#eyebrowColorPresets .color-swatch').forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        this.caseManager.pushState('Changed eyebrow color');
+        document.querySelectorAll('#eyebrowColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
+        swatch.classList.add('active');
+
+        const color = swatch.dataset.color;
+        this.hair.setEyebrowColor(color);
+        document.getElementById('eyebrowColorPicker').value = color;
+        this.caseManager.updateHairParams(this.hair.getParams());
+        this.addHistory('Changed eyebrow color');
+      });
+    });
+
+    // Eyebrow color picker
+    {
+      let _ebColorCapturing = false;
+      const ebColorPicker = document.getElementById('eyebrowColorPicker');
+      ebColorPicker?.addEventListener('input', (e) => {
+        if (!_ebColorCapturing) {
+          this.caseManager.beginAction('Changed eyebrow color');
+          _ebColorCapturing = true;
+        }
+        this.hair.setEyebrowColor(e.target.value);
+        document.querySelectorAll('#eyebrowColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
+      });
+      ebColorPicker?.addEventListener('change', () => {
+        this.caseManager.updateHairParams(this.hair.getParams());
+        this.caseManager.endAction();
+        _ebColorCapturing = false;
+        this.addHistory('Changed eyebrow color');
+      });
+    }
+
+    // Reset eyebrows button
+    document.getElementById('btnResetEyebrows')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.caseManager.pushState('Reset eyebrows');
+
+      const defaults = { thickness: 50, arch: 50, spacing: 50, density: 70,
+                          posX: 50, posY: 50, posZ: 50, rotation: 50, scale: 50,
+                          straighten: 50, tiltX: 50 };
+      Object.entries(defaults).forEach(([key, val]) => {
+        this.hair.setEyebrowParam(key, val);
+      });
+      this.hair.setEyebrowColor('#2c1b0e');
+
+      const groupBody = e.currentTarget.closest('.control-group')?.querySelector('.control-group-body');
+      if (groupBody) {
+        groupBody.querySelectorAll('.eyebrow-slider').forEach(slider => {
+          const control = slider.closest('.slider-control');
+          const param = control?.dataset.param;
+          const defaultVal = param === 'eyebrowDensity' ? 70 : 50;
+          slider.value = defaultVal;
+          const vd = control?.querySelector('.slider-value');
+          if (vd) vd.textContent = defaultVal;
+        });
+      }
+
+      const picker = document.getElementById('eyebrowColorPicker');
+      if (picker) picker.value = '#2c1b0e';
+      document.querySelectorAll('#eyebrowColorPresets .color-swatch').forEach(s => {
+        s.classList.toggle('active', s.dataset.color === '#2c1b0e');
+      });
+
+      this.caseManager.updateHairParams(this.hair.getParams());
+      this.addHistory('Reset eyebrows');
+    });
   }
 
   // ─── Appearance Controls ─────────────────────────────────────────────────
@@ -836,6 +938,14 @@ class UIController {
     this.morpher.resetAll();
     this.hair.setStyle('hair1');
     this.hair.setColor('#2c1b0e');
+    this.hair.setEyebrowColor('#2c1b0e');
+    const ebDefaults = { thickness: 50, arch: 50, spacing: 50, density: 70,
+                          posX: 50, posY: 50, posZ: 50, rotation: 50, scale: 50,
+                          straighten: 50, tiltX: 50 };
+    Object.entries(ebDefaults).forEach(([key, val]) => {
+      this.hair.setEyebrowParam(key, val);
+    });
+    this.hair.generateEyebrows();
     this.scene.setSkinColor('#d4a574');
     if (this.skinMarkSystem) this.skinMarkSystem.clearAll();
 
@@ -850,6 +960,21 @@ class UIController {
     document.getElementById('investigator').value = '';
     document.getElementById('caseDescription').value = '';
     document.getElementById('caseNotes').value = '';
+
+    // Reset eyebrow sliders UI
+    document.querySelectorAll('.eyebrow-slider').forEach(s => {
+      const control = s.closest('.slider-control');
+      const param = control?.dataset.param;
+      const defaultVal = param === 'eyebrowDensity' ? 70 : 50;
+      s.value = defaultVal;
+      const v = control?.querySelector('.slider-value');
+      if (v) v.textContent = defaultVal;
+    });
+    const ebPicker = document.getElementById('eyebrowColorPicker');
+    if (ebPicker) ebPicker.value = '#2c1b0e';
+    document.querySelectorAll('#eyebrowColorPresets .color-swatch').forEach(s => {
+      s.classList.toggle('active', s.dataset.color === '#2c1b0e');
+    });
 
     this.updateCaseTitle();
     this.updatePropertyPanel();
@@ -963,6 +1088,31 @@ class UIController {
       if (state.hairParams.facialHair !== undefined) {
         const sel = document.getElementById('facialHairStyle');
         if (sel) sel.value = state.hairParams.facialHair;
+      }
+      // Restore eyebrow params
+      if (state.hairParams.eyebrows) {
+        const eb = state.hairParams.eyebrows;
+        document.querySelectorAll('.eyebrow-slider').forEach(slider => {
+          const control = slider.closest('.slider-control');
+          const param = control?.dataset.param;
+          if (param) {
+            const key = param.replace('eyebrow', '');
+            const ebKey = key.charAt(0).toLowerCase() + key.slice(1);
+            const val = eb[ebKey];
+            if (val !== undefined) {
+              slider.value = val;
+              const vd = control?.querySelector('.slider-value');
+              if (vd) vd.textContent = val;
+            }
+          }
+        });
+        if (eb.color) {
+          const picker = document.getElementById('eyebrowColorPicker');
+          if (picker) picker.value = eb.color;
+          document.querySelectorAll('#eyebrowColorPresets .color-swatch').forEach(s => {
+            s.classList.toggle('active', s.dataset.color === eb.color);
+          });
+        }
       }
     }
 
