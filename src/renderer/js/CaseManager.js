@@ -10,6 +10,7 @@ class CaseManager {
     this.undoStack = [];
     this.redoStack = [];
     this.maxUndoSteps = 50;
+    this._pendingSnapshot = null;
   }
 
   newCaseTemplate() {
@@ -46,7 +47,9 @@ class CaseManager {
   }
 
   /**
-   * Save current case state to undo stack
+   * Save current case state to undo stack.
+   * IMPORTANT: Call this BEFORE modifying currentCase so the snapshot
+   * captures the state the user can revert to.
    */
   pushState(description = '') {
     const snapshot = JSON.parse(JSON.stringify(this.currentCase));
@@ -56,6 +59,30 @@ class CaseManager {
       this.undoStack.shift();
     }
     this.redoStack = [];
+  }
+
+  /**
+   * Capture current state BEFORE a continuous change begins (e.g. slider drag).
+   * Call this on mousedown / first input, then call endAction() when done.
+   */
+  beginAction(description = '') {
+    if (this._pendingSnapshot) return; // already capturing
+    this._pendingSnapshot = JSON.parse(JSON.stringify(this.currentCase));
+    this._pendingSnapshot._description = description;
+  }
+
+  /**
+   * Commit the before-snapshot captured by beginAction() to the undo stack.
+   * Call this on mouseup / change event when the continuous operation ends.
+   */
+  endAction() {
+    if (!this._pendingSnapshot) return;
+    this.undoStack.push(this._pendingSnapshot);
+    if (this.undoStack.length > this.maxUndoSteps) {
+      this.undoStack.shift();
+    }
+    this.redoStack = [];
+    this._pendingSnapshot = null;
   }
 
   /**

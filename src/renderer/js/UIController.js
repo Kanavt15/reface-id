@@ -121,6 +121,10 @@ class UIController {
       const param = control?.dataset.param;
       const valueDisplay = control?.querySelector('.slider-value');
 
+      slider.addEventListener('mousedown', () => {
+        this.caseManager.beginAction(`Modified ${param}`);
+      });
+
       slider.addEventListener('input', (e) => {
         const value = parseInt(e.target.value);
         if (valueDisplay) valueDisplay.textContent = value;
@@ -132,23 +136,23 @@ class UIController {
         }
       });
 
-      // Push undo state on mouseup
       slider.addEventListener('mouseup', () => {
-        this.caseManager.pushState(`Modified ${param}`);
+        this.caseManager.endAction();
         this.addHistory(`Changed ${this.formatParamName(param)}`);
       });
     });
 
     // Reset all morphs
     document.getElementById('btnResetAllMorphs')?.addEventListener('click', () => {
+      this.caseManager.pushState('Reset all morphs');
       this.morpher.resetAll();
+      this.caseManager.updateMorphTargets(this.morpher.exportState());
       // Reset all slider UI
       document.querySelectorAll('.morph-slider').forEach(slider => {
         slider.value = 50;
         const valueDisplay = slider.closest('.slider-control')?.querySelector('.slider-value');
         if (valueDisplay) valueDisplay.textContent = '50';
       });
-      this.caseManager.pushState('Reset all morphs');
       this.addHistory('Reset all facial features');
       this.updatePropertyPanel();
     });
@@ -158,7 +162,9 @@ class UIController {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const group = btn.dataset.group;
+        this.caseManager.pushState(`Reset ${group}`);
         this.morpher.resetGroup(group);
+        this.caseManager.updateMorphTargets(this.morpher.exportState());
 
         // Reset sliders in this group
         const groupBody = btn.closest('.control-group')?.querySelector('.control-group-body');
@@ -170,7 +176,6 @@ class UIController {
           });
         }
 
-        this.caseManager.pushState(`Reset ${group}`);
         this.addHistory(`Reset ${group} features`);
         this.updatePropertyPanel();
       });
@@ -183,13 +188,13 @@ class UIController {
     // Hair style cards
     document.querySelectorAll('.hair-style-card').forEach(card => {
       card.addEventListener('click', (e) => {
+        this.caseManager.pushState(`Hair style: ${card.dataset.style}`);
         document.querySelectorAll('.hair-style-card').forEach(c => c.classList.remove('active'));
         card.classList.add('active');
 
         const style = card.dataset.style;
         this.hair.setStyle(style);
         this.caseManager.updateHairParams(this.hair.getParams());
-        this.caseManager.pushState(`Hair style: ${style}`);
         this.addHistory(`Hair style: ${this.formatStyleName(style)}`);
         this.updatePropertyPanel();
       });
@@ -200,6 +205,10 @@ class UIController {
       const control = slider.closest('.slider-control');
       const param = control?.dataset.param;
       const valueDisplay = control?.querySelector('.slider-value');
+
+      slider.addEventListener('mousedown', () => {
+        this.caseManager.beginAction(`Modified hair ${param}`);
+      });
 
       slider.addEventListener('input', (e) => {
         const value = parseInt(e.target.value);
@@ -215,13 +224,14 @@ class UIController {
 
       slider.addEventListener('mouseup', () => {
         this.caseManager.updateHairParams(this.hair.getParams());
-        this.caseManager.pushState(`Modified hair ${param}`);
+        this.caseManager.endAction();
       });
     });
 
     // Reset hair position button
     document.getElementById('btnResetHairPosition')?.addEventListener('click', (e) => {
       e.stopPropagation();
+      this.caseManager.pushState('Reset hair position');
       ['posx', 'posy', 'posz', 'roty', 'scale'].forEach(key => {
         this.hair.setParam(key, 50);
       });
@@ -234,13 +244,13 @@ class UIController {
         });
       }
       this.caseManager.updateHairParams(this.hair.getParams());
-      this.caseManager.pushState('Reset hair position');
       this.addHistory('Reset hair position');
     });
 
     // Hair color presets
     document.querySelectorAll('#hairColorPresets .color-swatch').forEach(swatch => {
       swatch.addEventListener('click', () => {
+        this.caseManager.pushState('Changed hair color');
         document.querySelectorAll('#hairColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
         swatch.classList.add('active');
 
@@ -253,17 +263,30 @@ class UIController {
     });
 
     // Hair color picker
-    document.getElementById('hairColorPicker')?.addEventListener('input', (e) => {
-      this.hair.setColor(e.target.value);
-      // Deselect presets
-      document.querySelectorAll('#hairColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
-    });
+    {
+      let _hairColorCapturing = false;
+      const hairColorPicker = document.getElementById('hairColorPicker');
+      hairColorPicker?.addEventListener('input', (e) => {
+        if (!_hairColorCapturing) {
+          this.caseManager.beginAction('Changed hair color');
+          _hairColorCapturing = true;
+        }
+        this.hair.setColor(e.target.value);
+        document.querySelectorAll('#hairColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
+      });
+      hairColorPicker?.addEventListener('change', () => {
+        this.caseManager.updateHairParams(this.hair.getParams());
+        this.caseManager.endAction();
+        _hairColorCapturing = false;
+        this.addHistory('Changed hair color');
+      });
+    }
 
     // Facial hair
     document.getElementById('facialHairStyle')?.addEventListener('change', (e) => {
+      this.caseManager.pushState(`Facial hair: ${e.target.value}`);
       this.hair.setFacialHair(e.target.value);
       this.caseManager.updateHairParams(this.hair.getParams());
-      this.caseManager.pushState(`Facial hair: ${e.target.value}`);
       this.addHistory(`Facial hair: ${e.target.value}`);
     });
 
@@ -344,6 +367,7 @@ class UIController {
     // Skin tone swatches
     document.querySelectorAll('#skinToneGrid .skin-swatch').forEach(swatch => {
       swatch.addEventListener('click', () => {
+        this.caseManager.pushState('Changed skin tone');
         document.querySelectorAll('#skinToneGrid .skin-swatch').forEach(s => s.classList.remove('active'));
         swatch.classList.add('active');
 
@@ -351,22 +375,36 @@ class UIController {
         this.scene.setSkinColor(color);
         document.getElementById('skinColorPicker').value = color;
         this.caseManager.updateAppearance('skinColor', color);
-        this.caseManager.pushState('Changed skin tone');
         this.addHistory('Changed skin tone');
         this.updatePropertyPanel();
       });
     });
 
     // Skin color picker
-    document.getElementById('skinColorPicker')?.addEventListener('input', (e) => {
-      this.scene.setSkinColor(e.target.value);
-      document.querySelectorAll('#skinToneGrid .skin-swatch').forEach(s => s.classList.remove('active'));
-      this.caseManager.updateAppearance('skinColor', e.target.value);
-    });
+    {
+      let _skinColorCapturing = false;
+      const skinColorPicker = document.getElementById('skinColorPicker');
+      skinColorPicker?.addEventListener('input', (e) => {
+        if (!_skinColorCapturing) {
+          this.caseManager.beginAction('Changed skin color');
+          _skinColorCapturing = true;
+        }
+        this.scene.setSkinColor(e.target.value);
+        document.querySelectorAll('#skinToneGrid .skin-swatch').forEach(s => s.classList.remove('active'));
+        this.caseManager.updateAppearance('skinColor', e.target.value);
+      });
+      skinColorPicker?.addEventListener('change', () => {
+        this.caseManager.endAction();
+        _skinColorCapturing = false;
+        this.addHistory('Changed skin color');
+        this.updatePropertyPanel();
+      });
+    }
 
     // Eye color
     document.querySelectorAll('#eyeColorPresets .color-swatch').forEach(swatch => {
       swatch.addEventListener('click', () => {
+        this.caseManager.pushState('Changed eye color');
         document.querySelectorAll('#eyeColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
         swatch.classList.add('active');
 
@@ -430,6 +468,9 @@ class UIController {
     });
 
     // Size slider
+    document.getElementById('skinMarkSize')?.addEventListener('mousedown', () => {
+      this.caseManager.beginAction('Modified skin mark size');
+    });
     document.getElementById('skinMarkSize')?.addEventListener('input', (e) => {
       const sizeNorm = parseInt(e.target.value) / 100;
       const actualSize = 0.005 + sizeNorm * 0.095;
@@ -437,10 +478,13 @@ class UIController {
       document.getElementById('skinMarkSizeValue').textContent = actualSize.toFixed(3);
     });
     document.getElementById('skinMarkSize')?.addEventListener('mouseup', () => {
-      this.caseManager.pushState('Modified skin mark size');
+      this.caseManager.endAction();
     });
 
     // Rotation slider
+    document.getElementById('skinMarkRotation')?.addEventListener('mousedown', () => {
+      this.caseManager.beginAction('Modified skin mark rotation');
+    });
     document.getElementById('skinMarkRotation')?.addEventListener('input', (e) => {
       const degrees = parseInt(e.target.value);
       const radians = (degrees * Math.PI) / 180;
@@ -448,29 +492,38 @@ class UIController {
       document.getElementById('skinMarkRotationValue').textContent = degrees + '\u00B0';
     });
     document.getElementById('skinMarkRotation')?.addEventListener('mouseup', () => {
-      this.caseManager.pushState('Modified skin mark rotation');
+      this.caseManager.endAction();
     });
 
     // Color picker
-    document.getElementById('skinMarkColor')?.addEventListener('input', (e) => {
-      skinMarks.updateSelectedMark('color', e.target.value);
-    });
-    document.getElementById('skinMarkColor')?.addEventListener('change', () => {
-      this.caseManager.pushState('Modified skin mark color');
-    });
+    {
+      let _markColorCapturing = false;
+      const markColorPicker = document.getElementById('skinMarkColor');
+      markColorPicker?.addEventListener('input', (e) => {
+        if (!_markColorCapturing) {
+          this.caseManager.beginAction('Modified skin mark color');
+          _markColorCapturing = true;
+        }
+        skinMarks.updateSelectedMark('color', e.target.value);
+      });
+      markColorPicker?.addEventListener('change', () => {
+        this.caseManager.endAction();
+        _markColorCapturing = false;
+      });
+    }
 
     // Delete button
     document.getElementById('btnDeleteMark')?.addEventListener('click', () => {
-      skinMarks.deleteSelectedMark();
       this.caseManager.pushState('Deleted skin mark');
+      skinMarks.deleteSelectedMark();
       this.addHistory('Deleted skin mark');
     });
 
     // Clear all marks
     document.getElementById('btnClearAllMarks')?.addEventListener('click', (e) => {
       e.stopPropagation();
-      skinMarks.clearAll();
       this.caseManager.pushState('Cleared all skin marks');
+      skinMarks.clearAll();
       this.addHistory('Cleared all skin marks');
     });
 
@@ -861,6 +914,7 @@ class UIController {
   }
 
   restoreState(state) {
+    // Restore morph targets + slider UI
     if (state.morphTargets) {
       Object.entries(state.morphTargets).forEach(([param, value]) => {
         this.morpher.morphValues[param] = value;
@@ -873,9 +927,75 @@ class UIController {
       });
       this.morpher.applyAllMorphs();
     }
+
+    // Restore hair params
+    if (state.hairParams) {
+      this.hair.loadState(state.hairParams);
+      // Update hair slider UI
+      document.querySelectorAll('.hair-slider').forEach(slider => {
+        const control = slider.closest('.slider-control');
+        const param = control?.dataset.param;
+        if (param && param.startsWith('hair')) {
+          const key = param.replace('hair', '').toLowerCase();
+          const val = state.hairParams[key];
+          if (val !== undefined) {
+            slider.value = val;
+            const vd = control?.querySelector('.slider-value');
+            if (vd) vd.textContent = val;
+          }
+        }
+      });
+      // Update active hair style card
+      if (state.hairParams.style) {
+        document.querySelectorAll('.hair-style-card').forEach(c => {
+          c.classList.toggle('active', c.dataset.style === state.hairParams.style);
+        });
+      }
+      // Update hair color picker
+      if (state.hairParams.color) {
+        const picker = document.getElementById('hairColorPicker');
+        if (picker) picker.value = state.hairParams.color;
+        document.querySelectorAll('#hairColorPresets .color-swatch').forEach(s => {
+          s.classList.toggle('active', s.dataset.color === state.hairParams.color);
+        });
+      }
+      // Update facial hair dropdown
+      if (state.hairParams.facialHair !== undefined) {
+        const sel = document.getElementById('facialHairStyle');
+        if (sel) sel.value = state.hairParams.facialHair;
+      }
+    }
+
+    // Restore appearance (skin color, eye color)
+    if (state.appearance) {
+      if (state.appearance.skinColor) {
+        this.scene.setSkinColor(state.appearance.skinColor);
+        const skinPicker = document.getElementById('skinColorPicker');
+        if (skinPicker) skinPicker.value = state.appearance.skinColor;
+        document.querySelectorAll('#skinToneGrid .skin-swatch').forEach(s => {
+          s.classList.toggle('active', s.dataset.color === state.appearance.skinColor);
+        });
+      }
+      if (state.appearance.eyeColor) {
+        document.querySelectorAll('#eyeColorPresets .color-swatch').forEach(s => {
+          s.classList.toggle('active', s.dataset.color === state.appearance.eyeColor);
+        });
+      }
+      if (state.appearance.ageRange) {
+        const ageEl = document.getElementById('ageRange');
+        if (ageEl) ageEl.value = state.appearance.ageRange;
+      }
+      if (state.appearance.sex) {
+        const sexEl = document.getElementById('sexSelect');
+        if (sexEl) sexEl.value = state.appearance.sex;
+      }
+    }
+
+    // Restore skin marks
     if (state.skinMarks && this.skinMarkSystem) {
       this.skinMarkSystem.loadState(state.skinMarks);
     }
+
     this.updatePropertyPanel();
   }
 
