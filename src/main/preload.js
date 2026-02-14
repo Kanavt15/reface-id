@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Dialogs
   saveDialog: (options) => ipcRenderer.invoke('dialog:save', options),
   openDialog: (options) => ipcRenderer.invoke('dialog:open', options),
+  saveFile: (filePath, base64Data) => ipcRenderer.invoke('file:save-buffer', filePath, base64Data),
 
   // Menu events
   onNewCase: (callback) => ipcRenderer.on('menu:new-case', callback),

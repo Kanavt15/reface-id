@@ -608,7 +608,8 @@ class UIController {
         filters: [{ name: 'PNG Image', extensions: ['png'] }],
       });
       if (!result.canceled && result.filePath) {
-        // Convert data URL to buffer and save (would need fs access)
+        const base64Data = dataUrl.replace(/^data:image\/png;base64,/, '');
+        await window.electronAPI.saveFile(result.filePath, base64Data);
         this.addHistory('Screenshot saved');
       }
     } else {

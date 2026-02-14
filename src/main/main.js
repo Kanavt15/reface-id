@@ -118,6 +118,12 @@ ipcMain.handle('dialog:save', async (event, options) => {
   return result;
 });
 
+ipcMain.handle('file:save-buffer', async (event, filePath, base64Data) => {
+  const fs = require('fs');
+  const buffer = Buffer.from(base64Data, 'base64');
+  fs.writeFileSync(filePath, buffer);
+});
+
 ipcMain.handle('dialog:open', async (event, options) => {
   const result = await dialog.showOpenDialog(mainWindow, options);
   return result;
