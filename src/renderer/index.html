@@ -681,6 +681,38 @@
                   <div class="hair-icon"><i class="fas fa-cloud"></i></div>
                   <span>Hair 4</span>
                 </div>
+                <div class="hair-style-card" data-style="hair5">
+                  <div class="hair-icon"><i class="fas fa-user"></i></div>
+                  <span>Hair 5</span>
+                </div>
+                <div class="hair-style-card" data-style="hair6">
+                  <div class="hair-icon"><i class="fas fa-user-tie"></i></div>
+                  <span>Hair 6</span>
+                </div>
+                <div class="hair-style-card" data-style="hair7">
+                  <div class="hair-icon"><i class="fas fa-user-long"></i></div>
+                  <span>Hair 7</span>
+                </div>
+                <div class="hair-style-card" data-style="hair8">
+                  <div class="hair-icon"><i class="fas fa-cloud"></i></div>
+                  <span>Hair 8</span>
+                </div>
+                <div class="hair-style-card" data-style="hair9">
+                  <div class="hair-icon"><i class="fas fa-user"></i></div>
+                  <span>Hair 9</span>
+                </div>
+                <div class="hair-style-card" data-style="hair10">
+                  <div class="hair-icon"><i class="fas fa-user-tie"></i></div>
+                  <span>Hair 10</span>
+                </div>
+                <div class="hair-style-card" data-style="hair11">
+                  <div class="hair-icon"><i class="fas fa-user-long"></i></div>
+                  <span>Hair 11</span>
+                </div>
+                <div class="hair-style-card" data-style="hair12">
+                  <div class="hair-icon"><i class="fas fa-cloud"></i></div>
+                  <span>Hair 12</span>
+                </div>
                 <div class="hair-style-card" data-style="bald">
                   <div class="hair-icon"><i class="fas fa-ban"></i></div>
                   <span>Bald</span>
@@ -800,30 +832,81 @@
             </div>
           </div>
 
-          <!-- Facial Hair -->
+          <!-- Beard -->
           <div class="control-group">
             <div class="control-group-header">
               <i class="fas fa-mask"></i>
-              <span>Facial Hair</span>
+              <span>Beard</span>
+              <button class="btn-reset-group" id="btnResetBeard" title="Reset Beard">
+                <i class="fas fa-undo-alt"></i>
+              </button>
             </div>
-            <div class="control-group-body">
+            <div class="control-group-body collapsed">
+              <!-- Beard Style Selection -->
               <div class="select-control">
                 <label>Style</label>
-                <select id="facialHairStyle" class="custom-select">
+                <select id="beardStyle" class="custom-select">
                   <option value="none">None</option>
-                  <option value="stubble">Stubble</option>
-                  <option value="short_beard">Short Beard</option>
-                  <option value="full_beard">Full Beard</option>
-                  <option value="goatee">Goatee</option>
-                  <option value="mustache">Mustache</option>
-                  <option value="sideburns">Sideburns</option>
+                  <option value="beard1">Beard 1</option>
                 </select>
               </div>
-              <div class="slider-control" data-param="facialHairDensity">
-                <label>Density</label>
+
+              <!-- Beard Color -->
+              <div class="color-picker-row">
+                <label>Beard Color</label>
+                <div class="color-presets" id="beardColorPresets">
+                  <button class="color-swatch active" data-color="#0a0a0a" style="background: #0a0a0a" title="Black"></button>
+                  <button class="color-swatch" data-color="#2c1b0e" style="background: #2c1b0e" title="Dark Brown"></button>
+                  <button class="color-swatch" data-color="#6b3a2a" style="background: #6b3a2a" title="Brown"></button>
+                  <button class="color-swatch" data-color="#b5651d" style="background: #b5651d" title="Light Brown"></button>
+                  <button class="color-swatch" data-color="#d4a23f" style="background: #d4a23f" title="Blonde"></button>
+                  <button class="color-swatch" data-color="#8b2500" style="background: #8b2500" title="Red"></button>
+                  <button class="color-swatch" data-color="#c4c4c4" style="background: #c4c4c4" title="Grey"></button>
+                </div>
+                <input type="color" id="beardColorPicker" value="#2c1b0e" class="color-input" />
+              </div>
+
+              <!-- Position controls -->
+              <div class="slider-control" data-param="beardPosX">
+                <label>Position X (L/R)</label>
                 <div class="slider-row">
-                  <input type="range" min="0" max="100" value="70" class="hair-slider" />
-                  <span class="slider-value">70</span>
+                  <input type="range" min="0" max="200" value="100" class="beard-slider" />
+                  <span class="slider-value">100</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="beardPosY">
+                <label>Position Y (Up/Down)</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="200" value="100" class="beard-slider" />
+                  <span class="slider-value">100</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="beardPosZ">
+                <label>Position Z (Fwd/Back)</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="200" value="100" class="beard-slider" />
+                  <span class="slider-value">100</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="beardRotY">
+                <label>Rotation (Twist)</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="200" value="100" class="beard-slider" />
+                  <span class="slider-value">100</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="beardRotZ">
+                <label>Tilt (Angle)</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="200" value="100" class="beard-slider" />
+                  <span class="slider-value">100</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="beardScale">
+                <label>Overall Scale</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="200" value="100" class="beard-slider" />
+                  <span class="slider-value">100</span>
                 </div>
               </div>
             </div>
@@ -870,14 +953,14 @@
                 </div>
               </div>
               <div class="slider-control" data-param="eyebrowStraighten">
-                <label>Straighten</label>
+                <label>Twist / Curl</label>
                 <div class="slider-row">
                   <input type="range" min="0" max="100" value="50" class="eyebrow-slider" />
                   <span class="slider-value">50</span>
                 </div>
               </div>
               <div class="slider-control" data-param="eyebrowTiltX">
-                <label>Tilt (Fwd/Back)</label>
+                <label>Forward/Backward Tilt</label>
                 <div class="slider-row">
                   <input type="range" min="0" max="100" value="50" class="eyebrow-slider" />
                   <span class="slider-value">50</span>
@@ -921,10 +1004,10 @@
                 </div>
               </div>
               <div class="slider-control" data-param="eyebrowRotation">
-                <label>Rotation / Tilt</label>
+                <label>Angle (Up/Down Ends)</label>
                 <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="eyebrow-slider" />
-                  <span class="slider-value">50</span>
+                  <input type="range" min="0" max="100" value="100" class="eyebrow-slider" />
+                  <span class="slider-value">100</span>
                 </div>
               </div>
               <div class="slider-control" data-param="eyebrowScale">

@@ -40,8 +40,8 @@
 
   // ─── Load Region Data + OBJ concurrently ───────────────────────────────
 
-  const REGION_JSON_PATH = '../../assets/models/head_regions.json';
-  const MODEL_PATH = '../../assets/models/head.glb';
+  const REGION_JSON_PATH = '../../assets/models/base/head_regions.json';
+  const MODEL_PATH = '../../assets/models/base/head.glb';
 
   document.getElementById('statusMeshInfo').textContent = 'Loading base face model...';
 
@@ -57,8 +57,10 @@
 
   // When both are ready, wire everything
   Promise.all([regionPromise, objPromise]).then(([regionData, group]) => {
+    console.log('[App] Region data and model loaded, initializing...');
     if (group) {
       // ── OBJ loaded successfully ──
+      console.log('[App] GLB model group loaded successfully');
       let vertexCount = 0;
       group.traverse(c => {
         if (c.isMesh && c.geometry) vertexCount += c.geometry.attributes.position.count;
@@ -90,9 +92,12 @@
       };
 
       // Generate initial hair
+      console.log('[App] Generating initial hair...');
       hairSystem.generate();
-      hairSystem.generateFacialHair();
+      console.log('[App] Generating eyebrows...');
       hairSystem.generateEyebrows();
+      console.log('[App] Hair and eyebrows generation initiated');
+      // Note: Beard starts as 'none' by default
 
       // ── Initialize Face Point Editor ──
       facePointEditor = new FacePointEditor(sceneManager, objMorpher);
@@ -130,10 +135,13 @@
     }
 
     // NOW create and init UI with the correct morpher
+    console.log('[App] Creating UIController...');
     ui = new UIController(sceneManager, activeMorpher, hairSystem, api, caseManager);
     ui.facePointEditor = facePointEditor;   // expose for render pipeline
     ui.skinMarkSystem = skinMarkSystem;     // expose for skin marks UI
+    console.log('[App] Initializing UIController...');
     ui.init();
+    console.log('[App] UIController initialized successfully');
     ui.updatePropertyPanel();
     ui.addHistory(group ? 'Base face model loaded (OBJ)' : 'Using procedural head');
 

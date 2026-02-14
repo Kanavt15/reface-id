@@ -45,6 +45,9 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
 
+  // Open DevTools in development
+  mainWindow.webContents.openDevTools();
+
   // Build application menu
   const menuTemplate = [
     {

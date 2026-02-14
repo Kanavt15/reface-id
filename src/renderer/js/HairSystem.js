@@ -1,7 +1,7 @@
 /**
  * HairSystem.js – GLB model-based hair for forensic facial reconstruction.
  *
- * Loads 4 real hair GLB models (Hair1-4.glb) and aligns them to the head.
+ * Loads 12 real hair GLB models (Hair1-12.glb) and aligns them to the head.
  * Loads eyebrow GLB model and aligns to brow region.
  * Adjustment sliders (length, density, volume, curl) control transforms.
  * Facial hair remains procedural (region-based from trimesh data).
@@ -17,10 +17,6 @@ class HairSystem {
     this.hairGroup.name = 'HairSystem';
     this.scene.add(this.hairGroup);
 
-    this.facialHairGroup = new THREE.Group();
-    this.facialHairGroup.name = 'FacialHair';
-    this.scene.add(this.facialHairGroup);
-
     // Head references
     this._headGroup = null;
     this._regionData = null;
@@ -30,10 +26,12 @@ class HairSystem {
     this.hairColor = '#2c1b0e';
     this.params = { length: 50, density: 50, volume: 50, curl: 0,
                      posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 };
-    this.facialHairStyle = 'none';
+    this.beardStyle = 'none';
+    this.beardParams = { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 };
+    this.beardColor = '#2c1b0e';
     this.eyebrowParams = { thickness: 50, arch: 50, spacing: 50,
                            density: 70, posX: 50, posY: 50, posZ: 50,
-                           rotation: 50, scale: 50,
+                           rotation: 100, scale: 50,
                            straighten: 50, tiltX: 50 };
     this.eyebrowColor = '#2c1b0e';
 
@@ -50,6 +48,11 @@ class HairSystem {
     // Current hair container
     this._hairContainer = null;
     this._alignmentScale = 1;
+    
+    // Cached bbox data for performance
+    this._hairBboxCache = null;
+    this._eyebrowBboxCache = null;
+    this._beardBboxCache = null;
 
     // Eyebrow model
     this._eyebrowContainer = null;
@@ -66,21 +69,46 @@ class HairSystem {
       opacity: 0.85,
     });
 
-    // Facial hair vertex data
-    this.scalpVerts = [];
-    this.chinVerts = [];
+    // Beard model
+    this._beardContainer = null;
+    this._beardGroup = new THREE.Group();
+    this._beardGroup.name = 'BeardSystem';
+    this.scene.add(this._beardGroup);
+
+    this._beardMat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(this.beardColor),
+      roughness: 0.50,
+      metalness: 0.08,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.95,
+    });
 
     // Hair model configs
     this.hairModels = {
-      hair1: { file: '../../assets/models/Hair1.glb', meshName: null },
-      hair2: { file: '../../assets/models/Hair2.glb', meshName: null },
-      hair3: { file: '../../assets/models/Hair3.glb', meshName: 'hair02_hair02_0' },
-      hair4: { file: '../../assets/models/Hair4.glb', meshName: 'hair11_hair11_0' },
+      hair1: { file: '../../assets/models/hair/Hair1.glb', meshName: null },
+      hair2: { file: '../../assets/models/hair/Hair2.glb', meshName: null },
+      hair3: { file: '../../assets/models/hair/Hair3.glb', meshName: 'hair02_hair02_0' },
+      hair4: { file: '../../assets/models/hair/Hair4.glb', meshName: 'hair11_hair11_0' },
+      hair5: { file: '../../assets/models/hair/Hair5.glb', meshName: null },
+      hair6: { file: '../../assets/models/hair/Hair6.glb', meshName: null },
+      hair7: { file: '../../assets/models/hair/Hair7.glb', meshName: null },
+      hair8: { file: '../../assets/models/hair/Hair8.glb', meshName: null },
+      hair9: { file: '../../assets/models/hair/Hair9.glb', meshName: null },
+      hair10: { file: '../../assets/models/hair/Hair10.glb', meshName: null },
+      hair11: { file: '../../assets/models/hair/Hair11.glb', meshName: null },
+      hair12: { file: '../../assets/models/hair/Hair12.glb', meshName: null },
       bald:  { file: null },
     };
 
     // Eyebrow model config
-    this.eyebrowModel = { file: '../../assets/models/eyebrows.glb', meshName: null };
+    this.eyebrowModel = { file: '../../assets/models/facial/eyebrows.glb', meshName: null };
+
+    // Beard model configs
+    this.beardModels = {
+      none: { file: null },
+      beard1: { file: '../../assets/models/facial/Beard1.glb', meshName: null },
+    };
 
     // Hair material
     this._hairMat = new THREE.MeshStandardMaterial({
@@ -99,17 +127,17 @@ class HairSystem {
     this._headGroup = headGroup;
     this._regionData = regionData;
     this._computeHeadMetrics();
-    this._extractFacialHairVerts();
   }
 
   refreshFromMesh() {
     if (!this._headGroup) return;
     this._computeHeadMetrics();
-    this._extractFacialHairVerts();
     if (this._hairContainer && this.currentStyle !== 'bald') {
       this._alignAndAdjust();
     }
-    this.generateFacialHair();
+    if (this._beardContainer) {
+      this._alignAndAdjustBeard();
+    }
     if (this._eyebrowContainer) {
       this._alignAndAdjustEyebrows();
     }
@@ -133,13 +161,7 @@ class HairSystem {
   setColor(color) {
     this.hairColor = color;
     this._hairMat.color.set(color);
-    this.hairGroup.traverse(child => {
-      if (child.isMesh && child.material) child.material.color.set(color);
-    });
-    this.facialHairGroup.traverse(child => {
-      if (child.isMesh && child.material) child.material.color.set(color);
-      if (child.isLine && child.material) child.material.color.set(color);
-    });
+    // Material is shared, color update applies to all meshes automatically
   }
 
   setParam(param, value) {
@@ -152,27 +174,34 @@ class HairSystem {
   // ── Main generation ──
 
   generate() {
+    console.log('[HairSystem] generate() called for style:', this.currentStyle);
     this._clearGroup(this.hairGroup);
     this._hairContainer = null;
 
     const config = this.hairModels[this.currentStyle];
-    if (!config || !config.file) return;
+    if (!config || !config.file) {
+      console.log('[HairSystem] No config or file for style:', this.currentStyle);
+      return;
+    }
 
     this._loadId++;
     const thisLoadId = this._loadId;
 
     if (this._modelCache[this.currentStyle]) {
+      console.log('[HairSystem] Using cached hair model:', this.currentStyle);
       if (this._loadId !== thisLoadId) return;
       this._showCachedModel(this.currentStyle);
       return;
     }
 
+    console.log('[HairSystem] Loading hair model from:', config.file);
     const loader = new THREE.GLBLoader();
     loader.load(
       config.file,
       (group) => {
         if (this._loadId !== thisLoadId) return;
 
+        console.log('[HairSystem] Hair model loaded successfully:', config.file);
         if (config.meshName) {
           const filtered = new THREE.Group();
           filtered.name = group.name;
@@ -189,7 +218,7 @@ class HairSystem {
         this._showCachedModel(this.currentStyle);
       },
       null,
-      (err) => { console.error('Failed to load hair model:', config.file, err); }
+      (err) => { console.error('[HairSystem] Failed to load hair model:', config.file, err); }
     );
   }
 
@@ -207,8 +236,7 @@ class HairSystem {
     cached.traverse(child => {
       if (child.isMesh) {
         const clone = child.clone();
-        clone.material = this._hairMat.clone();
-        clone.material.color.set(this.hairColor);
+        clone.material = this._hairMat;
         clone.castShadow = true;
         clone.receiveShadow = true;
         offsetGroup.add(clone);
@@ -218,6 +246,9 @@ class HairSystem {
     container.add(offsetGroup);
     this.hairGroup.add(container);
     this._hairContainer = container;
+    
+    // Clear bbox cache for new model
+    this._hairBboxCache = null;
 
     this._alignAndAdjust();
   }
@@ -228,23 +259,29 @@ class HairSystem {
     const container = this._hairContainer;
     const offsetGroup = container.children[0];
 
-    // Reset transforms for bbox computation
-    container.scale.set(1, 1, 1);
-    container.position.set(0, 0, 0);
-    container.rotation.set(0, 0, 0);
-    offsetGroup.position.set(0, 0, 0);
+    // Compute bbox only once and cache it
+    if (!this._hairBboxCache) {
+      // Reset transforms for bbox computation
+      container.scale.set(1, 1, 1);
+      container.position.set(0, 0, 0);
+      container.rotation.set(0, 0, 0);
+      offsetGroup.position.set(0, 0, 0);
 
-    // Compute hair bounding box
-    const hairBox = new THREE.Box3().setFromObject(container);
-    const hairCenter = new THREE.Vector3();
-    hairBox.getCenter(hairCenter);
-    const hairSize = new THREE.Vector3();
-    hairBox.getSize(hairSize);
+      const hairBox = new THREE.Box3().setFromObject(container);
+      const hairCenter = new THREE.Vector3();
+      hairBox.getCenter(hairCenter);
+      const hairSize = new THREE.Vector3();
+      hairBox.getSize(hairSize);
 
-    if (hairSize.x < 0.001) return;
+      if (hairSize.x < 0.001) return;
 
-    // Center hair at origin
-    offsetGroup.position.set(-hairCenter.x, -hairCenter.y, -hairCenter.z);
+      this._hairBboxCache = { center: hairCenter, size: hairSize };
+      
+      // Center hair at origin (only needed once)
+      offsetGroup.position.set(-hairCenter.x, -hairCenter.y, -hairCenter.z);
+    }
+
+    const hairSize = this._hairBboxCache.size;
 
     // Alignment scale: match head width
     const baseScale = this.headWidth / Math.max(hairSize.x, hairSize.z);
@@ -300,9 +337,7 @@ class HairSystem {
   setEyebrowColor(color) {
     this.eyebrowColor = color;
     this._eyebrowMat.color.set(color);
-    this._eyebrowGroup.traverse(child => {
-      if (child.isMesh && child.material) child.material.color.set(color);
-    });
+    // Material is shared, color update applies to all meshes automatically
   }
 
   setEyebrowParam(param, value) {
@@ -311,21 +346,28 @@ class HairSystem {
   }
 
   generateEyebrows() {
+    console.log('[HairSystem] generateEyebrows() called');
     this._clearGroup(this._eyebrowGroup);
     this._eyebrowContainer = null;
 
     const config = this.eyebrowModel;
-    if (!config || !config.file) return;
+    if (!config || !config.file) {
+      console.log('[HairSystem] No eyebrow config or file');
+      return;
+    }
 
     if (this._modelCache['eyebrows']) {
+      console.log('[HairSystem] Using cached eyebrow model');
       this._showCachedEyebrows();
       return;
     }
 
+    console.log('[HairSystem] Loading eyebrow model from:', config.file);
     const loader = new THREE.GLBLoader();
     loader.load(
       config.file,
       (group) => {
+        console.log('[HairSystem] Eyebrow model loaded successfully');
         if (config.meshName) {
           const filtered = new THREE.Group();
           filtered.name = group.name;
@@ -341,7 +383,7 @@ class HairSystem {
         this._showCachedEyebrows();
       },
       null,
-      (err) => { console.error('Failed to load eyebrow model:', config.file, err); }
+      (err) => { console.error('[HairSystem] Failed to load eyebrow model:', config.file, err); }
     );
   }
 
@@ -359,8 +401,7 @@ class HairSystem {
     cached.traverse(child => {
       if (child.isMesh) {
         const clone = child.clone();
-        clone.material = this._eyebrowMat.clone();
-        clone.material.color.set(this.eyebrowColor);
+        clone.material = this._eyebrowMat;
         clone.castShadow = true;
         clone.receiveShadow = true;
         offsetGroup.add(clone);
@@ -370,6 +411,9 @@ class HairSystem {
     container.add(offsetGroup);
     this._eyebrowGroup.add(container);
     this._eyebrowContainer = container;
+    
+    // Clear bbox cache for new model
+    this._eyebrowBboxCache = null;
 
     this._alignAndAdjustEyebrows();
   }
@@ -381,23 +425,29 @@ class HairSystem {
     const offsetGroup = container.children[0];
     const ep = this.eyebrowParams;
 
-    // Reset transforms for bbox computation
-    container.scale.set(1, 1, 1);
-    container.position.set(0, 0, 0);
-    container.rotation.set(0, 0, 0);
-    offsetGroup.position.set(0, 0, 0);
+    // Compute bbox only once and cache it
+    if (!this._eyebrowBboxCache) {
+      // Reset transforms for bbox computation
+      container.scale.set(1, 1, 1);
+      container.position.set(0, 0, 0);
+      container.rotation.set(0, 0, 0);
+      offsetGroup.position.set(0, 0, 0);
 
-    // Compute eyebrow model bounding box
-    const browBox = new THREE.Box3().setFromObject(container);
-    const browCenter = new THREE.Vector3();
-    browBox.getCenter(browCenter);
-    const browSize = new THREE.Vector3();
-    browBox.getSize(browSize);
+      const browBox = new THREE.Box3().setFromObject(container);
+      const browCenter = new THREE.Vector3();
+      browBox.getCenter(browCenter);
+      const browSize = new THREE.Vector3();
+      browBox.getSize(browSize);
 
-    if (browSize.x < 0.001) return;
+      if (browSize.x < 0.001) return;
 
-    // Center eyebrow model at origin
-    offsetGroup.position.set(-browCenter.x, -browCenter.y, -browCenter.z);
+      this._eyebrowBboxCache = { center: browCenter, size: browSize };
+      
+      // Center eyebrow model at origin (only needed once)
+      offsetGroup.position.set(-browCenter.x, -browCenter.y, -browCenter.z);
+    }
+
+    const browSize = this._eyebrowBboxCache.size;
 
     // Target: brow region on the head (from OBJMorpher landmarks)
     // brow_left/right_center Y≈0.40, Z≈1.00; outer brows span ~0.90 in X
@@ -409,25 +459,26 @@ class HairSystem {
     const baseScale = browRegionWidth / browSize.x;
 
     // Slider-driven adjustments
-    const thicknessF = 0.5 + (ep.thickness / 100) * 1.0;
-    const archF = ((ep.arch - 50) / 50) * 0.08;
-    const spacingOffset = ((ep.spacing - 50) / 50) * 0.15;
+    const thicknessF = 0.5 + (ep.thickness / 100) * 1.0;       // Y-scale only
+    const archF = ((ep.arch - 50) / 50) * 0.08;                 // Y-position adjustment
+    const spacingOffset = ((ep.spacing - 50) / 50) * 0.15;      // X-position (closer/further)
     const density = ep.density;
-    const scaleF = 0.5 + (ep.scale / 100) * 1.0;
-    const rotZ = ((ep.rotation - 50) / 50) * (Math.PI / 6);
-    // Straighten: X-rotation flattens the natural arch curve (±45°)
-    const straightenF = ((ep.straighten - 50) / 50) * (Math.PI / 4);
-    // Tilt X: forward/backward tilt (±30°)
-    const tiltXF = ((ep.tiltX - 50) / 50) * (Math.PI / 6);
+    const scaleF = 0.5 + (ep.scale / 100) * 1.0;               // Overall XZ scale
+    
+    // Rotations (each on different axis for clear control)
+    const rotZ = ((ep.rotation - 50) / 50) * Math.PI;          // Z-axis: angle/tilt up-down
+    const rotY = ((ep.straighten - 50) / 50) * (Math.PI / 3);  // Y-axis: twist/straighten
+    const rotX = ((ep.tiltX - 50) / 50) * Math.PI;             // X-axis: forward/backward tilt
 
     // Position offsets (range ±0.3)
     const posOffsetX = ((ep.posX - 50) / 50) * 0.3;
     const posOffsetY = ((ep.posY - 50) / 50) * 0.3;
     const posOffsetZ = ((ep.posZ - 50) / 50) * 0.3;
 
+    // Apply scale: XZ scaled by overall scale, Y scaled by thickness independently
     container.scale.set(
       baseScale * scaleF,
-      baseScale * thicknessF * scaleF,
+      baseScale * thicknessF,
       baseScale * scaleF
     );
 
@@ -437,109 +488,178 @@ class HairSystem {
       browRegionZ + posOffsetZ
     );
 
-    container.rotation.set(straightenF + tiltXF, 0, rotZ);
+    // Apply rotations: X (fwd/back tilt), Y (180° base + twist), Z (angle)
+    container.rotation.set(rotX, Math.PI + rotY, rotZ);
 
-    // Density → opacity
+    // Density → opacity (update shared material)
     const opacity = 0.4 + (density / 100) * 0.6;
-    container.traverse(child => {
-      if (child.isMesh && child.material) {
-        child.material.opacity = opacity;
-        child.material.transparent = opacity < 1.0;
-      }
-    });
+    this._eyebrowMat.opacity = opacity;
+    this._eyebrowMat.transparent = opacity < 1.0;
   }
 
   clearEyebrows() {
     this._clearGroup(this._eyebrowGroup);
     this._eyebrowContainer = null;
+    this._eyebrowBboxCache = null;
   }
 
-  // ── Facial Hair (procedural) ──
+  // ── Beard (GLB model) ──
 
-  _extractFacialHairVerts() {
-    this.scalpVerts = [];
-    this.chinVerts = [];
-    if (!this._headGroup || !this._regionData) return;
+  setBeardColor(color) {
+    this.beardColor = color;
+    this._beardMat.color.set(color);
+    // Material is shared, color update applies to all meshes automatically
+  }
 
-    const group = this._headGroup;
-    const regionMap = this._regionData.per_vertex_region;
-    const chinRegions = [9, 11, 12, 13, 14, 15];
+  setBeardParam(param, value) {
+    this.beardParams[param] = value;
+    if (this._beardContainer) this._alignAndAdjustBeard();
+  }
 
-    let globalIdx = 0;
-    group.traverse((child) => {
-      if (!child.isMesh || !child.geometry) return;
-      const pos = child.geometry.attributes.position;
-      const norm = child.geometry.attributes.normal;
-      if (!pos || !norm) return;
+  setBeard(style) {
+    this.beardStyle = style;
+    this.generateBeard();
+  }
 
-      child.updateWorldMatrix(true, false);
-      const mat4 = child.matrixWorld;
-      const nMat = new THREE.Matrix3().getNormalMatrix(mat4);
+  generateBeard() {
+    this._clearGroup(this._beardGroup);
+    this._beardContainer = null;
 
-      for (let i = 0; i < pos.count; i++) {
-        const rid = regionMap[globalIdx];
-        const v = new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(mat4);
-        const n = new THREE.Vector3(norm.getX(i), norm.getY(i), norm.getZ(i)).applyMatrix3(nMat).normalize();
+    if (this.beardStyle === 'none') return;
 
-        if (rid === 0) this.scalpVerts.push({ position: v, normal: n });
-        else if (chinRegions.includes(rid)) this.chinVerts.push({ position: v, normal: n });
-        globalIdx++;
+    const config = this.beardModels[this.beardStyle];
+    if (!config || !config.file) return;
+
+    const cacheKey = `beard_${this.beardStyle}`;
+    if (this._modelCache[cacheKey]) {
+      this._showCachedBeard();
+      return;
+    }
+
+    const loader = new THREE.GLBLoader();
+    loader.load(
+      config.file,
+      (group) => {
+        if (config.meshName) {
+          const filtered = new THREE.Group();
+          filtered.name = group.name;
+          group.traverse(child => {
+            if (child.isMesh && child.name === config.meshName) {
+              filtered.add(child.clone());
+            }
+          });
+          this._modelCache[cacheKey] = filtered;
+        } else {
+          this._modelCache[cacheKey] = group;
+        }
+        this._showCachedBeard();
+      },
+      null,
+      (err) => { console.error('Failed to load beard model:', config.file, err); }
+    );
+  }
+
+  _showCachedBeard() {
+    this._clearGroup(this._beardGroup);
+    const cacheKey = `beard_${this.beardStyle}`;
+    const cached = this._modelCache[cacheKey];
+    if (!cached) return;
+
+    const container = new THREE.Group();
+    container.name = 'BeardContainer';
+
+    const offsetGroup = new THREE.Group();
+    offsetGroup.name = 'BeardOffset';
+
+    cached.traverse(child => {
+      if (child.isMesh) {
+        const clone = child.clone();
+        clone.material = this._beardMat;
+        clone.castShadow = true;
+        clone.receiveShadow = true;
+        offsetGroup.add(clone);
       }
     });
+
+    container.add(offsetGroup);
+    this._beardGroup.add(container);
+    this._beardContainer = container;
+    
+    // Clear bbox cache for new model
+    this._beardBboxCache = null;
+
+    this._alignAndAdjustBeard();
   }
 
-  setFacialHair(style) { this.facialHairStyle = style; this.generateFacialHair(); }
+  _alignAndAdjustBeard() {
+    if (!this._beardContainer || !this._headGroup) return;
 
-  generateFacialHair() {
-    this._clearGroup(this.facialHairGroup);
-    if (this.facialHairStyle === 'none' || this.chinVerts.length === 0) return;
+    const container = this._beardContainer;
+    const offsetGroup = container.children[0];
+    const bp = this.beardParams;
 
-    const configs = {
-      stubble:     { count: 2500, length: 0.008 },
-      short_beard: { count: 3000, length: 0.025 },
-      full_beard:  { count: 4000, length: 0.060 },
-      goatee:      { count: 1200, length: 0.035 },
-      mustache:    { count: 800,  length: 0.020 },
-      sideburns:   { count: 1000, length: 0.025 },
-    };
-    const cfg = configs[this.facialHairStyle] || configs.stubble;
-    const roots = this._filterChinRoots();
+    // Compute bbox only once and cache it
+    if (!this._beardBboxCache) {
+      // Reset transforms for bbox computation
+      container.scale.set(1, 1, 1);
+      container.position.set(0, 0, 0);
+      container.rotation.set(0, 0, 0);
+      offsetGroup.position.set(0, 0, 0);
 
-    for (let i = 0; i < cfg.count; i++) {
-      if (!roots.length) break;
-      const r = roots[Math.floor(this._rand(i + 80000) * roots.length)];
-      const s = r.position.clone().addScaledVector(r.normal, 0.001);
-      const d = r.normal.clone();
-      d.y -= 0.35; d.normalize();
+      const beardBox = new THREE.Box3().setFromObject(container);
+      const beardCenter = new THREE.Vector3();
+      beardBox.getCenter(beardCenter);
+      const beardSize = new THREE.Vector3();
+      beardBox.getSize(beardSize);
 
-      const len = cfg.length * (0.4 + this._rand(i + 90000) * 0.6);
-      const tip = s.clone().addScaledVector(d, len);
-      const mid = s.clone().lerp(tip, 0.5);
-      mid.x += (this._rand(i + 95000) - 0.5) * 0.003;
+      if (beardSize.x < 0.001) return;
 
-      const geo = new THREE.BufferGeometry().setFromPoints([s, mid, tip]);
-      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({
-        color: new THREE.Color(this.hairColor),
-        transparent: true, opacity: 0.75,
-      }));
-      this.facialHairGroup.add(line);
+      this._beardBboxCache = { center: beardCenter, size: beardSize };
+      
+      // Center beard model at origin (only needed once)
+      offsetGroup.position.set(-beardCenter.x, -beardCenter.y, -beardCenter.z);
     }
+
+    const beardSize = this._beardBboxCache.size;
+
+    // Target: chin/mouth region on the head
+    const beardRegionY = 0.15;  // Lower face position
+    const beardRegionZ = 0.95;  // Forward position on face
+
+    // Base scale: match head width (same approach as hair system)
+    const baseScale = this.headWidth / Math.max(beardSize.x, beardSize.z);
+
+    // Slider-driven adjustments (0-200 range, centered at 100)
+    const scaleF = 0.5 + (bp.scale / 200) * 1.0;
+    
+    // Rotations (0-200 range, centered at 100)
+    const rotY = ((bp.rotY - 100) / 100) * (Math.PI / 6);  // Y-axis: twist
+    const rotZ = ((bp.rotZ - 100) / 100) * (Math.PI / 6);  // Z-axis: tilt
+
+    // Position offsets (0-200 centered at 100)
+    const posOffsetX = ((bp.posX - 100) / 100) * 0.3;
+    const posOffsetY = ((bp.posY - 100) / 100) * 0.8;    // Up/Down: increased range ±0.8
+    const posOffsetZ = ((bp.posZ - 100) / 100) * 0.8;    // Fwd/Back: increased range ±0.8
+
+    container.scale.set(
+      baseScale * scaleF,
+      baseScale * scaleF,
+      baseScale * scaleF
+    );
+
+    container.position.set(
+      this.modelCenter.x + posOffsetX,
+      beardRegionY + posOffsetY,
+      beardRegionZ + posOffsetZ
+    );
+
+    container.rotation.set(0, rotY, rotZ);
   }
 
-  _filterChinRoots() {
-    const cx = this.modelCenter.x;
-    switch (this.facialHairStyle) {
-      case 'mustache':
-        return this.chinVerts.filter(v => {
-          const relY = (v.position.y - (this.modelCenter.y - this.modelHeight / 2)) / this.modelHeight;
-          return relY > 0.42 && relY < 0.52 && Math.abs(v.position.x - cx) < 0.25;
-        });
-      case 'goatee':
-        return this.chinVerts.filter(v => Math.abs(v.position.x - cx) < 0.2);
-      case 'sideburns':
-        return this.chinVerts.filter(v => Math.abs(v.position.x - cx) > 0.25);
-      default: return this.chinVerts;
-    }
+  clearBeard() {
+    this._clearGroup(this._beardGroup);
+    this._beardContainer = null;
+    this._beardBboxCache = null;
   }
 
   // ── Utility ──
@@ -560,7 +680,7 @@ class HairSystem {
     }
   }
 
-  clearHair() { this._clearGroup(this.hairGroup); this._hairContainer = null; }
+  clearHair() { this._clearGroup(this.hairGroup); this._hairContainer = null; this._hairBboxCache = null; }
 
   getParams() {
     return {
@@ -570,7 +690,7 @@ class HairSystem {
       posX: this.params.posx / 100, posY: this.params.posy / 100,
       posZ: this.params.posz / 100, rotY: this.params.roty / 100,
       hairScale: this.params.scale / 100,
-      facialHair: { style: this.facialHairStyle },
+      beard: { style: this.beardStyle, ...this.beardParams, color: this.beardColor },
       eyebrows: { ...this.eyebrowParams, color: this.eyebrowColor },
     };
   }
@@ -636,7 +756,22 @@ class HairSystem {
     if (state.posZ !== undefined) this.params.posz = Math.round(state.posZ * 100);
     if (state.rotY !== undefined) this.params.roty = Math.round(state.rotY * 100);
     if (state.hairScale !== undefined) this.params.scale = Math.round(state.hairScale * 100);
-    if (state.facialHair) this.facialHairStyle = state.facialHair.style || 'none';
+    
+    // Handle beard (new system) or legacy facialHair
+    if (state.beard) {
+      this.beardStyle = state.beard.style || 'none';
+      for (const key of ['scale', 'posX', 'posY', 'posZ', 'rotY', 'rotZ']) {
+        if (state.beard[key] !== undefined) this.beardParams[key] = state.beard[key];
+      }
+      if (state.beard.color) {
+        this.beardColor = state.beard.color;
+        this._beardMat.color.set(state.beard.color);
+      }
+    } else if (state.facialHair) {
+      // Legacy support - just ignore old facial hair data
+      console.log('Legacy facial hair data ignored - please use beard system');
+    }
+    
     if (state.eyebrows) {
       const eb = state.eyebrows;
       for (const key of ['thickness', 'arch', 'spacing', 'density', 'posX', 'posY', 'posZ', 'rotation', 'scale', 'straighten', 'tiltX']) {
@@ -648,7 +783,7 @@ class HairSystem {
       }
     }
     this.generate();
-    this.generateFacialHair();
+    this.generateBeard();
     this.generateEyebrows();
   }
 }

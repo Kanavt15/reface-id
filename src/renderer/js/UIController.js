@@ -22,6 +22,7 @@ class UIController {
     this.bindMorphSliders();
     this.bindHairControls();
     this.bindEyebrowControls();
+    this.bindBeardControls();
     this.bindAppearanceControls();
     this.bindSkinMarkControls();
     this.bindCaseControls();
@@ -283,14 +284,6 @@ class UIController {
       });
     }
 
-    // Facial hair
-    document.getElementById('facialHairStyle')?.addEventListener('change', (e) => {
-      this.caseManager.pushState(`Facial hair: ${e.target.value}`);
-      this.hair.setFacialHair(e.target.value);
-      this.caseManager.updateHairParams(this.hair.getParams());
-      this.addHistory(`Facial hair: ${e.target.value}`);
-    });
-
     // ── Render with Blender (disabled — re-enable when hair transform pipeline is fixed) ──
     // To re-enable: uncomment the block below and unhide #renderSection in index.html
     /*
@@ -433,7 +426,7 @@ class UIController {
       this.caseManager.pushState('Reset eyebrows');
 
       const defaults = { thickness: 50, arch: 50, spacing: 50, density: 70,
-                          posX: 50, posY: 50, posZ: 50, rotation: 50, scale: 50,
+                          posX: 50, posY: 50, posZ: 50, rotation: 100, scale: 50,
                           straighten: 50, tiltX: 50 };
       Object.entries(defaults).forEach(([key, val]) => {
         this.hair.setEyebrowParam(key, val);
@@ -445,7 +438,7 @@ class UIController {
         groupBody.querySelectorAll('.eyebrow-slider').forEach(slider => {
           const control = slider.closest('.slider-control');
           const param = control?.dataset.param;
-          const defaultVal = param === 'eyebrowDensity' ? 70 : 50;
+          const defaultVal = param === 'eyebrowDensity' ? 70 : (param === 'eyebrowRotation' ? 100 : 50);
           slider.value = defaultVal;
           const vd = control?.querySelector('.slider-value');
           if (vd) vd.textContent = defaultVal;
@@ -460,6 +453,110 @@ class UIController {
 
       this.caseManager.updateHairParams(this.hair.getParams());
       this.addHistory('Reset eyebrows');
+    });
+  }
+
+  // ─── Beard Controls ──────────────────────────────────────────────────────
+
+  bindBeardControls() {
+    // Beard style dropdown
+    document.getElementById('beardStyle')?.addEventListener('change', (e) => {
+      this.caseManager.pushState(`Beard style: ${e.target.value}`);
+      this.hair.setBeard(e.target.value);
+      this.caseManager.updateHairParams(this.hair.getParams());
+      this.addHistory(`Beard: ${this.formatStyleName(e.target.value)}`);
+    });
+
+    // Beard param sliders
+    document.querySelectorAll('.beard-slider').forEach(slider => {
+      const control = slider.closest('.slider-control');
+      const param = control?.dataset.param;
+      const valueDisplay = control?.querySelector('.slider-value');
+
+      slider.addEventListener('mousedown', () => {
+        this.caseManager.beginAction(`Modified beard ${param}`);
+      });
+
+      slider.addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        if (valueDisplay) valueDisplay.textContent = value;
+
+        if (param) {
+          const key = param.replace('beard', '');
+          const beardKey = key.charAt(0).toLowerCase() + key.slice(1);
+          this.hair.setBeardParam(beardKey, value);
+        }
+      });
+
+      slider.addEventListener('mouseup', () => {
+        this.caseManager.updateHairParams(this.hair.getParams());
+        this.caseManager.endAction();
+      });
+    });
+
+    // Beard color presets
+    document.querySelectorAll('#beardColorPresets .color-swatch').forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        this.caseManager.pushState('Changed beard color');
+        document.querySelectorAll('#beardColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
+        swatch.classList.add('active');
+
+        const color = swatch.dataset.color;
+        this.hair.setBeardColor(color);
+        document.getElementById('beardColorPicker').value = color;
+        this.caseManager.updateHairParams(this.hair.getParams());
+        this.addHistory('Changed beard color');
+      });
+    });
+
+    // Beard color picker
+    {
+      let _beardColorCapturing = false;
+      const beardColorPicker = document.getElementById('beardColorPicker');
+      beardColorPicker?.addEventListener('input', (e) => {
+        if (!_beardColorCapturing) {
+          this.caseManager.beginAction('Changed beard color');
+          _beardColorCapturing = true;
+        }
+        this.hair.setBeardColor(e.target.value);
+        document.querySelectorAll('#beardColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
+      });
+      beardColorPicker?.addEventListener('change', () => {
+        this.caseManager.updateHairParams(this.hair.getParams());
+        this.caseManager.endAction();
+        _beardColorCapturing = false;
+        this.addHistory('Changed beard color');
+      });
+    }
+
+    // Reset beard button
+    document.getElementById('btnResetBeard')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.caseManager.pushState('Reset beard');
+
+      const defaults = { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 };
+      Object.entries(defaults).forEach(([key, val]) => {
+        this.hair.setBeardParam(key, val);
+      });
+      this.hair.setBeardColor('#2c1b0e');
+
+      const groupBody = e.currentTarget.closest('.control-group')?.querySelector('.control-group-body');
+      if (groupBody) {
+        groupBody.querySelectorAll('.beard-slider').forEach(slider => {
+          slider.value = 100;
+          const vd = slider.closest('.slider-control')?.querySelector('.slider-value');
+          if (vd) vd.textContent = '100';
+        });
+      }
+
+      const picker = document.getElementById('beardColorPicker');
+      if (picker) picker.value = '#2c1b0e';
+      document.querySelectorAll('#beardColorPresets .color-swatch').forEach(s => {
+        s.classList.toggle('active', s.dataset.color === '#2c1b0e');
+      });
+
+      this.caseManager.updateHairParams(this.hair.getParams());
+      this.addHistory('Reset beard');
     });
   }
 
@@ -1084,10 +1181,36 @@ class UIController {
           s.classList.toggle('active', s.dataset.color === state.hairParams.color);
         });
       }
-      // Update facial hair dropdown
-      if (state.hairParams.facialHair !== undefined) {
-        const sel = document.getElementById('facialHairStyle');
-        if (sel) sel.value = state.hairParams.facialHair;
+      // Update beard dropdown and params
+      if (state.hairParams.beard) {
+        const beard = state.hairParams.beard;
+        const sel = document.getElementById('beardStyle');
+        if (sel && beard.style) sel.value = beard.style;
+        
+        // Restore beard sliders
+        document.querySelectorAll('.beard-slider').forEach(slider => {
+          const control = slider.closest('.slider-control');
+          const param = control?.dataset.param;
+          if (param) {
+            const key = param.replace('beard', '');
+            const beardKey = key.charAt(0).toLowerCase() + key.slice(1);
+            const val = beard[beardKey];
+            if (val !== undefined) {
+              slider.value = val;
+              const vd = control?.querySelector('.slider-value');
+              if (vd) vd.textContent = val;
+            }
+          }
+        });
+        
+        // Restore beard color
+        if (beard.color) {
+          const picker = document.getElementById('beardColorPicker');
+          if (picker) picker.value = beard.color;
+          document.querySelectorAll('#beardColorPresets .color-swatch').forEach(s => {
+            s.classList.toggle('active', s.dataset.color === beard.color);
+          });
+        }
       }
       // Restore eyebrow params
       if (state.hairParams.eyebrows) {
