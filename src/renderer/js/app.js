@@ -145,6 +145,30 @@
     ui.updatePropertyPanel();
     ui.addHistory(group ? 'Base face model loaded (OBJ)' : 'Using procedural head');
 
+    // ── Initialize AI Controller ──
+    console.log('[App] Initializing AI Controller...');
+    const aiController = new AIController(api, activeMorpher, hairSystem, caseManager, ui);
+    aiController.init();
+    ui.aiController = aiController;  // expose for quick prompts etc.
+    console.log('[App] AI Controller initialized');
+
+    // ── Bind quick prompt buttons ──
+    document.querySelectorAll('.ai-quick-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const prompt = btn.dataset.prompt;
+        const chatInput = document.getElementById('aiChatInput');
+        if (chatInput && prompt) {
+          chatInput.value = prompt;
+          aiController.sendPrompt();
+        }
+      });
+    });
+
+    // ── Bind clear conversation button ──
+    document.getElementById('aiClearBtn')?.addEventListener('click', () => {
+      aiController.clearConversation();
+    });
+
     // ── Bind Face Point Editor UI controls ──
     _bindPointEditorUI(facePointEditor, ui);
   });

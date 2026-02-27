@@ -105,6 +105,13 @@ class BackendAPI {
   }
 
   /**
+   * AI face generation
+   */
+  async aiGenerateFace(prompt, currentState, history) {
+    return this._post('/api/ai/generate', { prompt, currentState, history });
+  }
+
+  /**
    * Generic POST request
    */
   async _post(endpoint, data) {

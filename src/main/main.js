@@ -8,7 +8,12 @@ let pythonProcess;
 // Start Python/Blender backend
 function startBackend() {
   const backendPath = path.join(__dirname, '..', '..', 'backend', 'server.py');
-  pythonProcess = spawn('python', [backendPath], {
+  const condaPython = path.join(
+    process.env.HOME || process.env.USERPROFILE,
+    'miniforge3', 'envs', 'reface', 'bin', 'python'
+  );
+  const pythonCmd = require('fs').existsSync(condaPython) ? condaPython : 'python';
+  pythonProcess = spawn(pythonCmd, [backendPath], {
     cwd: path.join(__dirname, '..', '..', 'backend')
   });
 
@@ -84,6 +89,18 @@ function createWindow() {
         },
         { type: 'separator' },
         { role: 'quit' }
+      ]
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' }
       ]
     },
     {

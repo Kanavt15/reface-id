@@ -1,6 +1,6 @@
 """
 REface ID — Python Backend Server
-Handles Blender engine integration, mesh operations, and 3D export.
+Handles Blender engine integration, mesh operations, 3D export, and AI face generation.
 Uses Flask API to communicate with the Electron/Three.js frontend.
 """
 
@@ -14,9 +14,89 @@ from pathlib import Path
 
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
+from dotenv import load_dotenv
+import anthropic
+import speech_recognition as sr
+
+# Load .env from project root
+load_dotenv(Path(__file__).parent.parent / '.env')
 
 app = Flask(__name__)
 CORS(app)
+
+# ─── Anthropic AI Client ─────────────────────────────────────────────────────
+ai_client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+
+AI_SYSTEM_PROMPT = """You are the AI face builder for REface ID, a forensic 3D facial reconstruction tool.
+Your job is to translate natural language face descriptions into precise parameter values.
+
+You control these parameter categories:
+
+## MORPH TARGETS (face shape) — all integer values 0-100, where 50 = neutral/default
+Skull: faceWidth, faceLength, headWidth, headLength, faceTaper
+Forehead: foreheadHeight, foreheadSlope, foreheadWidth, templeWidth, foreheadBulge
+Brows: browHeight, browSpacing, browProminence, browArch, browThickness
+Eyes: eyeSpacing, eyeHeight, eyeDepth, eyeSize, eyeTilt, eyeOpenness
+Nose: noseLength, noseWidth, noseBridgeWidth, noseBridgeHeight, noseTipHeight, noseTipWidth, nostrilFlare
+Cheeks: cheekFullness, cheekboneProminence, cheekHeight, nasolabialDepth
+Mouth: mouthWidth, mouthHeight, lipProtrusion, upperLipThickness, lowerLipThickness, cupidBow, philtrumDepth, philtrumWidth, lipCornerAngle
+Jaw/Chin: jawWidth, chinHeight, chinWidth, chinProtrusion, jawDefinition
+Ears: earSize, earProtrusion, earHeight, earlobeSize
+
+Value guide for morphs:
+- 0 = minimum (e.g., very narrow, very small, very short)
+- 50 = neutral/average
+- 100 = maximum (e.g., very wide, very large, very long)
+- "slightly wide" ≈ 60-65, "wide" ≈ 70-75, "very wide" ≈ 80-90
+- "slightly narrow" ≈ 35-40, "narrow" ≈ 25-30, "very narrow" ≈ 10-20
+
+## HAIR — style is a string, properties are 0-100
+Available styles and their descriptions:
+- "hair1": Short textured crop (default)
+- "hair2": Slicked back medium
+- "hair3": Long straight parted
+- "hair4": Curly afro volume
+- "hair5": Buzz cut / military
+- "hair6": Pompadour styled
+- "hair7": Side swept medium
+- "hair8": Long wavy flowing
+- "hair9": Short spiky
+- "hair10": Dreadlocks / locs
+- "hair11": Mohawk style
+- "hair12": Bob / shoulder length
+- "bald": No hair
+
+Hair properties (0-100): length, density, volume, curl
+Hair color: hex color string (e.g., "#1a1a1a" for black, "#d4a23f" for blonde)
+
+## EYEBROWS — all 0-100
+Properties: thickness, arch, spacing, density
+
+## BEARD
+Style: "none" or "beard1" (full beard)
+Color: hex color string
+
+## APPEARANCE
+skinColor: hex color string (e.g., "#f5deb3" very light, "#d4a574" medium, "#3b2010" very dark)
+eyeColor: hex color string (e.g., "#634e34" brown, "#2e536f" blue, "#3d671d" green)
+ageRange: "18-25", "25-35", "35-45", "45-55", "55-65", "65+"
+sex: "male" or "female"
+
+## RULES
+1. ONLY output a valid JSON object. No explanations, no markdown, no comments.
+2. Only include parameters you want to change. Omit parameters that should stay at default (50) or unchanged.
+3. For refinement requests, you will receive the current parameter state. Apply RELATIVE changes based on the user's feedback.
+4. Use the exact JSON structure shown below.
+5. For "a bit" / "slightly" changes, adjust by 5-10 from current value. For "more" / "much more", adjust by 15-25.
+
+## OUTPUT FORMAT (strict JSON, nothing else):
+{
+  "morphTargets": { "paramName": value, ... },
+  "hair": { "style": "hair1", "color": "#hex", "length": 50, "density": 50, "volume": 50, "curl": 0 },
+  "eyebrows": { "thickness": 50, "arch": 50, "spacing": 50, "density": 70 },
+  "beard": { "style": "none", "color": "#hex" },
+  "appearance": { "skinColor": "#hex", "eyeColor": "#hex", "ageRange": "25-35", "sex": "male" }
+}"""
 
 # Paths
 BASE_DIR = Path(__file__).parent
@@ -345,6 +425,125 @@ def download_render(filename):
     if file_path.exists():
         return send_file(str(file_path), mimetype='image/png')
     return jsonify({"error": "Render file not found"}), 404
+
+
+# ─── AI Face Generation ───────────────────────────────────────────────────────
+
+@app.route('/api/ai/generate', methods=['POST'])
+def ai_generate_face():
+    """Use Claude AI to interpret a face description and return parameter values."""
+    data = request.json
+    prompt = data.get('prompt', '')
+    current_state = data.get('currentState', None)
+    conversation_history = data.get('history', [])
+
+    if not prompt:
+        return jsonify({"error": "No prompt provided"}), 400
+
+    api_key = os.getenv('ANTHROPIC_API_KEY')
+    if not api_key:
+        return jsonify({"error": "ANTHROPIC_API_KEY not set in .env file"}), 500
+
+    # Build messages for Claude
+    messages = []
+
+    # Add conversation history (previous turns for refinement)
+    for msg in conversation_history:
+        messages.append({"role": msg["role"], "content": msg["content"]})
+
+    # Build the user message
+    user_content = prompt
+    if current_state:
+        user_content = f"Current face state:\n```json\n{json.dumps(current_state, indent=2)}\n```\n\nUser request: {prompt}"
+
+    messages.append({"role": "user", "content": user_content})
+
+    try:
+        response = ai_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=2048,
+            system=AI_SYSTEM_PROMPT,
+            messages=messages,
+        )
+
+        ai_text = response.content[0].text.strip()
+
+        # Extract JSON from response (handle potential markdown wrapping)
+        if ai_text.startswith('```'):
+            lines = ai_text.split('\n')
+            json_lines = []
+            in_block = False
+            for line in lines:
+                if line.startswith('```') and not in_block:
+                    in_block = True
+                    continue
+                elif line.startswith('```') and in_block:
+                    break
+                elif in_block:
+                    json_lines.append(line)
+            ai_text = '\n'.join(json_lines)
+
+        face_params = json.loads(ai_text)
+
+        return jsonify({
+            "success": True,
+            "params": face_params,
+            "aiResponse": ai_text,
+        })
+
+    except json.JSONDecodeError as e:
+        return jsonify({
+            "error": f"AI returned invalid JSON: {str(e)}",
+            "rawResponse": ai_text if 'ai_text' in locals() else '',
+        }), 500
+    except anthropic.APIError as e:
+        return jsonify({"error": f"Claude API error: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+
+
+# ─── Speech-to-Text ──────────────────────────────────────────────────────────
+
+@app.route('/api/speech/transcribe', methods=['POST'])
+def transcribe_speech():
+    """Transcribe audio to text using Google Speech Recognition."""
+    if 'audio' not in request.files:
+        return jsonify({"error": "No audio file provided"}), 400
+
+    audio_file = request.files['audio']
+    filename = audio_file.filename or 'audio.webm'
+    recognizer = sr.Recognizer()
+
+    # Save uploaded file
+    suffix = '.webm' if 'webm' in filename else '.wav'
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        audio_file.save(tmp.name)
+        tmp_path = tmp.name
+
+    wav_path = tmp_path
+    try:
+        # Convert webm to wav if needed (using ffmpeg via pydub)
+        if suffix == '.webm':
+            from pydub import AudioSegment
+            wav_path = tmp_path.replace('.webm', '.wav')
+            audio_seg = AudioSegment.from_file(tmp_path, format='webm')
+            audio_seg.export(wav_path, format='wav')
+
+        with sr.AudioFile(wav_path) as source:
+            audio_data = recognizer.record(source)
+        text = recognizer.recognize_google(audio_data)
+        return jsonify({"success": True, "text": text})
+    except sr.UnknownValueError:
+        return jsonify({"error": "Could not understand audio. Try speaking more clearly."}), 400
+    except sr.RequestError as e:
+        return jsonify({"error": f"Speech service error: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Audio processing error: {str(e)}"}), 500
+    finally:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        if wav_path != tmp_path and os.path.exists(wav_path):
+            os.unlink(wav_path)
 
 
 # ─── Blender Status ───────────────────────────────────────────────────────────

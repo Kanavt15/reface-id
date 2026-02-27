@@ -122,6 +122,9 @@
         <button class="panel-tab" data-panel="appearance">
           <i class="fas fa-palette"></i> Look
         </button>
+        <button class="panel-tab" data-panel="ai">
+          <i class="fas fa-robot"></i> AI
+        </button>
         <button class="panel-tab" data-panel="case">
           <i class="fas fa-folder-open"></i> Case
         </button>
@@ -1246,6 +1249,51 @@
         </div>
       </div>
 
+      <!-- AI Face Builder Panel -->
+      <div class="panel-content" id="panel-ai">
+        <div class="ai-chat-panel">
+          <div class="ai-chat-header">
+            <div class="ai-chat-title">
+              <i class="fas fa-robot"></i>
+              <span>AI Face Builder</span>
+            </div>
+            <div class="ai-chat-actions">
+              <button class="ai-action-btn" id="aiUndoBtn" title="Undo last AI change">
+                <i class="fas fa-undo"></i>
+              </button>
+              <button class="ai-action-btn" id="aiClearBtn" title="Clear conversation">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="ai-chat-messages" id="aiChatMessages">
+            <!-- Messages will be added dynamically -->
+          </div>
+
+          <div class="ai-chat-input-area">
+            <div class="ai-input-row">
+              <textarea id="aiChatInput" class="ai-chat-textarea" placeholder="Describe a face... e.g., 'Male, 30s, wide jaw, small eyes, dark skin, short hair'" rows="2"></textarea>
+            </div>
+            <div class="ai-btn-row">
+              <button class="ai-mic-btn" id="aiMicBtn" title="Voice input">
+                <i class="fas fa-microphone"></i>
+              </button>
+              <button class="ai-send-btn" id="aiSendBtn" title="Send (Enter)">
+                <i class="fas fa-paper-plane"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="ai-quick-prompts">
+            <button class="ai-quick-btn" data-prompt="Male, 40s, broad face, strong jawline, medium skin">Broad male</button>
+            <button class="ai-quick-btn" data-prompt="Female, 25, thin face, high cheekbones, small nose, light skin">Thin female</button>
+            <button class="ai-quick-btn" data-prompt="Make the nose wider and the eyes closer together">Wider nose</button>
+            <button class="ai-quick-btn" data-prompt="Reset everything to default neutral face">Reset face</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Case Management Panel -->
       <div class="panel-content" id="panel-case">
         <div class="panel-scroll">
@@ -1431,6 +1479,7 @@
   <script src="js/UIController.js"></script>
   <script src="js/BackendAPI.js"></script>
   <script src="js/CaseManager.js"></script>
+  <script src="js/AIController.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
