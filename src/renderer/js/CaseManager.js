@@ -26,6 +26,16 @@ class CaseManager {
       appearance: {
         skinColor: '#d4a574',
         eyeColor: '#634e34',
+        eyeParams: {
+          scale: 50,
+          spacing: 50,
+          posX: 50,
+          posY: 50,
+          posZ: 50,
+          rotX: 50,
+          rotY: 50,
+          opacity: 100,
+        },
         ageRange: '25-35',
         sex: 'male',
       },

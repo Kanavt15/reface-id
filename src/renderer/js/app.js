@@ -23,6 +23,9 @@
   // Hair system
   const hairSystem = new HairSystem(sceneManager.scene);
 
+  // Eye system
+  const eyeSystem = new EyeSystem(sceneManager.scene);
+
   // Backend API + Case Manager
   const api = new BackendAPI('http://127.0.0.1:5001');
   const caseManager = new CaseManager(api);
@@ -71,9 +74,10 @@
       if (regionData) {
         objMorpher.setRegionData(regionData);
         hairSystem.setHeadMesh(group, regionData);
+        eyeSystem.setHeadMesh(group, regionData, objMorpher);
       } else {
-        // No region data — hair system won't place hair
-        console.warn('Region data missing — hair placement disabled');
+        // No region data — hair/eye system won't place properly
+        console.warn('Region data missing — hair/eye placement disabled');
       }
 
       activeMorpher = objMorpher;
@@ -84,11 +88,14 @@
         `Vertices: ${vertexCount.toLocaleString()}`;
       console.log(`OBJ loaded: ${vertexCount} vertices, region data: ${!!regionData}`);
 
-      // ── Auto-refresh hair when morphs change (debounced) ──
+      // ── Auto-refresh hair and eyes when morphs change (debounced) ──
       let _morphTimer = null;
       objMorpher.onMorphApplied = () => {
         if (_morphTimer) clearTimeout(_morphTimer);
-        _morphTimer = setTimeout(() => hairSystem.refreshFromMesh(), 120);
+        _morphTimer = setTimeout(() => {
+          hairSystem.refreshFromMesh();
+          eyeSystem.refreshFromMesh();
+        }, 120);
       };
 
       // Generate initial hair
@@ -96,7 +103,9 @@
       hairSystem.generate();
       console.log('[App] Generating eyebrows...');
       hairSystem.generateEyebrows();
-      console.log('[App] Hair and eyebrows generation initiated');
+      console.log('[App] Generating eyes...');
+      eyeSystem.generateEyes();
+      console.log('[App] Hair, eyebrows, and eyes generation initiated');
       // Note: Beard starts as 'none' by default
 
       // ── Initialize Face Point Editor ──
@@ -139,6 +148,7 @@
     ui = new UIController(sceneManager, activeMorpher, hairSystem, api, caseManager);
     ui.facePointEditor = facePointEditor;   // expose for render pipeline
     ui.skinMarkSystem = skinMarkSystem;     // expose for skin marks UI
+    ui.eyeSystem = eyeSystem;               // expose eye system for UI control
     console.log('[App] Initializing UIController...');
     ui.init();
     console.log('[App] UIController initialized successfully');
@@ -148,6 +158,7 @@
     // ── Initialize AI Controller ──
     console.log('[App] Initializing AI Controller...');
     const aiController = new AIController(api, activeMorpher, hairSystem, caseManager, ui);
+    aiController.eyes = eyeSystem;  // set eye system reference
     aiController.init();
     ui.aiController = aiController;  // expose for quick prompts etc.
     console.log('[App] AI Controller initialized');

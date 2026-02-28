@@ -1123,6 +1123,81 @@
                 <button class="color-swatch" data-color="#7b6544" style="background: #7b6544" title="Hazel"></button>
                 <button class="color-swatch" data-color="#808080" style="background: #808080" title="Grey"></button>
                 <button class="color-swatch" data-color="#1a1a2e" style="background: #1a1a2e" title="Dark Brown"></button>
+                <button class="color-swatch" data-color="#00ff00" style="background: #00ff00" title="Emerald Green"></button>
+                <button class="color-swatch" data-color="#ff0000" style="background: #ff0000" title="Red (Albino)"></button>
+              </div>
+              <div class="color-picker-row">
+                <label>Custom Eye Color</label>
+                <input type="color" id="eyeColorPicker" value="#634e34" class="color-input" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Eye Positioning -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-crosshairs"></i>
+              <span>Eye Positioning</span>
+              <button class="btn-reset-group" id="btnResetEyePosition" title="Reset Eye Position">
+                <i class="fas fa-undo"></i>
+              </button>
+            </div>
+            <div class="control-group-body">
+              <div class="slider-control" data-param="eyeScale">
+                <label>Eye Scale</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="eye-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyeSpacing">
+                <label>Eye Spacing</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="eye-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyePosX">
+                <label>Offset X</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="eye-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyePosY">
+                <label>Offset Depth</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="eye-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyePosZ">
+                <label>Offset Height</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="eye-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyeRotX">
+                <label>Rotation X</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="eye-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyeRotY">
+                <label>Rotation Y</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="eye-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyeRotZ">
+                <label>Rotation Z</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="eye-slider" />
+                  <span class="slider-value">50</span>
+                </div>
               </div>
             </div>
           </div>
@@ -1473,6 +1548,7 @@
   <script src="js/FaceMorpher.js"></script>
   <script src="js/OBJMorpher.js"></script>
   <script src="js/HairSystem.js"></script>
+  <script src="js/EyeSystem.js"></script>
   <script src="js/SceneManager.js"></script>
   <script src="js/FacePointEditor.js"></script>
   <script src="js/SkinMarkSystem.js"></script>

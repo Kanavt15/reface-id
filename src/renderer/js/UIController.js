@@ -24,6 +24,7 @@ class UIController {
     this.bindEyebrowControls();
     this.bindBeardControls();
     this.bindAppearanceControls();
+    this.bindEyeControls();
     this.bindSkinMarkControls();
     this.bindCaseControls();
     this.bindGroupCollapse();
@@ -607,11 +608,41 @@ class UIController {
         document.querySelectorAll('#eyeColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
         swatch.classList.add('active');
 
-        this.caseManager.updateAppearance('eyeColor', swatch.dataset.color);
+        const color = swatch.dataset.color;
+        if (this.eyeSystem) {
+          this.eyeSystem.setEyeColor(color);
+          this.caseManager.updateAppearance('eyeParams', this.eyeSystem.getParams());
+        }
+        document.getElementById('eyeColorPicker').value = color;
+        this.caseManager.updateAppearance('eyeColor', color);
         this.addHistory('Changed eye color');
         this.updatePropertyPanel();
       });
     });
+
+    // Eye color picker
+    {
+      let _eyeColorCapturing = false;
+      const eyeColorPicker = document.getElementById('eyeColorPicker');
+      eyeColorPicker?.addEventListener('input', (e) => {
+        if (!_eyeColorCapturing) {
+          this.caseManager.beginAction('Changed eye color');
+          _eyeColorCapturing = true;
+        }
+        if (this.eyeSystem) {
+          this.eyeSystem.setEyeColor(e.target.value);
+          this.caseManager.updateAppearance('eyeParams', this.eyeSystem.getParams());
+        }
+        document.querySelectorAll('#eyeColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
+        this.caseManager.updateAppearance('eyeColor', e.target.value);
+      });
+      eyeColorPicker?.addEventListener('change', () => {
+        this.caseManager.endAction();
+        _eyeColorCapturing = false;
+        this.addHistory('Changed eye color');
+        this.updatePropertyPanel();
+      });
+    }
 
     // Demographics
     document.getElementById('ageRange')?.addEventListener('change', (e) => {
@@ -619,6 +650,67 @@ class UIController {
     });
     document.getElementById('sexSelect')?.addEventListener('change', (e) => {
       this.caseManager.updateAppearance('sex', e.target.value);
+    });
+  }
+
+  // ─── Eye Controls ───────────────────────────────────────────────────────
+
+  bindEyeControls() {
+    // Eye param sliders (scale/spacing/position/rotation)
+    document.querySelectorAll('.eye-slider').forEach(slider => {
+      const control = slider.closest('.slider-control');
+      const param = control?.dataset.param;
+      const valueDisplay = control?.querySelector('.slider-value');
+
+      slider.addEventListener('mousedown', () => {
+        this.caseManager.beginAction(`Modified eye ${param}`);
+      });
+
+      slider.addEventListener('input', (e) => {
+        const value = parseInt(e.target.value, 10);
+        if (valueDisplay) valueDisplay.textContent = value;
+        if (!this.eyeSystem || !param || !param.startsWith('eye')) return;
+
+        const key = param.replace('eye', '');
+        const eyeKey = key.charAt(0).toLowerCase() + key.slice(1);
+        this.eyeSystem.setParam(eyeKey, value);
+      });
+
+      slider.addEventListener('mouseup', () => {
+        if (this.eyeSystem) {
+          this.caseManager.updateAppearance('eyeParams', this.eyeSystem.getParams());
+        }
+        this.caseManager.endAction();
+        this.addHistory(`Changed ${this.formatParamName(param)}`);
+      });
+    });
+
+    // Reset eye placement
+    document.getElementById('btnResetEyePosition')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.caseManager.pushState('Reset eye positioning');
+      if (!this.eyeSystem) return;
+
+      const defaults = {
+        scale: 50,
+        spacing: 50,
+        posX: 50,
+        posY: 50,
+        posZ: 50,
+        rotX: 50,
+        rotY: 50,
+        rotZ: 50,
+      };
+      Object.entries(defaults).forEach(([key, val]) => this.eyeSystem.setParam(key, val));
+
+      document.querySelectorAll('.eye-slider').forEach(slider => {
+        slider.value = 50;
+        const vd = slider.closest('.slider-control')?.querySelector('.slider-value');
+        if (vd) vd.textContent = '50';
+      });
+
+      this.caseManager.updateAppearance('eyeParams', this.eyeSystem.getParams());
+      this.addHistory('Reset eye positioning');
     });
   }
 
@@ -1250,8 +1342,32 @@ class UIController {
         });
       }
       if (state.appearance.eyeColor) {
+        const eyePicker = document.getElementById('eyeColorPicker');
+        if (eyePicker) eyePicker.value = state.appearance.eyeColor;
+        if (this.eyeSystem) this.eyeSystem.setEyeColor(state.appearance.eyeColor);
         document.querySelectorAll('#eyeColorPresets .color-swatch').forEach(s => {
           s.classList.toggle('active', s.dataset.color === state.appearance.eyeColor);
+        });
+      }
+      if (state.appearance.eyeParams && this.eyeSystem) {
+        const ep = state.appearance.eyeParams;
+        Object.entries(ep).forEach(([key, val]) => {
+          if (this.eyeSystem.params[key] !== undefined) {
+            this.eyeSystem.setParam(key, val);
+          }
+        });
+
+        document.querySelectorAll('.eye-slider').forEach(slider => {
+          const control = slider.closest('.slider-control');
+          const param = control?.dataset.param;
+          if (!param || !param.startsWith('eye')) return;
+          const key = param.replace('eye', '');
+          const eyeKey = key.charAt(0).toLowerCase() + key.slice(1);
+          if (ep[eyeKey] !== undefined) {
+            slider.value = ep[eyeKey];
+            const vd = control?.querySelector('.slider-value');
+            if (vd) vd.textContent = ep[eyeKey];
+          }
         });
       }
       if (state.appearance.ageRange) {

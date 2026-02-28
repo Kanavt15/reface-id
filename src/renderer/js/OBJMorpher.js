@@ -863,6 +863,26 @@ class OBJMorpher {
   // STATE
   // ═══════════════════════════════════════════════════════════════════════
 
+  /**
+   * Get the current (post-morph) position of a named landmark vertex.
+   * Returns [x, y, z] or null if not found.
+   */
+  getCurrentLandmarkPosition(name) {
+    const idx = this._landmarkIndices[name];
+    if (idx === undefined) return null;
+    // Find which mesh contains this global vertex index
+    for (let m = 0; m < this.meshes.length; m++) {
+      const baseOffset = this.vertexOffsets[m];
+      const count = this.meshes[m].geometry.attributes.position.count;
+      if (idx >= baseOffset && idx < baseOffset + count) {
+        const localIdx = idx - baseOffset;
+        const pos = this.meshes[m].geometry.attributes.position;
+        return [pos.getX(localIdx), pos.getY(localIdx), pos.getZ(localIdx)];
+      }
+    }
+    return null;
+  }
+
   exportState() { return { ...this.morphValues }; }
 
   loadState(state) {

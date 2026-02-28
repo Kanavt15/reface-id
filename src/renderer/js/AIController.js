@@ -9,6 +9,7 @@ class AIController {
     this.api = backendAPI;
     this.morpher = morpher;
     this.hair = hairSystem;
+    this.eyes = null;  // Will be set externally
     this.caseManager = caseManager;
     this.ui = uiController;
 
@@ -267,6 +268,9 @@ class AIController {
    * Apply eye color to the 3D model material and UI.
    */
   _applyEyeColor(hex) {
+    if (this.eyes) {
+      this.eyes.setEyeColor(hex);
+    }
     this.caseManager.updateAppearance('eyeColor', hex);
     const swatches = document.querySelectorAll('#eyeColorPresets .color-swatch');
     swatches.forEach(s => s.classList.toggle('active', s.dataset.color === hex));
