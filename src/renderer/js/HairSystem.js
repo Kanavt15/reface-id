@@ -29,10 +29,10 @@ class HairSystem {
     this.beardStyle = 'none';
     this.beardParams = { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 };
     this.beardColor = '#2c1b0e';
-    this.eyebrowParams = { thickness: 50, arch: 50, spacing: 50,
-                           density: 70, posX: 50, posY: 50, posZ: 50,
-                           rotation: 100, scale: 50,
-                           straighten: 50, tiltX: 50 };
+    this.eyebrowParams = { thickness: 100, arch: 0, spacing: 42,
+                           density: 70, posX: 51, posY: 72, posZ: 49,
+                           rotation: 100, scale: 65,
+                           straighten: 51, tiltX: 69 };
     this.eyebrowColor = '#2c1b0e';
 
     // Head metrics (updated on morph)

@@ -426,9 +426,9 @@ class UIController {
       e.stopPropagation();
       this.caseManager.pushState('Reset eyebrows');
 
-      const defaults = { thickness: 50, arch: 50, spacing: 50, density: 70,
-                          posX: 50, posY: 50, posZ: 50, rotation: 100, scale: 50,
-                          straighten: 50, tiltX: 50 };
+      const defaults = { thickness: 100, arch: 0, spacing: 42, density: 70,
+                          posX: 51, posY: 72, posZ: 49, rotation: 100, scale: 65,
+                          straighten: 51, tiltX: 69 };
       Object.entries(defaults).forEach(([key, val]) => {
         this.hair.setEyebrowParam(key, val);
       });
@@ -439,7 +439,10 @@ class UIController {
         groupBody.querySelectorAll('.eyebrow-slider').forEach(slider => {
           const control = slider.closest('.slider-control');
           const param = control?.dataset.param;
-          const defaultVal = param === 'eyebrowDensity' ? 70 : (param === 'eyebrowRotation' ? 100 : 50);
+          const resetDefaults = { eyebrowThickness: 100, eyebrowArch: 0, eyebrowSpacing: 42,
+            eyebrowDensity: 70, eyebrowPosX: 51, eyebrowPosY: 72, eyebrowPosZ: 49,
+            eyebrowRotation: 100, eyebrowScale: 65, eyebrowStraighten: 51, eyebrowTiltX: 69 };
+          const defaultVal = resetDefaults[param] ?? 50;
           slider.value = defaultVal;
           const vd = control?.querySelector('.slider-value');
           if (vd) vd.textContent = defaultVal;
@@ -1128,9 +1131,9 @@ class UIController {
     this.hair.setStyle('hair1');
     this.hair.setColor('#2c1b0e');
     this.hair.setEyebrowColor('#2c1b0e');
-    const ebDefaults = { thickness: 50, arch: 50, spacing: 50, density: 70,
-                          posX: 50, posY: 50, posZ: 50, rotation: 50, scale: 50,
-                          straighten: 50, tiltX: 50 };
+    const ebDefaults = { thickness: 100, arch: 0, spacing: 42, density: 70,
+                          posX: 51, posY: 72, posZ: 49, rotation: 100, scale: 65,
+                          straighten: 51, tiltX: 69 };
     Object.entries(ebDefaults).forEach(([key, val]) => {
       this.hair.setEyebrowParam(key, val);
     });
@@ -1151,10 +1154,13 @@ class UIController {
     document.getElementById('caseNotes').value = '';
 
     // Reset eyebrow sliders UI
+    const ebSliderDefaults = { eyebrowThickness: 100, eyebrowArch: 0, eyebrowSpacing: 42,
+      eyebrowDensity: 70, eyebrowPosX: 51, eyebrowPosY: 72, eyebrowPosZ: 49,
+      eyebrowRotation: 100, eyebrowScale: 65, eyebrowStraighten: 51, eyebrowTiltX: 69 };
     document.querySelectorAll('.eyebrow-slider').forEach(s => {
       const control = s.closest('.slider-control');
       const param = control?.dataset.param;
-      const defaultVal = param === 'eyebrowDensity' ? 70 : 50;
+      const defaultVal = ebSliderDefaults[param] ?? 50;
       s.value = defaultVal;
       const v = control?.querySelector('.slider-value');
       if (v) v.textContent = defaultVal;
