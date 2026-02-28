@@ -180,6 +180,42 @@
       aiController.clearConversation();
     });
 
+    // ── Initialize Head Tracker ──
+    console.log('[App] Initializing Head Tracker...');
+    const headTracker = new HeadTracker(sceneManager, hairSystem, eyeSystem);
+    headTracker.init().then(() => {
+      console.log('[App] Head Tracker initialized');
+    }).catch(err => {
+      console.warn('[App] Head Tracker init failed:', err);
+    });
+
+    // Bind head tracking toggle button
+    const btnHeadTrack = document.getElementById('btnHeadTrack');
+    if (btnHeadTrack) {
+      btnHeadTrack.addEventListener('click', async () => {
+        try {
+          const active = await headTracker.toggle();
+          btnHeadTrack.classList.toggle('active', active);
+          btnHeadTrack.title = active ? 'Stop Head Tracking' : 'Head Tracking';
+          const btnRecal = document.getElementById('btnRecalibrateHead');
+          if (btnRecal) btnRecal.style.display = active ? '' : 'none';
+          if (ui) ui.addHistory(active ? 'Head tracking enabled' : 'Head tracking disabled');
+        } catch (err) {
+          console.error('[App] Head tracking error:', err);
+          if (ui) ui.addHistory('Head tracking failed — check webcam permissions');
+        }
+      });
+    }
+
+    // Bind recalibrate button
+    const btnRecalibrate = document.getElementById('btnRecalibrateHead');
+    if (btnRecalibrate) {
+      btnRecalibrate.addEventListener('click', () => {
+        headTracker.recalibrate();
+        if (ui) ui.addHistory('Head tracking recalibrated');
+      });
+    }
+
     // ── Bind Face Point Editor UI controls ──
     _bindPointEditorUI(facePointEditor, ui);
   });

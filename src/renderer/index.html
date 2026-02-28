@@ -89,6 +89,15 @@
     </div>
     <div class="toolbar-separator"></div>
     <div class="toolbar-group">
+      <button class="tool-btn" id="btnHeadTrack" title="Head Tracking (move your head to rotate model)">
+        <i class="fas fa-video"></i>
+      </button>
+      <button class="tool-btn" id="btnRecalibrateHead" title="Recalibrate Head Tracking" style="display:none;">
+        <i class="fas fa-crosshairs"></i>
+      </button>
+    </div>
+    <div class="toolbar-separator"></div>
+    <div class="toolbar-group">
       <button class="tool-btn" id="btnUndo" title="Undo (Ctrl+Z)">
         <i class="fas fa-undo"></i>
       </button>
@@ -1556,6 +1565,8 @@
   <script src="js/BackendAPI.js"></script>
   <script src="js/CaseManager.js"></script>
   <script src="js/AIController.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+  <script src="js/HeadTracker.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
