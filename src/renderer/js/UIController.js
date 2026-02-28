@@ -25,6 +25,7 @@ class UIController {
     this.bindBeardControls();
     this.bindAppearanceControls();
     this.bindEyeControls();
+    this.bindEyelashControls();
     this.bindSkinMarkControls();
     this.bindCaseControls();
     this.bindGroupCollapse();
@@ -717,6 +718,102 @@ class UIController {
     });
   }
 
+  // ─── Eyelash Controls ────────────────────────────────────────────────────
+
+  bindEyelashControls() {
+    // Eyelash param sliders
+    document.querySelectorAll('.eyelash-slider').forEach(slider => {
+      const control = slider.closest('.slider-control');
+      const param = control?.dataset.param;
+      const valueDisplay = control?.querySelector('.slider-value');
+
+      slider.addEventListener('mousedown', () => {
+        this.caseManager.beginAction(`Modified eyelash ${param}`);
+      });
+
+      slider.addEventListener('input', (e) => {
+        const value = parseInt(e.target.value, 10);
+        if (valueDisplay) valueDisplay.textContent = value;
+        if (!this.eyeSystem || !param || !param.startsWith('eyelash')) return;
+
+        const key = param.replace('eyelash', '');
+        const lashKey = key.charAt(0).toLowerCase() + key.slice(1);
+        this.eyeSystem.setEyelashParam(lashKey, value);
+      });
+
+      slider.addEventListener('mouseup', () => {
+        if (this.eyeSystem) {
+          this.caseManager.updateAppearance('eyelashParams', this.eyeSystem.getEyelashParams());
+        }
+        this.caseManager.endAction();
+        this.addHistory(`Changed ${this.formatParamName(param)}`);
+      });
+    });
+
+    // Eyelash color presets
+    document.querySelectorAll('#eyelashColorPresets .color-swatch').forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        this.caseManager.pushState('Changed eyelash color');
+        document.querySelectorAll('#eyelashColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
+        swatch.classList.add('active');
+        const color = swatch.dataset.color;
+        if (this.eyeSystem) this.eyeSystem.setEyelashColor(color);
+        document.getElementById('eyelashColorPicker').value = color;
+        this.addHistory('Changed eyelash color');
+      });
+    });
+
+    // Eyelash color picker
+    const lashColorPicker = document.getElementById('eyelashColorPicker');
+    if (lashColorPicker) {
+      lashColorPicker.addEventListener('mousedown', () => {
+        this.caseManager.beginAction('Changed eyelash color');
+      });
+      lashColorPicker.addEventListener('input', (e) => {
+        if (this.eyeSystem) this.eyeSystem.setEyelashColor(e.target.value);
+        document.querySelectorAll('#eyelashColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
+      });
+      lashColorPicker.addEventListener('change', () => {
+        this.caseManager.endAction();
+        this.addHistory('Changed eyelash color');
+      });
+    }
+
+    // Reset eyelashes button
+    document.getElementById('btnResetEyelashes')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.caseManager.pushState('Reset eyelashes');
+      if (!this.eyeSystem) return;
+
+      const defaults = {
+        scale: 59, posX: 51, posY: 47, posZ: 15,
+        rotX: 50, rotY: 50, rotZ: 50, curl: 50, thickness: 65,
+      };
+      Object.entries(defaults).forEach(([key, val]) => this.eyeSystem.setEyelashParam(key, val));
+      this.eyeSystem.setEyelashColor('#0a0a0a');
+
+      const paramToDefault = {
+        eyelashScale: 59, eyelashPosX: 51, eyelashPosY: 47, eyelashPosZ: 15,
+        eyelashRotX: 50, eyelashRotY: 50, eyelashRotZ: 50, eyelashCurl: 50, eyelashThickness: 65,
+      };
+      document.querySelectorAll('.eyelash-slider').forEach(slider => {
+        const param = slider.closest('.slider-control')?.dataset.param;
+        const val = paramToDefault[param] ?? 50;
+        slider.value = val;
+        const vd = slider.closest('.slider-control')?.querySelector('.slider-value');
+        if (vd) vd.textContent = String(val);
+      });
+
+      const picker = document.getElementById('eyelashColorPicker');
+      if (picker) picker.value = '#0a0a0a';
+      document.querySelectorAll('#eyelashColorPresets .color-swatch').forEach(s => {
+        s.classList.toggle('active', s.dataset.color === '#0a0a0a');
+      });
+
+      this.addHistory('Reset eyelashes');
+    });
+  }
+
   // ─── Skin Mark Controls ──────────────────────────────────────────────────
 
   bindSkinMarkControls() {
@@ -1169,6 +1266,31 @@ class UIController {
     if (ebPicker) ebPicker.value = '#2c1b0e';
     document.querySelectorAll('#eyebrowColorPresets .color-swatch').forEach(s => {
       s.classList.toggle('active', s.dataset.color === '#2c1b0e');
+    });
+
+    // Reset eyelashes
+    if (this.eyeSystem) {
+      const lashDefaults = { scale: 59, posX: 51, posY: 47, posZ: 15,
+        rotX: 50, rotY: 50, rotZ: 50, curl: 50, thickness: 65 };
+      Object.entries(lashDefaults).forEach(([key, val]) => this.eyeSystem.setEyelashParam(key, val));
+      this.eyeSystem.setEyelashColor('#0a0a0a');
+      this.eyeSystem.generateEyelashes();
+    }
+    const lashParamDefaults = {
+      eyelashScale: 59, eyelashPosX: 51, eyelashPosY: 47, eyelashPosZ: 15,
+      eyelashRotX: 50, eyelashRotY: 50, eyelashRotZ: 50, eyelashCurl: 50, eyelashThickness: 65,
+    };
+    document.querySelectorAll('.eyelash-slider').forEach(s => {
+      const param = s.closest('.slider-control')?.dataset.param;
+      const val = lashParamDefaults[param] ?? 50;
+      s.value = val;
+      const v = s.closest('.slider-control')?.querySelector('.slider-value');
+      if (v) v.textContent = String(val);
+    });
+    const lashPicker = document.getElementById('eyelashColorPicker');
+    if (lashPicker) lashPicker.value = '#0a0a0a';
+    document.querySelectorAll('#eyelashColorPresets .color-swatch').forEach(s => {
+      s.classList.toggle('active', s.dataset.color === '#0a0a0a');
     });
 
     this.updateCaseTitle();

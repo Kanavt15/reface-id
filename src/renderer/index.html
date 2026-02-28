@@ -1032,6 +1032,99 @@
             </div>
           </div>
 
+          <!-- Eyelashes -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-eye"></i>
+              <span>Eyelashes</span>
+              <button class="btn-reset-group" id="btnResetEyelashes" title="Reset Eyelashes">
+                <i class="fas fa-undo-alt"></i>
+              </button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="color-picker-row">
+                <label>Eyelash Color</label>
+                <div class="color-presets" id="eyelashColorPresets">
+                  <button class="color-swatch active" data-color="#0a0a0a" style="background: #0a0a0a" title="Black"></button>
+                  <button class="color-swatch" data-color="#2c1b0e" style="background: #2c1b0e" title="Dark Brown"></button>
+                  <button class="color-swatch" data-color="#4a3728" style="background: #4a3728" title="Medium Brown"></button>
+                  <button class="color-swatch" data-color="#8b7355" style="background: #8b7355" title="Light Brown"></button>
+                  <button class="color-swatch" data-color="#c4a882" style="background: #c4a882" title="Blonde"></button>
+                  <button class="color-swatch" data-color="#8b0000" style="background: #8b0000" title="Auburn"></button>
+                </div>
+                <input type="color" id="eyelashColorPicker" value="#0a0a0a" class="color-input" />
+              </div>
+              <!-- Shape controls -->
+              <div class="slider-control" data-param="eyelashThickness">
+                <label>Thickness</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="65" class="eyelash-slider" />
+                  <span class="slider-value">65</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyelashCurl">
+                <label>Curl</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="eyelash-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+
+              <!-- Position controls -->
+              <div class="slider-control" data-param="eyelashPosX">
+                <label>Position X (L/R)</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="51" class="eyelash-slider" />
+                  <span class="slider-value">51</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyelashPosY">
+                <label>Position Y (Up/Down)</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="47" class="eyelash-slider" />
+                  <span class="slider-value">47</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyelashPosZ">
+                <label>Position Z (Fwd/Back)</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="15" class="eyelash-slider" />
+                  <span class="slider-value">15</span>
+                </div>
+              </div>
+
+              <!-- Rotation controls -->
+              <div class="slider-control" data-param="eyelashRotX">
+                <label>Forward/Backward Tilt</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="eyelash-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyelashRotY">
+                <label>Angle (Up/Down Ends)</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="eyelash-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyelashRotZ">
+                <label>Twist / Curl Angle</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="50" class="eyelash-slider" />
+                  <span class="slider-value">50</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="eyelashScale">
+                <label>Overall Scale</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="59" class="eyelash-slider" />
+                  <span class="slider-value">59</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- TODO: Re-enable render feature when hair transform pipeline is fixed -->
           <div class="panel-actions" style="flex-direction: column; gap: 8px; display: none;" id="renderSection">
             <div style="display: flex; gap: 8px; width: 100%;">

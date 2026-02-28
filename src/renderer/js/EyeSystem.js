@@ -100,6 +100,41 @@ class EyeSystem {
     this._rightEyeBasePos = new THREE.Vector3(0.12, 0.32, 0.58);
     this._eyeBaseScale = 1.0;
 
+    // ── Eyelash system ──
+    this._eyelashGroup = new THREE.Group();
+    this._eyelashGroup.name = 'EyelashSystem';
+    this.scene.add(this._eyelashGroup);
+
+    this._leftLashContainer = null;
+    this._rightLashContainer = null;
+    this._eyelashBboxCache = null;
+    this.eyelashesVisible = true;
+
+    this.eyelashParams = {
+      scale: 59,
+      posX: 51,
+      posY: 47,
+      posZ: 15,
+      rotX: 50,
+      rotY: 50,
+      rotZ: 50,
+      curl: 50,
+      thickness: 65,
+    };
+
+    this.eyelashColor = '#0a0a0a';
+
+    this._eyelashMat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(this.eyelashColor),
+      roughness: 0.55,
+      metalness: 0.05,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.95,
+    });
+
+    this.eyelashModel = { file: '../../assets/models/facial/eyelashes.glb' };
+
     console.log('[EyeSystem] Initialized');
   }
 
@@ -219,6 +254,11 @@ class EyeSystem {
       style: this.currentStyle,
       color: this.eyeColor,
       params: { ...this.params },
+      eyelashes: {
+        color: this.eyelashColor,
+        visible: this.eyelashesVisible,
+        params: { ...this.eyelashParams },
+      },
     };
   }
 
@@ -231,6 +271,16 @@ class EyeSystem {
       });
     }
     this.generateEyes();
+    if (state.eyelashes) {
+      if (state.eyelashes.color) this.setEyelashColor(state.eyelashes.color);
+      if (state.eyelashes.visible !== undefined) this.setEyelashesVisible(state.eyelashes.visible);
+      if (state.eyelashes.params) {
+        Object.entries(state.eyelashes.params).forEach(([key, val]) => {
+          this.eyelashParams[key] = val;
+        });
+      }
+      this.generateEyelashes();
+    }
   }
 
   // ── Main generation ──
@@ -571,6 +621,9 @@ class EyeSystem {
     if (this._leftEyeContainer && this._rightEyeContainer) {
       this._applyAdjustments();
     }
+    if (this._leftLashContainer) {
+      this._applyEyelashAdjustments();
+    }
   }
 
   _updateRenderedIrisColor() {
@@ -588,6 +641,271 @@ class EyeSystem {
     applyColor(this._rightEyeContainer);
   }
 
+  // ── Eyelash system ──
+
+  setEyelashColor(hexColor) {
+    this.eyelashColor = hexColor;
+    this._eyelashMat.color.set(hexColor);
+    console.log('[EyeSystem] Eyelash color changed to:', hexColor);
+  }
+
+  setEyelashParam(param, value) {
+    if (this.eyelashParams[param] === undefined) return;
+    this.eyelashParams[param] = Math.max(0, Math.min(100, value));
+    if (this._leftLashContainer || this._rightLashContainer) {
+      this._applyEyelashAdjustments();
+    }
+  }
+
+  setEyelashesVisible(visible) {
+    this.eyelashesVisible = visible;
+    this._eyelashGroup.visible = visible;
+  }
+
+  getEyelashParams() {
+    return {
+      ...this.eyelashParams,
+      color: this.eyelashColor,
+      visible: this.eyelashesVisible,
+    };
+  }
+
+  generateEyelashes() {
+    console.log('[EyeSystem] Generating eyelashes');
+    this._clearGroup(this._eyelashGroup);
+    this._leftLashContainer = null;
+    this._rightLashContainer = null;
+    this._eyelashBboxCache = null;
+
+    const config = this.eyelashModel;
+    if (!config || !config.file) return;
+
+    if (this._modelCache['eyelashes']) {
+      console.log('[EyeSystem] Using cached eyelash model');
+      this._showCachedEyelashes();
+      return;
+    }
+
+    console.log('[EyeSystem] Loading eyelash model from:', config.file);
+    const loader = new THREE.GLBLoader();
+    loader.load(
+      config.file,
+      (group) => {
+        console.log('[EyeSystem] Eyelash model loaded successfully');
+        this._modelCache['eyelashes'] = group;
+        this._showCachedEyelashes();
+      },
+      null,
+      (err) => { console.error('[EyeSystem] Failed to load eyelash model:', config.file, err); }
+    );
+  }
+
+  _showCachedEyelashes() {
+    this._clearGroup(this._eyelashGroup);
+    const cached = this._modelCache['eyelashes'];
+    if (!cached) return;
+
+    // The eyelash GLB may contain a single combined mesh (both eyes) or separate meshes.
+    // We'll clone the entire model twice — one for each eye — and mirror the right one.
+    // First, check if the model appears to be a single-side (one eye) or full pair.
+    const meshes = [];
+    cached.traverse(child => { if (child.isMesh) meshes.push(child); });
+
+    if (meshes.length === 0) {
+      console.warn('[EyeSystem] Eyelash model has no meshes');
+      return;
+    }
+
+    // Compute bounding box to determine if the model spans both eyes or just one
+    const fullBox = new THREE.Box3().setFromObject(cached);
+    const fullCenter = new THREE.Vector3();
+    fullBox.getCenter(fullCenter);
+    const fullSize = new THREE.Vector3();
+    fullBox.getSize(fullSize);
+
+    // Heuristic: if the model's X-extent is more than 60% of head width, treat as full pair
+    const isPair = fullSize.x > this.headWidth * 0.3;
+
+    if (isPair) {
+      // Full pair: use as-is, positioned relative to the eye midpoint
+      this._leftLashContainer = new THREE.Group();
+      this._leftLashContainer.name = 'EyelashContainer';
+
+      const offsetGroup = new THREE.Group();
+      offsetGroup.name = 'EyelashOffset';
+
+      cached.traverse(child => {
+        if (child.isMesh) {
+          const clone = child.clone();
+          clone.material = this._eyelashMat;
+          clone.castShadow = true;
+          clone.receiveShadow = true;
+          offsetGroup.add(clone);
+        }
+      });
+
+      this._leftLashContainer.add(offsetGroup);
+      this._eyelashGroup.add(this._leftLashContainer);
+
+      // Use a dummy right container (positioning done via single container)
+      this._rightLashContainer = this._leftLashContainer;
+    } else {
+      // Single eye: clone and mirror for left and right
+      this._leftLashContainer = this._createLashContainer(cached, 'LeftEyelash');
+      this._rightLashContainer = this._createLashContainer(cached, 'RightEyelash');
+
+      this._eyelashGroup.add(this._leftLashContainer);
+      this._eyelashGroup.add(this._rightLashContainer);
+    }
+
+    this._eyelashBboxCache = { center: fullCenter, size: fullSize, isPair, min: fullBox.min.clone(), max: fullBox.max.clone() };
+    this._eyelashGroup.visible = this.eyelashesVisible;
+    this._applyEyelashAdjustments();
+
+    console.log('[EyeSystem] Eyelashes displayed successfully (isPair:', isPair, ')');
+    console.log('[EyeSystem] Eyelash bbox:', 'size:', fullSize.x.toFixed(3), fullSize.y.toFixed(3), fullSize.z.toFixed(3),
+      'center:', fullCenter.x.toFixed(3), fullCenter.y.toFixed(3), fullCenter.z.toFixed(3),
+      'min:', fullBox.min.x.toFixed(3), fullBox.min.y.toFixed(3), fullBox.min.z.toFixed(3),
+      'max:', fullBox.max.x.toFixed(3), fullBox.max.y.toFixed(3), fullBox.max.z.toFixed(3));
+    console.log('[EyeSystem] Head metrics — width:', this.headWidth.toFixed(3),
+      'eyeSpacing:', this.eyeSpacing.toFixed(3),
+      'leftEye:', this._leftEyeBasePos.x.toFixed(3), this._leftEyeBasePos.y.toFixed(3), this._leftEyeBasePos.z.toFixed(3),
+      'rightEye:', this._rightEyeBasePos.x.toFixed(3), this._rightEyeBasePos.y.toFixed(3), this._rightEyeBasePos.z.toFixed(3));
+  }
+
+  _createLashContainer(source, name) {
+    const container = new THREE.Group();
+    container.name = name;
+
+    const offsetGroup = new THREE.Group();
+    offsetGroup.name = name + 'Offset';
+
+    source.traverse(child => {
+      if (child.isMesh) {
+        const clone = child.clone();
+        clone.material = this._eyelashMat;
+        clone.castShadow = true;
+        clone.receiveShadow = true;
+        offsetGroup.add(clone);
+      }
+    });
+
+    container.add(offsetGroup);
+    return container;
+  }
+
+  _applyEyelashAdjustments() {
+    if (!this._leftLashContainer || !this._eyelashBboxCache) return;
+
+    const ep = this.eyelashParams;
+    const cache = this._eyelashBboxCache;
+
+    // Normalize params (-1 to 1 range)
+    const posXNorm = (ep.posX - 50) / 50;
+    const posYNorm = (ep.posY - 50) / 50;
+    const posZNorm = (ep.posZ - 50) / 50;
+    const rotXNorm = (ep.rotX - 50) / 50;
+    const rotYNorm = (ep.rotY - 50) / 50;
+    const rotZNorm = (ep.rotZ - 50) / 50;
+    const curlNorm = (ep.curl - 50) / 50;
+    const thicknessNorm = (ep.thickness - 50) / 50;
+
+    if (cache.isPair) {
+      // Full pair model — use the same approach as the eyebrow system:
+      // Position using absolute world coordinates, not relative to eye base positions.
+      const container = this._leftLashContainer;
+      const offsetGroup = container.children[0];
+
+      // Center the model at its own origin
+      offsetGroup.position.set(-cache.center.x, -cache.center.y, -cache.center.z);
+
+      // The eyelash region sits at approximately the same location as the eyebrows
+      // but slightly lower (at the eyelid line instead of above the eye).
+      // Eyebrow reference: browRegionWidth=0.90, browRegionY=0.39, browRegionZ=1.02
+      // Eyelashes should be slightly lower in Y and slightly further forward in Z
+      const lashRegionWidth = 0.90;
+      const lashRegionY = 0.34;   // slightly below brow line (at upper eyelid)
+      const lashRegionZ = 1.04;   // slightly more forward than brows
+
+      // Base scale: match lash region width (same approach as eyebrows)
+      const baseScale = lashRegionWidth / cache.size.x;
+      const scaleF = 0.5 + (ep.scale / 100) * 1.0;
+      const thicknessF = 1.0 + thicknessNorm * 0.5;
+
+      container.scale.set(
+        baseScale * scaleF,
+        baseScale * thicknessF,
+        baseScale * scaleF
+      );
+
+      // Position offsets (range ±0.15)
+      const posOffsetX = posXNorm * 0.15;
+      const posOffsetY = posYNorm * 0.15;
+      const posOffsetZ = posZNorm * 0.15;
+
+      container.position.set(
+        this.modelCenter.x + posOffsetX,
+        lashRegionY + posOffsetY,
+        lashRegionZ + posOffsetZ
+      );
+
+      // Rotations — negative 90° X to curve lashes UPWARD from the eyelid
+      const BASE_ROT_X = -Math.PI / 2;
+      const rotX = BASE_ROT_X + rotXNorm * 0.5 + curlNorm * 0.3;
+      const rotY = rotYNorm * (Math.PI / 3);
+      const rotZ = rotZNorm * 0.5;
+
+      container.rotation.set(rotX, rotY, rotZ);
+    } else {
+      // Single-eye model cloned for each side
+      const lashRegionY = 0.34;
+      const lashRegionZ = 1.04;
+      const halfSpacing = 0.22;
+
+      const baseScale = 0.45 / Math.max(cache.size.x, 0.001);
+      const scaleF = 0.5 + (ep.scale / 100) * 1.0;
+      const thicknessF = 1.0 + thicknessNorm * 0.5;
+
+      const posOffsetX = posXNorm * 0.15;
+      const posOffsetY = posYNorm * 0.15;
+      const posOffsetZ = posZNorm * 0.15;
+
+      const BASE_ROT_X = -Math.PI / 2;
+      const rotX = BASE_ROT_X + rotXNorm * 0.5 + curlNorm * 0.3;
+      const rotY = rotYNorm * (Math.PI / 3);
+      const rotZ = rotZNorm * 0.5;
+
+      // Left eyelash
+      const left = this._leftLashContainer;
+      left.children[0].position.set(-cache.center.x, -cache.center.y, -cache.center.z);
+      left.scale.set(baseScale * scaleF, baseScale * thicknessF, baseScale * scaleF);
+      left.position.set(
+        this.modelCenter.x - halfSpacing + posOffsetX,
+        lashRegionY + posOffsetY,
+        lashRegionZ + posOffsetZ
+      );
+      left.rotation.set(rotX, rotY, rotZ);
+
+      // Right eyelash (mirrored on X)
+      const right = this._rightLashContainer;
+      right.children[0].position.set(-cache.center.x, -cache.center.y, -cache.center.z);
+      right.scale.set(baseScale * scaleF, baseScale * thicknessF, baseScale * scaleF);
+      right.position.set(
+        this.modelCenter.x + halfSpacing + posOffsetX,
+        lashRegionY + posOffsetY,
+        lashRegionZ + posOffsetZ
+      );
+      right.rotation.set(rotX, -rotY, -rotZ);
+    }
+  }
+
+  clearEyelashes() {
+    this._clearGroup(this._eyelashGroup);
+    this._leftLashContainer = null;
+    this._rightLashContainer = null;
+    this._eyelashBboxCache = null;
+  }
+
   // ── Cleanup ──
 
   _clearGroup(group) {
@@ -599,5 +917,7 @@ class EyeSystem {
   dispose() {
     this._clearGroup(this.eyeGroup);
     this.scene.remove(this.eyeGroup);
+    this._clearGroup(this._eyelashGroup);
+    this.scene.remove(this._eyelashGroup);
   }
 }

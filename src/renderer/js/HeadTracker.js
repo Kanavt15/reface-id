@@ -200,8 +200,9 @@ class HeadTracker {
       if (this.hairSystem._beardGroup) this.reparentedObjects.push(this.hairSystem._beardGroup);
     }
 
-    if (this.eyeSystem && this.eyeSystem.eyeGroup) {
-      this.reparentedObjects.push(this.eyeSystem.eyeGroup);
+    if (this.eyeSystem) {
+      if (this.eyeSystem.eyeGroup) this.reparentedObjects.push(this.eyeSystem.eyeGroup);
+      if (this.eyeSystem._eyelashGroup) this.reparentedObjects.push(this.eyeSystem._eyelashGroup);
     }
 
     // Move all objects into the pivot group (preserves their world position)

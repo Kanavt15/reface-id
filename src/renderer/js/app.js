@@ -105,7 +105,9 @@
       hairSystem.generateEyebrows();
       console.log('[App] Generating eyes...');
       eyeSystem.generateEyes();
-      console.log('[App] Hair, eyebrows, and eyes generation initiated');
+      console.log('[App] Generating eyelashes...');
+      eyeSystem.generateEyelashes();
+      console.log('[App] Hair, eyebrows, eyes, and eyelashes generation initiated');
       // Note: Beard starts as 'none' by default
 
       // ── Initialize Face Point Editor ──
