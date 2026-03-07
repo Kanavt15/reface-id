@@ -2,6 +2,7 @@ flask
 flask-cors
 python-dotenv
 anthropic
+google-generativeai
 SpeechRecognition
 numpy
 Pillow

@@ -16,6 +16,7 @@ from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
 import anthropic
+import google.generativeai as genai
 import speech_recognition as sr
 
 # Load .env from project root
@@ -24,8 +25,31 @@ load_dotenv(Path(__file__).parent.parent / '.env')
 app = Flask(__name__)
 CORS(app)
 
-# ─── Anthropic AI Client ─────────────────────────────────────────────────────
-ai_client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+# ─── AI Clients (Anthropic & Gemini) ─────────────────────────────────────────
+anthropic_client = None
+gemini_client = None
+
+# Initialize Anthropic client if API key exists
+anthropic_key = os.getenv('ANTHROPIC_API_KEY')
+if anthropic_key:
+    try:
+        anthropic_client = anthropic.Anthropic(api_key=anthropic_key)
+    except Exception as e:
+        print(f"Warning: Failed to initialize Anthropic client: {e}")
+
+# Initialize Gemini client if API key exists
+gemini_key = os.getenv('GEMINI_API_KEY')
+if gemini_key:
+    try:
+        genai.configure(api_key=gemini_key)
+        # Use gemini-1.5-flash (stable model) instead of experimental one
+        gemini_client = genai.GenerativeModel('gemini-1.5-flash')
+    except Exception as e:
+        print(f"Warning: Failed to initialize Gemini client: {e}")
+        gemini_client = None
+
+# Default AI provider (can be overridden per request)
+DEFAULT_AI_PROVIDER = os.getenv('AI_PROVIDER', 'anthropic')  # 'anthropic' or 'gemini'
 
 AI_SYSTEM_PROMPT = """You are the AI face builder for REface ID, a forensic 3D facial reconstruction tool.
 Your job is to translate natural language face descriptions into precise parameter values.
@@ -431,42 +455,67 @@ def download_render(filename):
 
 @app.route('/api/ai/generate', methods=['POST'])
 def ai_generate_face():
-    """Use Claude AI to interpret a face description and return parameter values."""
+    """Use AI (Claude or Gemini) to interpret a face description and return parameter values."""
     data = request.json
     prompt = data.get('prompt', '')
     current_state = data.get('currentState', None)
     conversation_history = data.get('history', [])
+    provider = data.get('provider', DEFAULT_AI_PROVIDER).lower()  # Allow override via request
 
     if not prompt:
         return jsonify({"error": "No prompt provided"}), 400
 
-    api_key = os.getenv('ANTHROPIC_API_KEY')
-    if not api_key:
-        return jsonify({"error": "ANTHROPIC_API_KEY not set in .env file"}), 500
+    # Validate provider and check if API key is available
+    if provider == 'anthropic':
+        if not anthropic_client:
+            return jsonify({"error": "Anthropic API key not set in .env file (ANTHROPIC_API_KEY)"}), 500
+    elif provider == 'gemini':
+        if not gemini_client:
+            return jsonify({"error": "Gemini API key not set in .env file (GEMINI_API_KEY)"}), 500
+    else:
+        return jsonify({"error": f"Invalid provider '{provider}'. Use 'anthropic' or 'gemini'"}), 400
 
-    # Build messages for Claude
-    messages = []
-
-    # Add conversation history (previous turns for refinement)
-    for msg in conversation_history:
-        messages.append({"role": msg["role"], "content": msg["content"]})
-
-    # Build the user message
+    # Build user content with current state if available
     user_content = prompt
     if current_state:
         user_content = f"Current face state:\n```json\n{json.dumps(current_state, indent=2)}\n```\n\nUser request: {prompt}"
 
-    messages.append({"role": "user", "content": user_content})
-
     try:
-        response = ai_client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=2048,
-            system=AI_SYSTEM_PROMPT,
-            messages=messages,
-        )
+        if provider == 'anthropic':
+            # Use Anthropic Claude
+            messages = []
+            # Add conversation history
+            for msg in conversation_history:
+                messages.append({"role": msg["role"], "content": msg["content"]})
+            messages.append({"role": "user", "content": user_content})
 
-        ai_text = response.content[0].text.strip()
+            response = anthropic_client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=2048,
+                system=AI_SYSTEM_PROMPT,
+                messages=messages,
+            )
+            ai_text = response.content[0].text.strip()
+
+        elif provider == 'gemini':
+            # Use Google Gemini
+            # For Gemini, we'll use generate_content with the full prompt including system instructions
+            full_prompt = f"{AI_SYSTEM_PROMPT}\n\n"
+            
+            # Add conversation history if exists
+            if conversation_history:
+                full_prompt += "Previous conversation:\n"
+                for msg in conversation_history:
+                    role_name = "User" if msg['role'] == 'user' else "Assistant"
+                    full_prompt += f"{role_name}: {msg['content']}\n"
+                full_prompt += "\n"
+            
+            # Add current request
+            full_prompt += f"User: {user_content}\n\nAssistant: "
+            
+            # Generate response
+            response = gemini_client.generate_content(full_prompt)
+            ai_text = response.text.strip()
 
         # Extract JSON from response (handle potential markdown wrapping)
         if ai_text.startswith('```'):
@@ -489,17 +538,24 @@ def ai_generate_face():
             "success": True,
             "params": face_params,
             "aiResponse": ai_text,
+            "provider": provider,
         })
 
     except json.JSONDecodeError as e:
+        error_msg = f"AI returned invalid JSON: {str(e)}"
+        print(f"[AI Error - JSON] {error_msg}")
+        print(f"[AI Raw Response] {ai_text if 'ai_text' in locals() else 'No response'}")
         return jsonify({
-            "error": f"AI returned invalid JSON: {str(e)}",
+            "error": error_msg,
             "rawResponse": ai_text if 'ai_text' in locals() else '',
+            "provider": provider,
         }), 500
-    except anthropic.APIError as e:
-        return jsonify({"error": f"Claude API error: {str(e)}"}), 500
     except Exception as e:
-        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+        error_msg = f"{provider.capitalize()} API error: {str(e)}"
+        print(f"[AI Error - {provider}] {error_msg}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": error_msg, "provider": provider}), 500
 
 
 # ─── Speech-to-Text ──────────────────────────────────────────────────────────
@@ -566,5 +622,8 @@ if __name__ == '__main__':
     print("=" * 60)
     print("  REface ID — Backend Server")
     print(f"  Blender: {'Found at ' + BLENDER_PATH if BLENDER_PATH else 'NOT FOUND'}")
+    print(f"  AI Provider: {DEFAULT_AI_PROVIDER.upper()}")
+    print(f"  - Anthropic: {'✓ Ready' if anthropic_client else '✗ No API key'}")
+    print(f"  - Gemini: {'✓ Ready' if gemini_client else '✗ No API key'}")
     print("=" * 60)
     app.run(host='127.0.0.1', port=5001, debug=False)
