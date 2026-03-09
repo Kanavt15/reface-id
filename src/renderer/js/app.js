@@ -157,6 +157,14 @@
     ui.updatePropertyPanel();
     ui.addHistory(group ? 'Base face model loaded (OBJ)' : 'Using procedural head');
 
+    // ── Initialize Snapshot Manager ──
+    console.log('[App] Initializing Snapshot Manager...');
+    const snapshotManager = new SnapshotManager(caseManager, sceneManager);
+    snapshotManager.loadForCurrentCase();
+    ui.snapshotManager = snapshotManager;
+    ui.bindSnapshotControls();
+    console.log('[App] Snapshot Manager initialized');
+
     // ── Initialize AI Controller ──
     console.log('[App] Initializing AI Controller...');
     const aiController = new AIController(api, activeMorpher, hairSystem, caseManager, ui);

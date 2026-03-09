@@ -134,6 +134,9 @@
         <button class="panel-tab" data-panel="ai">
           <i class="fas fa-robot"></i> AI
         </button>
+        <button class="panel-tab" data-panel="snapshots">
+          <i class="fas fa-camera-retro"></i> Snaps
+        </button>
         <button class="panel-tab" data-panel="case">
           <i class="fas fa-folder-open"></i> Case
         </button>
@@ -1471,6 +1474,52 @@
         </div>
       </div>
 
+      <!-- Snapshots Panel -->
+      <div class="panel-content" id="panel-snapshots">
+        <div class="panel-scroll">
+
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-camera-retro"></i>
+              <span>Save Snapshot</span>
+            </div>
+            <div class="control-group-body">
+              <p style="font-size:10.5px;color:var(--text-muted);margin-bottom:8px;line-height:1.5;">
+                Capture the current face state so you can return to it later.
+              </p>
+              <div class="snapshot-capture-bar">
+                <input type="text" id="snapshotNameInput" class="text-input" placeholder="Snapshot name (optional)" maxlength="60" />
+                <button class="btn btn-primary" id="btnCaptureSnapshot" title="Save current state">
+                  <i class="fas fa-plus"></i> Save
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-layer-group"></i>
+              <span>Saved Snapshots</span>
+            </div>
+            <div class="control-group-body">
+              <div class="snapshot-clear-bar" id="snapshotClearBar" style="display:none;">
+                <span class="snapshot-count" id="snapshotCount">0 snapshots</span>
+                <button class="btn btn-outline" id="btnClearSnapshots" style="font-size:10px;padding:3px 8px;">
+                  <i class="fas fa-trash-alt"></i> Clear All
+                </button>
+              </div>
+              <div class="snapshot-list" id="snapshotList">
+                <div class="snapshot-empty" id="snapshotEmpty">
+                  <i class="fas fa-camera-retro"></i>
+                  No snapshots yet.<br/>Click <strong>Save</strong> above to capture the current face.
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
       <!-- Case Management Panel -->
       <div class="panel-content" id="panel-case">
         <div class="panel-scroll">
@@ -1654,6 +1703,7 @@
   <script src="js/SceneManager.js"></script>
   <script src="js/FacePointEditor.js"></script>
   <script src="js/SkinMarkSystem.js"></script>
+  <script src="js/SnapshotManager.js"></script>
   <script src="js/UIController.js"></script>
   <script src="js/BackendAPI.js"></script>
   <script src="js/CaseManager.js"></script>

@@ -1102,6 +1102,11 @@ class UIController {
     this.caseManager.updateCaseInfo('notes', document.getElementById('caseNotes')?.value || '');
     this.caseManager.updateMorphTargets(this.morpher.exportState());
     this.caseManager.updateHairParams(this.hair.getParams());
+    if (this.eyeSystem) {
+      this.caseManager.updateAppearance('eyeParams', this.eyeSystem.getParams());
+      this.caseManager.updateAppearance('eyeColor', this.eyeSystem.eyeColor);
+      this.caseManager.updateAppearance('eyelashParams', this.eyeSystem.getEyelashParams());
+    }
     if (this.skinMarkSystem) {
       this.caseManager.updateSkinMarks(this.skinMarkSystem.exportState());
     }
@@ -1357,9 +1362,10 @@ class UIController {
 
   restoreState(state) {
     // Restore morph targets + slider UI
-    if (state.morphTargets) {
-      Object.entries(state.morphTargets).forEach(([param, value]) => {
-        this.morpher.morphValues[param] = value;
+    if (state.morphTargets && Object.keys(state.morphTargets).length > 0) {
+      this.morpher.loadState(state.morphTargets);
+      // Sync slider UI to match restored values
+      Object.entries(this.morpher.morphValues).forEach(([param, value]) => {
         const slider = document.querySelector(`[data-param="${param}"] .morph-slider`);
         if (slider) {
           slider.value = value;
@@ -1367,7 +1373,6 @@ class UIController {
           if (v) v.textContent = value;
         }
       });
-      this.morpher.applyAllMorphs();
     }
 
     // Restore hair params
@@ -1513,7 +1518,231 @@ class UIController {
       this.skinMarkSystem.loadState(state.skinMarks);
     }
 
+    // Restore eyelash params
+    if (state.appearance?.eyelashParams && this.eyeSystem) {
+      const lp = state.appearance.eyelashParams;
+      Object.entries(lp).forEach(([key, val]) => {
+        this.eyeSystem.setEyelashParam(key, val);
+      });
+      if (lp.color) this.eyeSystem.setEyelashColor(lp.color);
+      this.eyeSystem.generateEyelashes();
+      document.querySelectorAll('.eyelash-slider').forEach(slider => {
+        const param = slider.closest('.slider-control')?.dataset.param;
+        if (!param) return;
+        const key = param.replace('eyelash', '');
+        const lashKey = key.charAt(0).toLowerCase() + key.slice(1);
+        if (lp[lashKey] !== undefined) {
+          slider.value = lp[lashKey];
+          const vd = slider.closest('.slider-control')?.querySelector('.slider-value');
+          if (vd) vd.textContent = lp[lashKey];
+        }
+      });
+    }
+
+    // Restore camera state
+    if (state.cameraState) {
+      this.scene.loadCameraState(state.cameraState);
+    }
+
     this.updatePropertyPanel();
+  }
+
+  // ─── Snapshot Controls ─────────────────────────────────────────────────
+
+  bindSnapshotControls() {
+    if (!this.snapshotManager) return;
+
+    // Capture button
+    document.getElementById('btnCaptureSnapshot')?.addEventListener('click', () => {
+      // Sync all live system state into currentCase before capturing
+      this.updateCaseFromUI();
+      const input = document.getElementById('snapshotNameInput');
+      const name = input ? input.value : '';
+      const snap = this.snapshotManager.capture(name);
+      if (input) input.value = '';
+      this.addHistory(`Snapshot saved: ${snap.name}`);
+    });
+
+    // Allow Enter key in the name input
+    document.getElementById('snapshotNameInput')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('btnCaptureSnapshot')?.click();
+      }
+    });
+
+    // Clear all button
+    document.getElementById('btnClearSnapshots')?.addEventListener('click', () => {
+      if (!confirm('Delete all snapshots? This cannot be undone.')) return;
+      this.snapshotManager.deleteAll();
+      this.addHistory('All snapshots cleared');
+    });
+
+    // Re-render list when snapshots change
+    this.snapshotManager.onSnapshotsChanged = (list) => this.renderSnapshotList(list);
+
+    // Initial render
+    this.renderSnapshotList(this.snapshotManager.getList());
+  }
+
+  renderSnapshotList(list) {
+    const container = document.getElementById('snapshotList');
+    const emptyEl = document.getElementById('snapshotEmpty');
+    const clearBar = document.getElementById('snapshotClearBar');
+    const countEl = document.getElementById('snapshotCount');
+    if (!container) return;
+
+    // Show/hide empty state and clear bar
+    if (emptyEl) emptyEl.style.display = list.length === 0 ? '' : 'none';
+    if (clearBar) clearBar.style.display = list.length > 0 ? '' : 'none';
+    if (countEl) countEl.textContent = `${list.length} snapshot${list.length !== 1 ? 's' : ''}`;
+
+    // Remove existing cards (keep the empty placeholder)
+    container.querySelectorAll('.snapshot-card').forEach(c => c.remove());
+
+    // Render newest first
+    const sorted = [...list].reverse();
+    sorted.forEach(snap => {
+      const card = document.createElement('div');
+      card.className = 'snapshot-card';
+      card.dataset.snapshotId = snap.id;
+
+      // Thumbnail
+      const thumb = document.createElement('div');
+      thumb.className = 'snapshot-thumb';
+      if (snap.thumbnail) {
+        const img = document.createElement('img');
+        img.src = snap.thumbnail;
+        img.alt = snap.name;
+        thumb.appendChild(img);
+      } else {
+        const ph = document.createElement('div');
+        ph.className = 'snapshot-thumb-placeholder';
+        ph.innerHTML = '<i class="fas fa-image"></i>';
+        thumb.appendChild(ph);
+      }
+
+      // Info
+      const info = document.createElement('div');
+      info.className = 'snapshot-info';
+
+      const nameEl = document.createElement('div');
+      nameEl.className = 'snapshot-name';
+      nameEl.textContent = snap.name;
+      nameEl.title = 'Double-click to rename';
+
+      const timeEl = document.createElement('div');
+      timeEl.className = 'snapshot-time';
+      timeEl.textContent = this._formatSnapshotTime(snap.timestamp);
+
+      info.appendChild(nameEl);
+      info.appendChild(timeEl);
+
+      // Actions
+      const actions = document.createElement('div');
+      actions.className = 'snapshot-actions';
+
+      const restoreBtn = document.createElement('button');
+      restoreBtn.className = 'snapshot-action-btn btn-restore';
+      restoreBtn.title = 'Restore this snapshot';
+      restoreBtn.innerHTML = '<i class="fas fa-undo"></i>';
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'snapshot-action-btn btn-delete';
+      deleteBtn.title = 'Delete this snapshot';
+      deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+
+      actions.appendChild(restoreBtn);
+      actions.appendChild(deleteBtn);
+
+      card.appendChild(thumb);
+      card.appendChild(info);
+      card.appendChild(actions);
+      container.appendChild(card);
+
+      // ── Event handlers ──
+
+      // Restore on card click (not on action buttons)
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.snapshot-action-btn') || e.target.closest('.snapshot-name-input')) return;
+        this._restoreSnapshot(snap.id, card);
+      });
+
+      // Restore button
+      restoreBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._restoreSnapshot(snap.id, card);
+      });
+
+      // Delete button
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.snapshotManager.delete(snap.id);
+        this.addHistory(`Snapshot deleted: ${snap.name}`);
+      });
+
+      // Double-click name to rename
+      nameEl.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        this._startSnapshotRename(snap.id, nameEl);
+      });
+    });
+  }
+
+  _restoreSnapshot(id, cardEl) {
+    const state = this.snapshotManager.restore(id);
+    if (!state) return;
+    this.restoreState(state);
+    this.addHistory(`Restored snapshot`);
+
+    // Visual feedback
+    if (cardEl) {
+      cardEl.classList.add('restored');
+      setTimeout(() => cardEl.classList.remove('restored'), 1000);
+    }
+  }
+
+  _startSnapshotRename(id, nameEl) {
+    const currentName = nameEl.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'snapshot-name-input';
+    input.value = currentName;
+    input.maxLength = 60;
+
+    nameEl.textContent = '';
+    nameEl.appendChild(input);
+    input.focus();
+    input.select();
+
+    const commit = () => {
+      const newName = input.value.trim() || currentName;
+      this.snapshotManager.rename(id, newName);
+      // Re-render handled by onSnapshotsChanged callback
+    };
+
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+      if (e.key === 'Escape') { input.value = currentName; input.blur(); }
+    });
+  }
+
+  _formatSnapshotTime(ts) {
+    const d = new Date(ts);
+    const now = new Date();
+    const diffMs = now - d;
+    const diffMin = Math.floor(diffMs / 60000);
+
+    if (diffMin < 1) return 'Just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+
+    // Same year — show month/day + time
+    const opts = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+    return d.toLocaleDateString(undefined, opts);
   }
 
   formatParamName(param) {
