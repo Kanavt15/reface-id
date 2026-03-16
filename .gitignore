@@ -6,3 +6,4 @@ backend/cases/
 __pycache__/
 .env
 .claude/
+venv/

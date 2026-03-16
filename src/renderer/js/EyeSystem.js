@@ -120,6 +120,8 @@ class EyeSystem {
       rotZ: 50,
       curl: 50,
       thickness: 65,
+      length: 50,
+      opacity: 95,
     };
 
     this.eyelashColor = '#0a0a0a';
@@ -831,11 +833,13 @@ class EyeSystem {
       const baseScale = lashRegionWidth / cache.size.x;
       const scaleF = 0.5 + (ep.scale / 100) * 1.0;
       const thicknessF = 1.0 + thicknessNorm * 0.5;
+      const lengthF = 0.3 + ((ep.length ?? 50) / 100) * 1.4;  // Z-scale: lash length
+      const opacityF = ((ep.opacity ?? 95) / 100);            // Manual opacity
 
       container.scale.set(
         baseScale * scaleF,
         baseScale * thicknessF,
-        baseScale * scaleF
+        baseScale * scaleF * lengthF
       );
 
       // Position offsets (range ±0.15)
@@ -856,6 +860,10 @@ class EyeSystem {
       const rotZ = rotZNorm * 0.5;
 
       container.rotation.set(rotX, rotY, rotZ);
+
+      // Apply opacity
+      this._eyelashMat.opacity = opacityF;
+      this._eyelashMat.transparent = opacityF < 0.999;
     } else {
       // Single-eye model cloned for each side
       const lashRegionY = 0.34;
@@ -865,6 +873,8 @@ class EyeSystem {
       const baseScale = 0.45 / Math.max(cache.size.x, 0.001);
       const scaleF = 0.5 + (ep.scale / 100) * 1.0;
       const thicknessF = 1.0 + thicknessNorm * 0.5;
+      const lengthF = 0.3 + ((ep.length ?? 50) / 100) * 1.4;
+      const opacityF = ((ep.opacity ?? 95) / 100);
 
       const posOffsetX = posXNorm * 0.15;
       const posOffsetY = posYNorm * 0.15;
@@ -878,7 +888,7 @@ class EyeSystem {
       // Left eyelash
       const left = this._leftLashContainer;
       left.children[0].position.set(-cache.center.x, -cache.center.y, -cache.center.z);
-      left.scale.set(baseScale * scaleF, baseScale * thicknessF, baseScale * scaleF);
+      left.scale.set(baseScale * scaleF, baseScale * thicknessF, baseScale * scaleF * lengthF);
       left.position.set(
         this.modelCenter.x - halfSpacing + posOffsetX,
         lashRegionY + posOffsetY,
@@ -889,13 +899,17 @@ class EyeSystem {
       // Right eyelash (mirrored on X)
       const right = this._rightLashContainer;
       right.children[0].position.set(-cache.center.x, -cache.center.y, -cache.center.z);
-      right.scale.set(baseScale * scaleF, baseScale * thicknessF, baseScale * scaleF);
+      right.scale.set(baseScale * scaleF, baseScale * thicknessF, baseScale * scaleF * lengthF);
       right.position.set(
         this.modelCenter.x + halfSpacing + posOffsetX,
         lashRegionY + posOffsetY,
         lashRegionZ + posOffsetZ
       );
       right.rotation.set(rotX, -rotY, -rotZ);
+
+      // Apply opacity
+      this._eyelashMat.opacity = opacityF;
+      this._eyelashMat.transparent = opacityF < 0.999;
     }
   }
 

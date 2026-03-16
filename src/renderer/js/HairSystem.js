@@ -32,7 +32,8 @@ class HairSystem {
     this.eyebrowParams = { thickness: 100, arch: 0, spacing: 42,
                            density: 70, posX: 51, posY: 72, posZ: 49,
                            rotation: 100, scale: 65,
-                           straighten: 51, tiltX: 69 };
+                           straighten: 51, tiltX: 69,
+                           length: 50, opacity: 85 };
     this.eyebrowColor = '#2c1b0e';
 
     // Head metrics (updated on morph)
@@ -460,10 +461,12 @@ class HairSystem {
 
     // Slider-driven adjustments
     const thicknessF = 0.5 + (ep.thickness / 100) * 1.0;       // Y-scale only
+    const lengthF    = 0.3 + (ep.length / 100) * 1.4;          // Z-scale (brow hair length)
     const archF = ((ep.arch - 50) / 50) * 0.08;                 // Y-position adjustment
     const spacingOffset = ((ep.spacing - 50) / 50) * 0.15;      // X-position (closer/further)
     const density = ep.density;
     const scaleF = 0.5 + (ep.scale / 100) * 1.0;               // Overall XZ scale
+    const opacityF = (ep.opacity ?? 85) / 100;                  // Manual opacity override
     
     // Rotations (each on different axis for clear control)
     const rotZ = ((ep.rotation - 50) / 50) * Math.PI;          // Z-axis: angle/tilt up-down
@@ -475,11 +478,11 @@ class HairSystem {
     const posOffsetY = ((ep.posY - 50) / 50) * 0.3;
     const posOffsetZ = ((ep.posZ - 50) / 50) * 0.3;
 
-    // Apply scale: XZ scaled by overall scale, Y scaled by thickness independently
+    // Apply scale: X by overall scale, Y by thickness, Z by length
     container.scale.set(
       baseScale * scaleF,
       baseScale * thicknessF,
-      baseScale * scaleF
+      baseScale * scaleF * lengthF
     );
 
     container.position.set(
@@ -491,8 +494,8 @@ class HairSystem {
     // Apply rotations: X (fwd/back tilt), Y (180° base + twist), Z (angle)
     container.rotation.set(rotX, Math.PI + rotY, rotZ);
 
-    // Density → opacity (update shared material)
-    const opacity = 0.4 + (density / 100) * 0.6;
+    // Density affects opacity; manual opacity slider overrides base level
+    const opacity = Math.min(1.0, opacityF * (0.4 + (density / 100) * 0.6));
     this._eyebrowMat.opacity = opacity;
     this._eyebrowMat.transparent = opacity < 1.0;
   }
@@ -774,7 +777,7 @@ class HairSystem {
     
     if (state.eyebrows) {
       const eb = state.eyebrows;
-      for (const key of ['thickness', 'arch', 'spacing', 'density', 'posX', 'posY', 'posZ', 'rotation', 'scale', 'straighten', 'tiltX']) {
+      for (const key of ['thickness', 'arch', 'spacing', 'density', 'posX', 'posY', 'posZ', 'rotation', 'scale', 'straighten', 'tiltX', 'length', 'opacity']) {
         if (eb[key] !== undefined) this.eyebrowParams[key] = eb[key];
       }
       if (eb.color) {
