@@ -429,7 +429,7 @@ class UIController {
 
       const defaults = { thickness: 100, arch: 0, spacing: 42, density: 70,
                           posX: 51, posY: 72, posZ: 49, rotation: 100, scale: 65,
-                          straighten: 51, tiltX: 69 };
+                          straighten: 51, tiltX: 69, length: 50, opacity: 85 };
       Object.entries(defaults).forEach(([key, val]) => {
         this.hair.setEyebrowParam(key, val);
       });
@@ -442,7 +442,8 @@ class UIController {
           const param = control?.dataset.param;
           const resetDefaults = { eyebrowThickness: 100, eyebrowArch: 0, eyebrowSpacing: 42,
             eyebrowDensity: 70, eyebrowPosX: 51, eyebrowPosY: 72, eyebrowPosZ: 49,
-            eyebrowRotation: 100, eyebrowScale: 65, eyebrowStraighten: 51, eyebrowTiltX: 69 };
+            eyebrowRotation: 100, eyebrowScale: 65, eyebrowStraighten: 51, eyebrowTiltX: 69,
+            eyebrowLength: 50, eyebrowOpacity: 85 };
           const defaultVal = resetDefaults[param] ?? 50;
           slider.value = defaultVal;
           const vd = control?.querySelector('.slider-value');
@@ -704,13 +705,20 @@ class UIController {
         rotX: 50,
         rotY: 50,
         rotZ: 50,
+        opacity: 100,
       };
       Object.entries(defaults).forEach(([key, val]) => this.eyeSystem.setParam(key, val));
 
+      const eyeParamDefaults = {
+        eyeScale: 50, eyeSpacing: 50, eyePosX: 50, eyePosY: 50, eyePosZ: 50,
+        eyeRotX: 50, eyeRotY: 50, eyeRotZ: 50, eyeOpacity: 100,
+      };
       document.querySelectorAll('.eye-slider').forEach(slider => {
-        slider.value = 50;
+        const pName = slider.closest('.slider-control')?.dataset.param;
+        const val = eyeParamDefaults[pName] ?? 50;
+        slider.value = val;
         const vd = slider.closest('.slider-control')?.querySelector('.slider-value');
-        if (vd) vd.textContent = '50';
+        if (vd) vd.textContent = String(val);
       });
 
       this.caseManager.updateAppearance('eyeParams', this.eyeSystem.getParams());
@@ -788,6 +796,7 @@ class UIController {
       const defaults = {
         scale: 59, posX: 51, posY: 47, posZ: 15,
         rotX: 50, rotY: 50, rotZ: 50, curl: 50, thickness: 65,
+        length: 50, opacity: 95,
       };
       Object.entries(defaults).forEach(([key, val]) => this.eyeSystem.setEyelashParam(key, val));
       this.eyeSystem.setEyelashColor('#0a0a0a');
@@ -795,6 +804,7 @@ class UIController {
       const paramToDefault = {
         eyelashScale: 59, eyelashPosX: 51, eyelashPosY: 47, eyelashPosZ: 15,
         eyelashRotX: 50, eyelashRotY: 50, eyelashRotZ: 50, eyelashCurl: 50, eyelashThickness: 65,
+        eyelashLength: 50, eyelashOpacity: 95,
       };
       document.querySelectorAll('.eyelash-slider').forEach(slider => {
         const param = slider.closest('.slider-control')?.dataset.param;
