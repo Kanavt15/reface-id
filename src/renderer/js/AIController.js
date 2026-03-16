@@ -27,6 +27,10 @@ class AIController {
     // Voice recognition
     this._recognition = null;
     this._isListening = false;
+
+    // Provider selection
+    this.providerSelect = null;
+    this.availableProviders = [];
   }
 
   /**
@@ -60,8 +64,14 @@ class AIController {
       this.undoAiBtn.addEventListener('click', () => this.undoLastAiChange());
     }
 
+    // Provider selector
+    this.providerSelect = document.getElementById('aiProviderSelect');
+
     // Initialize voice recognition
     this._initVoiceRecognition();
+
+    // Detect which AI providers are available
+    this._detectProviders();
 
     // Add welcome message
     this._addMessage('assistant', 'Describe a face and I\'ll build it. You can refine by saying things like "make the nose wider" or "cheeks should be fuller".');
@@ -86,6 +96,8 @@ class AIController {
     const currentState = this._getCurrentState();
 
     try {
+      const selected = this.providerSelect?.value || 'anthropic:claude-haiku-4-5-20251001';
+      const [provider, model] = selected.split(':');
       const response = await fetch(`${this.api.baseUrl}/api/ai/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -93,6 +105,8 @@ class AIController {
           prompt: text,
           currentState: currentState,
           history: this.conversationHistory,
+          provider: provider,
+          model: model,
         }),
       });
 
@@ -413,6 +427,36 @@ class AIController {
           last.remove();
         }
       }
+    }
+  }
+
+  // ─── Provider Detection ──────────────────────────────────────────────────
+
+  async _detectProviders() {
+    try {
+      const response = await fetch(`${this.api.baseUrl}/api/ai/providers`);
+      const data = await response.json();
+      if (data.providers && this.providerSelect) {
+        // Disable options whose provider isn't available
+        Array.from(this.providerSelect.options).forEach(opt => {
+          const providerKey = opt.value.split(':')[0];
+          const info = data.providers[providerKey];
+          if (info && !info.available) {
+            opt.disabled = true;
+            opt.textContent = `${opt.textContent} (no key)`;
+          }
+        });
+        // Auto-select the first available option
+        const firstAvailable = Array.from(this.providerSelect.options).find(opt => !opt.disabled);
+        if (firstAvailable) {
+          this.providerSelect.value = firstAvailable.value;
+        }
+        if (available.length === 0) {
+          this._addMessage('assistant', 'Warning: No AI API keys configured. Add ANTHROPIC_API_KEY or GEMINI_API_KEY to backend/.env');
+        }
+      }
+    } catch (err) {
+      // Backend not running yet, will retry on first prompt
     }
   }
 

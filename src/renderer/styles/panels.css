@@ -451,6 +451,28 @@
 .ai-chat-actions {
   display: flex;
   gap: 4px;
+  align-items: center;
+}
+
+.ai-provider-select {
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 11px;
+  cursor: pointer;
+  outline: none;
+}
+
+.ai-provider-select:hover {
+  border-color: var(--accent-primary);
+}
+
+.ai-provider-select option {
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .ai-action-btn {

@@ -453,6 +453,18 @@ def download_render(filename):
 
 # ─── AI Face Generation ───────────────────────────────────────────────────────
 
+@app.route('/api/ai/providers', methods=['GET'])
+def ai_providers():
+    """Return which AI providers are available (have API keys configured)."""
+    return jsonify({
+        "providers": {
+            "anthropic": {"available": anthropic_client is not None, "label": "Claude"},
+            "gemini": {"available": gemini_client is not None, "label": "Gemini"},
+        },
+        "default": DEFAULT_AI_PROVIDER,
+    })
+
+
 @app.route('/api/ai/generate', methods=['POST'])
 def ai_generate_face():
     """Use AI (Claude or Gemini) to interpret a face description and return parameter values."""
@@ -461,6 +473,7 @@ def ai_generate_face():
     current_state = data.get('currentState', None)
     conversation_history = data.get('history', [])
     provider = data.get('provider', DEFAULT_AI_PROVIDER).lower()  # Allow override via request
+    model = data.get('model', None)  # Optional specific model override
 
     if not prompt:
         return jsonify({"error": "No prompt provided"}), 400
@@ -489,8 +502,9 @@ def ai_generate_face():
                 messages.append({"role": msg["role"], "content": msg["content"]})
             messages.append({"role": "user", "content": user_content})
 
+            anthropic_model = model if model else "claude-haiku-4-5-20251001"
             response = anthropic_client.messages.create(
-                model="claude-haiku-4-5-20251001",
+                model=anthropic_model,
                 max_tokens=2048,
                 system=AI_SYSTEM_PROMPT,
                 messages=messages,
@@ -513,8 +527,9 @@ def ai_generate_face():
             # Add current request
             full_prompt += f"User: {user_content}\n\nAssistant: "
             
-            # Generate response
-            response = gemini_client.generate_content(full_prompt)
+            # Generate response (use specified model or default)
+            gemini_model = genai.GenerativeModel(model) if model else gemini_client
+            response = gemini_model.generate_content(full_prompt)
             ai_text = response.text.strip()
 
         # Extract JSON from response (handle potential markdown wrapping)
