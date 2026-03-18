@@ -1494,8 +1494,13 @@
           <div class="ai-chat-input-area">
             <div class="ai-input-row">
               <textarea id="aiChatInput" class="ai-chat-textarea" placeholder="Describe a face... e.g., 'Male, 30s, wide jaw, small eyes, dark skin, short hair'" rows="2"></textarea>
+              <div id="aiReferenceInfo" class="ai-reference-info" style="display:none;"></div>
             </div>
             <div class="ai-btn-row">
+              <input type="file" id="aiImageInput" accept="image/png,image/jpeg,image/webp" multiple style="display:none;" />
+              <button class="ai-attach-btn" id="aiAttachBtn" title="Attach reference image">
+                <i class="fas fa-image"></i>
+              </button>
               <button class="ai-mic-btn" id="aiMicBtn" title="Voice input">
                 <i class="fas fa-microphone"></i>
               </button>

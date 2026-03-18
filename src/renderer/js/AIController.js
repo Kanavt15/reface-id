@@ -22,7 +22,12 @@ class AIController {
     this.chatInput = null;
     this.sendBtn = null;
     this.micBtn = null;
+    this.attachBtn = null;
+    this.imageInput = null;
+    this.referenceInfo = null;
     this.undoAiBtn = null;
+
+    this.referenceImages = [];
 
     // Voice recognition
     this._recognition = null;
@@ -41,6 +46,9 @@ class AIController {
     this.chatInput = document.getElementById('aiChatInput');
     this.sendBtn = document.getElementById('aiSendBtn');
     this.micBtn = document.getElementById('aiMicBtn');
+    this.attachBtn = document.getElementById('aiAttachBtn');
+    this.imageInput = document.getElementById('aiImageInput');
+    this.referenceInfo = document.getElementById('aiReferenceInfo');
     this.undoAiBtn = document.getElementById('aiUndoBtn');
 
     if (this.sendBtn) {
@@ -58,6 +66,11 @@ class AIController {
 
     if (this.micBtn) {
       this.micBtn.addEventListener('click', () => this.toggleVoice());
+    }
+
+    if (this.attachBtn && this.imageInput) {
+      this.attachBtn.addEventListener('click', () => this.imageInput.click());
+      this.imageInput.addEventListener('change', (e) => this._onReferenceImageSelected(e));
     }
 
     if (this.undoAiBtn) {
@@ -82,10 +95,17 @@ class AIController {
    */
   async sendPrompt() {
     const text = this.chatInput?.value?.trim();
-    if (!text || this.isProcessing) return;
+    if ((!text && this.referenceImages.length === 0) || this.isProcessing) return;
 
     // Show user message
-    this._addMessage('user', text);
+    const hasImages = this.referenceImages.length > 0;
+    const imageSummary = hasImages
+      ? this.referenceImages.map(img => img.name).join(', ')
+      : '';
+    const userMessage = hasImages
+      ? `${text || 'Use these images as reference.'}\n[${this.referenceImages.length} reference image${this.referenceImages.length > 1 ? 's' : ''} attached: ${imageSummary}]`
+      : text;
+    this._addMessage('user', userMessage);
     this.chatInput.value = '';
 
     // Set loading state
@@ -105,6 +125,7 @@ class AIController {
           prompt: text,
           currentState: currentState,
           history: this.conversationHistory,
+          referenceImages: this.referenceImages,
           provider: provider,
           model: model,
         }),
@@ -126,7 +147,7 @@ class AIController {
 
         // Update conversation history for refinement
         this.conversationHistory.push(
-          { role: 'user', content: text },
+          { role: 'user', content: userMessage },
           { role: 'assistant', content: data.aiResponse }
         );
 
@@ -146,8 +167,12 @@ class AIController {
 
         // Log in history
         if (this.ui) {
-          this.ui.addHistory('AI: ' + text.substring(0, 40) + (text.length > 40 ? '...' : ''));
+          const historyLabel = text || (hasImages ? `[${this.referenceImages.length} image reference${this.referenceImages.length > 1 ? 's' : ''}]` : 'AI request');
+          this.ui.addHistory('AI: ' + historyLabel.substring(0, 40) + (historyLabel.length > 40 ? '...' : ''));
         }
+
+        // Use reference images once, then clear so users can choose different ones for next turn.
+        this._clearReferenceImages();
       }
     } catch (err) {
       this._addMessage('assistant', `Connection error: ${err.message}. Is the backend running?`);
@@ -389,6 +414,7 @@ class AIController {
    */
   clearConversation() {
     this.conversationHistory = [];
+    this._clearReferenceImages();
     if (this.chatMessages) {
       this.chatMessages.innerHTML = '';
     }
@@ -415,6 +441,9 @@ class AIController {
     }
     if (this.chatInput) {
       this.chatInput.disabled = loading;
+    }
+    if (this.attachBtn) {
+      this.attachBtn.disabled = loading;
     }
     if (loading) {
       this._addMessage('assistant', 'Thinking...');
@@ -451,6 +480,7 @@ class AIController {
         if (firstAvailable) {
           this.providerSelect.value = firstAvailable.value;
         }
+        const available = Object.values(data.providers).filter(p => p.available);
         if (available.length === 0) {
           this._addMessage('assistant', 'Warning: No AI API keys configured. Add ANTHROPIC_API_KEY or GEMINI_API_KEY to backend/.env');
         }
@@ -567,6 +597,119 @@ class AIController {
     if (this.chatInput) {
       this.chatInput.placeholder = 'Describe a face or give instructions...';
     }
+  }
+
+  async _onReferenceImageSelected(event) {
+    const files = Array.from(event.target?.files || []);
+    if (!files.length) return;
+
+    const maxImages = 5;
+    const remainingSlots = maxImages - this.referenceImages.length;
+    if (remainingSlots <= 0) {
+      this._addMessage('assistant', `You can attach up to ${maxImages} reference images per prompt.`);
+      this.imageInput.value = '';
+      return;
+    }
+
+    if (files.length > remainingSlots) {
+      this._addMessage('assistant', `Only ${remainingSlots} more image${remainingSlots > 1 ? 's are' : ' is'} allowed for this prompt.`);
+    }
+
+    const maxBytes = 5 * 1024 * 1024;
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp'];
+    const filesToLoad = files.slice(0, remainingSlots).filter((file) => {
+      if (file.size > maxBytes) {
+        this._addMessage('assistant', `${file.name}: image is too large. Use under 5MB.`);
+        return false;
+      }
+      if (!allowedTypes.includes(file.type)) {
+        this._addMessage('assistant', `${file.name}: unsupported format. Use PNG, JPEG, or WEBP.`);
+        return false;
+      }
+      return true;
+    });
+
+    if (filesToLoad.length === 0) {
+      this.imageInput.value = '';
+      return;
+    }
+
+    try {
+      const loaded = await Promise.all(filesToLoad.map(file => this._readReferenceImage(file)));
+      this.referenceImages.push(...loaded);
+      this._renderReferenceImages();
+    } catch (err) {
+      this._addMessage('assistant', `Could not read selected images: ${err.message}`);
+    } finally {
+      // Reset so selecting the same file again triggers change
+      this.imageInput.value = '';
+    }
+  }
+
+  _readReferenceImage(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        resolve({
+          name: file.name,
+          mimeType: file.type,
+          dataUrl: reader.result,
+        });
+      };
+      reader.onerror = () => reject(new Error(`failed to read ${file.name}`));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  _renderReferenceImages() {
+    if (!this.referenceInfo) return;
+    if (this.referenceImages.length === 0) {
+      this.referenceInfo.style.display = 'none';
+      this.referenceInfo.innerHTML = '';
+      this.attachBtn?.classList.remove('active');
+      return;
+    }
+
+    this.referenceInfo.style.display = '';
+    this.referenceInfo.innerHTML = '';
+    this.referenceImages.forEach((img, index) => {
+      const chip = document.createElement('div');
+      chip.className = 'ai-reference-chip';
+
+      const icon = document.createElement('i');
+      icon.className = 'fas fa-image';
+      chip.appendChild(icon);
+
+      const name = document.createElement('span');
+      name.className = 'ai-reference-name';
+      name.title = img.name;
+      name.textContent = img.name;
+      chip.appendChild(name);
+
+      const clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.className = 'ai-reference-clear';
+      clearBtn.title = 'Remove image';
+      clearBtn.innerHTML = '<i class="fas fa-times"></i>';
+      clearBtn.addEventListener('click', () => this._removeReferenceImage(index));
+      chip.appendChild(clearBtn);
+
+      this.referenceInfo.appendChild(chip);
+    });
+
+    this.attachBtn?.classList.add('active');
+  }
+
+  _removeReferenceImage(index) {
+    if (index < 0 || index >= this.referenceImages.length) return;
+    this.referenceImages.splice(index, 1);
+    this._renderReferenceImages();
+  }
+
+  _clearReferenceImages() {
+    this.referenceImages = [];
+    if (this.imageInput) this.imageInput.value = '';
+    this._renderReferenceImages();
   }
 
 }

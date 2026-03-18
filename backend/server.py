@@ -8,6 +8,7 @@ import os
 import sys
 import json
 import uuid
+import base64
 import subprocess
 import tempfile
 from pathlib import Path
@@ -112,6 +113,7 @@ sex: "male" or "female"
 3. For refinement requests, you will receive the current parameter state. Apply RELATIVE changes based on the user's feedback.
 4. Use the exact JSON structure shown below.
 5. For "a bit" / "slightly" changes, adjust by 5-10 from current value. For "more" / "much more", adjust by 15-25.
+6. If one or more reference images are attached, infer visible facial traits from them and combine that with user text instructions.
 
 ## OUTPUT FORMAT (strict JSON, nothing else):
 {
@@ -472,11 +474,24 @@ def ai_generate_face():
     prompt = data.get('prompt', '')
     current_state = data.get('currentState', None)
     conversation_history = data.get('history', [])
+    reference_images = data.get('referenceImages', None)
+    # Backward compatibility with previous single-image payload
+    if reference_images is None:
+        single_ref = data.get('referenceImage', None)
+        reference_images = [single_ref] if single_ref else []
     provider = data.get('provider', DEFAULT_AI_PROVIDER).lower()  # Allow override via request
     model = data.get('model', None)  # Optional specific model override
 
     if not prompt:
-        return jsonify({"error": "No prompt provided"}), 400
+        if not reference_images:
+            return jsonify({"error": "No prompt provided"}), 400
+
+    image_payloads = []
+    if reference_images:
+        try:
+            image_payloads = _parse_reference_images(reference_images)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
 
     # Validate provider and check if API key is available
     if provider == 'anthropic':
@@ -490,8 +505,17 @@ def ai_generate_face():
 
     # Build user content with current state if available
     user_content = prompt
+    if image_payloads:
+        img_count = len(image_payloads)
+        suffix = 'images are' if img_count > 1 else 'image is'
+        if user_content:
+            user_content = f"{user_content}\n\n{img_count} reference {suffix} attached."
+        else:
+            user_content = f"Use the {img_count} attached reference image{'s' if img_count > 1 else ''} to generate the face parameters."
     if current_state:
         user_content = f"Current face state:\n```json\n{json.dumps(current_state, indent=2)}\n```\n\nUser request: {prompt}"
+        if image_payloads:
+            user_content += f"\n\n{len(image_payloads)} reference image{'s are' if len(image_payloads) > 1 else ' is'} attached."
 
     try:
         if provider == 'anthropic':
@@ -500,7 +524,25 @@ def ai_generate_face():
             # Add conversation history
             for msg in conversation_history:
                 messages.append({"role": msg["role"], "content": msg["content"]})
-            messages.append({"role": "user", "content": user_content})
+            if image_payloads:
+                user_blocks = [
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": payload["mime_type"],
+                            "data": payload["base64_data"],
+                        },
+                    }
+                    for payload in image_payloads
+                ]
+                user_blocks.append({"type": "text", "text": user_content})
+                messages.append({
+                    "role": "user",
+                    "content": user_blocks,
+                })
+            else:
+                messages.append({"role": "user", "content": user_content})
 
             anthropic_model = model if model else "claude-haiku-4-5-20251001"
             response = anthropic_client.messages.create(
@@ -529,7 +571,12 @@ def ai_generate_face():
             
             # Generate response (use specified model or default)
             gemini_model = genai.GenerativeModel(model) if model else gemini_client
-            response = gemini_model.generate_content(full_prompt)
+            if image_payloads:
+                parts = [full_prompt]
+                parts.extend({"mime_type": payload["mime_type"], "data": payload["raw_bytes"]} for payload in image_payloads)
+                response = gemini_model.generate_content(parts)
+            else:
+                response = gemini_model.generate_content(full_prompt)
             ai_text = response.text.strip()
 
         # Extract JSON from response (handle potential markdown wrapping)
@@ -571,6 +618,67 @@ def ai_generate_face():
         import traceback
         traceback.print_exc()
         return jsonify({"error": error_msg, "provider": provider}), 500
+
+
+def _parse_reference_images(reference_images):
+    """Validate and parse frontend-provided image payloads for multimodal models."""
+    if not isinstance(reference_images, list):
+        raise ValueError("Invalid reference images payload")
+    if len(reference_images) == 0:
+        return []
+
+    max_images = 5
+    if len(reference_images) > max_images:
+        raise ValueError(f"Too many reference images. Max allowed is {max_images}.")
+
+    parsed = []
+    for reference_image in reference_images:
+        parsed.append(_parse_reference_image(reference_image))
+    return parsed
+
+
+def _parse_reference_image(reference_image):
+    """Validate and parse a single frontend-provided image payload."""
+    if not isinstance(reference_image, dict):
+        raise ValueError("Invalid reference image payload")
+
+    data_url = reference_image.get('dataUrl', '')
+    mime_type = reference_image.get('mimeType', '')
+    if not data_url:
+        raise ValueError("Reference image data is empty")
+
+    if data_url.startswith('data:'):
+        if ',' not in data_url:
+            raise ValueError("Reference image data URL is malformed")
+        header, b64_data = data_url.split(',', 1)
+        if ';base64' not in header:
+            raise ValueError("Reference image must be base64 encoded")
+        detected_mime = header[5:].split(';')[0]
+        if not mime_type:
+            mime_type = detected_mime
+    else:
+        b64_data = data_url
+
+    if mime_type == 'image/jpg':
+        mime_type = 'image/jpeg'
+
+    allowed = {'image/png', 'image/jpeg', 'image/webp'}
+    if mime_type not in allowed:
+        raise ValueError("Unsupported reference image format. Use PNG, JPEG, or WEBP.")
+
+    try:
+        raw_bytes = base64.b64decode(b64_data, validate=True)
+    except Exception:
+        raise ValueError("Reference image payload is not valid base64 data")
+
+    if len(raw_bytes) > 5 * 1024 * 1024:
+        raise ValueError("Reference image is too large. Please use an image under 5MB.")
+
+    return {
+        "mime_type": mime_type,
+        "base64_data": b64_data,
+        "raw_bytes": raw_bytes,
+    }
 
 
 # ─── Speech-to-Text ──────────────────────────────────────────────────────────

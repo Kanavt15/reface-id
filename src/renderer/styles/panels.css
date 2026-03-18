@@ -564,6 +564,53 @@
   color: var(--text-muted);
 }
 
+.ai-reference-info {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ai-reference-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(50% - 3px);
+  min-width: 0;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+
+.ai-reference-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-reference-clear {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.ai-reference-clear:hover {
+  color: var(--text-primary);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    Snapshots Panel
    ═══════════════════════════════════════════════════════════════════════ */
@@ -773,7 +820,8 @@
 }
 
 .ai-send-btn,
-.ai-mic-btn {
+.ai-mic-btn,
+.ai-attach-btn {
   height: 32px;
   border: none;
   border-radius: var(--border-radius);
@@ -807,9 +855,26 @@
   border: 1px solid var(--border-accent);
 }
 
+.ai-attach-btn {
+  width: 32px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  border: 1px solid var(--border-accent);
+}
+
 .ai-mic-btn:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
+}
+
+.ai-attach-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.ai-attach-btn.active {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
 }
 
 .ai-mic-btn.ai-mic-active {
