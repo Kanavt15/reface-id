@@ -917,3 +917,98 @@
   color: var(--accent-primary);
   border-color: var(--accent-primary);
 }
+
+/* AI Settings Section */
+.ai-settings-section {
+  border-top: 1px solid var(--border-secondary);
+  background: var(--bg-secondary);
+}
+
+.ai-settings-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: background var(--transition-fast);
+}
+
+.ai-settings-header:hover {
+  background: var(--bg-hover);
+}
+
+.ai-settings-header i:first-child {
+  color: var(--accent-primary);
+  font-size: 11px;
+}
+
+.ai-settings-chevron {
+  margin-left: auto;
+  font-size: 10px;
+  transition: transform var(--transition-fast);
+}
+
+.ai-settings-section.collapsed .ai-settings-chevron {
+  transform: rotate(-90deg);
+}
+
+.ai-settings-body {
+  padding: 8px 12px 12px;
+  border-top: 1px solid var(--border-secondary);
+}
+
+.ai-settings-section.collapsed .ai-settings-body {
+  display: none;
+}
+
+.ai-setting-item {
+  margin-bottom: 10px;
+}
+
+.ai-setting-item:last-child {
+  margin-bottom: 0;
+}
+
+.ai-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.ai-checkbox-label input[type="checkbox"] {
+  accent-color: var(--accent-primary);
+}
+
+.ai-setting-title {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.ai-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 4px;
+}
+
+.ai-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.ai-radio-label input[type="radio"] {
+  accent-color: var(--accent-primary);
+}

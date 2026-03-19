@@ -1492,30 +1492,6 @@
           </div>
 
           <div class="ai-chat-input-area">
-            <!-- Mark generation and handling options -->
-            <div class="ai-mark-options" style="padding: 8px; border-top: 1px solid #e0e0e0; background: #f9f9f9;">
-              <div style="margin-bottom: 8px;">
-                <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666;">
-                  <input type="checkbox" id="aiGenerateMarksCheckbox" title="Generate scars/birthmarks from reference images">
-                  Generate marks from image
-                </label>
-              </div>
-              <div style="margin-bottom: 8px;">
-                <span style="font-size: 11px; font-weight: bold; color: #666; display: block; margin-bottom: 4px;">Mark handling:</span>
-                <div style="display: flex; gap: 10px;">
-                  <label style="display: flex; align-items: center; gap: 4px; font-size: 11px;">
-                    <input type="radio" name="aiMarkMode" value="preserve" checked> Preserve
-                  </label>
-                  <label style="display: flex; align-items: center; gap: 4px; font-size: 11px;">
-                    <input type="radio" name="aiMarkMode" value="replace"> Replace
-                  </label>
-                  <label style="display: flex; align-items: center; gap: 4px; font-size: 11px;">
-                    <input type="radio" name="aiMarkMode" value="merge"> Merge
-                  </label>
-                </div>
-              </div>
-            </div>
-
             <div class="ai-input-row">
               <textarea id="aiChatInput" class="ai-chat-textarea" placeholder="Describe a face... e.g., 'Male, 30s, wide jaw, small eyes, dark skin, short hair'" rows="2"></textarea>
               <div id="aiReferenceInfo" class="ai-reference-info" style="display:none;"></div>
@@ -1539,6 +1515,40 @@
             <button class="ai-quick-btn" data-prompt="Female, 25, thin face, high cheekbones, small nose, light skin">Thin female</button>
             <button class="ai-quick-btn" data-prompt="Make the nose wider and the eyes closer together">Wider nose</button>
             <button class="ai-quick-btn" data-prompt="Reset everything to default neutral face">Reset face</button>
+          </div>
+        </div>
+
+        <!-- AI Settings Section -->
+        <div class="ai-settings-section">
+          <div class="ai-settings-header" onclick="this.parentElement.classList.toggle('collapsed')">
+            <i class="fas fa-cog"></i>
+            <span>AI Generation Settings</span>
+            <i class="fas fa-chevron-down ai-settings-chevron"></i>
+          </div>
+          <div class="ai-settings-body">
+            <div class="ai-setting-item">
+              <label class="ai-checkbox-label">
+                <input type="checkbox" id="aiGenerateMarksCheckbox" title="Generate scars/birthmarks from reference images">
+                <span>Generate facial marks from image</span>
+              </label>
+            </div>
+            <div class="ai-setting-item">
+              <span class="ai-setting-title">Mark handling mode:</span>
+              <div class="ai-radio-group">
+                <label class="ai-radio-label">
+                  <input type="radio" name="aiMarkMode" value="preserve" checked>
+                  <span>Preserve existing</span>
+                </label>
+                <label class="ai-radio-label">
+                  <input type="radio" name="aiMarkMode" value="replace">
+                  <span>Replace with AI</span>
+                </label>
+                <label class="ai-radio-label">
+                  <input type="radio" name="aiMarkMode" value="merge">
+                  <span>Merge marks</span>
+                </label>
+              </div>
+            </div>
           </div>
         </div>
       </div>
