@@ -1106,9 +1106,16 @@ class UIController {
 
     // Export buttons
     ['OBJ', 'FBX', 'GLB'].forEach(format => {
-      document.getElementById(`btnExport${format}`)?.addEventListener('click', () => {
-        this.exportModel(format.toLowerCase());
-      });
+      const btn = document.getElementById(`btnExport${format}`);
+      if (btn) {
+        btn.addEventListener('click', () => {
+          console.log(`[Export Button] ${format} clicked`);
+          this.exportModel(format.toLowerCase());
+        });
+        console.log(`[Export] Bound btnExport${format}`);
+      } else {
+        console.warn(`[Export] Button btnExport${format} not found`);
+      }
     });
 
     // Screenshot
@@ -1323,16 +1330,49 @@ class UIController {
   }
 
   async exportModel(format) {
+    console.log('[Export] Starting export with format:', format);
     this.updateCaseFromUI();
     this.showLoading(`Exporting as ${format.toUpperCase()}...`);
 
-    const result = await this.api.exportModel(format, this.caseManager.getExportData());
-    this.hideLoading();
+    try {
+      const exportData = this.caseManager.getExportData();
+      console.log('[Export] Export data:', exportData);
 
-    if (result?.error) {
-      this.addHistory(`Export failed: ${result.error}`);
-    } else {
-      this.addHistory(`Exported as ${format.toUpperCase()}`);
+      const result = await this.api.exportModel(format, exportData);
+      console.log('[Export] API response:', result);
+
+      this.hideLoading();
+
+      if (result?.error) {
+        console.error('Export error:', result.error);
+        this.addHistory(`Export failed: ${result.error}`);
+      } else if (result?.filename) {
+        console.log('[Export] Triggering download for:', result.filename);
+
+        // Use Electron API to download the file
+        if (window.electronAPI?.downloadExportedFile) {
+          console.log('[Export] Using Electron API to download');
+          const downloadResult = await window.electronAPI.downloadExportedFile(result.filename, result.download_path);
+
+          if (downloadResult?.error) {
+            console.error('[Export] Download error:', downloadResult.error);
+            this.addHistory(`Export failed to download: ${downloadResult.error}`);
+          } else {
+            console.log('[Export] File downloaded to:', downloadResult.path);
+            this.addHistory(`Exported as ${format.toUpperCase()}: ${result.filename}`);
+          }
+        } else {
+          console.warn('[Export] Electron API not available, cannot download');
+          this.addHistory(`Export completed: ${result.filename}`);
+        }
+      } else {
+        console.log('Export result:', result);
+        this.addHistory(`Export completed as ${format.toUpperCase()}`);
+      }
+    } catch (error) {
+      this.hideLoading();
+      console.error('Export error:', error);
+      this.addHistory(`Export failed: ${error.message || 'Unknown error'}`);
     }
   }
 

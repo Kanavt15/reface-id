@@ -144,6 +144,50 @@ ipcMain.handle('file:save-buffer', async (event, filePath, base64Data) => {
   fs.writeFileSync(filePath, buffer);
 });
 
+ipcMain.handle('file:download-export', async (event, filename, sourcePath) => {
+  const fs = require('fs');
+  const path = require('path');
+
+  console.log(`[Export] Received parameters:`, { filename, sourcePath });
+  console.log(`[Export] sourcePath type:`, typeof sourcePath);
+
+  // Show save dialog
+  const result = await dialog.showSaveDialog(mainWindow, {
+    defaultPath: filename,
+    filters: [
+      { name: 'All Files', extensions: ['*'] },
+      { name: 'OBJ Files', extensions: ['obj'] },
+      { name: 'FBX Files', extensions: ['fbx'] },
+      { name: 'GLB Files', extensions: ['glb'] }
+    ]
+  });
+
+  if (result.canceled) {
+    return { error: 'Download canceled' };
+  }
+
+  const saveFilePath = result.filePath;
+
+  // Copy the file directly from the exports directory (no HTTP needed)
+  try {
+    console.log(`[Export] Source: ${sourcePath}`);
+    console.log(`[Export] Destination: ${saveFilePath}`);
+
+    if (!fs.existsSync(sourcePath)) {
+      console.error(`[Export] Source file not found: ${sourcePath}`);
+      return { error: `File not found: ${sourcePath}` };
+    }
+
+    fs.copyFileSync(sourcePath, saveFilePath);
+    const fileSize = fs.statSync(saveFilePath).size;
+    console.log(`[Export] Success! File copied (${fileSize} bytes)`);
+    return { success: true, path: saveFilePath };
+  } catch (err) {
+    console.error('[Export] Copy error:', err);
+    return { error: err.message };
+  }
+});
+
 ipcMain.handle('dialog:open', async (event, options) => {
   const result = await dialog.showOpenDialog(mainWindow, options);
   return result;

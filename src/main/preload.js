@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveDialog: (options) => ipcRenderer.invoke('dialog:save', options),
   openDialog: (options) => ipcRenderer.invoke('dialog:open', options),
   saveFile: (filePath, base64Data) => ipcRenderer.invoke('file:save-buffer', filePath, base64Data),
+  downloadExportedFile: (filename, sourcePath) => ipcRenderer.invoke('file:download-export', filename, sourcePath),
 
   // Menu events
   onNewCase: (callback) => ipcRenderer.on('menu:new-case', callback),

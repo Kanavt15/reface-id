@@ -192,17 +192,25 @@ def run_blender_script(script_name, args_dict=None):
     """Execute a Blender Python script in background mode."""
     if not BLENDER_PATH:
         return {"error": "Blender not found. Please install Blender and update the path."}
-    
+
     script_path = BLENDER_SCRIPTS_DIR / script_name
     if not script_path.exists():
         return {"error": f"Script {script_name} not found"}
-    
+
+    print(f"[Blender] Running {script_name} with Blender at {BLENDER_PATH}")
+
     # Pass arguments via temp JSON file
     args_file = None
     if args_dict:
+        # Normalize all paths to use forward slashes to avoid JSON escape issues
+        for key, value in args_dict.items():
+            if isinstance(value, str) and '\\' in value:
+                args_dict[key] = value.replace('\\', '/')
+
         args_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
-        json.dump(args_dict, args_file)
+        json.dump(args_dict, args_file, indent=2)
         args_file.close()
+        print(f"[Blender] Args file: {args_file.name}")
     
     cmd = [
         BLENDER_PATH,
@@ -273,7 +281,7 @@ def apply_morph():
     morph_params = data.get('morphTargets', {})
     
     result = run_blender_script('apply_morphs.py', {
-        'base_model': str(MODELS_DIR / 'base_face.obj'),
+        'base_model': str(MODELS_DIR / 'base' / 'base_face.obj'),
         'morph_targets': morph_params,
         'output_path': str(EXPORTS_DIR / 'morphed_face.obj')
     })
@@ -293,7 +301,7 @@ def generate_hair():
     output_path = str(EXPORTS_DIR / output_file)
     
     result = run_blender_script('generate_hair.py', {
-        'base_model': str(MODELS_DIR / 'base_face.obj'),
+        'base_model': str(MODELS_DIR / 'base' / 'base_face.obj'),
         'hair_params': hair_params,
         'output_path': output_path
     })
@@ -322,23 +330,48 @@ def export_model():
     data = request.json
     format_type = data.get('format', 'obj')
     case_data = data.get('caseData', {})
-    
+
+    print(f"[Export] Starting export as {format_type}")
+
     export_filename = f"reface_export_{uuid.uuid4().hex[:8]}.{format_type}"
     export_path = str(EXPORTS_DIR / export_filename)
-    
+
+    base_model_path = str(MODELS_DIR / 'base' / 'base_face.obj')
+    if not os.path.exists(base_model_path):
+        error_msg = f"Base model not found at {base_model_path}"
+        print(f"[Export] Error: {error_msg}")
+        return jsonify({"error": error_msg})
+
+    print(f"[Export] Using base model: {base_model_path}")
+    print(f"[Export] Output path: {export_path}")
+
     result = run_blender_script('export_model.py', {
         'morph_targets': case_data.get('morphTargets', {}),
         'hair_params': case_data.get('hairParams', {}),
         'appearance': case_data.get('appearance', {}),
         'format': format_type,
         'output_path': export_path,
-        'base_model': str(MODELS_DIR / 'base_face.obj')
+        'base_model': base_model_path
     })
-    
-    if 'error' not in result:
-        result['download_path'] = export_path
-        result['filename'] = export_filename
-    
+
+    print(f"[Export] Blender result: {result}")
+
+    # Verify file was actually created
+    if result.get('success'):
+        if os.path.exists(export_path):
+            file_size = os.path.getsize(export_path)
+            print(f"[Export] File verified: {export_filename} ({file_size} bytes)")
+            result['download_path'] = export_path
+            result['filename'] = export_filename
+        else:
+            print(f"[Export] ERROR: Blender reported success but file not found at {export_path}")
+            result['error'] = f"Export failed: file not created"
+            result['success'] = False
+    elif 'error' not in result:
+        result['error'] = 'Export operation failed'
+    else:
+        print(f"[Export] Error: {result.get('error')}")
+
     return jsonify(result)
 
 
@@ -347,7 +380,22 @@ def download_export(filename):
     """Download an exported file."""
     file_path = EXPORTS_DIR / filename
     if file_path.exists():
-        return send_file(str(file_path), as_attachment=True)
+        file_size = file_path.stat().st_size
+        print(f"[Download] Serving {filename} ({file_size} bytes)")
+
+        # Determine MIME type based on extension
+        if filename.endswith('.obj'):
+            mimetype = 'application/octet-stream'
+        elif filename.endswith('.fbx'):
+            mimetype = 'application/octet-stream'
+        elif filename.endswith('.glb'):
+            mimetype = 'model/gltf-binary'
+        else:
+            mimetype = 'application/octet-stream'
+
+        return send_file(str(file_path), as_attachment=True, mimetype=mimetype, download_name=filename)
+
+    print(f"[Download] File not found: {filename} at {file_path}")
     return jsonify({"error": "File not found"}), 404
 
 

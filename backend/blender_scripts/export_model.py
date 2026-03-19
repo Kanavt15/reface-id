@@ -50,16 +50,26 @@ def apply_skin_material(obj, appearance):
 
 def main():
     args = get_args()
-    
+
     morph_targets = args.get('morph_targets', {})
     hair_params = args.get('hair_params', {})
     appearance = args.get('appearance', {})
     export_format = args.get('format', 'obj')
     output_path = args.get('output_path', '')
     base_model = args.get('base_model', '')
+
+    # Convert forward slashes back to OS-native paths for file operations
+    output_path = output_path.replace('/', os.sep)
+    base_model = base_model.replace('/', os.sep)
     
     clear_scene()
-    
+
+    # Create output directory if it doesn't exist
+    output_dir = os.path.dirname(output_path)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+        print(f"[Export] Created output directory: {output_dir}")
+
     # Import base model
     if base_model and os.path.exists(base_model):
         if base_model.endswith('.obj'):
@@ -82,16 +92,56 @@ def main():
     
     # Select all for export
     bpy.ops.object.select_all(action='SELECT')
-    
+
     # Export based on format
-    if export_format == 'obj':
-        bpy.ops.wm.obj_export(filepath=output_path)
-    elif export_format == 'fbx':
-        bpy.ops.export_scene.fbx(filepath=output_path)
-    elif export_format == 'glb':
-        bpy.ops.export_scene.gltf(filepath=output_path, export_format='GLB')
-    
-    print(f'RESULT:{{"success": true, "format": "{export_format}", "output_path": "{output_path}"}}')
+    try:
+        print(f"[Export] Starting export to {output_path}")
+        print(f"[Export] Format: {export_format}")
+        print(f"[Export] Base model exists: {os.path.exists(base_model)}")
+
+        if export_format == 'obj':
+            print("[Export] Running OBJ export...")
+            bpy.ops.wm.obj_export(filepath=output_path)
+        elif export_format == 'fbx':
+            print("[Export] Running FBX export...")
+            bpy.ops.export_scene.fbx(filepath=output_path)
+        elif export_format == 'glb':
+            print("[Export] Running GLB export...")
+            bpy.ops.export_scene.gltf(filepath=output_path, export_format='GLB')
+        else:
+            raise ValueError(f"Unsupported export format: {export_format}")
+
+        print(f"[Export] Export command completed")
+        print(f"[Export] Checking if file exists at {output_path}")
+
+        # Check if file was created successfully
+        if os.path.exists(output_path):
+            file_size = os.path.getsize(output_path)
+            print(f"[Export] SUCCESS - File created: {file_size} bytes")
+
+            # Proper JSON serialization (avoids escape sequence issues)
+            result = {
+                "success": True,
+                "format": export_format,
+                "output_path": output_path.replace('\\', '/'),
+                "file_size": file_size
+            }
+            print(f'RESULT:{json.dumps(result)}')
+        else:
+            print(f"[Export] ERROR - File not created after export")
+            error_result = {
+                "error": f"Export completed but file not found at {output_path}",
+                "format": export_format
+            }
+            print(f'RESULT:{json.dumps(error_result)}')
+
+    except Exception as e:
+        print(f"[Export] Exception: {type(e).__name__}: {str(e)}")
+        error_result = {
+            "error": str(e),
+            "format": export_format
+        }
+        print(f'RESULT:{json.dumps(error_result)}')
 
 if __name__ == '__main__':
     main()
