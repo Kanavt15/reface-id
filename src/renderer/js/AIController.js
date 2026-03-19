@@ -12,6 +12,8 @@ class AIController {
     this.eyes = null;  // Will be set externally
     this.caseManager = caseManager;
     this.ui = uiController;
+    this.skinMarkSystem = null;  // Will be set externally
+    this.markPositionMapper = null;  // Will be set externally
 
     // Conversation history for refinement
     this.conversationHistory = [];
@@ -36,6 +38,10 @@ class AIController {
     // Provider selection
     this.providerSelect = null;
     this.availableProviders = [];
+
+    // Mark handling options
+    this.generateFacialMarks = false;
+    this.markHandlingMode = 'preserve';  // 'preserve', 'replace', or 'merge'
   }
 
   /**
@@ -79,6 +85,21 @@ class AIController {
 
     // Provider selector
     this.providerSelect = document.getElementById('aiProviderSelect');
+
+    // Mark generation and handling controls
+    const generateMarksCheckbox = document.getElementById('aiGenerateMarksCheckbox');
+    if (generateMarksCheckbox) {
+      generateMarksCheckbox.addEventListener('change', (e) => {
+        this.generateFacialMarks = e.target.checked;
+      });
+    }
+
+    const markModeRadios = document.querySelectorAll('input[name="aiMarkMode"]');
+    markModeRadios.forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        this.markHandlingMode = e.target.value;
+      });
+    });
 
     // Initialize voice recognition
     this._initVoiceRecognition();
@@ -126,6 +147,8 @@ class AIController {
           currentState: currentState,
           history: this.conversationHistory,
           referenceImages: this.referenceImages,
+          generateFacialMarks: this.generateFacialMarks,
+          markHandlingMode: this.markHandlingMode,
           provider: provider,
           model: model,
         }),
@@ -187,7 +210,7 @@ class AIController {
    * Returns an object summarizing what changed.
    */
   _applyParams(params) {
-    const changes = { morphs: 0, hair: false, eyebrows: false, beard: false, appearance: false };
+    const changes = { morphs: 0, hair: false, eyebrows: false, beard: false, appearance: false, marks: false };
 
     // Apply morph targets (set values directly, then apply once for performance)
     if (params.morphTargets) {
@@ -277,10 +300,75 @@ class AIController {
       }
     }
 
+    // Apply facial marks if provided
+    if (params.facialMarks && this.skinMarkSystem && this.markPositionMapper) {
+      this._applyFacialMarks(params.facialMarks);
+      changes.marks = true;
+    }
+
     // Sync all sliders to new values
     this._syncSliders();
 
     return changes;
+  }
+
+  /**
+   * Apply facial marks from AI-generated data to the face.
+   */
+  _applyFacialMarks(aiMarks) {
+    if (!Array.isArray(aiMarks) || aiMarks.length === 0) return;
+
+    // Handle mark preservation mode
+    if (this.markHandlingMode === 'replace') {
+      // Clear all existing marks
+      this.skinMarkSystem.clearAll();
+    } else if (this.markHandlingMode === 'merge') {
+      // Keep existing marks, add new ones
+      // No action needed here
+    }
+    // else 'preserve': don't modify existing marks if AI provides them
+
+    // Add marks from AI
+    for (const markData of aiMarks) {
+      try {
+        // Map region + offset to 3D world position
+        const mapped = this.markPositionMapper.mapMarkPosition(
+          markData.region,
+          markData.side || 'center',
+          markData.offset_x || 0,
+          markData.offset_y || 0,
+          markData.size || 0.02
+        );
+
+        if (mapped) {
+          // Create mark intersection object for SkinMarkSystem
+          const intersection = {
+            point: new THREE.Vector3().fromArray(mapped.position),
+            face: { normal: new THREE.Vector3().fromArray(mapped.normal) },
+            object: this.morpher.meshes[0],  // Use first mesh as fallback
+            faceIndex: 0,
+          };
+
+          // Temporarily change mark type and add
+          const originalType = this.skinMarkSystem.activeMarkType;
+          this.skinMarkSystem.activeMarkType = markData.type || 'birthmark';
+
+          const newMark = this.skinMarkSystem.addMark(intersection);
+
+          if (newMark && markData.size) {
+            newMark.size = markData.size;
+            this.skinMarkSystem.updateSelectedMark('size', markData.size);
+          }
+
+          this.skinMarkSystem.activeMarkType = originalType;
+        }
+      } catch (err) {
+        console.warn('Failed to apply mark:', markData, err);
+      }
+    }
+
+    // Save marks to case manager
+    this.caseManager.updateSkinMarks(this.skinMarkSystem.exportState());
   }
 
   /**
@@ -359,7 +447,7 @@ class AIController {
    * Get current face state for sending to AI as context.
    */
   _getCurrentState() {
-    return {
+    const state = {
       morphTargets: { ...this.morpher.morphValues },
       hair: {
         style: this.hair.currentStyle,
@@ -382,6 +470,16 @@ class AIController {
       },
       appearance: { ...this.caseManager.currentCase.appearance },
     };
+
+    // Include skin marks if available
+    if (this.skinMarkSystem) {
+      const marks = this.skinMarkSystem.exportState();
+      if (marks && marks.length > 0) {
+        state.skinMarks = marks;
+      }
+    }
+
+    return state;
   }
 
   /**
@@ -394,6 +492,7 @@ class AIController {
     if (changes.eyebrows) parts.push('eyebrows');
     if (changes.beard) parts.push('beard');
     if (changes.appearance) parts.push('appearance');
+    if (changes.marks) parts.push('marks/scars');
 
     if (parts.length === 0) return 'No changes were needed.';
     return `Updated ${parts.join(', ')}. You can refine further or adjust individual sliders manually.`;

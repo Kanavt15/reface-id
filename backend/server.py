@@ -107,6 +107,23 @@ eyeColor: hex color string (e.g., "#634e34" brown, "#2e536f" blue, "#3d671d" gre
 ageRange: "18-25", "25-35", "35-45", "45-55", "55-65", "65+"
 sex: "male" or "female"
 
+## FACIAL MARKS (scars, birthmarks, moles, pimples, wounds) — OPTIONAL
+Only include if the user explicitly requests mark generation or if reference images show visible marks.
+- type: "scar", "birthmark", "mole", "pimple", or "wound"
+- region: "cheek", "nose", "chin", "temple", "forehead", "jaw", "mouth", "ear", "eye", "brow", "bridge"
+- side: "left", "right", or "center"
+- offset_x: normalized X position within region (-1 to 1, where 0 = center)
+- offset_y: normalized Y position within region (-1 to 1, where 0 = center)
+- size: mark size (0.01-0.1 scale)
+
+Example facial marks:
+```json
+"facialMarks": [
+  {"type": "scar", "region": "cheek", "side": "right", "offset_x": 0.2, "offset_y": -0.1, "size": 0.03},
+  {"type": "birthmark", "region": "temple", "side": "left", "offset_x": -0.15, "offset_y": 0.05, "size": 0.02}
+]
+```
+
 ## RULES
 1. ONLY output a valid JSON object. No explanations, no markdown, no comments.
 2. Only include parameters you want to change. Omit parameters that should stay at default (50) or unchanged.
@@ -114,6 +131,7 @@ sex: "male" or "female"
 4. Use the exact JSON structure shown below.
 5. For "a bit" / "slightly" changes, adjust by 5-10 from current value. For "more" / "much more", adjust by 15-25.
 6. If one or more reference images are attached, infer visible facial traits from them and combine that with user text instructions.
+7. IMPORTANT: Only include "facialMarks" if the user explicitly requests mark generation (e.g., "add scars", "include visible marks from the image") OR if you're analyzing reference images and marks are prominently visible.
 
 ## OUTPUT FORMAT (strict JSON, nothing else):
 {
@@ -121,7 +139,10 @@ sex: "male" or "female"
   "hair": { "style": "hair1", "color": "#hex", "length": 50, "density": 50, "volume": 50, "curl": 0 },
   "eyebrows": { "thickness": 50, "arch": 50, "spacing": 50, "density": 70 },
   "beard": { "style": "none", "color": "#hex" },
-  "appearance": { "skinColor": "#hex", "eyeColor": "#hex", "ageRange": "25-35", "sex": "male" }
+  "appearance": { "skinColor": "#hex", "eyeColor": "#hex", "ageRange": "25-35", "sex": "male" },
+  "facialMarks": [
+    { "type": "scar", "region": "cheek", "side": "right", "offset_x": 0.2, "offset_y": -0.1, "size": 0.03 }
+  ]
 }"""
 
 # Paths
@@ -475,6 +496,7 @@ def ai_generate_face():
     current_state = data.get('currentState', None)
     conversation_history = data.get('history', [])
     reference_images = data.get('referenceImages', None)
+    generate_facial_marks = data.get('generateFacialMarks', False)  # New flag for mark generation
     # Backward compatibility with previous single-image payload
     if reference_images is None:
         single_ref = data.get('referenceImage', None)
@@ -512,10 +534,18 @@ def ai_generate_face():
             user_content = f"{user_content}\n\n{img_count} reference {suffix} attached."
         else:
             user_content = f"Use the {img_count} attached reference image{'s' if img_count > 1 else ''} to generate the face parameters."
+
+    if generate_facial_marks:
+        marks_instruction = "\n\nIMPORTANT: The user wants you to also generate facial marks (scars, birthmarks, moles, etc.). Analyze the reference images for visible marks and include them in your facialMarks output."
+        user_content += marks_instruction
+
     if current_state:
         user_content = f"Current face state:\n```json\n{json.dumps(current_state, indent=2)}\n```\n\nUser request: {prompt}"
         if image_payloads:
             user_content += f"\n\n{len(image_payloads)} reference image{'s are' if len(image_payloads) > 1 else ' is'} attached."
+        if generate_facial_marks:
+            marks_instruction = "\n\nIMPORTANT: The user wants you to also generate facial marks (scars, birthmarks, moles, etc.). Analyze the reference images for visible marks and include them in your facialMarks output."
+            user_content += marks_instruction
 
     try:
         if provider == 'anthropic':

@@ -21,10 +21,12 @@ class SkinMarkSystem {
     this.marks = [];
     this.markMeshes = [];
 
-    // Three.js group for all mark meshes
+    // Three.js group for all mark meshes - will be attached to head mesh
     this.markGroup = new THREE.Group();
     this.markGroup.name = 'SkinMarks';
-    this.scene.add(this.markGroup);
+
+    // Attach to head mesh if available, otherwise to scene (will re-attach later)
+    this._attachToHeadMesh();
 
     // Interaction state
     this.enabled = false;
@@ -47,6 +49,69 @@ class SkinMarkSystem {
 
     // ID counter
     this._nextId = 1;
+  }
+
+  /**
+   * Attach the mark group to the head mesh so marks move with the model.
+   */
+  _attachToHeadMesh() {
+    const headMesh = this.sceneManager.headMesh;
+
+    // Remove from current parent first
+    if (this.markGroup.parent) {
+      this.markGroup.parent.remove(this.markGroup);
+    }
+
+    if (headMesh) {
+      // Attach to head mesh - marks will move with the model
+      headMesh.add(this.markGroup);
+      this._isAttachedToHead = true;
+    } else {
+      // Fallback: attach to scene (marks won't move with model)
+      this.scene.add(this.markGroup);
+      this._isAttachedToHead = false;
+    }
+  }
+
+  /**
+   * Ensure marks are attached to head mesh (call after model loads).
+   */
+  ensureAttachedToHead() {
+    if (!this._isAttachedToHead && this.sceneManager.headMesh) {
+      this._attachToHeadMesh();
+      // Reposition existing marks to local space
+      this._convertMarksToLocalSpace();
+    }
+  }
+
+  /**
+   * Convert existing marks from world space to local space relative to head mesh.
+   */
+  _convertMarksToLocalSpace() {
+    const headMesh = this.sceneManager.headMesh;
+    if (!headMesh) return;
+
+    headMesh.updateWorldMatrix(true, false);
+    const invMatrix = new THREE.Matrix4().copy(headMesh.matrixWorld).invert();
+    const normalMatrix = new THREE.Matrix3().getNormalMatrix(invMatrix);
+
+    for (let i = 0; i < this.marks.length; i++) {
+      const markData = this.marks[i];
+      const mesh = this.markMeshes[i];
+
+      // Convert position to local space
+      const worldPos = new THREE.Vector3().fromArray(markData.position);
+      const localPos = worldPos.applyMatrix4(invMatrix);
+      markData.position = localPos.toArray();
+
+      // Convert normal to local space
+      const worldNormal = new THREE.Vector3().fromArray(markData.normal);
+      const localNormal = worldNormal.applyMatrix3(normalMatrix).normalize();
+      markData.normal = localNormal.toArray();
+
+      // Re-orient the mesh
+      this._orientMark(mesh, markData);
+    }
   }
 
   // ─── Mark Type Definitions ──────────────────────────────────────────────
@@ -179,21 +244,38 @@ class SkinMarkSystem {
     const typeDef = SkinMarkSystem.MARK_TYPES[this.activeMarkType];
     if (!typeDef) return null;
 
+    // Ensure we're attached to head mesh
+    this.ensureAttachedToHead();
+
+    const headMesh = this.sceneManager.headMesh;
     const point = intersection.point.clone();
     const normal = intersection.face.normal.clone();
 
-    // Transform normal to world space
+    // Transform normal to world space first
     const normalMatrix = new THREE.Matrix3().getNormalMatrix(intersection.object.matrixWorld);
     normal.applyMatrix3(normalMatrix).normalize();
 
-    const anchorVertex = this._findNearestVertex(point);
+    // Convert world position and normal to local space (relative to head mesh)
+    let localPos = point;
+    let localNormal = normal;
+
+    if (headMesh && this._isAttachedToHead) {
+      headMesh.updateWorldMatrix(true, false);
+      const invMatrix = new THREE.Matrix4().copy(headMesh.matrixWorld).invert();
+      localPos = point.clone().applyMatrix4(invMatrix);
+
+      const invNormalMatrix = new THREE.Matrix3().getNormalMatrix(invMatrix);
+      localNormal = normal.clone().applyMatrix3(invNormalMatrix).normalize();
+    }
+
+    const anchorVertex = this._findNearestVertex(point); // Still uses world space for finding
     const baryCoords = this._computeBarycentricCoords(intersection);
 
     const markData = {
       id: this._nextId++,
       type: this.activeMarkType,
-      position: point.toArray(),
-      normal: normal.toArray(),
+      position: localPos.toArray(),  // Store in local space
+      normal: localNormal.toArray(),  // Store in local space
       size: typeDef.defaultSize,
       color: typeDef.defaultColor,
       rotation: 0,
@@ -376,13 +458,29 @@ class SkinMarkSystem {
 
     const faceHit = hits[0];
     const markData = this.marks[this.selectedMarkIndex];
-    const normal = faceHit.face.normal.clone();
-    const normalMatrix = new THREE.Matrix3().getNormalMatrix(faceHit.object.matrixWorld);
-    normal.applyMatrix3(normalMatrix).normalize();
 
-    markData.position = faceHit.point.toArray();
-    markData.normal = normal.toArray();
-    markData.anchorVertexIndex = this._findNearestVertex(faceHit.point);
+    // Get world space position and normal
+    const worldPos = faceHit.point.clone();
+    const worldNormal = faceHit.face.normal.clone();
+    const normalMatrix = new THREE.Matrix3().getNormalMatrix(faceHit.object.matrixWorld);
+    worldNormal.applyMatrix3(normalMatrix).normalize();
+
+    // Convert to local space if attached to head mesh
+    let localPos = worldPos;
+    let localNormal = worldNormal;
+
+    if (this._isAttachedToHead) {
+      headMesh.updateWorldMatrix(true, false);
+      const invMatrix = new THREE.Matrix4().copy(headMesh.matrixWorld).invert();
+      localPos = worldPos.clone().applyMatrix4(invMatrix);
+
+      const invNormalMatrix = new THREE.Matrix3().getNormalMatrix(invMatrix);
+      localNormal = worldNormal.clone().applyMatrix3(invNormalMatrix).normalize();
+    }
+
+    markData.position = localPos.toArray();
+    markData.normal = localNormal.toArray();
+    markData.anchorVertexIndex = this._findNearestVertex(worldPos);  // Uses world space
     markData.anchorBaryCoords = this._computeBarycentricCoords(faceHit);
 
     this._orientMark(this.markMeshes[this.selectedMarkIndex], markData);
@@ -497,6 +595,17 @@ class SkinMarkSystem {
   refreshMarksAfterMorph() {
     if (!this.morpher || !this.morpher.meshes) return;
 
+    // Get inverse matrix for converting world to local (if attached to head)
+    const headMesh = this.sceneManager.headMesh;
+    let invMatrix = null;
+    let invNormalMatrix = null;
+
+    if (headMesh && this._isAttachedToHead) {
+      headMesh.updateWorldMatrix(true, false);
+      invMatrix = new THREE.Matrix4().copy(headMesh.matrixWorld).invert();
+      invNormalMatrix = new THREE.Matrix3().getNormalMatrix(invMatrix);
+    }
+
     for (let i = 0; i < this.marks.length; i++) {
       const markData = this.marks[i];
       const mesh = this.markMeshes[i];
@@ -507,7 +616,11 @@ class SkinMarkSystem {
         const posAttr = srcMesh.geometry.attributes.position;
         const [ia, ib, ic] = bary.vertexIndices;
 
-        if (ia >= posAttr.count || ib >= posAttr.count || ic >= posAttr.count) continue;
+        // Validate vertex indices
+        if (ia >= posAttr.count || ib >= posAttr.count || ic >= posAttr.count) {
+          this._refreshMarkFallback(markData, mesh, invMatrix, invNormalMatrix);
+          continue;
+        }
 
         srcMesh.updateWorldMatrix(true, false);
         const mat = srcMesh.matrixWorld;
@@ -516,29 +629,96 @@ class SkinMarkSystem {
         const vB = new THREE.Vector3(posAttr.getX(ib), posAttr.getY(ib), posAttr.getZ(ib)).applyMatrix4(mat);
         const vC = new THREE.Vector3(posAttr.getX(ic), posAttr.getY(ic), posAttr.getZ(ic)).applyMatrix4(mat);
 
-        // Reconstruct position from barycentric coords
-        const newPos = new THREE.Vector3()
+        // Check for degenerate triangle (too small or collinear)
+        const edge1 = new THREE.Vector3().subVectors(vB, vA);
+        const edge2 = new THREE.Vector3().subVectors(vC, vA);
+        const crossVec = new THREE.Vector3().crossVectors(edge1, edge2);
+        const triangleArea = crossVec.length() * 0.5;
+
+        if (triangleArea < 0.00001) {
+          // Triangle is degenerate, fall back to nearest vertex
+          this._refreshMarkFallback(markData, mesh, invMatrix, invNormalMatrix);
+          continue;
+        }
+
+        // Reconstruct position from barycentric coords (in world space)
+        const newWorldPos = new THREE.Vector3()
           .addScaledVector(vA, bary.u)
           .addScaledVector(vB, bary.v)
           .addScaledVector(vC, bary.w);
 
-        // Reconstruct surface normal from triangle
-        const edge1 = new THREE.Vector3().subVectors(vB, vA);
-        const edge2 = new THREE.Vector3().subVectors(vC, vA);
-        const newNormal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
+        // Reconstruct surface normal from triangle (in world space)
+        const newWorldNormal = crossVec.normalize();
 
-        markData.position = newPos.toArray();
-        markData.normal = newNormal.toArray();
+        // Validate barycentric coordinates sum to ~1 (within tolerance)
+        const barySum = bary.u + bary.v + bary.w;
+        if (Math.abs(barySum - 1.0) > 0.01) {
+          // Barycentric coords are invalid, fall back
+          this._refreshMarkFallback(markData, mesh, invMatrix, invNormalMatrix);
+          continue;
+        }
+
+        // Convert to local space if attached to head mesh
+        let localPos = newWorldPos;
+        let localNormal = newWorldNormal;
+
+        if (invMatrix) {
+          localPos = newWorldPos.clone().applyMatrix4(invMatrix);
+          localNormal = newWorldNormal.clone().applyMatrix3(invNormalMatrix).normalize();
+        }
+
+        markData.position = localPos.toArray();
+        markData.normal = localNormal.toArray();
         this._orientMark(mesh, markData);
       } else {
         // Fallback: nearest vertex
-        const worldPos = this._getVertexWorldPosition(markData.anchorVertexIndex);
-        if (worldPos) {
-          markData.position = worldPos.toArray();
-          this._orientMark(mesh, markData);
-        }
+        this._refreshMarkFallback(markData, mesh, invMatrix, invNormalMatrix);
       }
     }
+  }
+
+  _refreshMarkFallback(markData, mesh, invMatrix, invNormalMatrix) {
+    const worldPos = this._getVertexWorldPosition(markData.anchorVertexIndex);
+    if (worldPos) {
+      // Try to recalculate normal from mesh
+      const normal = this._estimateNormalAtPoint(worldPos);
+
+      // Convert to local space if matrix provided
+      let localPos = worldPos;
+      let localNormal = normal;
+
+      if (invMatrix) {
+        localPos = worldPos.clone().applyMatrix4(invMatrix);
+        if (normal && invNormalMatrix) {
+          localNormal = normal.clone().applyMatrix3(invNormalMatrix).normalize();
+        }
+      }
+
+      markData.position = localPos.toArray();
+      if (localNormal) {
+        markData.normal = localNormal.toArray();
+      }
+      this._orientMark(mesh, markData);
+    }
+  }
+
+  _estimateNormalAtPoint(worldPoint) {
+    if (!this.morpher || !this.morpher.meshes) return null;
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.ray.origin.copy(worldPoint);
+    raycaster.ray.direction.normalize();
+
+    for (let m = 0; m < this.morpher.meshes.length; m++) {
+      const mesh = this.morpher.meshes[m];
+      const hits = raycaster.intersectObject(mesh, false);
+      if (hits.length > 0) {
+        const normal = hits[0].face.normal.clone();
+        const normalMatrix = new THREE.Matrix3().getNormalMatrix(mesh.matrixWorld);
+        return normal.applyMatrix3(normalMatrix).normalize();
+      }
+    }
+    return null;
   }
 
   _getVertexWorldPosition(globalIndex) {
@@ -568,6 +748,9 @@ class SkinMarkSystem {
   loadState(marksArray) {
     this.clearAll();
     if (!marksArray || !Array.isArray(marksArray)) return;
+
+    // Ensure we're attached to head mesh
+    this.ensureAttachedToHead();
 
     for (const markData of marksArray) {
       if (markData.id >= this._nextId) this._nextId = markData.id + 1;

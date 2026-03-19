@@ -24,6 +24,7 @@ class OBJMorpher {
     this._landmarkPositions = {};
 
     this.onMorphApplied = null;
+    this.skinMarkSystem = null; // Reference to SkinMarkSystem for mark repositioning
 
     this.defaultValue = 50;
     this.morphValues = {};
@@ -856,6 +857,12 @@ class OBJMorpher {
       this.meshes[m].geometry.computeBoundingBox();
       this.meshes[m].geometry.computeBoundingSphere();
     }
+
+    // Refresh skin marks after morphing is complete
+    if (this.skinMarkSystem && typeof this.skinMarkSystem.refreshMarksAfterMorph === 'function') {
+      this.skinMarkSystem.refreshMarksAfterMorph();
+    }
+
     if (typeof this.onMorphApplied === 'function') this.onMorphApplied();
   }
 

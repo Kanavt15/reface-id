@@ -116,6 +116,12 @@
       // ── Initialize Skin Mark System ──
       skinMarkSystem = new SkinMarkSystem(sceneManager, objMorpher);
 
+      // Ensure marks are attached to head mesh (should be loaded by now)
+      skinMarkSystem.ensureAttachedToHead();
+
+      // Wire up reference in OBJMorpher for automatic mark refresh
+      objMorpher.skinMarkSystem = skinMarkSystem;
+
       // Refresh editor points and skin marks when morphs change
       const origOnMorph = objMorpher.onMorphApplied;
       objMorpher.onMorphApplied = () => {
@@ -169,6 +175,8 @@
     console.log('[App] Initializing AI Controller...');
     const aiController = new AIController(api, activeMorpher, hairSystem, caseManager, ui);
     aiController.eyes = eyeSystem;  // set eye system reference
+    aiController.skinMarkSystem = skinMarkSystem;  // set skin mark system reference
+    aiController.markPositionMapper = new MarkPositionMapper(activeMorpher);  // set mark position mapper
     aiController.init();
     ui.aiController = aiController;  // expose for quick prompts etc.
     console.log('[App] AI Controller initialized');
