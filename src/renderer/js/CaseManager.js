@@ -76,7 +76,11 @@ class CaseManager {
    * Call this on mousedown / first input, then call endAction() when done.
    */
   beginAction(description = '') {
-    if (this._pendingSnapshot) return; // already capturing
+    // If there's already a pending snapshot that wasn't committed, commit it first
+    // This prevents the undo system from getting stuck
+    if (this._pendingSnapshot) {
+      this.endAction();
+    }
     this._pendingSnapshot = JSON.parse(JSON.stringify(this.currentCase));
     this._pendingSnapshot._description = description;
   }
@@ -92,6 +96,14 @@ class CaseManager {
       this.undoStack.shift();
     }
     this.redoStack = [];
+    this._pendingSnapshot = null;
+  }
+
+  /**
+   * Cancel any pending action without committing it.
+   * Use this when an action is abandoned (e.g., escape key pressed).
+   */
+  cancelAction() {
     this._pendingSnapshot = null;
   }
 

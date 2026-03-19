@@ -66,10 +66,12 @@ class SkinMarkSystem {
       // Attach to head mesh - marks will move with the model
       headMesh.add(this.markGroup);
       this._isAttachedToHead = true;
+      console.log('[SkinMarkSystem] markGroup attached to headMesh');
     } else {
       // Fallback: attach to scene (marks won't move with model)
       this.scene.add(this.markGroup);
       this._isAttachedToHead = false;
+      console.warn('[SkinMarkSystem] markGroup attached to SCENE (headMesh not available)');
     }
   }
 
@@ -77,9 +79,16 @@ class SkinMarkSystem {
    * Ensure marks are attached to head mesh (call after model loads).
    */
   ensureAttachedToHead() {
-    if (!this._isAttachedToHead && this.sceneManager.headMesh) {
+    const headMesh = this.sceneManager.headMesh;
+    if (!this._isAttachedToHead && headMesh) {
+      console.log('[SkinMarkSystem] Re-attaching to headMesh...');
       this._attachToHeadMesh();
       // Reposition existing marks to local space
+      this._convertMarksToLocalSpace();
+    } else if (this._isAttachedToHead && headMesh && this.markGroup.parent !== headMesh) {
+      // Fix: markGroup says attached but parent is wrong - re-attach
+      console.warn('[SkinMarkSystem] Parent mismatch detected, re-attaching...');
+      this._attachToHeadMesh();
       this._convertMarksToLocalSpace();
     }
   }
@@ -247,6 +256,11 @@ class SkinMarkSystem {
     // Ensure we're attached to head mesh
     this.ensureAttachedToHead();
 
+    // Verify attachment worked
+    if (!this._isAttachedToHead) {
+      console.error('[SkinMarkSystem] Failed to attach to headMesh - marks may not move correctly');
+    }
+
     const headMesh = this.sceneManager.headMesh;
     const point = intersection.point.clone();
     const normal = intersection.face.normal.clone();
@@ -288,6 +302,12 @@ class SkinMarkSystem {
     const mesh = this._createMarkMesh(markData);
     this.markMeshes.push(mesh);
     this.markGroup.add(mesh);
+
+    // Debug: log parent chain
+    console.log('[SkinMarkSystem] Mark added. Parent chain:',
+      'mesh.parent:', mesh.parent?.name,
+      '-> markGroup.parent:', this.markGroup.parent?.name,
+      '-> attached:', this._isAttachedToHead);
 
     if (this.onMarkChanged) this.onMarkChanged();
     return markData;

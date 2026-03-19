@@ -8,6 +8,11 @@ THREE.OrbitControls = function (camera, domElement) {
   this.domElement = domElement;
   this.target = new THREE.Vector3();
 
+  this.enabled = true;  // Enable/disable all controls
+  this.enableRotate = true;
+  this.enablePan = true;
+  this.enableZoom = true;
+
   this.enableDamping = true;
   this.dampingFactor = 0.08;
   this.rotateSpeed = 0.8;
@@ -74,28 +79,38 @@ THREE.OrbitControls = function (camera, domElement) {
 
   // Mouse events
   function onMouseDown(event) {
+    if (!self.enabled) return;
     event.preventDefault();
-    if (event.button === 0) {
-      state = 1; // Rotate
+
+    if (event.button === 0 && self.enableRotate) {
+      state = 1; // Rotate (left click)
       rotateStart.set(event.clientX, event.clientY);
-    } else if (event.button === 1 || event.button === 2) {
-      state = 2; // Pan
+    } else if (event.button === 2 && self.enablePan) {
+      state = 2; // Pan (right click)
+      panStart.set(event.clientX, event.clientY);
+    } else if (event.button === 1 && self.enablePan) {
+      state = 2; // Pan (middle click)
       panStart.set(event.clientX, event.clientY);
     }
-    domElement.addEventListener('mousemove', onMouseMove, false);
-    domElement.addEventListener('mouseup', onMouseUp, false);
+
+    if (state !== 0) {
+      domElement.addEventListener('mousemove', onMouseMove, false);
+      domElement.addEventListener('mouseup', onMouseUp, false);
+    }
   }
 
   function onMouseMove(event) {
-    if (state === 1) {
+    if (!self.enabled) return;
+
+    if (state === 1 && self.enableRotate) {
       // Rotate
       let dx = event.clientX - rotateStart.x;
       let dy = event.clientY - rotateStart.y;
       sphericalDelta.theta -= dx * 0.005 * self.rotateSpeed;
       sphericalDelta.phi -= dy * 0.005 * self.rotateSpeed;
       rotateStart.set(event.clientX, event.clientY);
-    } else if (state === 2) {
-      // Pan
+    } else if (state === 2 && self.enablePan) {
+      // Pan - screen space panning
       let dx = event.clientX - panStart.x;
       let dy = event.clientY - panStart.y;
 
@@ -109,6 +124,7 @@ THREE.OrbitControls = function (camera, domElement) {
       let up = new THREE.Vector3();
       up.setFromMatrixColumn(self.camera.matrix, 1);
 
+      // Pan direction: drag right = view moves right (target moves left)
       panOffset.addScaledVector(right, -dx * panFactor);
       panOffset.addScaledVector(up, dy * panFactor);
 
@@ -120,13 +136,17 @@ THREE.OrbitControls = function (camera, domElement) {
     state = 0;
     domElement.removeEventListener('mousemove', onMouseMove, false);
     domElement.removeEventListener('mouseup', onMouseUp, false);
+    document.removeEventListener('mouseup', onMouseUp, false);
   }
 
   function onWheel(event) {
+    if (!self.enabled || !self.enableZoom) return;
     event.preventDefault();
+
+    // Scroll up (deltaY < 0) = zoom in, scroll down = zoom out
     if (event.deltaY < 0) {
       scale /= Math.pow(0.95, self.zoomSpeed);
-    } else {
+    } else if (event.deltaY > 0) {
       scale *= Math.pow(0.95, self.zoomSpeed);
     }
   }
@@ -135,7 +155,15 @@ THREE.OrbitControls = function (camera, domElement) {
     event.preventDefault();
   }
 
-  domElement.addEventListener('mousedown', onMouseDown, false);
+  // Wrapper to handle global mouseup when dragging outside canvas
+  function onMouseDownWrapper(event) {
+    onMouseDown(event);
+    if (state !== 0) {
+      document.addEventListener('mouseup', onMouseUp, false);
+    }
+  }
+
+  domElement.addEventListener('mousedown', onMouseDownWrapper, false);
   domElement.addEventListener('wheel', onWheel, { passive: false });
   domElement.addEventListener('contextmenu', onContextMenu, false);
 
@@ -144,10 +172,12 @@ THREE.OrbitControls = function (camera, domElement) {
   let touchStartDistance = 0;
 
   function onTouchStart(event) {
-    if (event.touches.length === 1) {
+    if (!self.enabled) return;
+
+    if (event.touches.length === 1 && self.enableRotate) {
       state = 1;
       rotateStart.set(event.touches[0].clientX, event.touches[0].clientY);
-    } else if (event.touches.length === 2) {
+    } else if (event.touches.length === 2 && self.enableZoom) {
       state = 3; // Pinch zoom
       let dx = event.touches[0].clientX - event.touches[1].clientX;
       let dy = event.touches[0].clientY - event.touches[1].clientY;
@@ -156,14 +186,16 @@ THREE.OrbitControls = function (camera, domElement) {
   }
 
   function onTouchMove(event) {
+    if (!self.enabled) return;
     event.preventDefault();
-    if (state === 1 && event.touches.length === 1) {
+
+    if (state === 1 && event.touches.length === 1 && self.enableRotate) {
       let dx = event.touches[0].clientX - rotateStart.x;
       let dy = event.touches[0].clientY - rotateStart.y;
       sphericalDelta.theta -= dx * 0.005 * self.rotateSpeed;
       sphericalDelta.phi -= dy * 0.005 * self.rotateSpeed;
       rotateStart.set(event.touches[0].clientX, event.touches[0].clientY);
-    } else if (state === 3 && event.touches.length === 2) {
+    } else if (state === 3 && event.touches.length === 2 && self.enableZoom) {
       let dx = event.touches[0].clientX - event.touches[1].clientX;
       let dy = event.touches[0].clientY - event.touches[1].clientY;
       let distance = Math.sqrt(dx * dx + dy * dy);
@@ -183,11 +215,12 @@ THREE.OrbitControls = function (camera, domElement) {
   domElement.addEventListener('touchend', onTouchEnd, false);
 
   this.dispose = function () {
-    domElement.removeEventListener('mousedown', onMouseDown);
+    domElement.removeEventListener('mousedown', onMouseDownWrapper);
     domElement.removeEventListener('wheel', onWheel);
     domElement.removeEventListener('contextmenu', onContextMenu);
     domElement.removeEventListener('touchstart', onTouchStart);
     domElement.removeEventListener('touchmove', onTouchMove);
     domElement.removeEventListener('touchend', onTouchEnd);
+    document.removeEventListener('mouseup', onMouseUp);
   };
 };

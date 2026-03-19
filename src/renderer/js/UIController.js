@@ -125,11 +125,14 @@ class UIController {
       const param = control?.dataset.param;
       const valueDisplay = control?.querySelector('.slider-value');
 
-      slider.addEventListener('mousedown', () => {
-        this.caseManager.beginAction(`Modified ${param}`);
-      });
+      let isDragging = false;
 
-      slider.addEventListener('input', (e) => {
+      const onMouseDown = () => {
+        isDragging = true;
+        this.caseManager.beginAction(`Modified ${param}`);
+      };
+
+      const onInput = (e) => {
         const value = parseInt(e.target.value);
         if (valueDisplay) valueDisplay.textContent = value;
 
@@ -138,12 +141,25 @@ class UIController {
           this.caseManager.updateMorphTargets(this.morpher.exportState());
           this.updatePropertyPanel();
         }
+      };
+
+      const onMouseUp = () => {
+        if (isDragging) {
+          this.caseManager.endAction();
+          this.addHistory(`Changed ${this.formatParamName(param)}`);
+          isDragging = false;
+          document.removeEventListener('mouseup', onMouseUp);
+        }
+      };
+
+      slider.addEventListener('mousedown', () => {
+        onMouseDown();
+        document.addEventListener('mouseup', onMouseUp);
       });
 
-      slider.addEventListener('mouseup', () => {
-        this.caseManager.endAction();
-        this.addHistory(`Changed ${this.formatParamName(param)}`);
-      });
+      slider.addEventListener('input', onInput);
+
+      slider.addEventListener('mouseup', onMouseUp);
     });
 
     // Reset all morphs
@@ -210,11 +226,14 @@ class UIController {
       const param = control?.dataset.param;
       const valueDisplay = control?.querySelector('.slider-value');
 
-      slider.addEventListener('mousedown', () => {
-        this.caseManager.beginAction(`Modified hair ${param}`);
-      });
+      let isDragging = false;
 
-      slider.addEventListener('input', (e) => {
+      const onMouseDown = () => {
+        isDragging = true;
+        this.caseManager.beginAction(`Modified hair ${param}`);
+      };
+
+      const onInput = (e) => {
         const value = parseInt(e.target.value);
         if (valueDisplay) valueDisplay.textContent = value;
 
@@ -224,12 +243,25 @@ class UIController {
             this.hair.setParam(key, value);
           }
         }
+      };
+
+      const onMouseUp = () => {
+        if (isDragging) {
+          this.caseManager.updateHairParams(this.hair.getParams());
+          this.caseManager.endAction();
+          isDragging = false;
+          document.removeEventListener('mouseup', onMouseUp);
+        }
+      };
+
+      slider.addEventListener('mousedown', () => {
+        onMouseDown();
+        document.addEventListener('mouseup', onMouseUp);
       });
 
-      slider.addEventListener('mouseup', () => {
-        this.caseManager.updateHairParams(this.hair.getParams());
-        this.caseManager.endAction();
-      });
+      slider.addEventListener('input', onInput);
+
+      slider.addEventListener('mouseup', onMouseUp);
     });
 
     // Reset hair position button
@@ -366,11 +398,14 @@ class UIController {
       const param = control?.dataset.param;
       const valueDisplay = control?.querySelector('.slider-value');
 
-      slider.addEventListener('mousedown', () => {
-        this.caseManager.beginAction(`Modified eyebrow ${param}`);
-      });
+      let isDragging = false;
 
-      slider.addEventListener('input', (e) => {
+      const onMouseDown = () => {
+        isDragging = true;
+        this.caseManager.beginAction(`Modified eyebrow ${param}`);
+      };
+
+      const onInput = (e) => {
         const value = parseInt(e.target.value);
         if (valueDisplay) valueDisplay.textContent = value;
 
@@ -379,12 +414,25 @@ class UIController {
           const ebKey = key.charAt(0).toLowerCase() + key.slice(1);
           this.hair.setEyebrowParam(ebKey, value);
         }
+      };
+
+      const onMouseUp = () => {
+        if (isDragging) {
+          this.caseManager.updateHairParams(this.hair.getParams());
+          this.caseManager.endAction();
+          isDragging = false;
+          document.removeEventListener('mouseup', onMouseUp);
+        }
+      };
+
+      slider.addEventListener('mousedown', () => {
+        onMouseDown();
+        document.addEventListener('mouseup', onMouseUp);
       });
 
-      slider.addEventListener('mouseup', () => {
-        this.caseManager.updateHairParams(this.hair.getParams());
-        this.caseManager.endAction();
-      });
+      slider.addEventListener('input', onInput);
+
+      slider.addEventListener('mouseup', onMouseUp);
     });
 
     // Eyebrow color presets
@@ -478,9 +526,25 @@ class UIController {
       const control = slider.closest('.slider-control');
       const param = control?.dataset.param;
       const valueDisplay = control?.querySelector('.slider-value');
+      let isDragging = false;
+
+      const onMouseDown = () => {
+        isDragging = true;
+        this.caseManager.beginAction(`Modified beard ${param}`);
+      };
+
+      const onMouseUp = () => {
+        if (isDragging) {
+          this.caseManager.updateHairParams(this.hair.getParams());
+          this.caseManager.endAction();
+          isDragging = false;
+          document.removeEventListener('mouseup', onMouseUp);
+        }
+      };
 
       slider.addEventListener('mousedown', () => {
-        this.caseManager.beginAction(`Modified beard ${param}`);
+        onMouseDown();
+        document.addEventListener('mouseup', onMouseUp);
       });
 
       slider.addEventListener('input', (e) => {
@@ -492,11 +556,6 @@ class UIController {
           const beardKey = key.charAt(0).toLowerCase() + key.slice(1);
           this.hair.setBeardParam(beardKey, value);
         }
-      });
-
-      slider.addEventListener('mouseup', () => {
-        this.caseManager.updateHairParams(this.hair.getParams());
-        this.caseManager.endAction();
       });
     });
 
@@ -666,9 +725,28 @@ class UIController {
       const control = slider.closest('.slider-control');
       const param = control?.dataset.param;
       const valueDisplay = control?.querySelector('.slider-value');
+      let isDragging = false;
+
+      const onMouseDown = () => {
+        isDragging = true;
+        this.caseManager.beginAction(`Modified eye ${param}`);
+      };
+
+      const onMouseUp = () => {
+        if (isDragging) {
+          if (this.eyeSystem) {
+            this.caseManager.updateAppearance('eyeParams', this.eyeSystem.getParams());
+          }
+          this.caseManager.endAction();
+          this.addHistory(`Changed ${this.formatParamName(param)}`);
+          isDragging = false;
+          document.removeEventListener('mouseup', onMouseUp);
+        }
+      };
 
       slider.addEventListener('mousedown', () => {
-        this.caseManager.beginAction(`Modified eye ${param}`);
+        onMouseDown();
+        document.addEventListener('mouseup', onMouseUp);
       });
 
       slider.addEventListener('input', (e) => {
@@ -679,14 +757,6 @@ class UIController {
         const key = param.replace('eye', '');
         const eyeKey = key.charAt(0).toLowerCase() + key.slice(1);
         this.eyeSystem.setParam(eyeKey, value);
-      });
-
-      slider.addEventListener('mouseup', () => {
-        if (this.eyeSystem) {
-          this.caseManager.updateAppearance('eyeParams', this.eyeSystem.getParams());
-        }
-        this.caseManager.endAction();
-        this.addHistory(`Changed ${this.formatParamName(param)}`);
       });
     });
 
@@ -734,9 +804,28 @@ class UIController {
       const control = slider.closest('.slider-control');
       const param = control?.dataset.param;
       const valueDisplay = control?.querySelector('.slider-value');
+      let isDragging = false;
+
+      const onMouseDown = () => {
+        isDragging = true;
+        this.caseManager.beginAction(`Modified eyelash ${param}`);
+      };
+
+      const onMouseUp = () => {
+        if (isDragging) {
+          if (this.eyeSystem) {
+            this.caseManager.updateAppearance('eyelashParams', this.eyeSystem.getEyelashParams());
+          }
+          this.caseManager.endAction();
+          this.addHistory(`Changed ${this.formatParamName(param)}`);
+          isDragging = false;
+          document.removeEventListener('mouseup', onMouseUp);
+        }
+      };
 
       slider.addEventListener('mousedown', () => {
-        this.caseManager.beginAction(`Modified eyelash ${param}`);
+        onMouseDown();
+        document.addEventListener('mouseup', onMouseUp);
       });
 
       slider.addEventListener('input', (e) => {
@@ -747,14 +836,6 @@ class UIController {
         const key = param.replace('eyelash', '');
         const lashKey = key.charAt(0).toLowerCase() + key.slice(1);
         this.eyeSystem.setEyelashParam(lashKey, value);
-      });
-
-      slider.addEventListener('mouseup', () => {
-        if (this.eyeSystem) {
-          this.caseManager.updateAppearance('eyelashParams', this.eyeSystem.getEyelashParams());
-        }
-        this.caseManager.endAction();
-        this.addHistory(`Changed ${this.formatParamName(param)}`);
       });
     });
 
@@ -869,32 +950,58 @@ class UIController {
     });
 
     // Size slider
-    document.getElementById('skinMarkSize')?.addEventListener('mousedown', () => {
-      this.caseManager.beginAction('Modified skin mark size');
-    });
-    document.getElementById('skinMarkSize')?.addEventListener('input', (e) => {
-      const sizeNorm = parseInt(e.target.value) / 100;
-      const actualSize = 0.005 + sizeNorm * 0.095;
-      skinMarks.updateSelectedMark('size', actualSize);
-      document.getElementById('skinMarkSizeValue').textContent = actualSize.toFixed(3);
-    });
-    document.getElementById('skinMarkSize')?.addEventListener('mouseup', () => {
-      this.caseManager.endAction();
-    });
+    {
+      const sizeSlider = document.getElementById('skinMarkSize');
+      let isDraggingSize = false;
+
+      const onSizeMouseUp = () => {
+        if (isDraggingSize) {
+          this.caseManager.endAction();
+          isDraggingSize = false;
+          document.removeEventListener('mouseup', onSizeMouseUp);
+        }
+      };
+
+      sizeSlider?.addEventListener('mousedown', () => {
+        isDraggingSize = true;
+        this.caseManager.beginAction('Modified skin mark size');
+        document.addEventListener('mouseup', onSizeMouseUp);
+      });
+
+      sizeSlider?.addEventListener('input', (e) => {
+        const sizeNorm = parseInt(e.target.value) / 100;
+        const actualSize = 0.005 + sizeNorm * 0.095;
+        skinMarks.updateSelectedMark('size', actualSize);
+        document.getElementById('skinMarkSizeValue').textContent = actualSize.toFixed(3);
+      });
+    }
 
     // Rotation slider
-    document.getElementById('skinMarkRotation')?.addEventListener('mousedown', () => {
-      this.caseManager.beginAction('Modified skin mark rotation');
-    });
-    document.getElementById('skinMarkRotation')?.addEventListener('input', (e) => {
-      const degrees = parseInt(e.target.value);
-      const radians = (degrees * Math.PI) / 180;
-      skinMarks.updateSelectedMark('rotation', radians);
-      document.getElementById('skinMarkRotationValue').textContent = degrees + '\u00B0';
-    });
-    document.getElementById('skinMarkRotation')?.addEventListener('mouseup', () => {
-      this.caseManager.endAction();
-    });
+    {
+      const rotSlider = document.getElementById('skinMarkRotation');
+      let isDraggingRot = false;
+
+      const onRotMouseUp = () => {
+        if (isDraggingRot) {
+          this.caseManager.endAction();
+          isDraggingRot = false;
+          document.removeEventListener('mouseup', onRotMouseUp);
+        }
+      };
+
+      rotSlider?.addEventListener('mousedown', () => {
+        isDraggingRot = true;
+        this.caseManager.beginAction('Modified skin mark rotation');
+        document.addEventListener('mouseup', onRotMouseUp);
+      });
+
+      rotSlider?.addEventListener('input', (e) => {
+        const degrees = parseInt(e.target.value);
+        const radians = (degrees * Math.PI) / 180;
+        skinMarks.updateSelectedMark('rotation', radians);
+        document.getElementById('skinMarkRotationValue').textContent = degrees + '\u00B0';
+      });
+    }
 
     // Color picker
     {
@@ -1372,8 +1479,13 @@ class UIController {
 
   restoreState(state) {
     // Restore morph targets + slider UI
-    if (state.morphTargets && Object.keys(state.morphTargets).length > 0) {
-      this.morpher.loadState(state.morphTargets);
+    if (state.morphTargets !== undefined) {
+      if (Object.keys(state.morphTargets).length > 0) {
+        this.morpher.loadState(state.morphTargets);
+      } else {
+        // Empty morphTargets means restore to defaults
+        this.morpher.resetAll();
+      }
       // Sync slider UI to match restored values
       Object.entries(this.morpher.morphValues).forEach(([param, value]) => {
         const slider = document.querySelector(`[data-param="${param}"] .morph-slider`);

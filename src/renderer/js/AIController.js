@@ -83,6 +83,12 @@ class AIController {
       this.undoAiBtn.addEventListener('click', () => this.undoLastAiChange());
     }
 
+    // Clear conversation button
+    const clearBtn = document.getElementById('aiClearBtn');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => this.clearConversation());
+    }
+
     // Provider selector
     this.providerSelect = document.getElementById('aiProviderSelect');
 

@@ -163,6 +163,17 @@
     ui.updatePropertyPanel();
     ui.addHistory(group ? 'Base face model loaded (OBJ)' : 'Using procedural head');
 
+    // ── Sync initial state to case manager ──
+    // Initialize case with default values from all systems
+    caseManager.updateMorphTargets(activeMorpher.exportState());
+    caseManager.updateHairParams(hairSystem.getParams());
+    if (eyeSystem) {
+      caseManager.updateAppearance('eyeParams', eyeSystem.getParams());
+      caseManager.updateAppearance('eyeColor', eyeSystem.eyeColor);
+      caseManager.updateAppearance('eyelashParams', eyeSystem.getEyelashParams());
+    }
+    console.log('[App] Initial state synced to case manager');
+
     // ── Initialize Snapshot Manager ──
     console.log('[App] Initializing Snapshot Manager...');
     const snapshotManager = new SnapshotManager(caseManager, sceneManager);
