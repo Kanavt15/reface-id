@@ -273,11 +273,6 @@ class SceneManager {
     fillLight.position.set(-2, 2, 2);
     this.scene.add(fillLight);
 
-    // Front fill light — directly from front to eliminate shadows
-    const frontFillLight = new THREE.DirectionalLight(0xe8f0ff, 1.0);
-    frontFillLight.position.set(0, 0, 5);
-    this.scene.add(frontFillLight);
-
     // Rim light — behind
     const rimLight = new THREE.DirectionalLight(0xffffff, 0.5);
     rimLight.position.set(0, 1, -3);
@@ -291,7 +286,7 @@ class SceneManager {
     const hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x362d20, 0.3);
     this.scene.add(hemiLight);
 
-    this.lights = [keyLight, fillLight, frontFillLight, rimLight, ambientLight, hemiLight];
+    this.lights = [keyLight, fillLight, rimLight, ambientLight, hemiLight];
   }
 
   /**
