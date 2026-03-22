@@ -102,10 +102,19 @@ class SceneManager {
           roughness: 0.50,
           metalness: 0.02,
           side: THREE.FrontSide,
+          // Wrinkle texture maps (initially null, set by WrinkleSystem)
+          normalMap: null,
+          normalScale: new THREE.Vector2(1.0, 1.0),
+          displacementMap: null,
+          displacementScale: 0.01,
         });
 
         group.traverse((child) => {
           if (child.isMesh) {
+            // Ensure UV coordinates exist
+            if (child.geometry) {
+              this._ensureUVCoordinates(child.geometry);
+            }
             child.material = skinMat;
             child.castShadow = true;
             child.receiveShadow = true;
@@ -164,6 +173,11 @@ class SceneManager {
           roughness: 0.50,
           metalness: 0.02,
           side: THREE.FrontSide,
+          // Wrinkle texture maps (initially null, set by WrinkleSystem)
+          normalMap: null,
+          normalScale: new THREE.Vector2(1.0, 1.0),
+          displacementMap: null,
+          displacementScale: 0.01,
         });
 
         group.traverse((child) => {
@@ -175,6 +189,8 @@ class SceneManager {
             // Ensure geometry normals are correct after rotation
             if (child.geometry) {
               child.geometry.computeVertexNormals();
+              // Ensure UV coordinates exist
+              this._ensureUVCoordinates(child.geometry);
             }
           }
         });
@@ -477,6 +493,61 @@ class SceneManager {
     if (state.position) this.camera.position.fromArray(state.position);
     if (state.target) this.controls.target.fromArray(state.target);
     this.controls.update();
+  }
+
+  /**
+   * Ensure geometry has UV coordinates (generate if missing)
+   */
+  _ensureUVCoordinates(geometry) {
+    if (geometry.attributes.uv) {
+      console.log('[SceneManager] UV coordinates already exist');
+      return;  // Already has UVs
+    }
+
+    console.log('[SceneManager] Generating UV coordinates via planar projection');
+
+    const positions = geometry.attributes.position;
+    const uvArray = new Float32Array(positions.count * 2);
+
+    // Generate planar projection UVs (works well for front-facing faces)
+    for (let i = 0; i < positions.count; i++) {
+      const x = positions.getX(i);
+      const y = positions.getY(i);
+
+      // Map X and Y to [0, 1] range
+      uvArray[i * 2] = (x + 1.0) * 0.5;      // U from X
+      uvArray[i * 2 + 1] = (y + 1.5) * 0.5;  // V from Y
+    }
+
+    geometry.setAttribute('uv', new THREE.BufferAttribute(uvArray, 2));
+    console.log('[SceneManager] UV coordinates generated');
+  }
+
+  /**
+   * Update wrinkle textures on the head mesh material
+   */
+  updateWrinkleTextures(normalTexture, displacementTexture) {
+    if (!this.headMesh) {
+      console.warn('[SceneManager] Cannot update wrinkle textures: no head mesh');
+      return;
+    }
+
+    let updated = false;
+
+    this.headMesh.traverse((child) => {
+      if (child.isMesh && child.material) {
+        child.material.normalMap = normalTexture;
+        child.material.displacementMap = displacementTexture;
+        child.material.needsUpdate = true;
+        updated = true;
+      }
+    });
+
+    if (updated) {
+      console.log('[SceneManager] Wrinkle textures updated');
+    } else {
+      console.warn('[SceneManager] No meshes found to update');
+    }
   }
 
   /**
