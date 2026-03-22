@@ -147,6 +147,13 @@
         }
       };
 
+      facePointEditor.onBeforePointEdited = (name) => {
+        if (ui) {
+          ui.updateCaseFromUI(); // Ensure all state is current
+          ui.caseManager.pushState(`Drag point: ${name}`);
+        }
+      };
+
     } else {
       // ── OBJ failed — use procedural head ──
       console.warn('OBJ load failed, using procedural head');

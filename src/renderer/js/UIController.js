@@ -913,6 +913,12 @@ class UIController {
     const skinMarks = this.skinMarkSystem;
     if (!skinMarks) return;
 
+    // Set up undo callback for when marks are added
+    skinMarks.onBeforeMarkAdded = () => {
+      this.updateCaseFromUI(); // Ensure all state is current
+      this.caseManager.pushState('Added skin mark');
+    };
+
     const btnToggle = document.getElementById('btnToggleSkinMarks');
     const btnToolbar = document.getElementById('btnSkinMarks');
 
@@ -1086,6 +1092,12 @@ class UIController {
   bindWrinkleControls() {
     const wrinkles = this.wrinkleSystem;
     if (!wrinkles) return;
+
+    // Set up undo callback for when wrinkles are added
+    wrinkles.onBeforeWrinkleAdded = () => {
+      this.updateCaseFromUI(); // Ensure all state is current
+      this.caseManager.pushState('Added wrinkle');
+    };
 
     const btnToggle = document.getElementById('btnToggleWrinkles');
     const btnToolbar = document.getElementById('btnWrinkles');

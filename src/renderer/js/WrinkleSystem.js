@@ -41,6 +41,7 @@ class WrinkleSystem {
 
     // Callbacks
     this.onWrinkleChanged = null;
+    this.onBeforeWrinkleAdded = null;  // Called before a wrinkle is added (for undo)
 
     // Bound event handlers
     this._onPointerDown = this._onPointerDown.bind(this);
@@ -360,6 +361,9 @@ class WrinkleSystem {
     if (!this.currentLine || this.currentLine.length < 2) return;
 
     console.log(`[WrinkleSystem] Finalizing wrinkle with ${this.currentLine.length} points`);
+
+    // Call before callback for undo system
+    if (this.onBeforeWrinkleAdded) this.onBeforeWrinkleAdded();
 
     // Smooth and resample the line
     const processedPoints = this._smoothAndResample(this.currentLine);
