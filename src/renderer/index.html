@@ -947,32 +947,50 @@
               <span>Hair Properties</span>
             </div>
             <div class="control-group-body">
-              <div class="slider-control" data-param="hairLength">
-                <label>Length</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="hair-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Dimensions Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-ruler-vertical"></i>
+                  <span>Dimensions</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="hairLength">
+                    <label>Length</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="hair-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="hairVolume">
+                    <label>Volume</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="hair-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="hairDensity">
-                <label>Density</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="70" class="hair-slider" />
-                  <span class="slider-value">70</span>
+              <!-- Texture Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-wave-square"></i>
+                  <span>Texture</span>
                 </div>
-              </div>
-              <div class="slider-control" data-param="hairVolume">
-                <label>Volume</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="hair-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="hairCurl">
-                <label>Curl / Wave</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="0" class="hair-slider" />
-                  <span class="slider-value">0</span>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="hairDensity">
+                    <label>Density</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="70" class="hair-slider" />
+                      <span class="slider-value">70</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="hairCurl">
+                    <label>Curl / Wave</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="0" class="hair-slider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -988,39 +1006,57 @@
               </button>
             </div>
             <div class="control-group-body collapsed">
-              <div class="slider-control" data-param="hairPosX">
-                <label>Horizontal (L/R)</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="hair-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Position Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-arrows-alt"></i>
+                  <span>Position</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="hairPosX">
+                    <label>Horizontal (L/R)</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="hair-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="hairPosY">
+                    <label>Vertical (Up/Down)</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="hair-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="hairPosZ">
+                    <label>Depth (Fwd/Back)</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="hair-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="hairPosY">
-                <label>Vertical (Up/Down)</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="hair-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Transform Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-sync-alt"></i>
+                  <span>Transform</span>
                 </div>
-              </div>
-              <div class="slider-control" data-param="hairPosZ">
-                <label>Depth (Fwd/Back)</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="hair-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="hairRotY">
-                <label>Rotation</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="hair-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="hairScale">
-                <label>Scale</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="hair-slider" />
-                  <span class="slider-value">50</span>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="hairRotY">
+                    <label>Rotation</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="hair-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="hairScale">
+                    <label>Scale</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="hair-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1061,71 +1097,98 @@
               </button>
             </div>
             <div class="control-group-body collapsed">
-              <!-- Beard Style Selection -->
-              <div class="select-control">
-                <label>Style</label>
-                <select id="beardStyle" class="custom-select">
-                  <option value="none">None</option>
-                  <option value="beard1">Beard 1</option>
-                </select>
+              <!-- Style & Color Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-palette"></i>
+                  <span>Style & Color</span>
+                </div>
+                <div class="sub-group-body">
+                  <!-- Beard Style Selection -->
+                  <div class="select-control">
+                    <label>Style</label>
+                    <select id="beardStyle" class="custom-select">
+                      <option value="none">None</option>
+                      <option value="beard1">Beard 1</option>
+                    </select>
+                  </div>
+
+                  <!-- Beard Color -->
+                  <div class="color-picker-row">
+                    <label>Beard Color</label>
+                    <div class="color-presets" id="beardColorPresets">
+                      <button class="color-swatch active" data-color="#0a0a0a" style="background: #0a0a0a" title="Black"></button>
+                      <button class="color-swatch" data-color="#2c1b0e" style="background: #2c1b0e" title="Dark Brown"></button>
+                      <button class="color-swatch" data-color="#6b3a2a" style="background: #6b3a2a" title="Brown"></button>
+                      <button class="color-swatch" data-color="#b5651d" style="background: #b5651d" title="Light Brown"></button>
+                      <button class="color-swatch" data-color="#d4a23f" style="background: #d4a23f" title="Blonde"></button>
+                      <button class="color-swatch" data-color="#8b2500" style="background: #8b2500" title="Red"></button>
+                      <button class="color-swatch" data-color="#c4c4c4" style="background: #c4c4c4" title="Grey"></button>
+                    </div>
+                    <input type="color" id="beardColorPicker" value="#2c1b0e" class="color-input" />
+                  </div>
+                </div>
               </div>
 
-              <!-- Beard Color -->
-              <div class="color-picker-row">
-                <label>Beard Color</label>
-                <div class="color-presets" id="beardColorPresets">
-                  <button class="color-swatch active" data-color="#0a0a0a" style="background: #0a0a0a" title="Black"></button>
-                  <button class="color-swatch" data-color="#2c1b0e" style="background: #2c1b0e" title="Dark Brown"></button>
-                  <button class="color-swatch" data-color="#6b3a2a" style="background: #6b3a2a" title="Brown"></button>
-                  <button class="color-swatch" data-color="#b5651d" style="background: #b5651d" title="Light Brown"></button>
-                  <button class="color-swatch" data-color="#d4a23f" style="background: #d4a23f" title="Blonde"></button>
-                  <button class="color-swatch" data-color="#8b2500" style="background: #8b2500" title="Red"></button>
-                  <button class="color-swatch" data-color="#c4c4c4" style="background: #c4c4c4" title="Grey"></button>
+              <!-- Position Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-arrows-alt"></i>
+                  <span>Position</span>
                 </div>
-                <input type="color" id="beardColorPicker" value="#2c1b0e" class="color-input" />
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="beardPosX">
+                    <label>Horizontal (L/R)</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="200" value="100" class="beard-slider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="beardPosY">
+                    <label>Vertical (Up/Down)</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="200" value="100" class="beard-slider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="beardPosZ">
+                    <label>Depth (Fwd/Back)</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="200" value="100" class="beard-slider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <!-- Position controls -->
-              <div class="slider-control" data-param="beardPosX">
-                <label>Position X (L/R)</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="200" value="100" class="beard-slider" />
-                  <span class="slider-value">100</span>
+              <!-- Rotation & Scale Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-sync-alt"></i>
+                  <span>Rotation & Scale</span>
                 </div>
-              </div>
-              <div class="slider-control" data-param="beardPosY">
-                <label>Position Y (Up/Down)</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="200" value="100" class="beard-slider" />
-                  <span class="slider-value">100</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="beardPosZ">
-                <label>Position Z (Fwd/Back)</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="200" value="100" class="beard-slider" />
-                  <span class="slider-value">100</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="beardRotY">
-                <label>Rotation (Twist)</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="200" value="100" class="beard-slider" />
-                  <span class="slider-value">100</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="beardRotZ">
-                <label>Tilt (Angle)</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="200" value="100" class="beard-slider" />
-                  <span class="slider-value">100</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="beardScale">
-                <label>Overall Scale</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="200" value="100" class="beard-slider" />
-                  <span class="slider-value">100</span>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="beardRotY">
+                    <label>Rotation (Twist)</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="200" value="100" class="beard-slider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="beardRotZ">
+                    <label>Tilt (Angle)</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="200" value="100" class="beard-slider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="beardScale">
+                    <label>Overall Scale</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="200" value="100" class="beard-slider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1934,87 +1997,106 @@
 
       <!-- AI Face Builder Panel -->
       <div class="panel-content" id="panel-ai">
-        <div class="ai-chat-panel">
-          <div class="ai-chat-header">
-            <div class="ai-chat-title">
-              <i class="fas fa-robot"></i>
-              <span>AI Face Builder</span>
+        <div class="panel-scroll">
+          <div class="ai-chat-panel">
+            <div class="ai-chat-header">
+              <div class="ai-chat-title">
+                <i class="fas fa-robot"></i>
+                <span>AI Face Builder</span>
+              </div>
+              <div class="ai-chat-actions">
+                <select id="aiProviderSelect" class="ai-provider-select" title="Select AI model">
+                  <option value="anthropic:claude-haiku-4-5-20251001">Claude Haiku</option>
+                  <option value="anthropic:claude-opus-4-20250514">Claude Opus</option>
+                  <option value="gemini:gemini-1.5-flash">Gemini Flash</option>
+                </select>
+                <button class="ai-action-btn" id="aiUndoBtn" title="Undo last AI change">
+                  <i class="fas fa-undo"></i>
+                </button>
+                <button class="ai-action-btn" id="aiClearBtn" title="Clear conversation">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </div>
             </div>
-            <div class="ai-chat-actions">
-              <select id="aiProviderSelect" class="ai-provider-select" title="Select AI model">
-                <option value="anthropic:claude-haiku-4-5-20251001">Claude Haiku</option>
-                <option value="anthropic:claude-opus-4-20250514">Claude Opus</option>
-                <option value="gemini:gemini-1.5-flash">Gemini Flash</option>
-              </select>
-              <button class="ai-action-btn" id="aiUndoBtn" title="Undo last AI change">
-                <i class="fas fa-undo"></i>
-              </button>
-              <button class="ai-action-btn" id="aiClearBtn" title="Clear conversation">
-                <i class="fas fa-trash-alt"></i>
-              </button>
+
+            <div class="ai-chat-messages" id="aiChatMessages">
+              <!-- Messages will be added dynamically -->
+            </div>
+
+            <div class="ai-chat-input-area">
+              <div class="ai-input-row">
+                <textarea id="aiChatInput" class="ai-chat-textarea" placeholder="Describe a face... e.g., 'Male, 30s, wide jaw, small eyes, dark skin, short hair'" rows="2"></textarea>
+                <div id="aiReferenceInfo" class="ai-reference-info" style="display:none;"></div>
+              </div>
+              <div class="ai-btn-row">
+                <input type="file" id="aiImageInput" accept="image/png,image/jpeg,image/webp" multiple style="display:none;" />
+                <button class="ai-attach-btn" id="aiAttachBtn" title="Attach reference image">
+                  <i class="fas fa-image"></i>
+                </button>
+                <button class="ai-mic-btn" id="aiMicBtn" title="Voice input">
+                  <i class="fas fa-microphone"></i>
+                </button>
+                <button class="ai-send-btn" id="aiSendBtn" title="Send (Enter)">
+                  <i class="fas fa-paper-plane"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="ai-quick-prompts">
+              <button class="ai-quick-btn" data-prompt="Male, 40s, broad face, strong jawline, medium skin">Broad male</button>
+              <button class="ai-quick-btn" data-prompt="Female, 25, thin face, high cheekbones, small nose, light skin">Thin female</button>
+              <button class="ai-quick-btn" data-prompt="Make the nose wider and the eyes closer together">Wider nose</button>
+              <button class="ai-quick-btn" data-prompt="Reset everything to default neutral face">Reset face</button>
             </div>
           </div>
 
-          <div class="ai-chat-messages" id="aiChatMessages">
-            <!-- Messages will be added dynamically -->
-          </div>
-
-          <div class="ai-chat-input-area">
-            <div class="ai-input-row">
-              <textarea id="aiChatInput" class="ai-chat-textarea" placeholder="Describe a face... e.g., 'Male, 30s, wide jaw, small eyes, dark skin, short hair'" rows="2"></textarea>
-              <div id="aiReferenceInfo" class="ai-reference-info" style="display:none;"></div>
+          <!-- AI Settings -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-cog"></i>
+              <span>AI Generation Settings</span>
             </div>
-            <div class="ai-btn-row">
-              <input type="file" id="aiImageInput" accept="image/png,image/jpeg,image/webp" multiple style="display:none;" />
-              <button class="ai-attach-btn" id="aiAttachBtn" title="Attach reference image">
-                <i class="fas fa-image"></i>
-              </button>
-              <button class="ai-mic-btn" id="aiMicBtn" title="Voice input">
-                <i class="fas fa-microphone"></i>
-              </button>
-              <button class="ai-send-btn" id="aiSendBtn" title="Send (Enter)">
-                <i class="fas fa-paper-plane"></i>
-              </button>
-            </div>
-          </div>
-
-          <div class="ai-quick-prompts">
-            <button class="ai-quick-btn" data-prompt="Male, 40s, broad face, strong jawline, medium skin">Broad male</button>
-            <button class="ai-quick-btn" data-prompt="Female, 25, thin face, high cheekbones, small nose, light skin">Thin female</button>
-            <button class="ai-quick-btn" data-prompt="Make the nose wider and the eyes closer together">Wider nose</button>
-            <button class="ai-quick-btn" data-prompt="Reset everything to default neutral face">Reset face</button>
-          </div>
-        </div>
-
-        <!-- AI Settings Section -->
-        <div class="ai-settings-section">
-          <div class="ai-settings-header" onclick="this.parentElement.classList.toggle('collapsed')">
-            <i class="fas fa-cog"></i>
-            <span>AI Generation Settings</span>
-            <i class="fas fa-chevron-down ai-settings-chevron"></i>
-          </div>
-          <div class="ai-settings-body">
-            <div class="ai-setting-item">
-              <label class="ai-checkbox-label">
-                <input type="checkbox" id="aiGenerateMarksCheckbox" title="Generate scars/birthmarks from reference images">
-                <span>Generate facial marks from image</span>
-              </label>
-            </div>
-            <div class="ai-setting-item">
-              <span class="ai-setting-title">Mark handling mode:</span>
-              <div class="ai-radio-group">
-                <label class="ai-radio-label">
-                  <input type="radio" name="aiMarkMode" value="preserve" checked>
-                  <span>Preserve existing</span>
-                </label>
-                <label class="ai-radio-label">
-                  <input type="radio" name="aiMarkMode" value="replace">
-                  <span>Replace with AI</span>
-                </label>
-                <label class="ai-radio-label">
-                  <input type="radio" name="aiMarkMode" value="merge">
-                  <span>Merge marks</span>
-                </label>
+            <div class="control-group-body collapsed">
+              <!-- Image Generation Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-image"></i>
+                  <span>Image Generation</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="ai-setting-item">
+                    <label class="ai-checkbox-label">
+                      <input type="checkbox" id="aiGenerateMarksCheckbox" title="Generate scars/birthmarks from reference images">
+                      <span>Generate facial marks from image</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <!-- Mark Handling Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-circle"></i>
+                  <span>Mark Handling</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="ai-setting-item">
+                    <span class="ai-setting-title">Mark handling mode:</span>
+                    <div class="ai-radio-group">
+                      <label class="ai-radio-label">
+                        <input type="radio" name="aiMarkMode" value="preserve" checked>
+                        <span>Preserve existing</span>
+                      </label>
+                      <label class="ai-radio-label">
+                        <input type="radio" name="aiMarkMode" value="replace">
+                        <span>Replace with AI</span>
+                      </label>
+                      <label class="ai-radio-label">
+                        <input type="radio" name="aiMarkMode" value="merge">
+                        <span>Merge marks</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
