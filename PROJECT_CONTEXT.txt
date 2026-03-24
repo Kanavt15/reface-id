@@ -1,0 +1,217 @@
+Reface - Intelligent facial reconstruction Project Context (Generated: 2026-03-17)
+title: "ReFace - Intelligent facial reconstruction:
+Overview
+- REface ID is an Electron desktop application for forensic 3D facial reconstruction.
+- Frontend: Three.js scene + custom HTML/CSS/JS control UI.
+- Backend: Flask API that runs Blender scripts for morphing/export/render and also hosts AI + speech endpoints.
+- Primary model workflow now uses a GLB head mesh with landmark-based deformation in the renderer.
+
+High-Level Architecture
+1. Desktop shell (Electron)
+- Entry point: src/main/main.js
+- Spawns Python backend process on app start.
+- Creates frameless BrowserWindow and injects preload bridge.
+- Sends menu events to renderer for new/open/save/export/screenshot.
+
+2. Secure renderer bridge
+- src/main/preload.js exposes window.electronAPI methods:
+  - Window controls: minimize/maximize/close
+  - Dialogs: open/save dialogs + save binary buffer
+  - Menu callbacks: onNewCase/onOpenCase/onSaveCase/onExport/onScreenshot
+
+3. Renderer application (Three.js + UI systems)
+- Entry point: src/renderer/js/app.js
+- Initializes:
+  - SceneManager
+  - OBJMorpher (primary morph engine)
+  - FaceMorpher (procedural fallback)
+  - HairSystem
+  - EyeSystem
+  - BackendAPI
+  - CaseManager
+  - FacePointEditor
+  - SkinMarkSystem
+  - SnapshotManager
+  - AIController
+  - HeadTracker
+
+4. Backend service (Flask)
+- Entry point: backend/server.py (127.0.0.1:5001)
+- Responsibilities:
+  - Blender integration (morph/hair/export/render)
+  - Case file save/load
+  - AI prompt-to-parameters (Anthropic/Gemini)
+  - Speech transcription endpoint
+
+5. Blender scripts
+- backend/blender_scripts/apply_morphs.py
+- backend/blender_scripts/generate_hair.py
+- backend/blender_scripts/export_model.py
+- backend/blender_scripts/render_scene.py
+
+Implemented Core Features (Code-Verified)
+
+A. Face reconstruction and morphing
+- Real-time landmark-based morphing through OBJMorpher.js.
+- 50+ morph parameters across skull, forehead, brows, eyes, nose, cheeks, mouth, jaw/chin, ears.
+- Parameter range model: 0-100, default 50.
+- Region/landmark weighted deformation with Gaussian falloff and side-aware directional influence.
+- Group reset and full reset supported.
+
+B. Manual point editing (advanced sculpt mode)
+- FacePointEditor.js enables direct manipulation of facial control points.
+- Dragging points deforms mesh using same deformation core as slider system.
+- Supports asymmetric edits, influence radius, point size, falloff tuning, undo/reset.
+- Integrated into toolbar and UI history.
+
+C. Hair, eyebrows, beard
+- HairSystem.js loads GLB hair models (Hair1-Hair12 + bald).
+- Hair properties: length, density, volume, curl, plus transform controls (position/rotation/scale).
+- Eyebrow GLB pipeline with dedicated parameters and color.
+- Beard pipeline (none/beard1) with transform and color.
+- Automatically refreshes alignment after morph changes.
+
+D. Eyes and eyelashes
+- EyeSystem.js loads left/right eye GLB models (realistic/cartoon).
+- Eye properties: scale, spacing, XYZ position, XYZ rotation, opacity, iris color.
+- Eyelash model support with separate params and visibility/color.
+- Eye positioning tracks facial morph updates and landmarks.
+
+E. Skin marks
+- SkinMarkSystem.js supports placing/removing/editing marks (moles/scars/etc.) on face mesh.
+- Uses raycast + barycentric tracking so marks follow mesh deformations.
+
+F. Case management and history
+- CaseManager.js maintains current case object, undo/redo stacks, and action snapshots.
+- Case fields include case metadata, morphTargets, hairParams, appearance, skinMarks, cameraState, notes, timestamps.
+- Undo/redo for continuous controls implemented via beginAction/endAction.
+- Case files persisted as .rfc via backend API.
+
+G. Snapshot workflow
+- SnapshotManager.js captures named state snapshots + viewport thumbnail.
+- Snapshots stored in localStorage scoped by case ID.
+- Supports restore/rename/delete/delete-all and max snapshot limit.
+
+H. AI-assisted face generation
+- AIController.js provides chat panel for natural language reconstruction requests.
+- Sends prompt + current state + conversation history to backend /api/ai/generate.
+- Applies returned JSON deltas to morphs/hair/eyebrows/beard/appearance.
+- Supports provider selection and conversational refinement.
+- Includes AI undo (routes through normal undo stack).
+
+I. Voice support
+- Frontend AI panel has microphone controls.
+- Backend endpoint /api/speech/transcribe processes uploaded audio and returns text.
+
+J. Head tracking
+- HeadTracker.js uses webcam + MediaPipe Face Mesh from CDN.
+- Estimates yaw/pitch and rotates a pivot group containing head/hair/eyes for live tracking.
+- Includes start/stop/toggle and recalibration controls.
+
+K. Visualization and viewport tools
+- SceneManager.js manages camera, orbit controls, lighting presets (studio/outdoor/dramatic), grid/ground.
+- View presets: front/side/3-4/top.
+- Wireframe toggle, screenshot capture support.
+
+L. Export and rendering
+- Menu and toolbar export options for OBJ/FBX/GLB.
+- Backend export endpoint invokes Blender export script.
+- Blender render pipeline endpoints exist (/api/render/upload-mesh, /api/render, /api/render/download/<file>).
+- Note: UI render trigger is currently commented out in UIController (marked disabled pending transform pipeline fixes).
+
+Backend API Surface (server.py)
+- GET  /api/health
+- POST /api/morph
+- POST /api/hair/generate
+- GET  /api/hair/download/<filename>
+- POST /api/export
+- GET  /api/export/download/<filename>
+- POST /api/case/save
+- POST /api/case/load
+- POST /api/render/upload-mesh
+- POST /api/render
+- GET  /api/render/download/<filename>
+- GET  /api/ai/providers
+- POST /api/ai/generate
+- POST /api/speech/transcribe
+- POST /api/blender/config
+
+Frontend Module Map (renderer/js)
+- app.js: bootstraps all systems, loads model + regions, wires events.
+- SceneManager.js: scene/camera/lights/loaders/view controls.
+- OBJMorpher.js: main morph engine for loaded head mesh.
+- FaceMorpher.js: procedural fallback morph engine.
+- HairSystem.js: hair/eyebrow/beard model systems and alignment.
+- EyeSystem.js: eye + eyelash systems.
+- UIController.js: all UI bindings, sliders, dialogs, history, exports, keyboard shortcuts.
+- BackendAPI.js: HTTP wrapper for Flask endpoints.
+- CaseManager.js: case object + undo/redo state flow.
+- FacePointEditor.js: direct landmark editing workflow.
+- SkinMarkSystem.js: skin mark lifecycle and persistence hooks.
+- SnapshotManager.js: snapshot/thumbnail persistence.
+- AIController.js: chat, provider handling, AI apply/sync.
+- HeadTracker.js: webcam face tracking integration.
+
+Main UI / UX Structure
+- File: src/renderer/index.html
+- Left tabs: Face, Hair, Look, AI, Snaps, Case.
+- Top toolbar includes:
+  - Navigation/view tools
+  - Wireframe/lighting
+  - Point edit and skin mark modes
+  - Head tracking toggle/recalibration
+  - Undo/redo, screenshot, export
+- Custom title bar includes backend status indicator and window buttons.
+
+Data and Asset Dependencies
+
+Models (assets/models)
+- base/head.glb (main head mesh)
+- base/head_regions.json (region metadata)
+- base/base_face.obj, base/base_face.mtl, base/base_face_regions.json
+- hair/Hair1.glb ... Hair12.glb
+- facial/eyebrows.glb, facial/Beard1.glb, EyeLeft.glb, EyeRight.glb, eyelashes.glb (as referenced by systems)
+
+Runtime output folders (created/used by backend)
+- backend/exports (morph/export/intermediate files)
+- backend/renders (render output images)
+- backend/cases (.rfc files)
+
+Configuration and Environment
+- Node package scripts (package.json):
+  - npm start            -> electron .
+  - npm run start:backend -> python backend/server.py
+  - npm run dev          -> concurrently backend + electron
+  - npm run build        -> electron-builder
+- Python deps (backend/requirements.txt): flask, flask-cors, python-dotenv, anthropic, google-generativeai, SpeechRecognition, numpy, Pillow
+- AI keys in .env expected by backend:
+  - ANTHROPIC_API_KEY
+  - GEMINI_API_KEY
+  - optional AI_PROVIDER
+- Blender path auto-detection in server.py with manual override endpoint /api/blender/config.
+
+Current Behavior Notes / Practical Caveats
+- main.js always opens DevTools (hardcoded).
+- Blender render UI trigger is intentionally commented out in UIController.
+- Backend tries Miniforge env path first, then fallback to python executable.
+- If base model/region data missing, app can fall back to procedural geometry mode for core face editing.
+
+End-to-End Runtime Flow
+1. Electron starts -> spawns Flask backend.
+2. Renderer loads index.html and initializes systems.
+3. app.js loads base head.glb + head_regions.json.
+4. OBJMorpher binds mesh; hair/eyes bind to head mesh.
+5. UI sliders and tools update OBJMorpher/HairSystem/EyeSystem and sync CaseManager.
+6. Optional AI prompts generate parameter JSON via backend providers.
+7. Case save/load and export operations routed through backend APIs.
+
+Suggested Entry Points for Future Work
+- Product behavior: src/renderer/js/app.js and src/renderer/js/UIController.js
+- Morph quality changes: src/renderer/js/OBJMorpher.js
+- Hair/eye alignment improvements: src/renderer/js/HairSystem.js and src/renderer/js/EyeSystem.js
+- AI prompt/output behavior: backend/server.py (AI_SYSTEM_PROMPT) and src/renderer/js/AIController.js
+- Blender pipeline tuning: backend/blender_scripts/*.py
+
+Summary
+- This is a full-featured forensic 3D face reconstruction desktop app with real-time morphing, accessory systems (hair/eyes/marks), case persistence, AI-assisted generation, and Blender-backed export/render backend.
+- The implementation is active and modular, with most major features wired end-to-end through renderer systems + Flask endpoints.

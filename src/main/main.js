@@ -75,6 +75,11 @@ function createWindow() {
         },
         { type: 'separator' },
         {
+          label: 'Import 3D Model',
+          accelerator: 'CmdOrCtrl+I',
+          click: () => handleImportModel()
+        },
+        {
           label: 'Export 3D Model',
           submenu: [
             { label: 'Export as OBJ', click: () => mainWindow.webContents.send('menu:export', 'obj') },
@@ -129,6 +134,22 @@ async function handleOpenCase() {
   });
   if (!result.canceled && result.filePaths.length > 0) {
     mainWindow.webContents.send('menu:open-case', result.filePaths[0]);
+  }
+}
+
+async function handleImportModel() {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Import 3D Model',
+    filters: [
+      { name: '3D Models', extensions: ['glb', 'gltf', 'obj'] },
+      { name: 'GLB Files', extensions: ['glb'] },
+      { name: 'OBJ Files', extensions: ['obj'] },
+      { name: 'All Files', extensions: ['*'] }
+    ],
+    properties: ['openFile']
+  });
+  if (!result.canceled && result.filePaths.length > 0) {
+    mainWindow.webContents.send('menu:import-model', result.filePaths[0]);
   }
 }
 
@@ -191,6 +212,15 @@ ipcMain.handle('file:download-export', async (event, filename, sourcePath) => {
 ipcMain.handle('dialog:open', async (event, options) => {
   const result = await dialog.showOpenDialog(mainWindow, options);
   return result;
+});
+
+ipcMain.handle('file:read-binary', async (event, filePath) => {
+  const fs = require('fs');
+  if (!fs.existsSync(filePath)) {
+    return { error: `File not found: ${filePath}` };
+  }
+  const buffer = fs.readFileSync(filePath);
+  return { data: buffer.toString('base64'), size: buffer.length };
 });
 
 ipcMain.handle('window:minimize', () => mainWindow.minimize());

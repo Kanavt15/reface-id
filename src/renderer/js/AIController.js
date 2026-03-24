@@ -288,6 +288,10 @@ class AIController {
         this._applySkinColor(params.appearance.skinColor);
         changes.appearance = true;
       }
+      if (params.appearance.lipColor) {
+        this._applyLipColor(params.appearance.lipColor);
+        changes.appearance = true;
+      }
       if (params.appearance.eyeColor) {
         this._applyEyeColor(params.appearance.eyeColor);
         changes.appearance = true;
@@ -394,6 +398,20 @@ class AIController {
     const picker = document.getElementById('skinColorPicker');
     if (picker) picker.value = hex;
     const swatches = document.querySelectorAll('#skinToneGrid .skin-swatch');
+    swatches.forEach(s => s.classList.toggle('active', s.dataset.color === hex));
+  }
+
+  /**
+   * Apply lip color to the 3D model and UI.
+   */
+  _applyLipColor(hex) {
+    this.caseManager.updateAppearance('lipColor', hex);
+    if (this.scene) {
+      this.scene.setLipColor(hex);
+    }
+    const picker = document.getElementById('lipColorPicker');
+    if (picker) picker.value = hex;
+    const swatches = document.querySelectorAll('#lipColorPresets .color-swatch');
     swatches.forEach(s => s.classList.toggle('active', s.dataset.color === hex));
   }
 

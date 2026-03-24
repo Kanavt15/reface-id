@@ -12,7 +12,6 @@ class UIController {
     this.api = backendAPI;
     this.caseManager = caseManager;
     this.skinMarkSystem = null;
-    this.wrinkleSystem = null;
     this.historyLog = [];
   }
 
@@ -28,7 +27,7 @@ class UIController {
     this.bindEyeControls();
     this.bindEyelashControls();
     this.bindSkinMarkControls();
-    this.bindWrinkleControls();
+    this.bindWrinklePainterControls();
     this.bindCaseControls();
     this.bindGroupCollapse();
     this.bindKeyboardShortcuts();
@@ -95,6 +94,11 @@ class UIController {
     // Export button
     document.getElementById('btnExport')?.addEventListener('click', () => {
       this.showExportDialog();
+    });
+
+    // Import button (toolbar)
+    document.getElementById('btnImportModel')?.addEventListener('click', () => {
+      this.importModel();
     });
 
     // Undo/Redo
@@ -667,6 +671,53 @@ class UIController {
       });
     }
 
+    // Lip color swatches
+    document.querySelectorAll('#lipColorPresets .color-swatch').forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        this.caseManager.pushState('Changed lip color');
+        document.querySelectorAll('#lipColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
+        swatch.classList.add('active');
+
+        const color = swatch.dataset.color;
+        this.scene.setLipColor(color);
+        document.getElementById('lipColorPicker').value = color;
+        this.caseManager.updateAppearance('lipColor', color);
+        this.addHistory('Changed lip color');
+        this.updatePropertyPanel();
+      });
+    });
+
+    // Lip color picker
+    {
+      let _lipColorCapturing = false;
+      const lipColorPicker = document.getElementById('lipColorPicker');
+      lipColorPicker?.addEventListener('input', (e) => {
+        if (!_lipColorCapturing) {
+          this.caseManager.beginAction('Changed lip color');
+          _lipColorCapturing = true;
+        }
+        this.scene.setLipColor(e.target.value);
+        document.querySelectorAll('#lipColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
+        this.caseManager.updateAppearance('lipColor', e.target.value);
+      });
+      lipColorPicker?.addEventListener('change', () => {
+        this.caseManager.endAction();
+        _lipColorCapturing = false;
+        this.addHistory('Changed lip color');
+        this.updatePropertyPanel();
+      });
+    }
+
+    // Reset lip color button
+    document.getElementById('btnResetLipColor')?.addEventListener('click', () => {
+      this.caseManager.pushState('Reset lip color');
+      this.scene.setLipColor(null);
+      this.caseManager.updateAppearance('lipColor', null);
+      document.querySelectorAll('#lipColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
+      this.addHistory('Reset lip color');
+      this.updatePropertyPanel();
+    });
+
     // Eye color
     document.querySelectorAll('#eyeColorPresets .color-swatch').forEach(swatch => {
       swatch.addEventListener('click', () => {
@@ -716,6 +767,94 @@ class UIController {
     });
     document.getElementById('sexSelect')?.addEventListener('change', (e) => {
       this.caseManager.updateAppearance('sex', e.target.value);
+    });
+
+    // ── Skin Texture Sliders ──
+    this.bindSkinTextureControls();
+  }
+
+  // ─── Skin Texture & Aging Controls ──────────────────────────────────────
+
+  bindSkinTextureControls() {
+    const sliderMap = {
+      sliderSkinAge:       { param: 'age',         valId: 'valSkinAge' },
+      sliderWrinkleDepth:  { param: 'wrinkleDepth', valId: 'valWrinkleDepth' },
+      sliderSkinRoughness: { param: 'roughness',    valId: 'valSkinRoughness' },
+      sliderPoreDetail:    { param: 'poreDetail',   valId: 'valPoreDetail' },
+      sliderSkinFreckles:  { param: 'freckles',     valId: 'valSkinFreckles' },
+      sliderSkinOiliness:  { param: 'skinOiliness', valId: 'valSkinOiliness' },
+      sliderSunDamage:     { param: 'sunDamage',    valId: 'valSunDamage' },
+    };
+
+    let _skinTexDebounce = null;
+
+    for (const [sliderId, cfg] of Object.entries(sliderMap)) {
+      const slider = document.getElementById(sliderId);
+      const valEl = document.getElementById(cfg.valId);
+      if (!slider) continue;
+
+      let isDragging = false;
+
+      slider.addEventListener('mousedown', () => {
+        isDragging = true;
+        this.caseManager.beginAction(`Changed skin ${cfg.param}`);
+      });
+
+      slider.addEventListener('input', (e) => {
+        const v = parseInt(e.target.value, 10);
+        if (valEl) valEl.textContent = v;
+
+        if (this.skinTextureSystem) {
+          this.skinTextureSystem.setParam(cfg.param, v);
+
+          // Debounce regeneration for performance (texture gen is expensive)
+          if (_skinTexDebounce) clearTimeout(_skinTexDebounce);
+          _skinTexDebounce = setTimeout(() => {
+            this.skinTextureSystem.regenerate();
+          }, 150);
+        }
+      });
+
+      const onMouseUp = () => {
+        if (isDragging) {
+          isDragging = false;
+          if (this.skinTextureSystem) {
+            this.caseManager.updateAppearance('skinTextureParams', this.skinTextureSystem.getParams());
+          }
+          this.caseManager.endAction();
+          this.addHistory(`Changed skin ${cfg.param}`);
+          this.updatePropertyPanel();
+          document.removeEventListener('mouseup', onMouseUp);
+        }
+      };
+
+      slider.addEventListener('mousedown', () => {
+        document.addEventListener('mouseup', onMouseUp);
+      });
+    }
+
+    // Reset button
+    document.getElementById('btnResetSkinTexture')?.addEventListener('click', () => {
+      this.caseManager.pushState('Reset skin texture');
+      if (this.skinTextureSystem) {
+        this.skinTextureSystem.params = {
+          age: 20, roughness: 50, freckles: 0,
+          poreDetail: 60, wrinkleDepth: 30, skinOiliness: 40, sunDamage: 10,
+        };
+        this.skinTextureSystem.regenerate();
+        this.caseManager.updateAppearance('skinTextureParams', this.skinTextureSystem.getParams());
+      }
+      // Reset slider UI
+      for (const [sliderId, cfg] of Object.entries(sliderMap)) {
+        const slider = document.getElementById(sliderId);
+        const valEl = document.getElementById(cfg.valId);
+        const defaults = { age: 20, wrinkleDepth: 30, roughness: 50, poreDetail: 60, freckles: 0, skinOiliness: 40, sunDamage: 10 };
+        const def = defaults[cfg.param] ?? 50;
+        if (slider) slider.value = def;
+        if (valEl) valEl.textContent = def;
+      }
+      this.addHistory('Reset skin texture');
+      this.updatePropertyPanel();
     });
   }
 
@@ -913,12 +1052,6 @@ class UIController {
     const skinMarks = this.skinMarkSystem;
     if (!skinMarks) return;
 
-    // Set up undo callback for when marks are added
-    skinMarks.onBeforeMarkAdded = () => {
-      this.updateCaseFromUI(); // Ensure all state is current
-      this.caseManager.pushState('Added skin mark');
-    };
-
     const btnToggle = document.getElementById('btnToggleSkinMarks');
     const btnToolbar = document.getElementById('btnSkinMarks');
 
@@ -933,15 +1066,14 @@ class UIController {
           btnPE.innerHTML = '<i class="fas fa-hand-pointer"></i> Enable Point Editing';
         }
       }
-
-      // Disable wrinkle system if active (mutual exclusion)
-      if (this.wrinkleSystem && this.wrinkleSystem.enabled) {
-        this.wrinkleSystem.disable();
-        document.getElementById('btnWrinkles')?.classList.remove('active');
-        const btnWR = document.getElementById('btnToggleWrinkles');
-        if (btnWR) {
-          btnWR.classList.remove('active');
-          btnWR.innerHTML = '<i class="fas fa-crosshairs"></i> Enable Wrinkle Drawing';
+      // Disable wrinkle painter if active (mutual exclusion)
+      if (this.wrinklePainter && this.wrinklePainter.enabled) {
+        this.wrinklePainter.disable();
+        document.getElementById('btnWrinklePaint')?.classList.remove('active');
+        const btnWP = document.getElementById('btnToggleWrinklePaint');
+        if (btnWP) {
+          btnWP.classList.remove('active');
+          btnWP.innerHTML = '<i class="fas fa-paint-brush"></i> Enable Wrinkle Painting';
         }
       }
 
@@ -968,7 +1100,39 @@ class UIController {
       }
     });
 
-    // Size slider
+    // Placement size slider (controls size of newly placed marks)
+    {
+      const placementSlider = document.getElementById('skinMarkPlacementSize');
+      const placementValue = document.getElementById('skinMarkPlacementSizeValue');
+
+      const updatePlacementSize = () => {
+        const sizeNorm = parseInt(placementSlider.value) / 100;
+        const actualSize = 0.001 + sizeNorm * 0.149;
+        skinMarks.placementSize = actualSize;
+        placementValue.textContent = actualSize.toFixed(3);
+      };
+
+      placementSlider?.addEventListener('input', updatePlacementSize);
+
+      // Update default display based on current mark type
+      const updatePlacementDefault = () => {
+        const typeDef = SkinMarkSystem.MARK_TYPES[skinMarks.activeMarkType];
+        if (typeDef && placementSlider) {
+          const sliderVal = Math.round(((typeDef.defaultSize - 0.001) / 0.149) * 100);
+          placementSlider.value = sliderVal;
+          skinMarks.placementSize = typeDef.defaultSize;
+          if (placementValue) placementValue.textContent = typeDef.defaultSize.toFixed(3);
+        }
+      };
+
+      // Reset placement size when mark type changes
+      document.getElementById('skinMarkType')?.addEventListener('change', updatePlacementDefault);
+
+      // Initialize with current type default
+      updatePlacementDefault();
+    }
+
+    // Size slider (for selected marks)
     {
       const sizeSlider = document.getElementById('skinMarkSize');
       let isDraggingSize = false;
@@ -989,7 +1153,7 @@ class UIController {
 
       sizeSlider?.addEventListener('input', (e) => {
         const sizeNorm = parseInt(e.target.value) / 100;
-        const actualSize = 0.005 + sizeNorm * 0.095;
+        const actualSize = 0.001 + sizeNorm * 0.149;
         skinMarks.updateSelectedMark('size', actualSize);
         document.getElementById('skinMarkSizeValue').textContent = actualSize.toFixed(3);
       });
@@ -1077,7 +1241,7 @@ class UIController {
         const rotValue = document.getElementById('skinMarkRotationValue');
         const colorPicker = document.getElementById('skinMarkColor');
 
-        if (sizeSlider) sizeSlider.value = Math.round(((mark.size - 0.005) / 0.095) * 100);
+        if (sizeSlider) sizeSlider.value = Math.round(((mark.size - 0.001) / 0.149) * 100);
         if (sizeValue) sizeValue.textContent = mark.size.toFixed(3);
         if (rotSlider) rotSlider.value = Math.round((mark.rotation * 180) / Math.PI);
         if (rotValue) rotValue.textContent = Math.round((mark.rotation * 180) / Math.PI) + '\u00B0';
@@ -1089,30 +1253,24 @@ class UIController {
     };
   }
 
-  bindWrinkleControls() {
-    const wrinkles = this.wrinkleSystem;
-    if (!wrinkles) return;
+  // ─── Wrinkle Painter Controls ─────────────────────────────────────────
 
-    // Set up undo callback for when wrinkles are added
-    wrinkles.onBeforeWrinkleAdded = () => {
-      this.updateCaseFromUI(); // Ensure all state is current
-      this.caseManager.pushState('Added wrinkle');
-    };
+  bindWrinklePainterControls() {
+    const painter = this.wrinklePainter;
+    if (!painter) return;
 
-    const btnToggle = document.getElementById('btnToggleWrinkles');
-    const btnToolbar = document.getElementById('btnWrinkles');
+    const btnToolbar = document.getElementById('btnWrinklePaint');
+    const btnToggle = document.getElementById('btnToggleWrinklePaint');
+    const btnErase = document.getElementById('btnWrinkleErase');
+    const btnUndo = document.getElementById('btnWrinkleUndo');
+    const btnClear = document.getElementById('btnWrinkleClear');
+    const sizeSlider = document.getElementById('wrinkleBrushSize');
+    const sizeValue = document.getElementById('wrinkleBrushSizeValue');
+    const strengthSlider = document.getElementById('wrinkleBrushStrength');
+    const strengthValue = document.getElementById('wrinkleBrushStrengthValue');
 
-    const toggleWrinkles = () => {
-      // Disable other tools (mutual exclusion)
-      if (this.facePointEditor && this.facePointEditor.enabled) {
-        this.facePointEditor.disable();
-        document.getElementById('btnEditPoints')?.classList.remove('active');
-        const btnPE = document.getElementById('btnTogglePointEdit');
-        if (btnPE) {
-          btnPE.classList.remove('active');
-          btnPE.innerHTML = '<i class="fas fa-hand-pointer"></i> Enable Point Editing';
-        }
-      }
+    const togglePainter = () => {
+      // Disable other edit modes (mutual exclusion)
       if (this.skinMarkSystem && this.skinMarkSystem.enabled) {
         this.skinMarkSystem.disable();
         document.getElementById('btnSkinMarks')?.classList.remove('active');
@@ -1122,139 +1280,61 @@ class UIController {
           btnSM.innerHTML = '<i class="fas fa-crosshairs"></i> Enable Mark Placement';
         }
       }
+      if (this.facePointEditor && this.facePointEditor.enabled) {
+        this.facePointEditor.disable();
+        document.getElementById('btnEditPoints')?.classList.remove('active');
+      }
 
-      const active = wrinkles.toggle();
-      btnToggle?.classList.toggle('active', active);
+      const active = painter.toggle();
       btnToolbar?.classList.toggle('active', active);
       if (btnToggle) {
+        btnToggle.classList.toggle('active', active);
         btnToggle.innerHTML = active
-          ? '<i class="fas fa-times"></i> Disable Wrinkle Drawing'
-          : '<i class="fas fa-crosshairs"></i> Enable Wrinkle Drawing';
+          ? '<i class="fas fa-times"></i> Disable Wrinkle Painting'
+          : '<i class="fas fa-paint-brush"></i> Enable Wrinkle Painting';
       }
-      this.addHistory(active ? 'Wrinkle drawing enabled' : 'Wrinkle drawing disabled');
+      this.addHistory(active ? 'Wrinkle painting enabled' : 'Wrinkle painting disabled');
     };
 
-    btnToggle?.addEventListener('click', toggleWrinkles);
-    btnToolbar?.addEventListener('click', toggleWrinkles);
+    btnToolbar?.addEventListener('click', togglePainter);
+    btnToggle?.addEventListener('click', togglePainter);
 
-    // Wrinkle type buttons
-    const typeButtons = [
-      { id: 'btnWrinkleFine', type: 'fine' },
-      { id: 'btnWrinkleDeep', type: 'deep' },
-      { id: 'btnWrinkleStretch', type: 'stretch' },
-      { id: 'btnWrinkleScar', type: 'scar' },
-    ];
-
-    typeButtons.forEach(({ id, type }) => {
-      document.getElementById(id)?.addEventListener('click', () => {
-        wrinkles.setType(type);
-        // Update active state on buttons
-        typeButtons.forEach(({ id: btnId }) => {
-          document.getElementById(btnId)?.classList.toggle('active', btnId === id);
-        });
-        this.updateWrinkleUI();
-      });
+    // Brush size
+    sizeSlider?.addEventListener('input', (e) => {
+      const v = parseInt(e.target.value);
+      painter.brushSize = v;
+      if (sizeValue) sizeValue.textContent = v;
     });
 
-    // Width slider
-    {
-      const widthSlider = document.getElementById('wrinkleWidth');
-      let isDraggingWidth = false;
-
-      const onWidthMouseUp = () => {
-        if (isDraggingWidth) {
-          this.caseManager.endAction();
-          isDraggingWidth = false;
-          document.removeEventListener('mouseup', onWidthMouseUp);
-        }
-      };
-
-      widthSlider?.addEventListener('mousedown', () => {
-        isDraggingWidth = true;
-        this.caseManager.beginAction('Modified wrinkle width');
-        document.addEventListener('mouseup', onWidthMouseUp);
-      });
-
-      widthSlider?.addEventListener('input', (e) => {
-        const width = parseInt(e.target.value) / 1000;  // Convert to world units
-        wrinkles.setWidth(width);
-        document.getElementById('wrinkleWidthValue').textContent = width.toFixed(3);
-      });
-    }
-
-    // Depth slider
-    {
-      const depthSlider = document.getElementById('wrinkleDepth');
-      let isDraggingDepth = false;
-
-      const onDepthMouseUp = () => {
-        if (isDraggingDepth) {
-          this.caseManager.endAction();
-          isDraggingDepth = false;
-          document.removeEventListener('mouseup', onDepthMouseUp);
-        }
-      };
-
-      depthSlider?.addEventListener('mousedown', () => {
-        isDraggingDepth = true;
-        this.caseManager.beginAction('Modified wrinkle depth');
-        document.addEventListener('mouseup', onDepthMouseUp);
-      });
-
-      depthSlider?.addEventListener('input', (e) => {
-        const depth = parseInt(e.target.value) / 100;
-        wrinkles.setDepth(depth);
-        document.getElementById('wrinkleDepthValue').textContent = depth.toFixed(2);
-      });
-    }
-
-    // Geometry displacement checkbox
-    document.getElementById('wrinkleGeometryDisp')?.addEventListener('change', (e) => {
-      wrinkles.setGeometryDisplacement(e.target.checked);
-      this.addHistory(`Geometry displacement ${e.target.checked ? 'enabled' : 'disabled'}`);
+    // Brush strength
+    strengthSlider?.addEventListener('input', (e) => {
+      const v = parseInt(e.target.value);
+      painter.brushStrength = v / 100;
+      if (strengthValue) strengthValue.textContent = v;
     });
 
-    // Preset pattern buttons
-    document.querySelectorAll('.preset-grid button[data-preset]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const preset = btn.dataset.preset;
-        this.caseManager.pushState(`Applied ${preset} wrinkle preset`);
-        wrinkles.applyPreset(preset);
-        this.addHistory(`Applied ${preset} wrinkle preset`);
-      });
+    // Eraser toggle
+    btnErase?.addEventListener('click', () => {
+      painter.eraseMode = !painter.eraseMode;
+      btnErase.classList.toggle('active', painter.eraseMode);
     });
 
-    // Clear all wrinkles
-    document.getElementById('btnClearAllWrinkles')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.caseManager.pushState('Cleared all wrinkles');
-      wrinkles.clearAll();
-      this.addHistory('Cleared all wrinkles');
+    // Undo
+    btnUndo?.addEventListener('click', () => {
+      painter.undo();
+      this.addHistory('Undo wrinkle stroke');
     });
 
-    // Callback: update UI when wrinkles change
-    wrinkles.onWrinkleChanged = () => {
-      const count = wrinkles.wrinkles.length;
-      const countEl = document.getElementById('wrinkleCount');
-      if (countEl) countEl.textContent = count;
+    // Clear
+    btnClear?.addEventListener('click', () => {
+      painter.clearAll();
+      this.addHistory('Cleared all manual wrinkles');
+    });
 
-      this.caseManager.updateWrinkles(wrinkles.exportState());
-      this.updatePropertyPanel();
+    // Persist changes
+    painter.onChanged = () => {
+      this.caseManager.updateAppearance('wrinklePaintData', painter.exportState());
     };
-  }
-
-  updateWrinkleUI() {
-    if (!this.wrinkleSystem) return;
-
-    const widthValue = document.getElementById('wrinkleWidthValue');
-    const depthValue = document.getElementById('wrinkleDepthValue');
-    const widthSlider = document.getElementById('wrinkleWidth');
-    const depthSlider = document.getElementById('wrinkleDepth');
-
-    if (widthValue) widthValue.textContent = this.wrinkleSystem.currentWidth.toFixed(3);
-    if (depthValue) depthValue.textContent = this.wrinkleSystem.currentDepth.toFixed(2);
-    if (widthSlider) widthSlider.value = Math.round(this.wrinkleSystem.currentWidth * 1000);
-    if (depthSlider) depthSlider.value = Math.round(this.wrinkleSystem.currentDepth * 100);
   }
 
   // ─── Case Controls ───────────────────────────────────────────────────────
@@ -1289,6 +1369,19 @@ class UIController {
     // New case
     document.getElementById('btnNewCase')?.addEventListener('click', () => {
       this.newCase();
+    });
+
+    // Import button (case panel)
+    document.getElementById('btnImportFile')?.addEventListener('click', () => {
+      this.importModel();
+    });
+
+    // Remove all imports button
+    document.getElementById('btnRemoveImports')?.addEventListener('click', () => {
+      this.scene.removeImportedModel();
+      document.getElementById('importedModelsList').innerHTML = '';
+      document.getElementById('btnRemoveImports').style.display = 'none';
+      this.addHistory('Removed all imported models');
     });
 
     // Export buttons
@@ -1421,9 +1514,6 @@ class UIController {
     if (this.skinMarkSystem) {
       this.caseManager.updateSkinMarks(this.skinMarkSystem.exportState());
     }
-    if (this.wrinkleSystem) {
-      this.caseManager.updateWrinkles(this.wrinkleSystem.exportState());
-    }
     this.caseManager.currentCase.cameraState = this.scene.getCameraState();
   }
 
@@ -1448,6 +1538,14 @@ class UIController {
     const skinColor = this.caseManager.currentCase.appearance.skinColor;
     if (skinToneEl) {
       skinToneEl.innerHTML = `<span class="mini-swatch" style="background: ${skinColor};"></span>`;
+    }
+
+    const lipColorEl = document.getElementById('currentLipColor');
+    const lipColor = this.caseManager.currentCase.appearance.lipColor;
+    if (lipColorEl) {
+      lipColorEl.innerHTML = lipColor
+        ? `<span class="mini-swatch" style="background: ${lipColor};"></span>`
+        : 'None';
     }
 
     const eyeColorEl = document.getElementById('currentEyeColor');
@@ -1574,6 +1672,112 @@ class UIController {
     document.getElementById('panel-case')?.classList.add('active');
   }
 
+  async importModel() {
+    if (!window.electronAPI) {
+      console.warn('[Import] electronAPI not available');
+      return;
+    }
+
+    const result = await window.electronAPI.openDialog({
+      title: 'Import 3D Model',
+      filters: [
+        { name: '3D Models', extensions: ['glb', 'gltf', 'obj'] },
+        { name: 'GLB Files', extensions: ['glb'] },
+        { name: 'OBJ Files', extensions: ['obj'] },
+        { name: 'All Files', extensions: ['*'] }
+      ],
+      properties: ['openFile'],
+    });
+
+    if (result.canceled || !result.filePaths?.length) return;
+
+    const filePath = result.filePaths[0];
+    const fileName = filePath.split(/[\\/]/).pop();
+
+    this.addHistory(`Importing model: ${fileName}...`);
+
+    try {
+      const fileResult = await window.electronAPI.readBinaryFile(filePath);
+      if (fileResult.error) {
+        this.addHistory(`Import failed: ${fileResult.error}`);
+        return;
+      }
+
+      // Convert base64 back to ArrayBuffer
+      const binaryStr = atob(fileResult.data);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
+      const arrayBuffer = bytes.buffer;
+
+      const imported = this.scene.addImportedModel(arrayBuffer, fileName);
+      if (imported) {
+        this.addHistory(`Imported: ${fileName} (${imported.vertexCount.toLocaleString()} vertices)`);
+
+        // Update the imports list UI
+        const list = document.getElementById('importedModelsList');
+        const item = document.createElement('div');
+        item.className = 'imported-model-item';
+        item.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:4px 8px;margin-top:4px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:12px;';
+        const idx = (this.scene.importedModels?.length || 1) - 1;
+        item.innerHTML = `
+          <span style="color:var(--text-secondary);"><i class="fas fa-cube" style="margin-right:6px;color:var(--accent);"></i>${fileName}</span>
+          <button class="btn-icon" title="Remove" data-import-idx="${idx}" style="color:var(--text-muted);cursor:pointer;background:none;border:none;">
+            <i class="fas fa-times"></i>
+          </button>
+        `;
+        item.querySelector('button').addEventListener('click', (e) => {
+          const removeIdx = parseInt(e.currentTarget.dataset.importIdx);
+          this.scene.removeImportedModel(removeIdx);
+          item.remove();
+          this.addHistory(`Removed imported model: ${fileName}`);
+          if (!this.scene.importedModels?.length) {
+            document.getElementById('btnRemoveImports').style.display = 'none';
+          }
+        });
+        list.appendChild(item);
+        document.getElementById('btnRemoveImports').style.display = '';
+      } else {
+        this.addHistory(`Import failed: unsupported format or parse error`);
+      }
+    } catch (err) {
+      console.error('[Import] Error:', err);
+      this.addHistory(`Import error: ${err.message}`);
+    }
+  }
+
+  async importModelFromPath(filePath) {
+    if (!window.electronAPI) return;
+    const fileName = filePath.split(/[\\/]/).pop();
+    this.addHistory(`Importing model: ${fileName}...`);
+
+    try {
+      const fileResult = await window.electronAPI.readBinaryFile(filePath);
+      if (fileResult.error) {
+        this.addHistory(`Import failed: ${fileResult.error}`);
+        return;
+      }
+
+      const binaryStr = atob(fileResult.data);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
+
+      const imported = this.scene.addImportedModel(bytes.buffer, fileName);
+      if (imported) {
+        this.addHistory(`Imported: ${fileName} (${imported.vertexCount.toLocaleString()} vertices)`);
+        document.getElementById('btnRemoveImports').style.display = '';
+      } else {
+        this.addHistory(`Import failed: unsupported format or parse error`);
+      }
+    } catch (err) {
+      console.error('[Import] Error:', err);
+      this.addHistory(`Import error: ${err.message}`);
+    }
+  }
+
   newCase() {
     this.caseManager.newCase();
     this.morpher.resetAll();
@@ -1588,8 +1792,9 @@ class UIController {
     });
     this.hair.generateEyebrows();
     this.scene.setSkinColor('#d4a574');
+    this.scene.setLipColor(null);
+    document.querySelectorAll('#lipColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
     if (this.skinMarkSystem) this.skinMarkSystem.clearAll();
-    if (this.wrinkleSystem) this.wrinkleSystem.clearAll();
 
     // Reset UI
     document.querySelectorAll('.morph-slider').forEach(s => {
@@ -1669,13 +1874,16 @@ class UIController {
       if (data.appearance?.skinColor) {
         this.scene.setSkinColor(data.appearance.skinColor);
       }
+      if (data.appearance?.lipColor) {
+        this.scene.setLipColor(data.appearance.lipColor);
+      }
       // Restore skin marks
       if (data.skinMarks && this.skinMarkSystem) {
         this.skinMarkSystem.loadState(data.skinMarks);
       }
-      // Restore wrinkles
-      if (data.wrinkles && this.wrinkleSystem) {
-        this.wrinkleSystem.loadState(data.wrinkles);
+      // Restore manual wrinkle painting
+      if (data.appearance?.wrinklePaintData && this.wrinklePainter) {
+        this.wrinklePainter.loadState(data.appearance.wrinklePaintData);
       }
       // Restore camera
       if (data.cameraState) {
@@ -1831,6 +2039,16 @@ class UIController {
           s.classList.toggle('active', s.dataset.color === state.appearance.skinColor);
         });
       }
+      // Restore lip color
+      {
+        const lc = state.appearance.lipColor;
+        this.scene.setLipColor(lc || null);
+        const lipPicker = document.getElementById('lipColorPicker');
+        if (lipPicker && lc) lipPicker.value = lc;
+        document.querySelectorAll('#lipColorPresets .color-swatch').forEach(s => {
+          s.classList.toggle('active', lc && s.dataset.color === lc);
+        });
+      }
       if (state.appearance.eyeColor) {
         const eyePicker = document.getElementById('eyeColorPicker');
         if (eyePicker) eyePicker.value = state.appearance.eyeColor;
@@ -1875,9 +2093,9 @@ class UIController {
       this.skinMarkSystem.loadState(state.skinMarks);
     }
 
-    // Restore wrinkles
-    if (state.wrinkles && this.wrinkleSystem) {
-      this.wrinkleSystem.loadState(state.wrinkles);
+    // Restore manual wrinkle painting
+    if (state.appearance?.wrinklePaintData && this.wrinklePainter) {
+      this.wrinklePainter.loadState(state.appearance.wrinklePaintData);
     }
 
     // Restore eyelash params

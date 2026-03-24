@@ -40,14 +40,19 @@ class SkinMarkSystem {
 
     // Callbacks
     this.onMarkChanged = null;
-    this.onBeforeMarkAdded = null;  // Called before a mark is added (for undo)
-    this.onBeforeMarkDeleted = null;  // Called before a mark is deleted (for undo)
 
     // Bound event handlers
     this._onPointerDown = this._onPointerDown.bind(this);
     this._onPointerMove = this._onPointerMove.bind(this);
     this._onPointerUp = this._onPointerUp.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
+
+    // Custom placement size (null = use type default)
+    this.placementSize = null;
+
+    // 3D selection ring (outline around selected mark showing size)
+    this._selectionRing = null;
+    this._createSelectionRing();
 
     // ID counter
     this._nextId = 1;
@@ -207,14 +212,13 @@ class SkinMarkSystem {
   disable() {
     if (!this.enabled) return;
     this.enabled = false;
-    this.selectedMarkIndex = -1;
     this.isDragging = false;
+    this._clearSelection();
     this.canvas.removeEventListener('pointerdown', this._onPointerDown, true);
     this.canvas.removeEventListener('pointermove', this._onPointerMove, true);
     this.canvas.removeEventListener('pointerup', this._onPointerUp, true);
     window.removeEventListener('keydown', this._onKeyDown);
     this.controls.enabled = true;
-    this._clearSelection();
   }
 
   toggle() {
@@ -255,9 +259,6 @@ class SkinMarkSystem {
     const typeDef = SkinMarkSystem.MARK_TYPES[this.activeMarkType];
     if (!typeDef) return null;
 
-    // Call before callback for undo system
-    if (this.onBeforeMarkAdded) this.onBeforeMarkAdded();
-
     // Ensure we're attached to head mesh
     this.ensureAttachedToHead();
 
@@ -295,7 +296,7 @@ class SkinMarkSystem {
       type: this.activeMarkType,
       position: localPos.toArray(),  // Store in local space
       normal: localNormal.toArray(),  // Store in local space
-      size: typeDef.defaultSize,
+      size: this.placementSize !== null ? this.placementSize : typeDef.defaultSize,
       color: typeDef.defaultColor,
       rotation: 0,
       anchorVertexIndex: anchorVertex,
@@ -365,6 +366,87 @@ class SkinMarkSystem {
     }
   }
 
+  // ─── Selection Size Ring (3D outline around selected mark) ──────────
+
+  _createSelectionRing() {
+    const geo = new THREE.RingGeometry(0.014, 0.016, 32);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0x7aa2f7,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.75,
+      depthTest: true,
+      polygonOffset: true,
+      polygonOffsetFactor: -3,
+      polygonOffsetUnits: -3,
+    });
+    this._selectionRing = new THREE.Mesh(geo, mat);
+    this._selectionRing.renderOrder = 12;
+    this._selectionRing.visible = false;
+    this.scene.add(this._selectionRing);
+  }
+
+  _updateSelectionRing() {
+    if (!this._selectionRing) return;
+    if (this.selectedMarkIndex < 0) {
+      this._selectionRing.visible = false;
+      return;
+    }
+
+    const markData = this.marks[this.selectedMarkIndex];
+    const mesh = this.markMeshes[this.selectedMarkIndex];
+    if (!markData || !mesh) {
+      this._selectionRing.visible = false;
+      return;
+    }
+
+    const size = markData.size;
+    const typeDef = SkinMarkSystem.MARK_TYPES[markData.type];
+
+    // Compute effective radius based on mark type geometry
+    let radius = size;
+    if (markData.type === 'scar') radius = size * 1.5;
+    else if (markData.type === 'wound') radius = size * 1.0;
+
+    // Recreate ring geometry to match mark size
+    this._selectionRing.geometry.dispose();
+    const thickness = Math.max(radius * 0.1, 0.0008);
+    this._selectionRing.geometry = new THREE.RingGeometry(radius, radius + thickness, 32);
+
+    // Get mark world position and normal
+    const pos = new THREE.Vector3().fromArray(markData.position);
+    const normal = new THREE.Vector3().fromArray(markData.normal);
+
+    // If marks are in local space (attached to head), convert to world space for the ring
+    const headMesh = this.sceneManager.headMesh;
+    if (headMesh && this._isAttachedToHead) {
+      headMesh.updateWorldMatrix(true, false);
+      pos.applyMatrix4(headMesh.matrixWorld);
+      const normalMatrix = new THREE.Matrix3().getNormalMatrix(headMesh.matrixWorld);
+      normal.applyMatrix3(normalMatrix).normalize();
+    }
+
+    const offset = typeDef && typeDef.raised ? size * 0.5 : 0.001;
+    this._selectionRing.position.copy(pos).addScaledVector(normal, offset + 0.001);
+
+    // Orient ring to face surface
+    const quaternion = new THREE.Quaternion();
+    quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+    this._selectionRing.quaternion.copy(quaternion);
+
+    // Apply same rotation as the mark
+    if (markData.rotation !== 0) {
+      const rotQ = new THREE.Quaternion().setFromAxisAngle(normal, markData.rotation);
+      this._selectionRing.quaternion.premultiply(rotQ);
+    }
+
+    this._selectionRing.visible = true;
+  }
+
+  _hideSelectionRing() {
+    if (this._selectionRing) this._selectionRing.visible = false;
+  }
+
   // ─── Selection ──────────────────────────────────────────────────────────
 
   selectMark(index) {
@@ -376,18 +458,22 @@ class SkinMarkSystem {
       mesh.material.emissive = new THREE.Color(0x7aa2f7);
       mesh.material.emissiveIntensity = 0.4;
     }
+    this._updateSelectionRing();
     if (this.onMarkChanged) this.onMarkChanged();
   }
 
   _clearSelection() {
     if (this.selectedMarkIndex >= 0 && this.selectedMarkIndex < this.markMeshes.length) {
+      console.log('[SkinMarkSystem] _clearSelection: clearing index', this.selectedMarkIndex);
       const mesh = this.markMeshes[this.selectedMarkIndex];
       if (mesh && mesh.material) {
-        mesh.material.emissive = new THREE.Color(0x000000);
+        mesh.material.emissive.setHex(0x000000);
         mesh.material.emissiveIntensity = 0;
+        mesh.material.needsUpdate = true;
       }
     }
     this.selectedMarkIndex = -1;
+    this._hideSelectionRing();
   }
 
   // ─── Update / Delete ────────────────────────────────────────────────────
@@ -407,6 +493,7 @@ class SkinMarkSystem {
           mesh.geometry = typeDef.createGeometry(value);
         }
         this._orientMark(mesh, markData);
+        this._updateSelectionRing();
         break;
       case 'color':
         markData.color = value;
@@ -415,6 +502,7 @@ class SkinMarkSystem {
       case 'rotation':
         markData.rotation = value;
         this._orientMark(mesh, markData);
+        this._updateSelectionRing();
         break;
     }
 
@@ -422,14 +510,31 @@ class SkinMarkSystem {
   }
 
   deleteSelectedMark() {
-    if (this.selectedMarkIndex < 0) return;
-    const mesh = this.markMeshes[this.selectedMarkIndex];
+    const idx = this.selectedMarkIndex;
+    if (idx < 0 || idx >= this.marks.length) {
+      console.warn('[SkinMarkSystem] deleteSelectedMark called with no valid selection:', idx);
+      return;
+    }
+    console.log('[SkinMarkSystem] Deleting mark at index', idx);
+
+    // Clear highlight and ring first
+    const mesh = this.markMeshes[idx];
+    if (mesh && mesh.material) {
+      mesh.material.emissive = new THREE.Color(0x000000);
+      mesh.material.emissiveIntensity = 0;
+    }
+    this.selectedMarkIndex = -1;
+    this._hideSelectionRing();
+
+    // Remove mesh from scene
     this.markGroup.remove(mesh);
     mesh.geometry.dispose();
     mesh.material.dispose();
-    this.marks.splice(this.selectedMarkIndex, 1);
-    this.markMeshes.splice(this.selectedMarkIndex, 1);
-    this.selectedMarkIndex = -1;
+
+    // Remove from arrays
+    this.marks.splice(idx, 1);
+    this.markMeshes.splice(idx, 1);
+
     if (this.onMarkChanged) this.onMarkChanged();
   }
 
@@ -439,26 +544,43 @@ class SkinMarkSystem {
     if (event.button !== 0) return;
     this._getNDC(event);
 
-    // First: check if clicking an existing mark
+    // Check if clicking an existing mark
     const markHit = this._raycastMarks();
     if (markHit) {
       event.preventDefault();
-      event.stopPropagation();
+      event.stopImmediatePropagation();
       const idx = this.markMeshes.findIndex(m => m === markHit.object);
       if (idx >= 0) {
-        this.selectMark(idx);
-        this.isDragging = true;
-        this.controls.enabled = false;
+        if (idx === this.selectedMarkIndex) {
+          // Clicking the already-selected mark → deselect
+          console.log('[SkinMarkSystem] Deselecting mark', idx);
+          this._clearSelection();
+          if (this.onMarkChanged) this.onMarkChanged();
+        } else {
+          // Clicking a different mark → select it
+          this.selectMark(idx);
+          this.isDragging = true;
+          this.controls.enabled = false;
+        }
       }
       return;
     }
 
-    // Second: check if clicking the face to place a new mark
+    // Clicking the face while a mark is selected → deselect only
+    if (this.selectedMarkIndex >= 0) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      console.log('[SkinMarkSystem] Deselecting via face click');
+      this._clearSelection();
+      if (this.onMarkChanged) this.onMarkChanged();
+      return;
+    }
+
+    // Clicking the face with nothing selected → place new mark
     const faceHit = this._raycastHead();
     if (faceHit) {
       event.preventDefault();
-      event.stopPropagation();
-      this._clearSelection();
+      event.stopImmediatePropagation();
       this.addMark(faceHit);
       this.controls.enabled = false;
     }
@@ -509,6 +631,7 @@ class SkinMarkSystem {
     markData.anchorBaryCoords = this._computeBarycentricCoords(faceHit);
 
     this._orientMark(this.markMeshes[this.selectedMarkIndex], markData);
+    this._updateSelectionRing();
   }
 
   _onPointerUp(event) {
@@ -700,6 +823,7 @@ class SkinMarkSystem {
         this._refreshMarkFallback(markData, mesh, invMatrix, invNormalMatrix);
       }
     }
+    this._updateSelectionRing();
   }
 
   _refreshMarkFallback(markData, mesh, invMatrix, invNormalMatrix) {
@@ -792,6 +916,7 @@ class SkinMarkSystem {
   }
 
   clearAll() {
+    this._clearSelection();
     for (const mesh of this.markMeshes) {
       this.markGroup.remove(mesh);
       mesh.geometry.dispose();
@@ -799,7 +924,6 @@ class SkinMarkSystem {
     }
     this.marks = [];
     this.markMeshes = [];
-    this.selectedMarkIndex = -1;
     if (this.onMarkChanged) this.onMarkChanged();
   }
 

@@ -103,6 +103,7 @@ Color: hex color string
 
 ## APPEARANCE
 skinColor: hex color string (e.g., "#f5deb3" very light, "#d4a574" medium, "#3b2010" very dark)
+lipColor: hex color string or null (e.g., "#c44569" rose, "#b33939" red, "#e08283" pink, "#cc8e7a" nude). Only set if the user mentions lip color/lipstick.
 eyeColor: hex color string (e.g., "#634e34" brown, "#2e536f" blue, "#3d671d" green)
 ageRange: "18-25", "25-35", "35-45", "45-55", "55-65", "65+"
 sex: "male" or "female"
@@ -139,7 +140,7 @@ Example facial marks:
   "hair": { "style": "hair1", "color": "#hex", "length": 50, "density": 50, "volume": 50, "curl": 0 },
   "eyebrows": { "thickness": 50, "arch": 50, "spacing": 50, "density": 70 },
   "beard": { "style": "none", "color": "#hex" },
-  "appearance": { "skinColor": "#hex", "eyeColor": "#hex", "ageRange": "25-35", "sex": "male" },
+  "appearance": { "skinColor": "#hex", "lipColor": "#hex", "eyeColor": "#hex", "ageRange": "25-35", "sex": "male" },
   "facialMarks": [
     { "type": "scar", "region": "cheek", "side": "right", "offset_x": 0.2, "offset_y": -0.1, "size": 0.03 }
   ]

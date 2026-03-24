@@ -1,0 +1,705 @@
+================================================================================
+  REface ID — New Project Detailed Context
+  Generated: 2026-03-20
+================================================================================
+
+1. PROJECT OVERVIEW
+================================================================================
+
+Title:    REface ID — 3D Forensic Facial Reconstruction
+Version:  1.0.0
+Author:   REface ID Team
+License:  ISC — For authorized forensic and law enforcement use
+
+Description:
+  A desktop application for 3D facial reconstruction used in forensic and law
+  enforcement investigations. Upgrades the traditional 2D composite sketch
+  workflow into an interactive 3D system powered by Blender Engine, Three.js,
+  and AI-assisted face generation (Claude/Gemini).
+
+Primary Use Cases:
+  - Law enforcement facial composite creation from witness descriptions
+  - Forensic identification and reconstruction from skeletal remains
+  - Courtroom presentation of suspect/victim facial reconstructions
+  - AI-assisted rapid face generation from natural language descriptions
+  - 3D model export for printing, sharing, or further analysis
+
+
+2. TECH STACK
+================================================================================
+
+Layer               | Technology              | Version / Details
+--------------------|-------------------------|----------------------------------
+Desktop Shell       | Electron                | ^28.0.0
+3D Rendering        | Three.js                | ^0.160.0
+UI Framework        | HTML/CSS/JavaScript      | Vanilla (no React/Vue)
+Backend Server      | Python + Flask           | Flask + flask-cors
+3D Engine           | Blender (bpy)            | 3.6+ / 4.x / 5.x (background)
+AI Providers        | Anthropic Claude         | claude-haiku-4-5-20251001
+                    | Google Gemini            | gemini-1.5-flash
+Speech Recognition  | SpeechRecognition (Py)   | Google Speech API
+Face Tracking       | MediaPipe Face Mesh      | CDN-loaded
+Build Tool          | electron-builder         | ^24.9.1
+Dev Orchestration   | concurrently             | ^8.2.2
+HTTP Client         | node-fetch               | ^2.7.0
+
+Python Dependencies (backend/requirements.txt):
+  flask, flask-cors, python-dotenv, anthropic, google-generativeai,
+  SpeechRecognition, numpy, Pillow
+
+Node Dependencies (package.json):
+  three, express, node-fetch, electron, electron-builder, concurrently
+
+External CDN Dependencies:
+  MediaPipe Face Mesh (for webcam head tracking)
+
+Vendor Libraries (src/renderer/js/vendor/):
+  OrbitControls.js, OBJLoader.js, GLBLoader.js
+
+
+3. SYSTEM ARCHITECTURE
+================================================================================
+
+3.1 High-Level Architecture Diagram:
+
+  +----------------------------------------------------------+
+  |                    Electron Shell                         |
+  |  (main.js) — BrowserWindow, IPC, Menu, Dialogs           |
+  |       |              |                                    |
+  |  [preload.js]   [spawns Python]                           |
+  |       |              |                                    |
+  |  +----v--------------v----------------------------------+ |
+  |  |         Renderer Process (index.html)                | |
+  |  |  +-----------------------------------------------+  | |
+  |  |  |  Three.js Viewport (SceneManager)              |  | |
+  |  |  |  - Camera, Lights, OrbitControls               |  | |
+  |  |  |  - Head GLB mesh, Hair GLBs, Eye GLBs          |  | |
+  |  |  +-----------------------------------------------+  | |
+  |  |  +-----------------------------------------------+  | |
+  |  |  |  Application Systems Layer                     |  | |
+  |  |  |  - OBJMorpher (landmark deformation)           |  | |
+  |  |  |  - HairSystem (GLB hair/eyebrow/beard)         |  | |
+  |  |  |  - EyeSystem (GLB eyes/eyelashes)              |  | |
+  |  |  |  - FacePointEditor (direct sculpt)             |  | |
+  |  |  |  - SkinMarkSystem (moles/scars/wounds)         |  | |
+  |  |  |  - AIController (chat + AI generation)         |  | |
+  |  |  |  - HeadTracker (webcam face tracking)          |  | |
+  |  |  |  - CaseManager (undo/redo, persistence)        |  | |
+  |  |  |  - SnapshotManager (state bookmarks)           |  | |
+  |  |  |  - MorphWorker (Web Worker offload)            |  | |
+  |  |  +-----------------------------------------------+  | |
+  |  |  +-----------------------------------------------+  | |
+  |  |  |  UI Layer (UIController + HTML/CSS)            |  | |
+  |  |  |  - Left panel: Face/Hair/Look/AI/Snaps/Case   |  | |
+  |  |  |  - Top toolbar: View/Edit/Track/Export tools   |  | |
+  |  |  |  - Custom title bar with backend status        |  | |
+  |  |  +-----------------------------------------------+  | |
+  |  +------------------------------------------------------+ |
+  +----------------------------------------------------------+
+                         |  HTTP (localhost:5001)
+  +------------------------------------------------------+
+  |           Flask Backend (server.py)                   |
+  |  - /api/health          Health check                  |
+  |  - /api/morph           Blender morph                 |
+  |  - /api/hair/*          Blender hair generation       |
+  |  - /api/export          Multi-format 3D export        |
+  |  - /api/case/*          Case save/load (.rfc)         |
+  |  - /api/render/*        Blender render pipeline       |
+  |  - /api/ai/*            AI face generation            |
+  |  - /api/speech/*        Speech transcription          |
+  |  - /api/blender/config  Manual Blender path           |
+  +------------------------------------------------------+
+                         |  subprocess (background)
+  +------------------------------------------------------+
+  |           Blender Scripts (bpy)                       |
+  |  - apply_morphs.py     Vertex morph operations        |
+  |  - generate_hair.py    Particle hair system           |
+  |  - export_model.py     OBJ/FBX/GLB export            |
+  |  - render_scene.py     Cycles/EEVEE render            |
+  +------------------------------------------------------+
+
+3.2 Process Lifecycle:
+  1. Electron starts → spawns Flask backend (server.py on port 5001)
+  2. BrowserWindow loads index.html (frameless, custom title bar)
+  3. app.js initializes all systems: SceneManager, OBJMorpher, HairSystem,
+     EyeSystem, BackendAPI, CaseManager, etc.
+  4. Loads head.glb + head_regions.json concurrently
+  5. OBJMorpher binds mesh; Hair/Eye systems attach to head
+  6. UIController wires all DOM events, sliders, panels
+  7. AI/Snapshot/HeadTracker systems initialized
+  8. User interacts via sliders, AI chat, point editing, etc.
+  9. Changes sync through CaseManager (undo/redo stack)
+  10. Export/Save routes through Flask → Blender background scripts
+
+3.3 IPC Bridge (preload.js):
+  Exposed via window.electronAPI:
+  - Window controls: minimize, maximize, close
+  - Dialogs: saveDialog, openDialog, saveFile, downloadExportedFile
+  - Menu callbacks: onNewCase, onOpenCase, onSaveCase, onExport, onScreenshot
+
+
+4. PROJECT STRUCTURE
+================================================================================
+
+REface ID/
+├── src/
+│   ├── main/
+│   │   ├── main.js                 # Electron main process (220 lines)
+│   │   └── preload.js              # Context bridge API (22 lines)
+│   └── renderer/
+│       ├── index.html              # Main UI layout (85KB, full app UI)
+│       ├── js/
+│       │   ├── app.js              # App bootstrap & system wiring (338 lines)
+│       │   ├── SceneManager.js     # Three.js scene/camera/lights (493 lines)
+│       │   ├── OBJMorpher.js       # Primary morph engine (908 lines)
+│       │   ├── FaceMorpher.js      # Procedural fallback morpher (232 lines)
+│       │   ├── BaseFaceGeometry.js # Procedural head mesh (243 lines)
+│       │   ├── MorphWorker.js      # Web Worker for morph compute (585 lines)
+│       │   ├── HairSystem.js       # Hair/eyebrow/beard GLB system (794 lines)
+│       │   ├── EyeSystem.js        # Eye/eyelash GLB system (938 lines)
+│       │   ├── FacePointEditor.js  # Direct landmark sculpting (753 lines)
+│       │   ├── SkinMarkSystem.js   # Skin mark placement (807 lines)
+│       │   ├── MarkPositionMapper.js # AI mark → 3D position (174 lines)
+│       │   ├── UIController.js     # All UI bindings (1920 lines)
+│       │   ├── BackendAPI.js       # Flask HTTP wrapper (136 lines)
+│       │   ├── CaseManager.js      # Case state + undo/redo (217 lines)
+│       │   ├── SnapshotManager.js  # State bookmarks (213 lines)
+│       │   ├── AIController.js     # AI chat + generation (823 lines)
+│       │   ├── HeadTracker.js      # Webcam face tracking (433 lines)
+│       │   └── vendor/
+│       │       ├── OrbitControls.js # Three.js orbit controls
+│       │       ├── OBJLoader.js    # OBJ file loader
+│       │       └── GLBLoader.js    # GLB/glTF file loader
+│       └── styles/
+│           ├── main.css            # Core layout & dark theme (10KB)
+│           ├── panels.css          # Panel & control styling (21KB)
+│           └── controls.css        # Sliders, inputs, buttons (9KB)
+├── backend/
+│   ├── server.py                   # Flask REST API (831 lines)
+│   ├── analyze_mesh.py             # Trimesh region classifier (204 lines)
+│   ├── requirements.txt            # Python dependencies
+│   ├── collab.db                   # SQLite database (53KB)
+│   ├── blender_scripts/
+│   │   ├── apply_morphs.py         # Blender morph operations (161 lines)
+│   │   ├── generate_hair.py        # Particle hair system (329 lines)
+│   │   ├── export_model.py         # Multi-format export (148 lines)
+│   │   └── render_scene.py         # Cycles/EEVEE render (652 lines)
+│   ├── renders/                    # Render output directory
+│   └── exports/                    # Export output directory (runtime)
+│   └── cases/                      # Saved case files (runtime)
+├── assets/
+│   └── models/
+│       ├── base/
+│       │   ├── head.glb            # Primary head mesh (796KB)
+│       │   ├── head_regions.json   # Region metadata (179KB)
+│       │   ├── base_face.obj       # OBJ head mesh (3.2MB)
+│       │   ├── base_face.mtl       # Material file
+│       │   └── base_face_regions.json
+│       ├── hair/
+│       │   └── Hair1-12.glb        # 12 hair style models
+│       └── facial/
+│           ├── eyebrows.glb        # Eyebrow model (1.7MB)
+│           ├── Beard1.glb          # Beard model (16.8MB)
+│           ├── EyeLeft.glb         # Left eye (140KB)
+│           ├── EyeRight.glb        # Right eye (140KB)
+│           └── eyelashes.glb       # Eyelash model (2.5MB)
+├── public/
+│   ├── bundle.js                   # Webpack bundle (950KB)
+│   └── bundle.js.LICENSE.txt
+├── Prev_script/
+│   └── reface_app.py              # Previous monolithic Python app (115KB)
+├── package.json
+├── README.md
+├── PROJECT_CONTEXT.txt
+└── .gitignore
+
+
+5. IMPLEMENTED FEATURES (CODE-VERIFIED)
+================================================================================
+
+5.1 FACE RECONSTRUCTION & MORPHING
+  - Real-time landmark-based vertex deformation via OBJMorpher.js
+  - 50+ morph parameters across 9 facial regions:
+    * Skull: faceWidth, faceLength, headWidth, headLength, faceTaper
+    * Forehead: foreheadHeight, foreheadSlope, foreheadWidth, templeWidth,
+                foreheadBulge
+    * Brows: browHeight, browSpacing, browProminence, browArch, browThickness
+    * Eyes: eyeSpacing, eyeHeight, eyeDepth, eyeSize, eyeTilt, eyeOpenness
+    * Nose: noseLength, noseWidth, noseBridgeWidth, noseBridgeHeight,
+            noseTipHeight, noseTipWidth, nostrilFlare
+    * Cheeks: cheekFullness, cheekboneProminence, cheekHeight, nasolabialDepth
+    * Mouth: mouthWidth, mouthHeight, lipProtrusion, upperLipThickness,
+             lowerLipThickness, cupidBow, philtrumDepth, philtrumWidth,
+             lipCornerAngle
+    * Jaw/Chin: jawWidth, chinHeight, chinWidth, chinProtrusion, jawDefinition
+    * Ears: earSize, earProtrusion, earHeight, earlobeSize
+  - Parameter range: 0-100, default 50 (neutral)
+  - Gaussian weight falloff with face mask boundaries
+  - Region/landmark weighted deformation with side-aware directional influence
+  - Group reset and full reset supported
+  - Web Worker offloading (MorphWorker.js) for heavy computation
+  - Procedural fallback (BaseFaceGeometry + FaceMorpher) if GLB fails to load
+
+5.2 MANUAL POINT EDITING (Advanced Sculpt Mode)
+  - FacePointEditor.js: direct manipulation of facial control points
+  - Dragging points deforms mesh using same Gaussian engine as sliders
+  - Supports asymmetric edits (left/right side independence)
+  - Configurable: influence radius, point size, falloff strength
+  - Own undo/reset stack
+  - Mutual exclusion with skin mark mode
+  - Integrated into toolbar and UI history
+
+5.3 HAIR SYSTEM
+  - HairSystem.js loads 12 GLB hair models (Hair1-Hair12 + bald option)
+  - Hair properties: length, density, volume, curl (0-100 sliders)
+  - Transform controls: posX, posY, posZ, rotY, scale
+  - Eyebrow GLB pipeline with 12+ parameters:
+    thickness, arch, spacing, density, posX, posY, posZ, rotation,
+    scale, straighten, tiltX, length, opacity
+  - Beard pipeline (none / beard1) with transform and color controls
+  - Hair/eyebrow/beard color pickers (hex color)
+  - Auto-refresh alignment after morph changes
+  - Bounding box caching for performance
+
+5.4 EYE SYSTEM
+  - EyeSystem.js loads left/right eye GLB models (realistic/cartoon styles)
+  - Eye properties: scale, spacing, posX/Y/Z, rotX/Y/Z, opacity
+  - Iris color customization
+  - Sclera color support
+  - Eyelash model with separate params and visibility/color
+  - Eye positioning auto-tracks facial morph updates via landmarks
+  - Model caching for rapid style switching
+
+5.5 SKIN MARKS
+  - SkinMarkSystem.js: place/select/move/delete marks on face mesh
+  - Mark types: moles, pimples, scars, birthmarks, wounds
+  - Placement via raycasting onto face surface
+  - Barycentric coordinate tracking (marks survive morph deformations)
+  - Mark group attached to head mesh (moves with model)
+  - Select, drag, delete interactions with keyboard support
+  - MarkPositionMapper.js: converts AI region+offset to 3D world position
+
+5.6 CASE MANAGEMENT & UNDO/REDO
+  - CaseManager.js: full case state management
+  - Case fields: caseId, caseNumber, caseName, investigator, description,
+    notes, morphTargets, hairParams, appearance, skinMarks, cameraState,
+    createdAt, modifiedAt
+  - Undo/redo stacks (max 50 steps)
+  - beginAction/endAction for continuous controls (slider drags)
+  - cancelAction for abandoned operations
+  - Case files persisted as .rfc (JSON) via backend API
+  - New case / open case / save case workflow
+
+5.7 SNAPSHOT SYSTEM
+  - SnapshotManager.js: named state snapshots with viewport thumbnails
+  - Up to 30 snapshots per case
+  - Stored in localStorage scoped by case ID
+  - Capture / restore / rename / delete / delete-all
+  - Thumbnail generation (120x90 JPEG) from viewport
+  - Storage quota handling with thumbnail trimming
+
+5.8 AI-ASSISTED FACE GENERATION
+  - AIController.js: chat panel for natural language reconstruction
+  - Dual AI provider support: Anthropic Claude + Google Gemini
+  - Provider selection dropdown in UI
+  - Sends: prompt + current state + conversation history + reference images
+  - Supports up to 5 reference images (base64, PNG/JPEG/WEBP, max 5MB each)
+  - Multimodal: AI analyzes reference photos to infer facial traits
+  - Returns JSON deltas applied to morphs/hair/eyebrows/beard/appearance
+  - Conversational refinement ("make the nose wider", "add scars")
+  - Facial mark generation from AI (scars, birthmarks, moles)
+  - Mark handling modes: preserve, replace, merge
+  - AI undo (routes through normal undo stack)
+  - Quick prompt buttons for common descriptions
+  - Clear conversation functionality
+
+5.9 VOICE INPUT
+  - Microphone button in AI chat panel
+  - Backend /api/speech/transcribe: audio upload → text transcription
+  - Supports WebM → WAV conversion (via pydub)
+  - Uses Google Speech Recognition API
+  - Transcribed text inserted into chat input
+
+5.10 HEAD TRACKING (Webcam)
+  - HeadTracker.js: webcam + MediaPipe Face Mesh
+  - Estimates yaw/pitch from face landmarks
+  - Rotates pivot group containing head/hair/eyes in real-time
+  - Smoothing factor (0.15), sensitivity (1.5x), max angle (45°)
+  - Calibration system (10-frame average for neutral position)
+  - Start/stop/toggle and recalibration controls
+  - Small preview canvas in corner when active
+
+5.11 VIEWPORT & VISUALIZATION
+  - SceneManager.js: Three.js scene, camera (35° FOV), orbit controls
+  - WebGL renderer: antialiasing, shadows (PCFSoft), ACES tone mapping
+  - View presets: Front, Side, 3/4, Top
+  - 3 lighting presets: Studio, Outdoor, Dramatic
+  - Ground plane with grid helper
+  - Wireframe toggle
+  - Dark forensic theme (background #1a1a24)
+  - Screenshot capture (preserveDrawingBuffer)
+
+5.12 EXPORT & RENDERING
+  - Multi-format 3D export: OBJ, FBX, GLB
+  - Backend export via Blender scripts (export_model.py)
+  - Skin material with subsurface scattering applied on export
+  - Blender render pipeline (render_scene.py):
+    * Cycles or EEVEE engine
+    * Quality presets (low/medium/high)
+    * Realistic skin SSS material
+    * Hair integration
+    * Camera + lighting setup
+  - Render output as PNG images
+  - File download via Electron save dialog
+  - Note: UI render trigger currently commented out (pending fixes)
+
+5.13 KEYBOARD SHORTCUTS
+  Key         | Action
+  ------------|------------------
+  Ctrl+N      | New Case
+  Ctrl+O      | Open Case
+  Ctrl+S      | Save Case
+  Ctrl+Z      | Undo
+  Ctrl+Y      | Redo
+  1           | Front View
+  3           | Side View
+  5           | 3/4 View
+  7           | Top View
+
+5.14 UI STRUCTURE
+  - Custom frameless title bar with backend status indicator
+  - Left sidebar with 6 tab panels: Face, Hair, Look, AI, Snaps, Case
+  - Top toolbar: view presets, wireframe, lighting, point edit, skin marks,
+    head tracking, undo/redo, screenshot, export
+  - Collapsible control groups within panels
+  - Dark forensic theme (CSS: main.css, panels.css, controls.css)
+  - Status bar: mesh info, polygon count, view angle
+
+
+6. BACKEND API SURFACE
+================================================================================
+
+Endpoint                          | Method | Description
+----------------------------------|--------|----------------------------------
+/api/health                       | GET    | Server + Blender status check
+/api/morph                        | POST   | Apply morph targets via Blender
+/api/hair/generate                | POST   | Generate Blender particle hair
+/api/hair/download/<filename>     | GET    | Download generated hair mesh
+/api/export                       | POST   | Export as OBJ/FBX/GLB
+/api/export/download/<filename>   | GET    | Download exported file
+/api/case/save                    | POST   | Save case as .rfc JSON
+/api/case/load                    | POST   | Load case from .rfc file
+/api/render/upload-mesh           | POST   | Upload morphed OBJ for render
+/api/render                       | POST   | Blender render (Cycles/EEVEE)
+/api/render/download/<filename>   | GET    | Download render image
+/api/ai/providers                 | GET    | List available AI providers
+/api/ai/generate                  | POST   | AI face parameter generation
+/api/speech/transcribe            | POST   | Audio → text transcription
+/api/blender/config               | POST   | Set Blender executable path
+
+
+7. DATA & ASSET DEPENDENCIES
+================================================================================
+
+7.1 3D Models (assets/models/):
+  - base/head.glb (796KB) — Primary head mesh (GLB format, Y-up)
+  - base/head_regions.json (179KB) — Per-vertex region classification
+  - base/base_face.obj (3.2MB) — OBJ format head (for Blender scripts)
+  - base/base_face.mtl — Material definitions
+  - hair/Hair1-12.glb — 12 hair style models (128KB-1.6MB each)
+  - facial/eyebrows.glb (1.7MB) — Eyebrow mesh
+  - facial/Beard1.glb (16.8MB) — Full beard mesh
+  - facial/EyeLeft.glb, EyeRight.glb (140KB each) — Eye models
+  - facial/eyelashes.glb (2.5MB) — Eyelash model
+
+7.2 Region Classification:
+  20 facial regions classified by analyze_mesh.py:
+  SCALP, FOREHEAD, BROW, EYE_LEFT, EYE_RIGHT, NOSE_BRIDGE, NOSE_TIP,
+  NOSE_BASE, CHEEKBONE, CHEEKS, UPPER_LIP, LOWER_LIP, MOUTH_AREA,
+  JAW, JAW_ANGLE, CHIN, EAR_LEFT, EAR_RIGHT, NECK, BACK_HEAD
+
+7.3 Runtime Directories (created by backend):
+  - backend/exports/ — Morph/export/intermediate files
+  - backend/renders/ — Render output images
+  - backend/cases/   — .rfc case files
+
+7.4 Configuration / Environment:
+  - .env file (project root): ANTHROPIC_API_KEY, GEMINI_API_KEY, AI_PROVIDER
+  - Blender path: auto-detected from standard install locations
+  - Backend: localhost:5001
+  - localStorage: snapshot persistence (per-case scoped)
+
+
+8. MORPH ENGINE TECHNICAL DETAILS
+================================================================================
+
+8.1 OBJMorpher Architecture:
+  - Loads GLB head mesh → extracts all sub-meshes
+  - Stores original vertex positions (Float64Array)
+  - 100+ facial landmarks with 3D coordinates (Y-up system)
+  - Per-parameter morph rules define:
+    * Target landmark(s)
+    * Influence radius (Gaussian falloff)
+    * Direction (X/Y/Z axis, scaling vs translation)
+    * Side-awareness (left/right/both)
+  - Face mask: smooth boundary at face edges (transition_width=0.075)
+  - Weight caching for performance
+
+8.2 Deformation Pipeline:
+  1. User changes slider → morphValues[param] updated
+  2. For each param, compute weight per vertex:
+     weight = gaussian(distance_to_landmark) * face_mask * directional_weight
+  3. Accumulate vertex offsets across all params
+  4. Apply: final_pos = original_pos + offset
+  5. Update Three.js geometry buffers
+  6. Trigger onMorphApplied → refresh hair/eyes/marks
+
+8.3 Web Worker Offloading:
+  - MorphWorker.js runs heavy computation off main thread
+  - Messages: init (send geometry data), morph (send values, receive positions)
+  - Transferable Float32Arrays for zero-copy performance
+
+
+9. AI SYSTEM PROMPT & PARAMETER MAPPING
+================================================================================
+
+The AI system prompt (in server.py) instructs Claude/Gemini to:
+  - Accept natural language face descriptions
+  - Return strict JSON with parameter deltas
+  - Support all morph targets, hair styles, eyebrows, beard, appearance
+  - Handle facial marks (scars, birthmarks, moles, pimples, wounds)
+  - Support conversational refinement with relative adjustments
+  - Analyze reference images for visible facial traits
+  - Value guide: 0=minimum, 50=neutral, 100=maximum
+  - "slightly" = 5-10 delta, "more" = 15-25 delta
+
+Output format:
+  {
+    "morphTargets": { "paramName": value },
+    "hair": { "style": "hair1", "color": "#hex", ... },
+    "eyebrows": { "thickness": 50, ... },
+    "beard": { "style": "none", "color": "#hex" },
+    "appearance": { "skinColor": "#hex", "eyeColor": "#hex", ... },
+    "facialMarks": [ { "type": "scar", "region": "cheek", ... } ]
+  }
+
+
+10. CURRENT KNOWN LIMITATIONS & CAVEATS
+================================================================================
+
+  - main.js always opens DevTools (hardcoded — should be dev-only)
+  - Blender render UI trigger commented out in UIController (pending fixes)
+  - Backend tries Miniforge conda env first, then falls back to 'python'
+  - If base model/region data missing, falls back to procedural geometry
+  - collab.db exists in backend but no collaboration features implemented yet
+  - No authentication or multi-user support
+  - No automated testing suite
+  - bundle.js in public/ may be stale (950KB webpack bundle)
+  - Prev_script/reface_app.py is legacy monolithic Python app (115KB)
+  - Beard model (Beard1.glb) is large at 16.8MB
+  - localStorage snapshots limited by browser quota
+
+
+11. FUTURE SCOPE & FEATURE RECOMMENDATIONS
+================================================================================
+
+11.1 HIGH PRIORITY — Core Enhancement
+
+  A. Multi-Angle Reference Image Analysis
+     - Accept front + side profile photos simultaneously
+     - AI generates parameters from multiple viewpoints for better accuracy
+     - Automated landmark detection on reference photos
+
+  B. Texture Mapping & Skin Details
+     - UV-based skin texture painting (wrinkles, pores, freckles)
+     - Age-based texture presets (young smooth → elderly wrinkled)
+     - Photo-to-texture projection from reference images
+     - Normal mapping for skin micro-detail
+
+  C. Collaboration & Multi-User Support
+     - Real-time collaborative editing (WebSocket-based)
+     - Role-based access (investigator, supervisor, admin)
+     - Case sharing and version history
+     - Audit trail for forensic chain-of-custody
+     - The collab.db SQLite database already exists as a foundation
+
+  D. Database-Backed Case Management
+     - Replace .rfc JSON files with proper database (SQLite/PostgreSQL)
+     - Case search, filtering, tagging
+     - Attach evidence files (photos, audio recordings, documents)
+     - Case timeline and modification history
+
+11.2 MEDIUM PRIORITY — Advanced Features
+
+  E. Facial Expression System
+     - Blend shapes for emotions (smile, frown, surprise, anger)
+     - Expression sliders for witness description refinement
+     - FACS (Facial Action Coding System) integration
+
+  F. Body/Clothing Extension
+     - Neck, shoulders, upper body modeling
+     - Clothing/accessory library (hats, glasses, masks, helmets)
+     - Tattoo and piercing placement system
+
+  G. Advanced Hair System
+     - More hair styles (20+ additional presets)
+     - Hair physics simulation preview
+     - Procedural hair strand generation
+     - Multiple beard/mustache styles
+     - Hair parting and styling tools
+
+  H. Aging/De-aging System
+     - AI-powered age progression/regression
+     - Automated wrinkle/sag/volume-loss application
+     - Age range slider with realistic transitions
+     - Useful for missing persons (how they'd look years later)
+
+  I. Dental/Mouth Interior
+     - Teeth visibility and arrangement
+     - Lip shape refinement with dental landmarks
+     - Open/closed mouth positions
+
+11.3 MEDIUM PRIORITY — Technical Improvements
+
+  J. Performance Optimization
+     - GPU-accelerated morph computation (WebGPU/compute shaders)
+     - Level-of-detail (LOD) system for complex scenes
+     - Lazy loading for hair/eye models
+     - Reduce Beard1.glb file size (16.8MB → optimize)
+
+  K. Automated Testing
+     - Unit tests for morph engine (parameter → vertex displacement)
+     - Integration tests for backend API endpoints
+     - E2E tests with Playwright/Spectron for Electron UI
+     - Visual regression tests for 3D viewport
+
+  L. Cross-Platform Packaging
+     - macOS .dmg build configuration
+     - Linux AppImage/Snap/Flatpak
+     - Auto-update mechanism (electron-updater)
+     - Code signing for distribution
+
+  M. Offline AI Mode
+     - Local LLM integration (llama.cpp, Ollama)
+     - Works without internet/API keys
+     - Privacy-sensitive deployment for classified cases
+
+11.4 LOW PRIORITY — Nice-to-Have
+
+  N. 3D Printing Integration
+     - Direct STL export with proper manifold mesh
+     - Print-ready scaling and hollowing
+     - Support slicing profiles for popular printers
+
+  O. VR/AR Preview
+     - WebXR integration for immersive viewing
+     - AR overlay on live camera for witness comparison
+     - Stereoscopic 3D export
+
+  P. Report Generation
+     - Auto-generate PDF forensic reports
+     - Include multiple viewport screenshots
+     - Case metadata, parameter summary, investigator notes
+     - Comparison layouts (before/after, side-by-side suspects)
+
+  Q. Facial Recognition Integration
+     - Compare generated face against databases
+     - Similarity scoring against mugshot galleries
+     - INTERPOL/NCIC database connectivity (with proper authorization)
+
+  R. Video Reconstruction
+     - Frame-by-frame face extraction from CCTV footage
+     - Super-resolution enhancement for low-quality captures
+     - Temporal consistency for video-based reconstructions
+
+  S. Mobile Companion App
+     - Lightweight viewer for case files on mobile devices
+     - Field capture of witness descriptions
+     - Sync with desktop app via cloud or local network
+
+  T. Plugin/Extension System
+     - Custom morph parameter plugins
+     - Third-party model importers
+     - Community hair/accessory marketplace
+     - Script automation API
+
+  U. Advanced Lighting & Materials
+     - PBR material system with roughness/metalness maps
+     - Environment map lighting (HDR probes)
+     - Ambient occlusion and global illumination preview
+     - Skin shader with subsurface scattering in viewport
+
+  V. Symmetry Tools
+     - Mirror left-to-right / right-to-left
+     - Asymmetry slider (real faces are not perfectly symmetric)
+     - Side-by-side comparison mode
+
+  W. Batch Processing
+     - Generate multiple face variants from one description
+     - Batch export of case files
+     - Lineup generation (suspect + similar faces)
+
+  X. Cloud Deployment Option
+     - Web-based version (no Electron dependency)
+     - Server-side Blender rendering
+     - Multi-tenant SaaS for police departments
+     - Secure cloud storage for case files
+
+
+12. DEVELOPMENT WORKFLOW
+================================================================================
+
+12.1 Setup:
+  Prerequisites: Node.js 18+, Python 3.9+, Blender 3.6+
+  npm install                  # Install Node dependencies
+  pip install -r backend/requirements.txt  # Install Python dependencies
+  Copy .env.example to .env and add API keys
+
+12.2 Running:
+  npm run dev                  # Start backend + Electron together
+  npm start                    # Electron only (backend must be running)
+  npm run start:backend        # Python backend only
+
+12.3 Building:
+  npm run build                # electron-builder → dist/
+
+12.4 Key Entry Points for Developers:
+  - App behavior:     src/renderer/js/app.js, UIController.js
+  - Morph quality:    src/renderer/js/OBJMorpher.js
+  - Hair/eye:         src/renderer/js/HairSystem.js, EyeSystem.js
+  - AI prompts:       backend/server.py (AI_SYSTEM_PROMPT), AIController.js
+  - Blender pipeline: backend/blender_scripts/*.py
+  - UI layout:        src/renderer/index.html
+  - Styling:          src/renderer/styles/*.css
+
+12.5 Adding New Models:
+  - Hair: Export as HairN.glb → assets/models/hair/ → update HairSystem.js
+  - Beard: Export as BeardN.glb → assets/models/facial/ → update HairSystem.js
+  - Eyes: Export as GLB → assets/models/facial/ → update EyeSystem.js
+
+
+13. SUMMARY
+================================================================================
+
+REface ID is a full-featured forensic 3D facial reconstruction desktop
+application with:
+
+  - 50+ parametric morph controls with real-time deformation
+  - GLB-based hair (12 styles), eyebrow, beard, eye, and eyelash systems
+  - Direct point-based sculpting for advanced users
+  - Skin mark system (moles, scars, wounds) with surface tracking
+  - AI-assisted face generation via Claude/Gemini with image analysis
+  - Voice input for hands-free operation
+  - Webcam head tracking for natural interaction
+  - Full case management with undo/redo and state snapshots
+  - Multi-format 3D export (OBJ/FBX/GLB) via Blender
+  - Blender-powered high-quality rendering (Cycles/EEVEE)
+  - Dark forensic-themed professional UI
+
+The codebase is modular (~8,300 lines of JS, ~1,200 lines of Python) with
+clear separation between rendering, logic, and backend systems. The architecture
+supports incremental enhancement through well-defined system boundaries.
+
+================================================================================
+  END OF DOCUMENT
+================================================================================

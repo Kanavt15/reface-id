@@ -30,11 +30,13 @@
   const api = new BackendAPI('http://127.0.0.1:5001');
   const caseManager = new CaseManager(api);
 
+  // Skin Texture System
+  const skinTextureSystem = new SkinTextureSystem(sceneManager);
+
   // Face Point Editor (initialized after model loads)
   let facePointEditor = null;
   let skinMarkSystem = null;
-  let wrinkleSystem = null;
-  let textureGenerator = null;
+  let wrinklePainter = null;
 
   // Use OBJMorpher as the default morpher passed to UI
   // (falls back to FaceMorpher only if OBJ load fails)
@@ -124,12 +126,7 @@
       // Wire up reference in OBJMorpher for automatic mark refresh
       objMorpher.skinMarkSystem = skinMarkSystem;
 
-      // ── Initialize Wrinkle System ──
-      textureGenerator = new TextureGenerator();
-      wrinkleSystem = new WrinkleSystem(sceneManager, objMorpher, textureGenerator);
-      console.log('[App] Wrinkle System initialized');
-
-      // Refresh editor points,skin marks, and wrinkles when morphs change
+      // Refresh editor points and skin marks when morphs change
       const origOnMorph = objMorpher.onMorphApplied;
       objMorpher.onMorphApplied = () => {
         if (origOnMorph) origOnMorph();
@@ -137,7 +134,6 @@
           facePointEditor.refreshPoints();
         }
         skinMarkSystem.refreshMarksAfterMorph();
-        wrinkleSystem.refreshWrinklesAfterMorph();
       };
 
       facePointEditor.onPointEdited = (name) => {
@@ -147,12 +143,16 @@
         }
       };
 
-      facePointEditor.onBeforePointEdited = (name) => {
-        if (ui) {
-          ui.updateCaseFromUI(); // Ensure all state is current
-          ui.caseManager.pushState(`Drag point: ${name}`);
-        }
-      };
+      // ── Initialize Skin Texture System ──
+      console.log('[App] Initializing Skin Texture System...');
+      skinTextureSystem.init(group);
+      sceneManager.skinTextureSystem = skinTextureSystem;
+      console.log('[App] Skin Texture System initialized');
+
+      // ── Initialize Wrinkle Painter ──
+      wrinklePainter = new WrinklePainter(sceneManager, skinTextureSystem);
+      skinTextureSystem.wrinklePainter = wrinklePainter;
+      console.log('[App] Wrinkle Painter initialized');
 
     } else {
       // ── OBJ failed — use procedural head ──
@@ -171,8 +171,9 @@
     ui = new UIController(sceneManager, activeMorpher, hairSystem, api, caseManager);
     ui.facePointEditor = facePointEditor;   // expose for render pipeline
     ui.skinMarkSystem = skinMarkSystem;     // expose for skin marks UI
-    ui.wrinkleSystem = wrinkleSystem;       // expose for wrinkle UI
     ui.eyeSystem = eyeSystem;               // expose eye system for UI control
+    ui.skinTextureSystem = skinTextureSystem; // expose for skin texture UI
+    ui.wrinklePainter = wrinklePainter;       // expose for wrinkle painting UI
     console.log('[App] Initializing UIController...');
     ui.init();
     console.log('[App] UIController initialized successfully');
@@ -202,6 +203,7 @@
     console.log('[App] Initializing AI Controller...');
     const aiController = new AIController(api, activeMorpher, hairSystem, caseManager, ui);
     aiController.eyes = eyeSystem;  // set eye system reference
+    aiController.scene = sceneManager;  // set scene reference for lip color
     aiController.skinMarkSystem = skinMarkSystem;  // set skin mark system reference
     aiController.markPositionMapper = new MarkPositionMapper(activeMorpher);  // set mark position mapper
     aiController.init();
@@ -291,6 +293,16 @@
           btnSM.innerHTML = '<i class="fas fa-crosshairs"></i> Enable Mark Placement';
         }
       }
+      // Disable wrinkle painter if active (mutual exclusion)
+      if (wrinklePainter && wrinklePainter.enabled) {
+        wrinklePainter.disable();
+        document.getElementById('btnWrinklePaint')?.classList.remove('active');
+        const btnWP = document.getElementById('btnToggleWrinklePaint');
+        if (btnWP) {
+          btnWP.classList.remove('active');
+          btnWP.innerHTML = '<i class="fas fa-paint-brush"></i> Enable Wrinkle Painting';
+        }
+      }
       const active = editor.toggle();
       btnToolbar?.classList.toggle('active', active);
       if (btnToggle) {
@@ -346,6 +358,7 @@
     window.electronAPI.onSaveCase(() => document.getElementById('btnSaveCase')?.click());
     window.electronAPI.onExport((format) => ui?.exportModel(format));
     window.electronAPI.onScreenshot(() => ui?.takeScreenshot());
+    window.electronAPI.onImportModel((filePath) => ui?.importModelFromPath(filePath));
   }
 
   console.log('REface ID initialized — loading head.glb + region data...');

@@ -19,6 +19,14 @@ class SceneManager {
     this.modelCenter = new THREE.Vector3(0, 0.18, 0);
     this.modelHeight = 2.2;
 
+    // Lip color state
+    this._skinColor = '#d4a574';
+    this._lipColor = null;
+    this._lipWeights = null; // cached per-vertex lip weights
+
+    // Skin texture system reference (set externally)
+    this.skinTextureSystem = null;
+
     this.init();
   }
 
@@ -102,19 +110,10 @@ class SceneManager {
           roughness: 0.50,
           metalness: 0.02,
           side: THREE.FrontSide,
-          // Wrinkle texture maps (initially null, set by WrinkleSystem)
-          normalMap: null,
-          normalScale: new THREE.Vector2(1.0, 1.0),
-          displacementMap: null,
-          displacementScale: 0.01,
         });
 
         group.traverse((child) => {
           if (child.isMesh) {
-            // Ensure UV coordinates exist
-            if (child.geometry) {
-              this._ensureUVCoordinates(child.geometry);
-            }
             child.material = skinMat;
             child.castShadow = true;
             child.receiveShadow = true;
@@ -173,11 +172,6 @@ class SceneManager {
           roughness: 0.50,
           metalness: 0.02,
           side: THREE.FrontSide,
-          // Wrinkle texture maps (initially null, set by WrinkleSystem)
-          normalMap: null,
-          normalScale: new THREE.Vector2(1.0, 1.0),
-          displacementMap: null,
-          displacementScale: 0.01,
         });
 
         group.traverse((child) => {
@@ -189,8 +183,6 @@ class SceneManager {
             // Ensure geometry normals are correct after rotation
             if (child.geometry) {
               child.geometry.computeVertexNormals();
-              // Ensure UV coordinates exist
-              this._ensureUVCoordinates(child.geometry);
             }
           }
         });
@@ -231,6 +223,109 @@ class SceneManager {
   }
 
   /**
+   * Add an imported 3D model to the scene as a reference overlay.
+   * Parses GLB/OBJ from an ArrayBuffer and adds it alongside the head mesh.
+   */
+  addImportedModel(arrayBuffer, fileName) {
+    const ext = fileName.split('.').pop().toLowerCase();
+
+    // Track imported models for removal
+    if (!this.importedModels) this.importedModels = [];
+
+    const onParsed = (group) => {
+      if (!group) {
+        console.error('[Import] Failed to parse model:', fileName);
+        return null;
+      }
+
+      // Apply a neutral material so it's distinguishable from the head
+      const importMat = new THREE.MeshStandardMaterial({
+        color: 0xaabbcc,
+        roughness: 0.5,
+        metalness: 0.1,
+        transparent: true,
+        opacity: 0.85,
+        side: THREE.DoubleSide,
+      });
+
+      group.traverse((child) => {
+        if (child.isMesh) {
+          child.material = importMat;
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+
+      // Scale and position the imported model to match the head
+      const importBox = new THREE.Box3().setFromObject(group);
+      const importSize = new THREE.Vector3();
+      importBox.getSize(importSize);
+      const importHeight = importSize.y;
+
+      if (this.headMesh && importHeight > 0) {
+        const headBox = new THREE.Box3().setFromObject(this.headMesh);
+        const headSize = new THREE.Vector3();
+        headBox.getSize(headSize);
+        const scale = headSize.y / importHeight;
+        group.scale.setScalar(scale);
+
+        // Re-compute box after scaling
+        const scaledBox = new THREE.Box3().setFromObject(group);
+        const scaledCenter = new THREE.Vector3();
+        scaledBox.getCenter(scaledCenter);
+
+        // Align centers
+        const headCenter = new THREE.Vector3();
+        headBox.getCenter(headCenter);
+        group.position.add(headCenter.sub(scaledCenter));
+      }
+
+      group.name = 'ImportedModel_' + fileName;
+      this.scene.add(group);
+      this.importedModels.push(group);
+
+      let vertexCount = 0;
+      group.traverse(c => {
+        if (c.isMesh && c.geometry) vertexCount += c.geometry.attributes.position.count;
+      });
+
+      console.log(`[Import] Model added: ${fileName} (${vertexCount} vertices)`);
+      return { group, vertexCount };
+    };
+
+    if (ext === 'glb' || ext === 'gltf') {
+      const loader = new THREE.GLBLoader();
+      const group = loader.parse(arrayBuffer);
+      return onParsed(group);
+    } else if (ext === 'obj') {
+      const decoder = new TextDecoder();
+      const text = decoder.decode(arrayBuffer);
+      const loader = new THREE.OBJLoader();
+      const group = loader.parse(text);
+      if (group) group.rotation.x = -Math.PI / 2;
+      return onParsed(group);
+    } else {
+      console.error('[Import] Unsupported format:', ext);
+      return null;
+    }
+  }
+
+  /**
+   * Remove an imported model from the scene by index or all.
+   */
+  removeImportedModel(index) {
+    if (!this.importedModels) return;
+    if (index === undefined) {
+      // Remove all
+      this.importedModels.forEach(m => this.scene.remove(m));
+      this.importedModels = [];
+    } else if (this.importedModels[index]) {
+      this.scene.remove(this.importedModels[index]);
+      this.importedModels.splice(index, 1);
+    }
+  }
+
+  /**
    * Create the base head mesh from geometry (procedural fallback)
    */
   createHead(geometry, material) {
@@ -260,12 +355,175 @@ class SceneManager {
    * Update skin color on all head meshes
    */
   setSkinColor(color) {
+    this._skinColor = color;
     if (!this.headMesh) return;
-    this.headMesh.traverse((child) => {
-      if (child.isMesh && child.material) {
-        child.material.color.set(color);
+
+    // If skin texture system is active, regenerate with new color
+    if (this.skinTextureSystem && this.skinTextureSystem._initialized) {
+      this.skinTextureSystem.setSkinColor(color);
+      // Lip color is handled via vertex colors on top of texture
+      if (this._lipColor) {
+        this._updateVertexColors();
       }
+      return;
+    }
+
+    if (this._lipColor) {
+      this._updateVertexColors();
+    } else {
+      this.headMesh.traverse((child) => {
+        if (child.isMesh && child.material) {
+          child.material.color.set(color);
+        }
+      });
+    }
+  }
+
+  /**
+   * Set lip color. Pass null to remove lip color.
+   */
+  setLipColor(color) {
+    this._lipColor = color;
+    if (!this.headMesh) return;
+
+    if (color) {
+      if (!this._lipWeights) {
+        this._computeLipWeights();
+      }
+      this._updateVertexColors();
+    } else {
+      // Disable vertex colors
+      this.headMesh.traverse((child) => {
+        if (child.isMesh && child.material) {
+          child.material.vertexColors = false;
+          // If skin texture is active, let texture handle color
+          if (this.skinTextureSystem && this.skinTextureSystem._initialized) {
+            child.material.color.set(0xffffff);
+          } else {
+            child.material.color.set(this._skinColor);
+          }
+          child.material.needsUpdate = true;
+        }
+      });
+    }
+  }
+
+  /**
+   * Compute Gaussian weights for lip vertices based on lip landmarks.
+   * Uses anisotropic distance (Y penalized 3x) so color stays tight
+   * vertically while covering the full horizontal lip width.
+   */
+  _computeLipWeights() {
+    // Dense lip landmarks — upper lip arc, lower lip arc, and corners
+    const lipLandmarks = [
+      // Upper lip arc
+      [-0.20, -0.30, 1.10],   // mouth_left corner
+      [-0.16, -0.27, 1.12],
+      [-0.12, -0.25, 1.14],
+      [-0.08, -0.25, 1.14],
+      [-0.04, -0.24, 1.15],
+      [ 0.00, -0.25, 1.15],   // upper lip center
+      [ 0.04, -0.24, 1.15],
+      [ 0.08, -0.25, 1.14],
+      [ 0.12, -0.25, 1.14],
+      [ 0.16, -0.27, 1.12],
+      [ 0.20, -0.30, 1.10],   // mouth_right corner
+
+      // Lower lip arc
+      [-0.16, -0.33, 1.11],
+      [-0.12, -0.35, 1.12],
+      [-0.08, -0.35, 1.12],
+      [-0.04, -0.36, 1.13],
+      [ 0.00, -0.35, 1.13],   // lower lip center
+      [ 0.04, -0.36, 1.13],
+      [ 0.08, -0.35, 1.12],
+      [ 0.12, -0.35, 1.12],
+      [ 0.16, -0.33, 1.11],
+
+      // Mid-lip fill (between upper and lower)
+      [-0.10, -0.30, 1.13],
+      [ 0.00, -0.30, 1.14],
+      [ 0.10, -0.30, 1.13],
+    ];
+
+    const radius = 0.09;
+    const twoR2 = 2 * radius * radius;
+    // Anisotropic scale: penalize Y distance 3x to prevent vertical bleed
+    const yScale = 3.0;
+
+    const allWeights = [];
+
+    this.headMesh.traverse((child) => {
+      if (!child.isMesh || !child.geometry) return;
+      const pos = child.geometry.attributes.position;
+      const N = pos.count;
+      const weights = new Float32Array(N);
+
+      for (const lp of lipLandmarks) {
+        for (let i = 0; i < N; i++) {
+          const dx = pos.getX(i) - lp[0];
+          const dy = (pos.getY(i) - lp[1]) * yScale;
+          const dz = pos.getZ(i) - lp[2];
+          const d2 = dx * dx + dy * dy + dz * dz;
+          const w = Math.exp(-d2 / twoR2);
+          if (w > weights[i]) weights[i] = w;
+        }
+      }
+
+      // Threshold and smoothstep for clean lip edges
+      for (let i = 0; i < N; i++) {
+        let w = weights[i];
+        if (w < 0.15) {
+          weights[i] = 0;
+        } else {
+          // Remap 0.15..0.8 → 0..1, then smoothstep
+          w = Math.max(0, Math.min(1, (w - 0.15) / 0.65));
+          weights[i] = w * w * (3 - 2 * w);
+        }
+      }
+
+      allWeights.push({ mesh: child, weights });
     });
+
+    this._lipWeights = allWeights;
+  }
+
+  /**
+   * Apply vertex colors blending skin color and lip color based on lip weights.
+   */
+  _updateVertexColors() {
+    if (!this._lipWeights || !this._lipColor) return;
+
+    // When skin textures are active, use white as base so texture shows through
+    const hasTexture = this.skinTextureSystem && this.skinTextureSystem._initialized;
+    const skinC = hasTexture ? new THREE.Color(1, 1, 1) : new THREE.Color(this._skinColor);
+    const lipC = new THREE.Color(this._lipColor);
+
+    for (const { mesh, weights } of this._lipWeights) {
+      const geo = mesh.geometry;
+      const N = geo.attributes.position.count;
+
+      // Create or get color attribute
+      let colorAttr = geo.attributes.color;
+      if (!colorAttr || colorAttr.count !== N) {
+        colorAttr = new THREE.BufferAttribute(new Float32Array(N * 3), 3);
+        geo.setAttribute('color', colorAttr);
+      }
+
+      const arr = colorAttr.array;
+      for (let i = 0; i < N; i++) {
+        const w = weights[i];
+        arr[i * 3]     = skinC.r + (lipC.r - skinC.r) * w;
+        arr[i * 3 + 1] = skinC.g + (lipC.g - skinC.g) * w;
+        arr[i * 3 + 2] = skinC.b + (lipC.b - skinC.b) * w;
+      }
+      colorAttr.needsUpdate = true;
+
+      // Enable vertex colors on material
+      mesh.material.vertexColors = true;
+      mesh.material.color.set(0xffffff);
+      mesh.material.needsUpdate = true;
+    }
   }
 
   /**
@@ -493,61 +751,6 @@ class SceneManager {
     if (state.position) this.camera.position.fromArray(state.position);
     if (state.target) this.controls.target.fromArray(state.target);
     this.controls.update();
-  }
-
-  /**
-   * Ensure geometry has UV coordinates (generate if missing)
-   */
-  _ensureUVCoordinates(geometry) {
-    if (geometry.attributes.uv) {
-      console.log('[SceneManager] UV coordinates already exist');
-      return;  // Already has UVs
-    }
-
-    console.log('[SceneManager] Generating UV coordinates via planar projection');
-
-    const positions = geometry.attributes.position;
-    const uvArray = new Float32Array(positions.count * 2);
-
-    // Generate planar projection UVs (works well for front-facing faces)
-    for (let i = 0; i < positions.count; i++) {
-      const x = positions.getX(i);
-      const y = positions.getY(i);
-
-      // Map X and Y to [0, 1] range
-      uvArray[i * 2] = (x + 1.0) * 0.5;      // U from X
-      uvArray[i * 2 + 1] = (y + 1.5) * 0.5;  // V from Y
-    }
-
-    geometry.setAttribute('uv', new THREE.BufferAttribute(uvArray, 2));
-    console.log('[SceneManager] UV coordinates generated');
-  }
-
-  /**
-   * Update wrinkle textures on the head mesh material
-   */
-  updateWrinkleTextures(normalTexture, displacementTexture) {
-    if (!this.headMesh) {
-      console.warn('[SceneManager] Cannot update wrinkle textures: no head mesh');
-      return;
-    }
-
-    let updated = false;
-
-    this.headMesh.traverse((child) => {
-      if (child.isMesh && child.material) {
-        child.material.normalMap = normalTexture;
-        child.material.displacementMap = displacementTexture;
-        child.material.needsUpdate = true;
-        updated = true;
-      }
-    });
-
-    if (updated) {
-      console.log('[SceneManager] Wrinkle textures updated');
-    } else {
-      console.warn('[SceneManager] No meshes found to update');
-    }
   }
 
   /**

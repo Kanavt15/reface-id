@@ -70,7 +70,6 @@ class FacePointEditor {
 
     this.influenceRing = null;
     this.onPointEdited = null;
-    this.onBeforePointEdited = null;  // Called before point drag starts (for undo)
     this.onSettingsChanged = null;
 
     // Bind handlers
@@ -370,9 +369,6 @@ class FacePointEditor {
       this.isDragging = true;
       this.controls.enabled = false;
 
-      // Call before callback for undo system
-      if (this.onBeforePointEdited) this.onBeforePointEdited(this.selectedPoint.name);
-
       const camDir = new THREE.Vector3();
       this.camera.getWorldDirection(camDir);
       this.dragPlane.setFromNormalAndCoplanarPoint(camDir, this.selectedPoint.mesh.position);
@@ -383,6 +379,7 @@ class FacePointEditor {
       this.dragStart.copy(this.selectedPoint.mesh.position);
 
       // ── Prepare deformation ──
+      this._pushUndo();
       this._prepareDrag(this.selectedPoint.name);
 
       this.selectedPoint.mesh.material.copy(this.pointActiveMaterial);
@@ -458,11 +455,9 @@ class FacePointEditor {
   // ── Keyboard ──
   _onKeyDown(event) {
     if (!this.enabled) return;
-
-    // Note: Undo is now handled by global undo system (CaseManager)
-
+    if (event.ctrlKey && event.key === 'z') this._popUndo();
     if (event.key === 'Escape' && this.isDragging) {
-      // Cancel current drag without undo
+      this._popUndo();
       this.isDragging = false;
       this.selectedPoint = null;
       this._dragSnapshot = null;
@@ -643,11 +638,9 @@ class FacePointEditor {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // INTERNAL UNDO (DISABLED - using global undo system)
+  // UNDO
   // ═══════════════════════════════════════════════════════════════════════
 
-  /*
-  // Internal undo system disabled - now using CaseManager for global undo
   _pushUndo() {
     const snapshot = [];
     for (let m = 0; m < this.morpher.meshes.length; m++) {
@@ -671,7 +664,6 @@ class FacePointEditor {
     this.refreshPoints();
     console.log('FacePointEditor: undo applied');
   }
-  */
 
   resetAllEdits() {
     this.undoStack = [];

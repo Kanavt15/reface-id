@@ -86,8 +86,8 @@
       <button class="tool-btn" id="btnSkinMarks" title="Place Skin Marks (click face to add)">
         <i class="fas fa-circle"></i>
       </button>
-      <button class="tool-btn" id="btnWrinkles" title="Draw Wrinkles (W)">
-        <i class="fas fa-project-diagram"></i>
+      <button class="tool-btn" id="btnWrinklePaint" title="Paint Wrinkles (click and drag on face)">
+        <i class="fas fa-paint-brush"></i>
       </button>
     </div>
     <div class="toolbar-separator"></div>
@@ -115,6 +115,9 @@
       </button>
       <button class="tool-btn accent" id="btnExport" title="Export Model">
         <i class="fas fa-file-export"></i>
+      </button>
+      <button class="tool-btn accent" id="btnImportModel" title="Import 3D Model">
+        <i class="fas fa-file-import"></i>
       </button>
     </div>
   </div>
@@ -1214,32 +1217,135 @@
             </div>
           </div>
 
-          <!-- Skin Properties -->
+          <!-- Lip Color -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-lips" style="font-style:normal;">👄</i>
+              <span>Lip Color</span>
+            </div>
+            <div class="control-group-body">
+              <div class="color-presets" id="lipColorPresets">
+                <button class="color-swatch" data-color="#c44569" style="background: #c44569" title="Rose"></button>
+                <button class="color-swatch" data-color="#b33939" style="background: #b33939" title="Red"></button>
+                <button class="color-swatch" data-color="#e08283" style="background: #e08283" title="Pink"></button>
+                <button class="color-swatch" data-color="#a55b5b" style="background: #a55b5b" title="Mauve"></button>
+                <button class="color-swatch" data-color="#8b5e5e" style="background: #8b5e5e" title="Nude Dark"></button>
+                <button class="color-swatch" data-color="#cc8e7a" style="background: #cc8e7a" title="Nude Light"></button>
+                <button class="color-swatch" data-color="#6b2d5b" style="background: #6b2d5b" title="Plum"></button>
+                <button class="color-swatch" data-color="#d4574e" style="background: #d4574e" title="Coral"></button>
+              </div>
+              <div class="color-picker-row">
+                <label>Custom Lip Color</label>
+                <input type="color" id="lipColorPicker" value="#c44569" class="color-input" />
+              </div>
+              <div class="color-picker-row">
+                <button class="btn-small" id="btnResetLipColor" title="Remove lip color">Reset / Off</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Skin Texture & Aging -->
           <div class="control-group">
             <div class="control-group-header">
               <i class="fas fa-adjust"></i>
-              <span>Skin Properties</span>
+              <span>Skin Texture &amp; Aging</span>
+              <button class="btn-reset-group" id="btnResetSkinTexture" title="Reset Skin Texture">
+                <i class="fas fa-undo"></i>
+              </button>
             </div>
             <div class="control-group-body">
-              <div class="slider-control" data-param="skinRoughness">
-                <label>Roughness</label>
+              <div class="slider-control" data-param="skinAge">
+                <label>Age</label>
                 <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="appearance-slider" />
-                  <span class="slider-value">50</span>
+                  <span class="slider-label-left">Young</span>
+                  <input type="range" min="0" max="100" value="20" class="skin-texture-slider" id="sliderSkinAge" />
+                  <span class="slider-label-right">Old</span>
+                </div>
+                <div style="text-align:center;"><span class="slider-value" id="valSkinAge">20</span></div>
+              </div>
+              <div class="slider-control" data-param="skinWrinkleDepth">
+                <label>Wrinkle Depth</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="30" class="skin-texture-slider" id="sliderWrinkleDepth" />
+                  <span class="slider-value" id="valWrinkleDepth">30</span>
                 </div>
               </div>
-              <div class="slider-control" data-param="skinAge">
-                <label>Age Lines</label>
+              <!-- ─── Manual Wrinkle Painting ─── -->
+              <div class="control-subgroup" id="wrinklePaintControls">
+                <label style="font-weight:600; margin-bottom:4px; display:block;">
+                  <i class="fas fa-paint-brush" style="margin-right:4px;"></i> Manual Wrinkle Painting
+                </label>
+                <button class="btn-small" id="btnToggleWrinklePaint">
+                  <i class="fas fa-paint-brush"></i> Enable Wrinkle Painting
+                </button>
+                <div class="slider-control">
+                  <label>Brush Size</label>
+                  <div class="slider-row">
+                    <span class="slider-label-left">Fine</span>
+                    <input type="range" min="3" max="40" value="15" id="wrinkleBrushSize" />
+                    <span class="slider-label-right">Wide</span>
+                  </div>
+                  <div style="text-align:center;"><span class="slider-value" id="wrinkleBrushSizeValue">15</span></div>
+                </div>
+                <div class="slider-control">
+                  <label>Brush Strength</label>
+                  <div class="slider-row">
+                    <span class="slider-label-left">Light</span>
+                    <input type="range" min="5" max="100" value="40" id="wrinkleBrushStrength" />
+                    <span class="slider-label-right">Deep</span>
+                  </div>
+                  <div style="text-align:center;"><span class="slider-value" id="wrinkleBrushStrengthValue">40</span></div>
+                </div>
+                <div style="display:flex; gap:4px; margin-top:4px;">
+                  <button class="btn-small" id="btnWrinkleErase" title="Toggle eraser mode">
+                    <i class="fas fa-eraser"></i> Eraser
+                  </button>
+                  <button class="btn-small" id="btnWrinkleUndo" title="Undo last stroke">
+                    <i class="fas fa-undo"></i> Undo
+                  </button>
+                  <button class="btn-small" id="btnWrinkleClear" title="Clear all manual wrinkles">
+                    <i class="fas fa-trash"></i> Clear
+                  </button>
+                </div>
+              </div>
+
+              <div class="slider-control" data-param="skinRoughness">
+                <label>Skin Roughness</label>
                 <div class="slider-row">
-                  <input type="range" min="0" max="100" value="20" class="appearance-slider" />
-                  <span class="slider-value">20</span>
+                  <span class="slider-label-left">Smooth</span>
+                  <input type="range" min="0" max="100" value="50" class="skin-texture-slider" id="sliderSkinRoughness" />
+                  <span class="slider-label-right">Rough</span>
+                </div>
+                <div style="text-align:center;"><span class="slider-value" id="valSkinRoughness">50</span></div>
+              </div>
+              <div class="slider-control" data-param="skinPoreDetail">
+                <label>Pore Detail</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="60" class="skin-texture-slider" id="sliderPoreDetail" />
+                  <span class="slider-value" id="valPoreDetail">60</span>
                 </div>
               </div>
               <div class="slider-control" data-param="skinFreckles">
-                <label>Freckles / Marks</label>
+                <label>Freckles / Age Spots</label>
                 <div class="slider-row">
-                  <input type="range" min="0" max="100" value="0" class="appearance-slider" />
-                  <span class="slider-value">0</span>
+                  <input type="range" min="0" max="100" value="0" class="skin-texture-slider" id="sliderSkinFreckles" />
+                  <span class="slider-value" id="valSkinFreckles">0</span>
+                </div>
+              </div>
+              <div class="slider-control" data-param="skinOiliness">
+                <label>Skin Oiliness</label>
+                <div class="slider-row">
+                  <span class="slider-label-left">Dry</span>
+                  <input type="range" min="0" max="100" value="40" class="skin-texture-slider" id="sliderSkinOiliness" />
+                  <span class="slider-label-right">Oily</span>
+                </div>
+                <div style="text-align:center;"><span class="slider-value" id="valSkinOiliness">40</span></div>
+              </div>
+              <div class="slider-control" data-param="skinSunDamage">
+                <label>Sun Damage</label>
+                <div class="slider-row">
+                  <input type="range" min="0" max="100" value="10" class="skin-texture-slider" id="sliderSunDamage" />
+                  <span class="slider-value" id="valSunDamage">10</span>
                 </div>
               </div>
             </div>
@@ -1395,6 +1501,14 @@
                 </select>
               </div>
 
+              <div class="slider-control">
+                <label>Placement Size</label>
+                <div class="slider-row">
+                  <input type="range" min="1" max="100" value="30" id="skinMarkPlacementSize" class="appearance-slider" />
+                  <span class="slider-value" id="skinMarkPlacementSizeValue">Default</span>
+                </div>
+              </div>
+
               <div id="skinMarkProperties" style="display: none;">
                 <div style="font-size: 10px; color: var(--text-muted); margin: 8px 0 4px; text-transform: uppercase; letter-spacing: 0.5px;">
                   Selected Mark
@@ -1424,86 +1538,6 @@
 
               <div style="margin-top: 8px; font-size: 10px; color: var(--text-muted);">
                 Placed marks: <span id="skinMarkCount" style="color: var(--accent-primary); font-family: 'JetBrains Mono', monospace;">0</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Wrinkles -->
-          <div class="control-group">
-            <div class="control-group-header">
-              <i class="fas fa-project-diagram"></i>
-              <span>Wrinkles & Lines</span>
-              <button class="btn-reset-group" id="btnClearAllWrinkles" title="Clear All Wrinkles">
-                <i class="fas fa-trash-alt"></i>
-              </button>
-            </div>
-            <div class="control-group-body">
-              <p class="edit-points-desc">
-                Draw lines on the face to create wrinkles, stretch marks, or scars. Click and drag to draw.
-              </p>
-
-              <button class="btn btn-accent" id="btnToggleWrinkles" style="width:100%; margin-bottom: 8px;">
-                <i class="fas fa-crosshairs"></i> Enable Wrinkle Drawing
-              </button>
-
-              <div class="select-control">
-                <label>Wrinkle Type</label>
-                <div class="button-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; margin-bottom: 8px;">
-                  <button class="btn-option active" id="btnWrinkleFine" data-type="fine">Fine Lines</button>
-                  <button class="btn-option" id="btnWrinkleDeep" data-type="deep">Deep</button>
-                  <button class="btn-option" id="btnWrinkleStretch" data-type="stretch">Stretch</button>
-                  <button class="btn-option" id="btnWrinkleScar" data-type="scar">Scars</button>
-                </div>
-              </div>
-
-              <div class="slider-control">
-                <label>Width</label>
-                <div class="slider-row">
-                  <input type="range" min="2" max="15" value="5" id="wrinkleWidth" class="appearance-slider" step="1" />
-                  <span class="slider-value" id="wrinkleWidthValue">0.005</span>
-                </div>
-              </div>
-
-              <div class="slider-control">
-                <label>Depth</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="80" id="wrinkleDepth" class="appearance-slider" />
-                  <span class="slider-value" id="wrinkleDepthValue">0.80</span>
-                </div>
-              </div>
-
-              <div class="control-group" style="margin-top: 12px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px;">
-                <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
-                  Preset Patterns
-                </div>
-                <div class="preset-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px;">
-                  <button class="btn btn-secondary btn-sm" data-preset="forehead">
-                    <i class="fas fa-ellipsis-h"></i> Forehead
-                  </button>
-                  <button class="btn btn-secondary btn-sm" data-preset="crowsFeet">
-                    <i class="fas fa-eye"></i> Crow's Feet
-                  </button>
-                  <button class="btn btn-secondary btn-sm" data-preset="nasolabial">
-                    <i class="fas fa-smile"></i> Smile Lines
-                  </button>
-                  <button class="btn btn-secondary btn-sm" data-preset="frown">
-                    <i class="fas fa-frown"></i> Frown Lines
-                  </button>
-                </div>
-              </div>
-
-              <div class="checkbox-control" style="margin-top: 12px;">
-                <label>
-                  <input type="checkbox" id="wrinkleGeometryDisp" />
-                  <span>Use Geometry Depth (Experimental)</span>
-                </label>
-                <p style="font-size: 10px; color: var(--text-muted); margin: 4px 0 0 20px;">
-                  Creates real 3D depth for deep wrinkles. May affect performance.
-                </p>
-              </div>
-
-              <div style="margin-top: 8px; font-size: 10px; color: var(--text-muted);">
-                Wrinkles drawn: <span id="wrinkleCount" style="color: var(--accent-primary); font-family: 'JetBrains Mono', monospace;">0</span>
               </div>
             </div>
           </div>
@@ -1729,6 +1763,25 @@
 
           <div class="control-group">
             <div class="control-group-header">
+              <i class="fas fa-file-import"></i>
+              <span>Import 3D Model</span>
+            </div>
+            <div class="control-group-body">
+              <p class="control-hint">Import an external 3D model (GLB, OBJ) as a reference overlay.</p>
+              <div class="export-buttons">
+                <button class="btn btn-outline" id="btnImportFile">
+                  <i class="fas fa-file-import"></i> Import Model
+                </button>
+                <button class="btn btn-outline btn-danger" id="btnRemoveImports" style="display:none;">
+                  <i class="fas fa-trash"></i> Remove All Imports
+                </button>
+              </div>
+              <div id="importedModelsList" class="imported-models-list"></div>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <div class="control-group-header">
               <i class="fas fa-file-export"></i>
               <span>Export</span>
             </div>
@@ -1865,8 +1918,8 @@
   <script src="js/SceneManager.js"></script>
   <script src="js/FacePointEditor.js"></script>
   <script src="js/SkinMarkSystem.js"></script>
-  <script src="js/TextureGenerator.js"></script>
-  <script src="js/WrinkleSystem.js"></script>
+  <script src="js/SkinTextureSystem.js"></script>
+  <script src="js/WrinklePainter.js"></script>
   <script src="js/MarkPositionMapper.js"></script>
   <script src="js/SnapshotManager.js"></script>
   <script src="js/UIController.js"></script>

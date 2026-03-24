@@ -43,6 +43,7 @@
   white-space: nowrap;
 }
 
+
 /* Custom range slider */
 input[type="range"] {
   -webkit-appearance: none;
@@ -105,6 +106,10 @@ input[type="range"]:active::-webkit-slider-thumb {
 
 .appearance-slider::-webkit-slider-runnable-track {
   background: linear-gradient(to right, var(--accent-secondary), var(--accent-primary));
+}
+
+.skin-texture-slider::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, #8b6914, #d4a574);
 }
 
 .eyebrow-slider::-webkit-slider-runnable-track {
@@ -359,5 +364,52 @@ input[type="range"]:active::-webkit-slider-thumb {
   border-top: 1px solid var(--border-accent);
   padding-top: 4px;
   margin-top: 4px;
+}
+
+/* ─── Wrinkle Painter Controls ────────────────────────────────────── */
+
+#btnWrinklePaint.active {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  border-color: var(--accent-primary);
+}
+
+#btnToggleWrinklePaint.active {
+  background: var(--accent-danger);
+  border-color: var(--accent-danger);
+}
+
+#btnWrinkleErase.active {
+  background: var(--accent-warning, #e6a817);
+  border-color: var(--accent-warning, #e6a817);
+  color: var(--bg-primary);
+}
+
+#wrinklePaintControls {
+  border-top: 1px solid var(--border-accent);
+  padding-top: 8px;
+  margin-top: 8px;
+}
+
+/* ─── Import Model ─────────────────────────────────────────────────── */
+
+.control-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+}
+
+.btn-danger {
+  color: #ff6b6b !important;
+  border-color: #ff6b6b !important;
+}
+
+.btn-danger:hover {
+  background: rgba(255, 107, 107, 0.15) !important;
+}
+
+.imported-models-list {
+  margin-top: 6px;
 }
 
