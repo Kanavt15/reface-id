@@ -12,6 +12,7 @@ class UIController {
     this.api = backendAPI;
     this.caseManager = caseManager;
     this.skinMarkSystem = null;
+    this.wrinkleSystem = null;
     this.historyLog = [];
   }
 
@@ -27,6 +28,7 @@ class UIController {
     this.bindEyeControls();
     this.bindEyelashControls();
     this.bindSkinMarkControls();
+    this.bindWrinkleControls();
     this.bindCaseControls();
     this.bindGroupCollapse();
     this.bindKeyboardShortcuts();
@@ -911,6 +913,12 @@ class UIController {
     const skinMarks = this.skinMarkSystem;
     if (!skinMarks) return;
 
+    // Set up undo callback for when marks are added
+    skinMarks.onBeforeMarkAdded = () => {
+      this.updateCaseFromUI(); // Ensure all state is current
+      this.caseManager.pushState('Added skin mark');
+    };
+
     const btnToggle = document.getElementById('btnToggleSkinMarks');
     const btnToolbar = document.getElementById('btnSkinMarks');
 
@@ -923,6 +931,17 @@ class UIController {
         if (btnPE) {
           btnPE.classList.remove('active');
           btnPE.innerHTML = '<i class="fas fa-hand-pointer"></i> Enable Point Editing';
+        }
+      }
+
+      // Disable wrinkle system if active (mutual exclusion)
+      if (this.wrinkleSystem && this.wrinkleSystem.enabled) {
+        this.wrinkleSystem.disable();
+        document.getElementById('btnWrinkles')?.classList.remove('active');
+        const btnWR = document.getElementById('btnToggleWrinkles');
+        if (btnWR) {
+          btnWR.classList.remove('active');
+          btnWR.innerHTML = '<i class="fas fa-crosshairs"></i> Enable Wrinkle Drawing';
         }
       }
 
@@ -1068,6 +1087,174 @@ class UIController {
       this.caseManager.updateSkinMarks(skinMarks.exportState());
       this.updatePropertyPanel();
     };
+  }
+
+  bindWrinkleControls() {
+    const wrinkles = this.wrinkleSystem;
+    if (!wrinkles) return;
+
+    // Set up undo callback for when wrinkles are added
+    wrinkles.onBeforeWrinkleAdded = () => {
+      this.updateCaseFromUI(); // Ensure all state is current
+      this.caseManager.pushState('Added wrinkle');
+    };
+
+    const btnToggle = document.getElementById('btnToggleWrinkles');
+    const btnToolbar = document.getElementById('btnWrinkles');
+
+    const toggleWrinkles = () => {
+      // Disable other tools (mutual exclusion)
+      if (this.facePointEditor && this.facePointEditor.enabled) {
+        this.facePointEditor.disable();
+        document.getElementById('btnEditPoints')?.classList.remove('active');
+        const btnPE = document.getElementById('btnTogglePointEdit');
+        if (btnPE) {
+          btnPE.classList.remove('active');
+          btnPE.innerHTML = '<i class="fas fa-hand-pointer"></i> Enable Point Editing';
+        }
+      }
+      if (this.skinMarkSystem && this.skinMarkSystem.enabled) {
+        this.skinMarkSystem.disable();
+        document.getElementById('btnSkinMarks')?.classList.remove('active');
+        const btnSM = document.getElementById('btnToggleSkinMarks');
+        if (btnSM) {
+          btnSM.classList.remove('active');
+          btnSM.innerHTML = '<i class="fas fa-crosshairs"></i> Enable Mark Placement';
+        }
+      }
+
+      const active = wrinkles.toggle();
+      btnToggle?.classList.toggle('active', active);
+      btnToolbar?.classList.toggle('active', active);
+      if (btnToggle) {
+        btnToggle.innerHTML = active
+          ? '<i class="fas fa-times"></i> Disable Wrinkle Drawing'
+          : '<i class="fas fa-crosshairs"></i> Enable Wrinkle Drawing';
+      }
+      this.addHistory(active ? 'Wrinkle drawing enabled' : 'Wrinkle drawing disabled');
+    };
+
+    btnToggle?.addEventListener('click', toggleWrinkles);
+    btnToolbar?.addEventListener('click', toggleWrinkles);
+
+    // Wrinkle type buttons
+    const typeButtons = [
+      { id: 'btnWrinkleFine', type: 'fine' },
+      { id: 'btnWrinkleDeep', type: 'deep' },
+      { id: 'btnWrinkleStretch', type: 'stretch' },
+      { id: 'btnWrinkleScar', type: 'scar' },
+    ];
+
+    typeButtons.forEach(({ id, type }) => {
+      document.getElementById(id)?.addEventListener('click', () => {
+        wrinkles.setType(type);
+        // Update active state on buttons
+        typeButtons.forEach(({ id: btnId }) => {
+          document.getElementById(btnId)?.classList.toggle('active', btnId === id);
+        });
+        this.updateWrinkleUI();
+      });
+    });
+
+    // Width slider
+    {
+      const widthSlider = document.getElementById('wrinkleWidth');
+      let isDraggingWidth = false;
+
+      const onWidthMouseUp = () => {
+        if (isDraggingWidth) {
+          this.caseManager.endAction();
+          isDraggingWidth = false;
+          document.removeEventListener('mouseup', onWidthMouseUp);
+        }
+      };
+
+      widthSlider?.addEventListener('mousedown', () => {
+        isDraggingWidth = true;
+        this.caseManager.beginAction('Modified wrinkle width');
+        document.addEventListener('mouseup', onWidthMouseUp);
+      });
+
+      widthSlider?.addEventListener('input', (e) => {
+        const width = parseInt(e.target.value) / 1000;  // Convert to world units
+        wrinkles.setWidth(width);
+        document.getElementById('wrinkleWidthValue').textContent = width.toFixed(3);
+      });
+    }
+
+    // Depth slider
+    {
+      const depthSlider = document.getElementById('wrinkleDepth');
+      let isDraggingDepth = false;
+
+      const onDepthMouseUp = () => {
+        if (isDraggingDepth) {
+          this.caseManager.endAction();
+          isDraggingDepth = false;
+          document.removeEventListener('mouseup', onDepthMouseUp);
+        }
+      };
+
+      depthSlider?.addEventListener('mousedown', () => {
+        isDraggingDepth = true;
+        this.caseManager.beginAction('Modified wrinkle depth');
+        document.addEventListener('mouseup', onDepthMouseUp);
+      });
+
+      depthSlider?.addEventListener('input', (e) => {
+        const depth = parseInt(e.target.value) / 100;
+        wrinkles.setDepth(depth);
+        document.getElementById('wrinkleDepthValue').textContent = depth.toFixed(2);
+      });
+    }
+
+    // Geometry displacement checkbox
+    document.getElementById('wrinkleGeometryDisp')?.addEventListener('change', (e) => {
+      wrinkles.setGeometryDisplacement(e.target.checked);
+      this.addHistory(`Geometry displacement ${e.target.checked ? 'enabled' : 'disabled'}`);
+    });
+
+    // Preset pattern buttons
+    document.querySelectorAll('.preset-grid button[data-preset]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const preset = btn.dataset.preset;
+        this.caseManager.pushState(`Applied ${preset} wrinkle preset`);
+        wrinkles.applyPreset(preset);
+        this.addHistory(`Applied ${preset} wrinkle preset`);
+      });
+    });
+
+    // Clear all wrinkles
+    document.getElementById('btnClearAllWrinkles')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.caseManager.pushState('Cleared all wrinkles');
+      wrinkles.clearAll();
+      this.addHistory('Cleared all wrinkles');
+    });
+
+    // Callback: update UI when wrinkles change
+    wrinkles.onWrinkleChanged = () => {
+      const count = wrinkles.wrinkles.length;
+      const countEl = document.getElementById('wrinkleCount');
+      if (countEl) countEl.textContent = count;
+
+      this.caseManager.updateWrinkles(wrinkles.exportState());
+      this.updatePropertyPanel();
+    };
+  }
+
+  updateWrinkleUI() {
+    if (!this.wrinkleSystem) return;
+
+    const widthValue = document.getElementById('wrinkleWidthValue');
+    const depthValue = document.getElementById('wrinkleDepthValue');
+    const widthSlider = document.getElementById('wrinkleWidth');
+    const depthSlider = document.getElementById('wrinkleDepth');
+
+    if (widthValue) widthValue.textContent = this.wrinkleSystem.currentWidth.toFixed(3);
+    if (depthValue) depthValue.textContent = this.wrinkleSystem.currentDepth.toFixed(2);
+    if (widthSlider) widthSlider.value = Math.round(this.wrinkleSystem.currentWidth * 1000);
+    if (depthSlider) depthSlider.value = Math.round(this.wrinkleSystem.currentDepth * 100);
   }
 
   // ─── Case Controls ───────────────────────────────────────────────────────
@@ -1234,6 +1421,9 @@ class UIController {
     if (this.skinMarkSystem) {
       this.caseManager.updateSkinMarks(this.skinMarkSystem.exportState());
     }
+    if (this.wrinkleSystem) {
+      this.caseManager.updateWrinkles(this.wrinkleSystem.exportState());
+    }
     this.caseManager.currentCase.cameraState = this.scene.getCameraState();
   }
 
@@ -1399,6 +1589,7 @@ class UIController {
     this.hair.generateEyebrows();
     this.scene.setSkinColor('#d4a574');
     if (this.skinMarkSystem) this.skinMarkSystem.clearAll();
+    if (this.wrinkleSystem) this.wrinkleSystem.clearAll();
 
     // Reset UI
     document.querySelectorAll('.morph-slider').forEach(s => {
@@ -1481,6 +1672,10 @@ class UIController {
       // Restore skin marks
       if (data.skinMarks && this.skinMarkSystem) {
         this.skinMarkSystem.loadState(data.skinMarks);
+      }
+      // Restore wrinkles
+      if (data.wrinkles && this.wrinkleSystem) {
+        this.wrinkleSystem.loadState(data.wrinkles);
       }
       // Restore camera
       if (data.cameraState) {
@@ -1678,6 +1873,11 @@ class UIController {
     // Restore skin marks
     if (state.skinMarks && this.skinMarkSystem) {
       this.skinMarkSystem.loadState(state.skinMarks);
+    }
+
+    // Restore wrinkles
+    if (state.wrinkles && this.wrinkleSystem) {
+      this.wrinkleSystem.loadState(state.wrinkles);
     }
 
     // Restore eyelash params
