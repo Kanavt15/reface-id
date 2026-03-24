@@ -824,40 +824,69 @@
               <span>Manual Point Editing</span>
             </div>
             <div class="control-group-body collapsed">
-              <p class="edit-points-desc">Click and drag facial landmarks to manually stretch and reshape the face. Use +/- keys to adjust influence radius.</p>
-              <div class="edit-points-controls">
-                <button class="btn btn-accent" id="btnTogglePointEdit">
-                  <i class="fas fa-hand-pointer"></i> Enable Point Editing
-                </button>
-              </div>
-              <div class="slider-control" id="pointEditRadiusControl" style="margin-top: 8px;">
-                <label>Influence Radius</label>
-                <div class="slider-row">
-                  <input type="range" min="2" max="50" value="12" id="pointEditRadius" class="morph-slider" />
-                  <span class="slider-value" id="pointEditRadiusValue">0.12</span>
+              <!-- Tools Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-tools"></i>
+                  <span>Editing Tools</span>
+                </div>
+                <div class="sub-group-body">
+                  <p class="edit-points-desc" style="margin-bottom: 6px;">
+                    Click and drag facial landmarks to manually reshape the face.
+                  </p>
+                  <div class="edit-points-controls">
+                    <button class="btn btn-accent" id="btnTogglePointEdit">
+                      <i class="fas fa-hand-pointer"></i> Enable Point Editing
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" id="pointEditSizeControl">
-                <label>Point Size</label>
-                <div class="slider-row">
-                  <input type="range" min="5" max="40" value="18" id="pointEditSize" class="morph-slider" />
-                  <span class="slider-value" id="pointEditSizeValue">0.018</span>
+              <!-- Settings Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-sliders-h"></i>
+                  <span>Settings</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" id="pointEditRadiusControl">
+                    <label>Influence Radius</label>
+                    <div class="slider-row">
+                      <input type="range" min="2" max="50" value="12" id="pointEditRadius" class="morph-slider" />
+                      <span class="slider-value" id="pointEditRadiusValue">0.12</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" id="pointEditSizeControl">
+                    <label>Point Size</label>
+                    <div class="slider-row">
+                      <input type="range" min="5" max="40" value="18" id="pointEditSize" class="morph-slider" />
+                      <span class="slider-value" id="pointEditSizeValue">0.018</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" id="pointEditFalloffControl">
+                    <label>Falloff Strength</label>
+                    <div class="slider-row">
+                      <input type="range" min="5" max="50" value="20" id="pointEditFalloff" class="morph-slider" />
+                      <span class="slider-value" id="pointEditFalloffValue">2.0</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" id="pointEditFalloffControl">
-                <label>Falloff Strength</label>
-                <div class="slider-row">
-                  <input type="range" min="5" max="50" value="20" id="pointEditFalloff" class="morph-slider" />
-                  <span class="slider-value" id="pointEditFalloffValue">2.0</span>
+              <!-- Actions Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-undo"></i>
+                  <span>Actions</span>
                 </div>
-              </div>
-              <div class="edit-points-controls" style="margin-top: 8px; gap: 6px;">
-                <button class="btn btn-secondary btn-sm" id="btnResetPointEdits">
-                  <i class="fas fa-undo"></i> Reset Manual Edits
-                </button>
-                <button class="btn btn-secondary btn-sm" id="btnUndoPointEdit">
-                  <i class="fas fa-undo-alt"></i> Undo Last
-                </button>
+                <div class="sub-group-body">
+                  <div class="edit-points-controls" style="gap: 6px;">
+                    <button class="btn btn-secondary btn-sm" id="btnResetPointEdits" style="flex: 1;">
+                      <i class="fas fa-undo"></i> Reset All
+                    </button>
+                    <button class="btn btn-secondary btn-sm" id="btnUndoPointEdit" style="flex: 1;">
+                      <i class="fas fa-undo-alt"></i> Undo Last
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -886,51 +915,51 @@
               <div class="hair-style-grid" id="hairStyleGrid">
                 <div class="hair-style-card active" data-style="hair1">
                   <div class="hair-icon"><i class="fas fa-user"></i></div>
-                  <span>Hair 1</span>
+                  <span>Style 1</span>
                 </div>
                 <div class="hair-style-card" data-style="hair2">
                   <div class="hair-icon"><i class="fas fa-user-tie"></i></div>
-                  <span>Hair 2</span>
+                  <span>Style 2</span>
                 </div>
                 <div class="hair-style-card" data-style="hair3">
-                  <div class="hair-icon"><i class="fas fa-user-long"></i></div>
-                  <span>Hair 3</span>
+                  <div class="hair-icon"><i class="fas fa-user-doctor"></i></div>
+                  <span>Style 3</span>
                 </div>
                 <div class="hair-style-card" data-style="hair4">
-                  <div class="hair-icon"><i class="fas fa-cloud"></i></div>
-                  <span>Hair 4</span>
+                  <div class="hair-icon"><i class="fas fa-user-ninja"></i></div>
+                  <span>Style 4</span>
                 </div>
                 <div class="hair-style-card" data-style="hair5">
                   <div class="hair-icon"><i class="fas fa-user"></i></div>
-                  <span>Hair 5</span>
+                  <span>Style 5</span>
                 </div>
                 <div class="hair-style-card" data-style="hair6">
                   <div class="hair-icon"><i class="fas fa-user-tie"></i></div>
-                  <span>Hair 6</span>
+                  <span>Style 6</span>
                 </div>
                 <div class="hair-style-card" data-style="hair7">
-                  <div class="hair-icon"><i class="fas fa-user-long"></i></div>
-                  <span>Hair 7</span>
+                  <div class="hair-icon"><i class="fas fa-user-secret"></i></div>
+                  <span>Style 7</span>
                 </div>
                 <div class="hair-style-card" data-style="hair8">
-                  <div class="hair-icon"><i class="fas fa-cloud"></i></div>
-                  <span>Hair 8</span>
+                  <div class="hair-icon"><i class="fas fa-user-graduate"></i></div>
+                  <span>Style 8</span>
                 </div>
                 <div class="hair-style-card" data-style="hair9">
                   <div class="hair-icon"><i class="fas fa-user"></i></div>
-                  <span>Hair 9</span>
+                  <span>Style 9</span>
                 </div>
                 <div class="hair-style-card" data-style="hair10">
                   <div class="hair-icon"><i class="fas fa-user-tie"></i></div>
-                  <span>Hair 10</span>
+                  <span>Style 10</span>
                 </div>
                 <div class="hair-style-card" data-style="hair11">
-                  <div class="hair-icon"><i class="fas fa-user-long"></i></div>
-                  <span>Hair 11</span>
+                  <div class="hair-icon"><i class="fas fa-user-shield"></i></div>
+                  <span>Style 11</span>
                 </div>
                 <div class="hair-style-card" data-style="hair12">
-                  <div class="hair-icon"><i class="fas fa-cloud"></i></div>
-                  <span>Hair 12</span>
+                  <div class="hair-icon"><i class="fas fa-user-astronaut"></i></div>
+                  <span>Style 12</span>
                 </div>
                 <div class="hair-style-card" data-style="bald">
                   <div class="hair-icon"><i class="fas fa-ban"></i></div>
@@ -2107,40 +2136,51 @@
       <div class="panel-content" id="panel-snapshots">
         <div class="panel-scroll">
 
+          <!-- Capture Snapshot -->
           <div class="control-group">
             <div class="control-group-header">
-              <i class="fas fa-camera-retro"></i>
-              <span>Save Snapshot</span>
+              <i class="fas fa-camera"></i>
+              <span>Snapshots</span>
             </div>
             <div class="control-group-body">
-              <p style="font-size:10.5px;color:var(--text-muted);margin-bottom:8px;line-height:1.5;">
-                Capture the current face state so you can return to it later.
-              </p>
-              <div class="snapshot-capture-bar">
-                <input type="text" id="snapshotNameInput" class="text-input" placeholder="Snapshot name (optional)" maxlength="60" />
-                <button class="btn btn-primary" id="btnCaptureSnapshot" title="Save current state">
-                  <i class="fas fa-plus"></i> Save
-                </button>
+              <!-- Capture Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-plus-circle"></i>
+                  <span>Capture</span>
+                </div>
+                <div class="sub-group-body">
+                  <p style="font-size:10.5px;color:var(--text-muted);margin-bottom:8px;line-height:1.5;">
+                    Save the current face state to return to it later.
+                  </p>
+                  <div class="snapshot-capture-bar">
+                    <input type="text" id="snapshotNameInput" class="text-input" placeholder="Snapshot name (optional)" maxlength="60" />
+                    <button class="btn btn-primary" id="btnCaptureSnapshot" title="Save current state">
+                      <i class="fas fa-plus"></i> Save
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
-          <div class="control-group">
-            <div class="control-group-header">
-              <i class="fas fa-layer-group"></i>
-              <span>Saved Snapshots</span>
-            </div>
-            <div class="control-group-body">
-              <div class="snapshot-clear-bar" id="snapshotClearBar" style="display:none;">
-                <span class="snapshot-count" id="snapshotCount">0 snapshots</span>
-                <button class="btn btn-outline" id="btnClearSnapshots" style="font-size:10px;padding:3px 8px;">
-                  <i class="fas fa-trash-alt"></i> Clear All
-                </button>
-              </div>
-              <div class="snapshot-list" id="snapshotList">
-                <div class="snapshot-empty" id="snapshotEmpty">
-                  <i class="fas fa-camera-retro"></i>
-                  No snapshots yet.<br/>Click <strong>Save</strong> above to capture the current face.
+              <!-- Saved Snapshots Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-layer-group"></i>
+                  <span>Saved</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="snapshot-clear-bar" id="snapshotClearBar" style="display:none;">
+                    <span class="snapshot-count" id="snapshotCount">0 snapshots</span>
+                    <button class="btn btn-outline" id="btnClearSnapshots" style="font-size:10px;padding:3px 8px;">
+                      <i class="fas fa-trash-alt"></i> Clear All
+                    </button>
+                  </div>
+                  <div class="snapshot-list" id="snapshotList">
+                    <div class="snapshot-empty" id="snapshotEmpty">
+                      <i class="fas fa-camera-retro"></i>
+                      No snapshots yet.<br/>Click <strong>Save</strong> above to capture the current face.
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

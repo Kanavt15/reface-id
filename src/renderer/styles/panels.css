@@ -361,7 +361,7 @@
 
 .hair-style-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 6px;
 }
 
@@ -370,7 +370,7 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 10px 4px 8px;
+  padding: 8px 4px 6px;
   border: 1px solid var(--border-secondary);
   border-radius: var(--border-radius);
   background: var(--bg-secondary);
@@ -385,26 +385,29 @@
   background: var(--bg-hover);
   border-color: var(--border-accent);
   color: var(--text-secondary);
+  transform: translateY(-1px);
 }
 
 .hair-style-card.active {
-  background: rgba(122, 162, 247, 0.1);
+  background: rgba(122, 162, 247, 0.15);
   border-color: var(--accent-primary);
   color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-primary);
 }
 
 .hair-icon {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 14px;
   color: inherit;
 }
 
 .hair-style-card span {
   line-height: 1.2;
+  font-weight: 500;
 }
 
 /* ─── Skin Tone Grid ────────────────────────────────────────────────── */
