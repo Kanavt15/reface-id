@@ -763,10 +763,14 @@ class UIController {
 
     // Demographics
     document.getElementById('ageRange')?.addEventListener('change', (e) => {
+      this.caseManager.pushState('Changed age range');
       this.caseManager.updateAppearance('ageRange', e.target.value);
+      this.addHistory('Changed age range');
     });
     document.getElementById('sexSelect')?.addEventListener('change', (e) => {
+      this.caseManager.pushState('Changed sex');
       this.caseManager.updateAppearance('sex', e.target.value);
+      this.addHistory('Changed sex');
     });
 
     // ── Skin Texture Sliders ──
@@ -839,7 +843,7 @@ class UIController {
       if (this.skinTextureSystem) {
         this.skinTextureSystem.params = {
           age: 20, roughness: 50, freckles: 0,
-          poreDetail: 60, wrinkleDepth: 30, skinOiliness: 40, sunDamage: 10,
+          poreDetail: 0, wrinkleDepth: 30, skinOiliness: 40, sunDamage: 10,
         };
         this.skinTextureSystem.regenerate();
         this.caseManager.updateAppearance('skinTextureParams', this.skinTextureSystem.getParams());
@@ -848,7 +852,7 @@ class UIController {
       for (const [sliderId, cfg] of Object.entries(sliderMap)) {
         const slider = document.getElementById(sliderId);
         const valEl = document.getElementById(cfg.valId);
-        const defaults = { age: 20, wrinkleDepth: 30, roughness: 50, poreDetail: 60, freckles: 0, skinOiliness: 40, sunDamage: 10 };
+        const defaults = { age: 20, wrinkleDepth: 30, roughness: 50, poreDetail: 0, freckles: 0, skinOiliness: 40, sunDamage: 10 };
         const def = defaults[cfg.param] ?? 50;
         if (slider) slider.value = def;
         if (valEl) valEl.textContent = def;
@@ -1218,6 +1222,12 @@ class UIController {
       this.addHistory('Cleared all skin marks');
     });
 
+    // Callback: save undo state when a mark is placed
+    skinMarks.onMarkPlaced = (markData) => {
+      this.caseManager.pushState(`Placed ${markData.type}`);
+      this.addHistory(`Placed ${markData.type}`);
+    };
+
     // Callback: update UI when marks change
     skinMarks.onMarkChanged = () => {
       const count = skinMarks.getMarkCount();
@@ -1226,10 +1236,10 @@ class UIController {
       const propEl = document.getElementById('currentSkinMarkCount');
       if (propEl) propEl.textContent = count;
 
-      // Show/hide selected-mark properties
-      const propsPanel = document.getElementById('skinMarkProperties');
-      if (propsPanel) {
-        propsPanel.style.display = skinMarks.selectedMarkIndex >= 0 ? 'block' : 'none';
+      // Show/hide selected-mark properties sub-group
+      const propsGroup = document.getElementById('skinMarkPropertiesGroup');
+      if (propsGroup) {
+        propsGroup.style.display = skinMarks.selectedMarkIndex >= 0 ? 'block' : 'none';
       }
 
       // Update property controls to reflect selected mark
@@ -1427,6 +1437,17 @@ class UIController {
       header.addEventListener('click', (e) => {
         if (e.target.closest('.btn-reset-group')) return; // Don't toggle when clicking reset
 
+        const body = header.nextElementSibling;
+        if (body) {
+          body.classList.toggle('collapsed');
+          header.classList.toggle('collapsed');
+        }
+      });
+    });
+
+    // Sub-group collapse for hierarchical feature groups
+    document.querySelectorAll('.sub-group-header').forEach(header => {
+      header.addEventListener('click', (e) => {
         const body = header.nextElementSibling;
         if (body) {
           body.classList.toggle('collapsed');

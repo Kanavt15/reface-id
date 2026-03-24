@@ -21,8 +21,8 @@ class WrinklePainter {
     this.eraseMode = false;
 
     // Brush parameters
-    this.brushSize = 15;      // radius in UV-space pixels (on 512 texture)
-    this.brushStrength = 0.4;  // 0–1
+    this.brushSize = 8;       // radius in UV-space pixels (on 512 texture) - finer strokes
+    this.brushStrength = 0.2;  // 0–1 - less pronounced per stroke
 
     // Height map canvas for manual wrinkles (same res as SkinTextureSystem)
     this.RES = skinTextureSystem.RES; // 512
@@ -206,8 +206,8 @@ class WrinklePainter {
           // Move toward 0 (neutral)
           this._heightMap[idx] *= (1.0 - weight);
         } else {
-          // Indent (negative = wrinkle groove)
-          this._heightMap[idx] -= weight * 0.15;
+          // Indent (negative = wrinkle groove) - shallower indentation
+          this._heightMap[idx] -= weight * 0.06;
           // Clamp to reasonable range
           if (this._heightMap[idx] < -1.0) this._heightMap[idx] = -1.0;
         }

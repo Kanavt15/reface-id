@@ -35,7 +35,7 @@ class SkinTextureSystem {
 
     this.params = {
       age: 20, roughness: 50, freckles: 0,
-      poreDetail: 60, wrinkleDepth: 30, skinOiliness: 40, sunDamage: 10,
+      poreDetail: 0, wrinkleDepth: 30, skinOiliness: 40, sunDamage: 10,
     };
     this._skinColorHex = '#d4a574';
     this._seed = 42;

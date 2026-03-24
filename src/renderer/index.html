@@ -151,7 +151,7 @@
       <!-- Face Morphing Panel -->
       <div class="panel-content active" id="panel-face">
         <div class="panel-scroll">
-          
+
           <!-- Head / Face Structure -->
           <div class="control-group">
             <div class="control-group-header">
@@ -162,39 +162,57 @@
               </button>
             </div>
             <div class="control-group-body">
-              <div class="slider-control" data-param="faceWidth">
-                <label>Face Width</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Face Dimensions Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-expand-alt"></i>
+                  <span>Face Dimensions</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="faceWidth">
+                    <label>Width</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="faceLength">
+                    <label>Length</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="faceTaper">
+                    <label>Taper</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="faceLength">
-                <label>Face Length</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Head Dimensions Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-circle"></i>
+                  <span>Head Dimensions</span>
                 </div>
-              </div>
-              <div class="slider-control" data-param="headWidth">
-                <label>Head Width</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="headLength">
-                <label>Head Length</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="faceTaper">
-                <label>Face Taper</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="headWidth">
+                    <label>Width</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="headLength">
+                    <label>Length</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -210,39 +228,57 @@
               </button>
             </div>
             <div class="control-group-body collapsed">
-              <div class="slider-control" data-param="foreheadHeight">
-                <label>Height</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Size Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-arrows-alt-v"></i>
+                  <span>Size</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="foreheadHeight">
+                    <label>Height</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="foreheadWidth">
+                    <label>Width</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="templeWidth">
+                    <label>Temple Width</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="foreheadSlope">
-                <label>Slope</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Shape Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-wave-square"></i>
+                  <span>Shape</span>
                 </div>
-              </div>
-              <div class="slider-control" data-param="foreheadWidth">
-                <label>Width</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="templeWidth">
-                <label>Temple Width</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="foreheadBulge">
-                <label>Bulge</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="foreheadSlope">
+                    <label>Slope</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="foreheadBulge">
+                    <label>Bulge</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -258,39 +294,57 @@
               </button>
             </div>
             <div class="control-group-body collapsed">
-              <div class="slider-control" data-param="browHeight">
-                <label>Height</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Position Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-arrows-alt"></i>
+                  <span>Position</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="browHeight">
+                    <label>Height</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="browSpacing">
+                    <label>Spacing</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="browSpacing">
-                <label>Spacing</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Shape Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-bezier-curve"></i>
+                  <span>Shape</span>
                 </div>
-              </div>
-              <div class="slider-control" data-param="browProminence">
-                <label>Prominence</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="browArch">
-                <label>Arch</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="browThickness">
-                <label>Thickness</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="browProminence">
+                    <label>Prominence</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="browArch">
+                    <label>Arch</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="browThickness">
+                    <label>Thickness</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -306,46 +360,64 @@
               </button>
             </div>
             <div class="control-group-body collapsed">
-              <div class="slider-control" data-param="eyeSpacing">
-                <label>Spacing</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Position Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-arrows-alt"></i>
+                  <span>Position</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="eyeSpacing">
+                    <label>Spacing</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyeHeight">
+                    <label>Height</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyeDepth">
+                    <label>Depth</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="eyeHeight">
-                <label>Height Position</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Size & Shape Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-expand"></i>
+                  <span>Size & Shape</span>
                 </div>
-              </div>
-              <div class="slider-control" data-param="eyeDepth">
-                <label>Depth</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="eyeSize">
-                <label>Size</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="eyeTilt">
-                <label>Tilt</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="eyeOpenness">
-                <label>Openness</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="eyeSize">
+                    <label>Size</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyeTilt">
+                    <label>Tilt</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyeOpenness">
+                    <label>Openness</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -361,53 +433,89 @@
               </button>
             </div>
             <div class="control-group-body collapsed">
-              <div class="slider-control" data-param="noseLength">
-                <label>Length</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Overall Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-ruler-combined"></i>
+                  <span>Overall</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="noseLength">
+                    <label>Length</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="noseWidth">
+                    <label>Width</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="noseWidth">
-                <label>Width</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Bridge Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-bridge"></i>
+                  <span>Bridge</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="noseBridgeWidth">
+                    <label>Width</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="noseBridgeHeight">
+                    <label>Height</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="noseBridgeWidth">
-                <label>Bridge Width</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Tip Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-caret-down"></i>
+                  <span>Tip</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="noseTipHeight">
+                    <label>Height</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="noseTipWidth">
+                    <label>Width</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="noseBridgeHeight">
-                <label>Bridge Height</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Nostrils Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-wind"></i>
+                  <span>Nostrils</span>
                 </div>
-              </div>
-              <div class="slider-control" data-param="noseTipHeight">
-                <label>Tip Height</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="noseTipWidth">
-                <label>Tip Width</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="nostrilFlare">
-                <label>Nostril Flare</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="nostrilFlare">
+                    <label>Flare</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -423,32 +531,50 @@
               </button>
             </div>
             <div class="control-group-body collapsed">
-              <div class="slider-control" data-param="cheekFullness">
-                <label>Fullness</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Cheekbones Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-gem"></i>
+                  <span>Cheekbones</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="cheekboneProminence">
+                    <label>Prominence</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="cheekHeight">
+                    <label>Height</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="cheekboneProminence">
-                <label>Cheekbone Prominence</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Flesh Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-cloud"></i>
+                  <span>Flesh</span>
                 </div>
-              </div>
-              <div class="slider-control" data-param="cheekHeight">
-                <label>Height</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="nasolabialDepth">
-                <label>Nasolabial Depth</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="cheekFullness">
+                    <label>Fullness</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="nasolabialDepth">
+                    <label>Nasolabial Depth</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -464,67 +590,103 @@
               </button>
             </div>
             <div class="control-group-body collapsed">
-              <div class="slider-control" data-param="mouthWidth">
-                <label>Width</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Size Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-expand-arrows-alt"></i>
+                  <span>Size</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="mouthWidth">
+                    <label>Width</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="mouthHeight">
+                    <label>Height</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="mouthHeight">
-                <label>Height</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Lips Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-kiss"></i>
+                  <span>Lips</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="upperLipThickness">
+                    <label>Upper Lip</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="lowerLipThickness">
+                    <label>Lower Lip</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="lipProtrusion">
+                    <label>Protrusion</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="cupidBow">
+                    <label>Cupid's Bow</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="lipProtrusion">
-                <label>Lip Protrusion</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Philtrum Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-grip-lines-vertical"></i>
+                  <span>Philtrum</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="philtrumDepth">
+                    <label>Depth</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="philtrumWidth">
+                    <label>Width</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="upperLipThickness">
-                <label>Upper Lip</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Corners Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-angle-double-right"></i>
+                  <span>Corners</span>
                 </div>
-              </div>
-              <div class="slider-control" data-param="lowerLipThickness">
-                <label>Lower Lip</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="cupidBow">
-                <label>Cupid's Bow</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="philtrumDepth">
-                <label>Philtrum Depth</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="philtrumWidth">
-                <label>Philtrum Width</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="lipCornerAngle">
-                <label>Lip Corner Angle</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="lipCornerAngle">
+                    <label>Corner Angle</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -540,39 +702,57 @@
               </button>
             </div>
             <div class="control-group-body collapsed">
-              <div class="slider-control" data-param="jawWidth">
-                <label>Jaw Width</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Jaw Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-angle-down"></i>
+                  <span>Jaw</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="jawWidth">
+                    <label>Width</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="jawDefinition">
+                    <label>Definition</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="chinHeight">
-                <label>Chin Height</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Chin Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-sort-down"></i>
+                  <span>Chin</span>
                 </div>
-              </div>
-              <div class="slider-control" data-param="chinWidth">
-                <label>Chin Width</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="chinProtrusion">
-                <label>Chin Protrusion</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="jawDefinition">
-                <label>Jaw Definition</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="chinHeight">
+                    <label>Height</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="chinWidth">
+                    <label>Width</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="chinProtrusion">
+                    <label>Protrusion</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -588,32 +768,50 @@
               </button>
             </div>
             <div class="control-group-body collapsed">
-              <div class="slider-control" data-param="earSize">
-                <label>Size</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Size & Position Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-arrows-alt"></i>
+                  <span>Size & Position</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="earSize">
+                    <label>Size</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="earHeight">
+                    <label>Height</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="earProtrusion">
+                    <label>Protrusion</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="earProtrusion">
-                <label>Protrusion</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Earlobe Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-dot-circle"></i>
+                  <span>Earlobe</span>
                 </div>
-              </div>
-              <div class="slider-control" data-param="earHeight">
-                <label>Height</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="earlobeSize">
-                <label>Earlobe Size</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="morph-slider" />
-                  <span class="slider-value">50</span>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="earlobeSize">
+                    <label>Size</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="morph-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -943,113 +1141,144 @@
               </button>
             </div>
             <div class="control-group-body collapsed">
-              <!-- Eyebrow Color -->
-              <div class="color-picker-row">
-                <label>Eyebrow Color</label>
-                <div class="color-presets" id="eyebrowColorPresets">
-                  <button class="color-swatch active" data-color="#0a0a0a" style="background: #0a0a0a" title="Black"></button>
-                  <button class="color-swatch" data-color="#2c1b0e" style="background: #2c1b0e" title="Dark Brown"></button>
-                  <button class="color-swatch" data-color="#6b3a2a" style="background: #6b3a2a" title="Brown"></button>
-                  <button class="color-swatch" data-color="#b5651d" style="background: #b5651d" title="Light Brown"></button>
-                  <button class="color-swatch" data-color="#d4a23f" style="background: #d4a23f" title="Blonde"></button>
-                  <button class="color-swatch" data-color="#8b2500" style="background: #8b2500" title="Red"></button>
-                  <button class="color-swatch" data-color="#c4c4c4" style="background: #c4c4c4" title="Grey"></button>
+              <!-- Color Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-palette"></i>
+                  <span>Color</span>
                 </div>
-                <input type="color" id="eyebrowColorPicker" value="#2c1b0e" class="color-input" />
-              </div>
-
-              <!-- Shape controls -->
-              <div class="slider-control" data-param="eyebrowThickness">
-                <label>Thickness</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="100" class="eyebrow-slider" />
-                  <span class="slider-value">100</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="eyebrowArch">
-                <label>Arch</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="0" class="eyebrow-slider" />
-                  <span class="slider-value">0</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="eyebrowStraighten">
-                <label>Twist / Curl</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="51" class="eyebrow-slider" />
-                  <span class="slider-value">51</span>
+                <div class="sub-group-body">
+                  <div class="color-picker-row">
+                    <label>Eyebrow Color</label>
+                    <div class="color-presets" id="eyebrowColorPresets">
+                      <button class="color-swatch active" data-color="#0a0a0a" style="background: #0a0a0a" title="Black"></button>
+                      <button class="color-swatch" data-color="#2c1b0e" style="background: #2c1b0e" title="Dark Brown"></button>
+                      <button class="color-swatch" data-color="#6b3a2a" style="background: #6b3a2a" title="Brown"></button>
+                      <button class="color-swatch" data-color="#b5651d" style="background: #b5651d" title="Light Brown"></button>
+                      <button class="color-swatch" data-color="#d4a23f" style="background: #d4a23f" title="Blonde"></button>
+                      <button class="color-swatch" data-color="#8b2500" style="background: #8b2500" title="Red"></button>
+                      <button class="color-swatch" data-color="#c4c4c4" style="background: #c4c4c4" title="Grey"></button>
+                    </div>
+                    <input type="color" id="eyebrowColorPicker" value="#2c1b0e" class="color-input" />
+                  </div>
+                  <div class="slider-control" data-param="eyebrowOpacity">
+                    <label>Opacity</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="85" class="eyebrow-slider" />
+                      <span class="slider-value">85</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="eyebrowTiltX">
-                <label>Forward/Backward Tilt</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="69" class="eyebrow-slider" />
-                  <span class="slider-value">69</span>
+              <!-- Shape Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-bezier-curve"></i>
+                  <span>Shape</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="eyebrowThickness">
+                    <label>Thickness</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="100" class="eyebrow-slider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyebrowArch">
+                    <label>Arch</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="0" class="eyebrow-slider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyebrowStraighten">
+                    <label>Twist / Curl</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="51" class="eyebrow-slider" />
+                      <span class="slider-value">51</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyebrowLength">
+                    <label>Length</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="eyebrow-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyebrowDensity">
+                    <label>Density</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="70" class="eyebrow-slider" />
+                      <span class="slider-value">70</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="eyebrowSpacing">
-                <label>Spacing</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="42" class="eyebrow-slider" />
-                  <span class="slider-value">42</span>
+              <!-- Position Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-arrows-alt"></i>
+                  <span>Position</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="eyebrowSpacing">
+                    <label>Spacing</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="42" class="eyebrow-slider" />
+                      <span class="slider-value">42</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyebrowPosX">
+                    <label>Horizontal (L/R)</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="51" class="eyebrow-slider" />
+                      <span class="slider-value">51</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyebrowPosY">
+                    <label>Vertical (Up/Down)</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="72" class="eyebrow-slider" />
+                      <span class="slider-value">72</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyebrowPosZ">
+                    <label>Depth (Fwd/Back)</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="49" class="eyebrow-slider" />
+                      <span class="slider-value">49</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="eyebrowDensity">
-                <label>Density</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="70" class="eyebrow-slider" />
-                  <span class="slider-value">70</span>
+              <!-- Rotation Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-sync-alt"></i>
+                  <span>Rotation & Scale</span>
                 </div>
-              </div>
-
-              <!-- Position controls -->
-              <div class="slider-control" data-param="eyebrowPosX">
-                <label>Position X (L/R)</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="51" class="eyebrow-slider" />
-                  <span class="slider-value">51</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="eyebrowPosY">
-                <label>Position Y (Up/Down)</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="72" class="eyebrow-slider" />
-                  <span class="slider-value">72</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="eyebrowPosZ">
-                <label>Position Z (Fwd/Back)</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="49" class="eyebrow-slider" />
-                  <span class="slider-value">49</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="eyebrowRotation">
-                <label>Angle (Up/Down Ends)</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="100" class="eyebrow-slider" />
-                  <span class="slider-value">100</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="eyebrowScale">
-                <label>Overall Scale</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="65" class="eyebrow-slider" />
-                  <span class="slider-value">65</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="eyebrowLength">
-                <label>Length</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="eyebrow-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="eyebrowOpacity">
-                <label>Opacity</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="85" class="eyebrow-slider" />
-                  <span class="slider-value">85</span>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="eyebrowTiltX">
+                    <label>Fwd/Back Tilt</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="69" class="eyebrow-slider" />
+                      <span class="slider-value">69</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyebrowRotation">
+                    <label>Angle (Up/Down Ends)</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="100" class="eyebrow-slider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyebrowScale">
+                    <label>Overall Scale</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="65" class="eyebrow-slider" />
+                      <span class="slider-value">65</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1065,98 +1294,129 @@
               </button>
             </div>
             <div class="control-group-body collapsed">
-              <div class="color-picker-row">
-                <label>Eyelash Color</label>
-                <div class="color-presets" id="eyelashColorPresets">
-                  <button class="color-swatch active" data-color="#0a0a0a" style="background: #0a0a0a" title="Black"></button>
-                  <button class="color-swatch" data-color="#2c1b0e" style="background: #2c1b0e" title="Dark Brown"></button>
-                  <button class="color-swatch" data-color="#4a3728" style="background: #4a3728" title="Medium Brown"></button>
-                  <button class="color-swatch" data-color="#8b7355" style="background: #8b7355" title="Light Brown"></button>
-                  <button class="color-swatch" data-color="#c4a882" style="background: #c4a882" title="Blonde"></button>
-                  <button class="color-swatch" data-color="#8b0000" style="background: #8b0000" title="Auburn"></button>
+              <!-- Color Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-palette"></i>
+                  <span>Color</span>
                 </div>
-                <input type="color" id="eyelashColorPicker" value="#0a0a0a" class="color-input" />
-              </div>
-              <!-- Shape controls -->
-              <div class="slider-control" data-param="eyelashThickness">
-                <label>Thickness</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="65" class="eyelash-slider" />
-                  <span class="slider-value">65</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="eyelashCurl">
-                <label>Curl</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="eyelash-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-
-              <!-- Position controls -->
-              <div class="slider-control" data-param="eyelashPosX">
-                <label>Position X (L/R)</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="51" class="eyelash-slider" />
-                  <span class="slider-value">51</span>
+                <div class="sub-group-body">
+                  <div class="color-picker-row">
+                    <label>Eyelash Color</label>
+                    <div class="color-presets" id="eyelashColorPresets">
+                      <button class="color-swatch active" data-color="#0a0a0a" style="background: #0a0a0a" title="Black"></button>
+                      <button class="color-swatch" data-color="#2c1b0e" style="background: #2c1b0e" title="Dark Brown"></button>
+                      <button class="color-swatch" data-color="#4a3728" style="background: #4a3728" title="Medium Brown"></button>
+                      <button class="color-swatch" data-color="#8b7355" style="background: #8b7355" title="Light Brown"></button>
+                      <button class="color-swatch" data-color="#c4a882" style="background: #c4a882" title="Blonde"></button>
+                      <button class="color-swatch" data-color="#8b0000" style="background: #8b0000" title="Auburn"></button>
+                    </div>
+                    <input type="color" id="eyelashColorPicker" value="#0a0a0a" class="color-input" />
+                  </div>
+                  <div class="slider-control" data-param="eyelashOpacity">
+                    <label>Opacity</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="95" class="eyelash-slider" />
+                      <span class="slider-value">95</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="eyelashPosY">
-                <label>Position Y (Up/Down)</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="47" class="eyelash-slider" />
-                  <span class="slider-value">47</span>
+              <!-- Shape Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-bezier-curve"></i>
+                  <span>Shape</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="eyelashThickness">
+                    <label>Thickness</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="65" class="eyelash-slider" />
+                      <span class="slider-value">65</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyelashCurl">
+                    <label>Curl</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="eyelash-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyelashLength">
+                    <label>Length</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="eyelash-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="eyelashPosZ">
-                <label>Position Z (Fwd/Back)</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="15" class="eyelash-slider" />
-                  <span class="slider-value">15</span>
+              <!-- Position Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-arrows-alt"></i>
+                  <span>Position</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="eyelashPosX">
+                    <label>Horizontal (L/R)</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="51" class="eyelash-slider" />
+                      <span class="slider-value">51</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyelashPosY">
+                    <label>Vertical (Up/Down)</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="47" class="eyelash-slider" />
+                      <span class="slider-value">47</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyelashPosZ">
+                    <label>Depth (Fwd/Back)</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="15" class="eyelash-slider" />
+                      <span class="slider-value">15</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              <!-- Rotation controls -->
-              <div class="slider-control" data-param="eyelashRotX">
-                <label>Forward/Backward Tilt</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="eyelash-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Rotation Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-sync-alt"></i>
+                  <span>Rotation & Scale</span>
                 </div>
-              </div>
-              <div class="slider-control" data-param="eyelashRotY">
-                <label>Angle (Up/Down Ends)</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="eyelash-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="eyelashRotZ">
-                <label>Twist / Curl Angle</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="eyelash-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="eyelashScale">
-                <label>Overall Scale</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="59" class="eyelash-slider" />
-                  <span class="slider-value">59</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="eyelashLength">
-                <label>Length</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="eyelash-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="eyelashOpacity">
-                <label>Opacity</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="95" class="eyelash-slider" />
-                  <span class="slider-value">95</span>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="eyelashRotX">
+                    <label>Fwd/Back Tilt</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="eyelash-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyelashRotY">
+                    <label>Angle (Up/Down Ends)</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="eyelash-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyelashRotZ">
+                    <label>Twist / Curl Angle</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="eyelash-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyelashScale">
+                    <label>Overall Scale</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="59" class="eyelash-slider" />
+                      <span class="slider-value">59</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1254,98 +1514,127 @@
               </button>
             </div>
             <div class="control-group-body">
-              <div class="slider-control" data-param="skinAge">
-                <label>Age</label>
-                <div class="slider-row">
-                  <span class="slider-label-left">Young</span>
-                  <input type="range" min="0" max="100" value="20" class="skin-texture-slider" id="sliderSkinAge" />
-                  <span class="slider-label-right">Old</span>
+              <!-- Age & Wrinkles Sub-group (Hidden) -->
+              <div class="feature-sub-group" style="display: none;">
+                <div class="sub-group-header">
+                  <i class="fas fa-hourglass-half"></i>
+                  <span>Age & Wrinkles</span>
                 </div>
-                <div style="text-align:center;"><span class="slider-value" id="valSkinAge">20</span></div>
-              </div>
-              <div class="slider-control" data-param="skinWrinkleDepth">
-                <label>Wrinkle Depth</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="30" class="skin-texture-slider" id="sliderWrinkleDepth" />
-                  <span class="slider-value" id="valWrinkleDepth">30</span>
-                </div>
-              </div>
-              <!-- ─── Manual Wrinkle Painting ─── -->
-              <div class="control-subgroup" id="wrinklePaintControls">
-                <label style="font-weight:600; margin-bottom:4px; display:block;">
-                  <i class="fas fa-paint-brush" style="margin-right:4px;"></i> Manual Wrinkle Painting
-                </label>
-                <button class="btn-small" id="btnToggleWrinklePaint">
-                  <i class="fas fa-paint-brush"></i> Enable Wrinkle Painting
-                </button>
-                <div class="slider-control">
-                  <label>Brush Size</label>
-                  <div class="slider-row">
-                    <span class="slider-label-left">Fine</span>
-                    <input type="range" min="3" max="40" value="15" id="wrinkleBrushSize" />
-                    <span class="slider-label-right">Wide</span>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="skinAge">
+                    <label>Age</label>
+                    <div class="slider-row">
+                      <span class="slider-label-left">Young</span>
+                      <input type="range" min="0" max="100" value="20" class="skin-texture-slider" id="sliderSkinAge" />
+                      <span class="slider-label-right">Old</span>
+                    </div>
+                    <div style="text-align:center;"><span class="slider-value" id="valSkinAge">20</span></div>
                   </div>
-                  <div style="text-align:center;"><span class="slider-value" id="wrinkleBrushSizeValue">15</span></div>
-                </div>
-                <div class="slider-control">
-                  <label>Brush Strength</label>
-                  <div class="slider-row">
-                    <span class="slider-label-left">Light</span>
-                    <input type="range" min="5" max="100" value="40" id="wrinkleBrushStrength" />
-                    <span class="slider-label-right">Deep</span>
+                  <div class="slider-control" data-param="skinWrinkleDepth">
+                    <label>Wrinkle Depth</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="30" class="skin-texture-slider" id="sliderWrinkleDepth" />
+                      <span class="slider-value" id="valWrinkleDepth">30</span>
+                    </div>
                   </div>
-                  <div style="text-align:center;"><span class="slider-value" id="wrinkleBrushStrengthValue">40</span></div>
+                  <div class="slider-control" data-param="skinSunDamage">
+                    <label>Sun Damage</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="10" class="skin-texture-slider" id="sliderSunDamage" />
+                      <span class="slider-value" id="valSunDamage">10</span>
+                    </div>
+                  </div>
                 </div>
-                <div style="display:flex; gap:4px; margin-top:4px;">
-                  <button class="btn-small" id="btnWrinkleErase" title="Toggle eraser mode">
-                    <i class="fas fa-eraser"></i> Eraser
+              </div>
+              <!-- Wrinkle Painting Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-paint-brush"></i>
+                  <span>Manual Wrinkle Painting</span>
+                </div>
+                <div class="sub-group-body" id="wrinklePaintControls">
+                  <button class="btn-small" id="btnToggleWrinklePaint">
+                    <i class="fas fa-paint-brush"></i> Enable Wrinkle Painting
                   </button>
-                  <button class="btn-small" id="btnWrinkleUndo" title="Undo last stroke">
-                    <i class="fas fa-undo"></i> Undo
-                  </button>
-                  <button class="btn-small" id="btnWrinkleClear" title="Clear all manual wrinkles">
-                    <i class="fas fa-trash"></i> Clear
-                  </button>
+                  <div class="slider-control">
+                    <label>Brush Size</label>
+                    <div class="slider-row">
+                      <span class="slider-label-left">Fine</span>
+                      <input type="range" min="3" max="40" value="8" id="wrinkleBrushSize" />
+                      <span class="slider-label-right">Wide</span>
+                    </div>
+                    <div style="text-align:center;"><span class="slider-value" id="wrinkleBrushSizeValue">8</span></div>
+                  </div>
+                  <div class="slider-control">
+                    <label>Brush Strength</label>
+                    <div class="slider-row">
+                      <span class="slider-label-left">Light</span>
+                      <input type="range" min="5" max="100" value="20" id="wrinkleBrushStrength" />
+                      <span class="slider-label-right">Deep</span>
+                    </div>
+                    <div style="text-align:center;"><span class="slider-value" id="wrinkleBrushStrengthValue">20</span></div>
+                  </div>
+                  <div style="display:flex; gap:4px; margin-top:4px;">
+                    <button class="btn-small" id="btnWrinkleErase" title="Toggle eraser mode">
+                      <i class="fas fa-eraser"></i> Eraser
+                    </button>
+                    <button class="btn-small" id="btnWrinkleUndo" title="Undo last stroke">
+                      <i class="fas fa-undo"></i> Undo
+                    </button>
+                    <button class="btn-small" id="btnWrinkleClear" title="Clear all manual wrinkles">
+                      <i class="fas fa-trash"></i> Clear
+                    </button>
+                  </div>
                 </div>
               </div>
-
-              <div class="slider-control" data-param="skinRoughness">
-                <label>Skin Roughness</label>
-                <div class="slider-row">
-                  <span class="slider-label-left">Smooth</span>
-                  <input type="range" min="0" max="100" value="50" class="skin-texture-slider" id="sliderSkinRoughness" />
-                  <span class="slider-label-right">Rough</span>
+              <!-- Skin Surface Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-layer-group"></i>
+                  <span>Skin Surface</span>
                 </div>
-                <div style="text-align:center;"><span class="slider-value" id="valSkinRoughness">50</span></div>
-              </div>
-              <div class="slider-control" data-param="skinPoreDetail">
-                <label>Pore Detail</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="60" class="skin-texture-slider" id="sliderPoreDetail" />
-                  <span class="slider-value" id="valPoreDetail">60</span>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="skinRoughness">
+                    <label>Roughness</label>
+                    <div class="slider-row">
+                      <span class="slider-label-left">Smooth</span>
+                      <input type="range" min="0" max="100" value="50" class="skin-texture-slider" id="sliderSkinRoughness" />
+                      <span class="slider-label-right">Rough</span>
+                    </div>
+                    <div style="text-align:center;"><span class="slider-value" id="valSkinRoughness">50</span></div>
+                  </div>
+                  <div class="slider-control" data-param="skinPoreDetail">
+                    <label>Pore Detail</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="0" class="skin-texture-slider" id="sliderPoreDetail" />
+                      <span class="slider-value" id="valPoreDetail">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="skinOiliness">
+                    <label>Oiliness</label>
+                    <div class="slider-row">
+                      <span class="slider-label-left">Dry</span>
+                      <input type="range" min="0" max="100" value="40" class="skin-texture-slider" id="sliderSkinOiliness" />
+                      <span class="slider-label-right">Oily</span>
+                    </div>
+                    <div style="text-align:center;"><span class="slider-value" id="valSkinOiliness">40</span></div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="skinFreckles">
-                <label>Freckles / Age Spots</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="0" class="skin-texture-slider" id="sliderSkinFreckles" />
-                  <span class="slider-value" id="valSkinFreckles">0</span>
+              <!-- Spots & Marks Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-circle"></i>
+                  <span>Spots & Marks</span>
                 </div>
-              </div>
-              <div class="slider-control" data-param="skinOiliness">
-                <label>Skin Oiliness</label>
-                <div class="slider-row">
-                  <span class="slider-label-left">Dry</span>
-                  <input type="range" min="0" max="100" value="40" class="skin-texture-slider" id="sliderSkinOiliness" />
-                  <span class="slider-label-right">Oily</span>
-                </div>
-                <div style="text-align:center;"><span class="slider-value" id="valSkinOiliness">40</span></div>
-              </div>
-              <div class="slider-control" data-param="skinSunDamage">
-                <label>Sun Damage</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="10" class="skin-texture-slider" id="sliderSunDamage" />
-                  <span class="slider-value" id="valSunDamage">10</span>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="skinFreckles">
+                    <label>Freckles / Age Spots</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="0" class="skin-texture-slider" id="sliderSkinFreckles" />
+                      <span class="slider-value" id="valSkinFreckles">0</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1385,74 +1674,110 @@
               </button>
             </div>
             <div class="control-group-body">
-              <div class="slider-control" data-param="eyeScale">
-                <label>Eye Scale</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="eye-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Size Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-expand"></i>
+                  <span>Size</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="eyeScale">
+                    <label>Scale</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="eye-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyeSpacing">
+                    <label>Spacing</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="eye-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="eyeSpacing">
-                <label>Eye Spacing</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="eye-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Position Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-arrows-alt"></i>
+                  <span>Position</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="eyePosX">
+                    <label>Offset X</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="eye-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyePosY">
+                    <label>Offset Depth</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="eye-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyePosZ">
+                    <label>Offset Height</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="eye-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="eyePosX">
-                <label>Offset X</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="eye-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Rotation Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-sync-alt"></i>
+                  <span>Rotation</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="eyeRotX">
+                    <label>Rotation X</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="eye-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyeRotY">
+                    <label>Rotation Y</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="eye-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyeRotZ">
+                    <label>Rotation Z</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="eye-slider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="slider-control" data-param="eyePosY">
-                <label>Offset Depth</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="eye-slider" />
-                  <span class="slider-value">50</span>
+              <!-- Appearance Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-eye"></i>
+                  <span>Appearance</span>
                 </div>
-              </div>
-              <div class="slider-control" data-param="eyePosZ">
-                <label>Offset Height</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="eye-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="eyeRotX">
-                <label>Rotation X</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="eye-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="eyeRotY">
-                <label>Rotation Y</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="eye-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="eyeRotZ">
-                <label>Rotation Z</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="50" class="eye-slider" />
-                  <span class="slider-value">50</span>
-                </div>
-              </div>
-              <div class="slider-control" data-param="eyeOpacity">
-                <label>Opacity</label>
-                <div class="slider-row">
-                  <input type="range" min="0" max="100" value="100" class="eye-slider" />
-                  <span class="slider-value">100</span>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="eyeOpacity">
+                    <label>Opacity</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="100" class="eye-slider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Accessories -->
-          <div class="control-group">
+          <!-- Accessories (Hidden) -->
+          <div class="control-group" style="display: none;">
             <div class="control-group-header">
               <i class="fas fa-glasses"></i>
               <span>Accessories</span>
@@ -1482,97 +1807,123 @@
               </button>
             </div>
             <div class="control-group-body">
-              <p class="edit-points-desc">
-                Select a mark type and click on the face to place it. Click existing marks to select, drag to move. Press Delete to remove.
-              </p>
-
-              <button class="btn btn-accent" id="btnToggleSkinMarks" style="width:100%; margin-bottom: 8px;">
-                <i class="fas fa-crosshairs"></i> Enable Mark Placement
-              </button>
-
-              <div class="select-control">
-                <label>Mark Type</label>
-                <select id="skinMarkType" class="custom-select">
-                  <option value="mole">Mole / Beauty Mark</option>
-                  <option value="pimple">Pimple</option>
-                  <option value="scar">Scar</option>
-                  <option value="birthmark">Birthmark</option>
-                  <option value="wound">Wound</option>
-                </select>
-              </div>
-
-              <div class="slider-control">
-                <label>Placement Size</label>
-                <div class="slider-row">
-                  <input type="range" min="1" max="100" value="30" id="skinMarkPlacementSize" class="appearance-slider" />
-                  <span class="slider-value" id="skinMarkPlacementSizeValue">Default</span>
+              <!-- Placement Tools Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-crosshairs"></i>
+                  <span>Placement Tools</span>
                 </div>
-              </div>
-
-              <div id="skinMarkProperties" style="display: none;">
-                <div style="font-size: 10px; color: var(--text-muted); margin: 8px 0 4px; text-transform: uppercase; letter-spacing: 0.5px;">
-                  Selected Mark
-                </div>
-                <div class="slider-control">
-                  <label>Size</label>
-                  <div class="slider-row">
-                    <input type="range" min="1" max="100" value="30" id="skinMarkSize" class="appearance-slider" />
-                    <span class="slider-value" id="skinMarkSizeValue">0.015</span>
+                <div class="sub-group-body">
+                  <p class="edit-points-desc" style="margin-bottom: 6px;">
+                    Select a mark type and click on the face to place it.
+                  </p>
+                  <button class="btn btn-accent" id="btnToggleSkinMarks" style="width:100%; margin-bottom: 8px;">
+                    <i class="fas fa-crosshairs"></i> Enable Mark Placement
+                  </button>
+                  <div class="select-control">
+                    <label>Mark Type</label>
+                    <select id="skinMarkType" class="custom-select">
+                      <option value="mole">Mole / Beauty Mark</option>
+                      <option value="pimple">Pimple</option>
+                      <option value="scar">Scar</option>
+                      <option value="birthmark">Birthmark</option>
+                      <option value="wound">Wound</option>
+                    </select>
+                  </div>
+                  <div class="slider-control">
+                    <label>Placement Size</label>
+                    <div class="slider-row">
+                      <input type="range" min="1" max="100" value="30" id="skinMarkPlacementSize" class="appearance-slider" />
+                      <span class="slider-value" id="skinMarkPlacementSizeValue">Default</span>
+                    </div>
                   </div>
                 </div>
-                <div class="slider-control">
-                  <label>Rotation</label>
-                  <div class="slider-row">
-                    <input type="range" min="0" max="360" value="0" id="skinMarkRotation" class="appearance-slider" />
-                    <span class="slider-value" id="skinMarkRotationValue">0&deg;</span>
-                  </div>
-                </div>
-                <div class="color-picker-row">
-                  <label>Color</label>
-                  <input type="color" id="skinMarkColor" value="#3a2010" class="color-input" />
-                </div>
-                <button class="btn btn-secondary btn-sm" id="btnDeleteMark" style="width: 100%; margin-top: 8px;">
-                  <i class="fas fa-trash"></i> Delete Selected Mark
-                </button>
               </div>
-
+              <!-- Selected Mark Properties Sub-group -->
+              <div class="feature-sub-group" id="skinMarkPropertiesGroup" style="display: none;">
+                <div class="sub-group-header">
+                  <i class="fas fa-edit"></i>
+                  <span>Selected Mark</span>
+                </div>
+                <div class="sub-group-body" id="skinMarkProperties">
+                  <div class="slider-control">
+                    <label>Size</label>
+                    <div class="slider-row">
+                      <input type="range" min="1" max="100" value="30" id="skinMarkSize" class="appearance-slider" />
+                      <span class="slider-value" id="skinMarkSizeValue">0.015</span>
+                    </div>
+                  </div>
+                  <div class="slider-control">
+                    <label>Rotation</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="360" value="0" id="skinMarkRotation" class="appearance-slider" />
+                      <span class="slider-value" id="skinMarkRotationValue">0&deg;</span>
+                    </div>
+                  </div>
+                  <div class="color-picker-row">
+                    <label>Color</label>
+                    <input type="color" id="skinMarkColor" value="#3a2010" class="color-input" />
+                  </div>
+                  <button class="btn btn-secondary btn-sm" id="btnDeleteMark" style="width: 100%; margin-top: 8px;">
+                    <i class="fas fa-trash"></i> Delete Selected Mark
+                  </button>
+                </div>
+              </div>
               <div style="margin-top: 8px; font-size: 10px; color: var(--text-muted);">
                 Placed marks: <span id="skinMarkCount" style="color: var(--accent-primary); font-family: 'JetBrains Mono', monospace;">0</span>
               </div>
             </div>
           </div>
 
-          <!-- Demographics -->
-          <div class="control-group">
+          <!-- Demographics (Hidden) -->
+          <div class="control-group" style="display: none;">
             <div class="control-group-header">
               <i class="fas fa-id-card"></i>
               <span>Demographics</span>
             </div>
             <div class="control-group-body">
-              <div class="select-control">
-                <label>Estimated Age Range</label>
-                <select id="ageRange" class="custom-select">
-                  <option value="18-25">18–25</option>
-                  <option value="25-35" selected>25–35</option>
-                  <option value="35-45">35–45</option>
-                  <option value="45-55">45–55</option>
-                  <option value="55-65">55–65</option>
-                  <option value="65+">65+</option>
-                </select>
+              <!-- Identity Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-user"></i>
+                  <span>Identity</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="select-control">
+                    <label>Estimated Age Range</label>
+                    <select id="ageRange" class="custom-select">
+                      <option value="18-25">18–25</option>
+                      <option value="25-35" selected>25–35</option>
+                      <option value="35-45">35–45</option>
+                      <option value="45-55">45–55</option>
+                      <option value="55-65">55–65</option>
+                      <option value="65+">65+</option>
+                    </select>
+                  </div>
+                  <div class="select-control">
+                    <label>Sex</label>
+                    <select id="sexSelect" class="custom-select">
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                    </select>
+                  </div>
+                </div>
               </div>
-              <div class="select-control">
-                <label>Sex</label>
-                <select id="sexSelect" class="custom-select">
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                </select>
-              </div>
-              <div class="slider-control" data-param="weight">
-                <label>Weight Build</label>
-                <div class="slider-row">
-                  <span class="slider-label-left">Thin</span>
-                  <input type="range" min="0" max="100" value="50" class="appearance-slider" />
-                  <span class="slider-label-right">Heavy</span>
+              <!-- Body Type Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-weight"></i>
+                  <span>Body Type</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="weight">
+                    <label>Weight Build</label>
+                    <div class="slider-row">
+                      <span class="slider-label-left">Thin</span>
+                      <input type="range" min="0" max="100" value="50" class="appearance-slider" />
+                      <span class="slider-label-right">Heavy</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1719,46 +2070,74 @@
       <!-- Case Management Panel -->
       <div class="panel-content" id="panel-case">
         <div class="panel-scroll">
-          
+
           <div class="control-group">
             <div class="control-group-header">
               <i class="fas fa-file-alt"></i>
               <span>Case Information</span>
             </div>
             <div class="control-group-body">
-              <div class="input-control">
-                <label>Case Number</label>
-                <input type="text" id="caseNumber" class="text-input" placeholder="e.g., FR-2026-0042" />
+              <!-- Basic Info Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-info-circle"></i>
+                  <span>Basic Info</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="input-control">
+                    <label>Case Number</label>
+                    <input type="text" id="caseNumber" class="text-input" placeholder="e.g., FR-2026-0042" />
+                  </div>
+                  <div class="input-control">
+                    <label>Case Name</label>
+                    <input type="text" id="caseName" class="text-input" placeholder="e.g., Doe, John — Unidentified" />
+                  </div>
+                  <div class="input-control">
+                    <label>Investigator</label>
+                    <input type="text" id="investigator" class="text-input" placeholder="Lead investigator name" />
+                  </div>
+                </div>
               </div>
-              <div class="input-control">
-                <label>Case Name</label>
-                <input type="text" id="caseName" class="text-input" placeholder="e.g., Doe, John — Unidentified" />
-              </div>
-              <div class="input-control">
-                <label>Investigator</label>
-                <input type="text" id="investigator" class="text-input" placeholder="Lead investigator name" />
-              </div>
-              <div class="input-control">
-                <label>Description</label>
-                <textarea id="caseDescription" class="text-area" rows="3" placeholder="Brief case description..."></textarea>
-              </div>
-              <div class="input-control">
-                <label>Notes</label>
-                <textarea id="caseNotes" class="text-area" rows="4" placeholder="Witness descriptions, distinguishing features..."></textarea>
+              <!-- Notes Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-sticky-note"></i>
+                  <span>Notes & Description</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="input-control">
+                    <label>Description</label>
+                    <textarea id="caseDescription" class="text-area" rows="3" placeholder="Brief case description..."></textarea>
+                  </div>
+                  <div class="input-control">
+                    <label>Notes</label>
+                    <textarea id="caseNotes" class="text-area" rows="4" placeholder="Witness descriptions, distinguishing features..."></textarea>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          <div class="panel-actions">
-            <button class="btn btn-primary" id="btnSaveCase">
-              <i class="fas fa-save"></i> Save Case
-            </button>
-            <button class="btn btn-secondary" id="btnLoadCase">
-              <i class="fas fa-folder-open"></i> Load Case
-            </button>
-            <button class="btn btn-secondary" id="btnNewCase">
-              <i class="fas fa-plus"></i> New Case
-            </button>
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-folder"></i>
+              <span>Case Actions</span>
+            </div>
+            <div class="control-group-body">
+              <div class="export-buttons" style="flex-direction: column; gap: 6px;">
+                <button class="btn btn-primary" id="btnSaveCase" style="width: 100%;">
+                  <i class="fas fa-save"></i> Save Case
+                </button>
+                <div style="display: flex; gap: 6px;">
+                  <button class="btn btn-secondary" id="btnLoadCase" style="flex: 1;">
+                    <i class="fas fa-folder-open"></i> Load
+                  </button>
+                  <button class="btn btn-secondary" id="btnNewCase" style="flex: 1;">
+                    <i class="fas fa-plus"></i> New
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="control-group">
@@ -1766,7 +2145,7 @@
               <i class="fas fa-file-import"></i>
               <span>Import 3D Model</span>
             </div>
-            <div class="control-group-body">
+            <div class="control-group-body collapsed">
               <p class="control-hint">Import an external 3D model (GLB, OBJ) as a reference overlay.</p>
               <div class="export-buttons">
                 <button class="btn btn-outline" id="btnImportFile">
@@ -1785,20 +2164,40 @@
               <i class="fas fa-file-export"></i>
               <span>Export</span>
             </div>
-            <div class="control-group-body">
-              <div class="export-buttons">
-                <button class="btn btn-outline" id="btnExportOBJ">
-                  <i class="fas fa-cube"></i> Export OBJ
-                </button>
-                <button class="btn btn-outline" id="btnExportFBX">
-                  <i class="fas fa-cube"></i> Export FBX
-                </button>
-                <button class="btn btn-outline" id="btnExportGLB">
-                  <i class="fas fa-cube"></i> Export GLB
-                </button>
-                <button class="btn btn-outline" id="btnExportPNG">
-                  <i class="fas fa-image"></i> Screenshot
-                </button>
+            <div class="control-group-body collapsed">
+              <!-- 3D Model Export Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-cube"></i>
+                  <span>3D Model</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="export-buttons">
+                    <button class="btn btn-outline" id="btnExportOBJ">
+                      <i class="fas fa-cube"></i> OBJ
+                    </button>
+                    <button class="btn btn-outline" id="btnExportFBX">
+                      <i class="fas fa-cube"></i> FBX
+                    </button>
+                    <button class="btn btn-outline" id="btnExportGLB">
+                      <i class="fas fa-cube"></i> GLB
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <!-- Image Export Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-image"></i>
+                  <span>Image</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="export-buttons">
+                    <button class="btn btn-outline" id="btnExportPNG" style="width: 100%;">
+                      <i class="fas fa-camera"></i> Screenshot (PNG)
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

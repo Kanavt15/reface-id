@@ -40,6 +40,7 @@ class SkinMarkSystem {
 
     // Callbacks
     this.onMarkChanged = null;
+    this.onMarkPlaced = null; // Called when a new mark is placed (for undo/redo)
 
     // Bound event handlers
     this._onPointerDown = this._onPointerDown.bind(this);
@@ -315,6 +316,7 @@ class SkinMarkSystem {
       '-> markGroup.parent:', this.markGroup.parent?.name,
       '-> attached:', this._isAttachedToHead);
 
+    if (this.onMarkPlaced) this.onMarkPlaced(markData); // For undo/redo
     if (this.onMarkChanged) this.onMarkChanged();
     return markData;
   }
