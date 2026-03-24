@@ -33,8 +33,6 @@
   // Face Point Editor (initialized after model loads)
   let facePointEditor = null;
   let skinMarkSystem = null;
-  let wrinkleSystem = null;
-  let textureGenerator = null;
 
   // Use OBJMorpher as the default morpher passed to UI
   // (falls back to FaceMorpher only if OBJ load fails)
@@ -124,12 +122,7 @@
       // Wire up reference in OBJMorpher for automatic mark refresh
       objMorpher.skinMarkSystem = skinMarkSystem;
 
-      // ── Initialize Wrinkle System ──
-      textureGenerator = new TextureGenerator();
-      wrinkleSystem = new WrinkleSystem(sceneManager, objMorpher, textureGenerator);
-      console.log('[App] Wrinkle System initialized');
-
-      // Refresh editor points,skin marks, and wrinkles when morphs change
+      // Refresh editor points and skin marks when morphs change
       const origOnMorph = objMorpher.onMorphApplied;
       objMorpher.onMorphApplied = () => {
         if (origOnMorph) origOnMorph();
@@ -137,20 +130,12 @@
           facePointEditor.refreshPoints();
         }
         skinMarkSystem.refreshMarksAfterMorph();
-        wrinkleSystem.refreshWrinklesAfterMorph();
       };
 
       facePointEditor.onPointEdited = (name) => {
         if (ui) {
           ui.addHistory(`Dragged point: ${name}`);
           ui.updatePropertyPanel();
-        }
-      };
-
-      facePointEditor.onBeforePointEdited = (name) => {
-        if (ui) {
-          ui.updateCaseFromUI(); // Ensure all state is current
-          ui.caseManager.pushState(`Drag point: ${name}`);
         }
       };
 
@@ -171,7 +156,6 @@
     ui = new UIController(sceneManager, activeMorpher, hairSystem, api, caseManager);
     ui.facePointEditor = facePointEditor;   // expose for render pipeline
     ui.skinMarkSystem = skinMarkSystem;     // expose for skin marks UI
-    ui.wrinkleSystem = wrinkleSystem;       // expose for wrinkle UI
     ui.eyeSystem = eyeSystem;               // expose eye system for UI control
     console.log('[App] Initializing UIController...');
     ui.init();

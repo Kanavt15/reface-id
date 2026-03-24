@@ -40,8 +40,6 @@ class SkinMarkSystem {
 
     // Callbacks
     this.onMarkChanged = null;
-    this.onBeforeMarkAdded = null;  // Called before a mark is added (for undo)
-    this.onBeforeMarkDeleted = null;  // Called before a mark is deleted (for undo)
 
     // Bound event handlers
     this._onPointerDown = this._onPointerDown.bind(this);
@@ -254,9 +252,6 @@ class SkinMarkSystem {
   addMark(intersection) {
     const typeDef = SkinMarkSystem.MARK_TYPES[this.activeMarkType];
     if (!typeDef) return null;
-
-    // Call before callback for undo system
-    if (this.onBeforeMarkAdded) this.onBeforeMarkAdded();
 
     // Ensure we're attached to head mesh
     this.ensureAttachedToHead();

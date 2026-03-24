@@ -40,7 +40,6 @@ class CaseManager {
         sex: 'male',
       },
       skinMarks: [],
-      wrinkles: [],
       cameraState: null,
       createdAt: new Date().toISOString(),
       modifiedAt: new Date().toISOString(),
@@ -167,11 +166,6 @@ class CaseManager {
    */
   updateSkinMarks(marksArray) {
     this.currentCase.skinMarks = marksArray ? [...marksArray] : [];
-    this.currentCase.modifiedAt = new Date().toISOString();
-  }
-
-  updateWrinkles(wrinkleArray) {
-    this.currentCase.wrinkles = wrinkleArray ? [...wrinkleArray] : [];
     this.currentCase.modifiedAt = new Date().toISOString();
   }
 
