@@ -120,6 +120,9 @@ class SnapshotManager {
       name: s.name,
       timestamp: s.timestamp,
       thumbnail: s.thumbnail,
+      caseNumber: s.state?.caseNumber || '',
+      caseName: s.state?.caseName || '',
+      investigator: s.state?.investigator || '',
     }));
   }
 

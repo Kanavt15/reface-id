@@ -835,6 +835,16 @@
   text-overflow: ellipsis;
 }
 
+.snapshot-meta {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
 .snapshot-time {
   font-size: 9.5px;
   color: var(--text-muted);

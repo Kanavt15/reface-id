@@ -1353,9 +1353,18 @@ class UIController {
     // Save
     document.getElementById('btnSaveCase')?.addEventListener('click', async () => {
       this.updateCaseFromUI();
+
+      // Create a snapshot with the case information
+      if (this.snapshotManager) {
+        const caseName = this.caseManager.currentCase.caseName || 'Untitled Case';
+        const caseNum = this.caseManager.currentCase.caseNumber;
+        const snapshotName = caseNum ? `${caseNum} - ${caseName}` : caseName;
+        this.snapshotManager.capture(snapshotName);
+      }
+
       const result = await this.caseManager.save();
       if (result?.success) {
-        this.addHistory('Case saved');
+        this.addHistory('Case saved and snapshot created');
         this.updateCaseTitle();
       } else {
         this.addHistory('Save failed: ' + (result?.error || 'Unknown error'));
@@ -2232,11 +2241,22 @@ class UIController {
       nameEl.textContent = snap.name;
       nameEl.title = 'Double-click to rename';
 
+      // Case metadata (if available)
+      const metaEl = document.createElement('div');
+      metaEl.className = 'snapshot-meta';
+      const metaParts = [];
+      if (snap.caseNumber) metaParts.push(`#${snap.caseNumber}`);
+      if (snap.investigator) metaParts.push(`by ${snap.investigator}`);
+      if (metaParts.length > 0) {
+        metaEl.textContent = metaParts.join(' • ');
+      }
+
       const timeEl = document.createElement('div');
       timeEl.className = 'snapshot-time';
       timeEl.textContent = this._formatSnapshotTime(snap.timestamp);
 
       info.appendChild(nameEl);
+      if (metaParts.length > 0) info.appendChild(metaEl);
       info.appendChild(timeEl);
 
       // Actions
