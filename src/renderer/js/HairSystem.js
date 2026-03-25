@@ -86,32 +86,32 @@ class HairSystem {
     });
 
     // Hair model configs with per-model default positions/scales
-    // defaults: { posx, posy, posz, roty, scale } - all centered at 50
+    // defaults: { posx, posy, posz, roty, scale } - calibrated values
     this.hairModels = {
       hair1: { file: '../../assets/models/hair/Hair1.glb', meshName: null,
-               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+               defaults: { posx: 49, posy: 38, posz: 41, roty: 50, scale: 48 } },
       hair2: { file: '../../assets/models/hair/Hair2.glb', meshName: null,
-               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+               defaults: { posx: 50, posy: 21, posz: 38, roty: 50, scale: 47 } },
       hair3: { file: '../../assets/models/hair/Hair3.glb', meshName: 'hair02_hair02_0',
-               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+               defaults: { posx: 50, posy: 13, posz: 36, roty: 50, scale: 61 } },
       hair4: { file: '../../assets/models/hair/Hair4.glb', meshName: 'hair11_hair11_0',
-               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+               defaults: { posx: 50, posy: 25, posz: 38, roty: 50, scale: 54 } },
       hair5: { file: '../../assets/models/hair/Hair5.glb', meshName: null,
-               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+               defaults: { posx: 50, posy: 37, posz: 41, roty: 50, scale: 55 } },
       hair6: { file: '../../assets/models/hair/Hair6.glb', meshName: null,
-               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+               defaults: { posx: 50, posy: 23, posz: 41, roty: 50, scale: 48 } },
       hair7: { file: '../../assets/models/hair/Hair7.glb', meshName: null,
-               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+               defaults: { posx: 52, posy: 21, posz: 35, roty: 50, scale: 60 } },
       hair8: { file: '../../assets/models/hair/Hair8.glb', meshName: null,
-               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+               defaults: { posx: 50, posy: 15, posz: 33, roty: 50, scale: 40 } },
       hair9: { file: '../../assets/models/hair/Hair9.glb', meshName: null,
-               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+               defaults: { posx: 49, posy: 17, posz: 48, roty: 50, scale: 49 } },
       hair10: { file: '../../assets/models/hair/Hair10.glb', meshName: null,
-               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+               defaults: { posx: 50, posy: 34, posz: 28, roty: 50, scale: 59 } },
       hair11: { file: '../../assets/models/hair/Hair11.glb', meshName: null,
-               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+               defaults: { posx: 50, posy: 21, posz: 40, roty: 50, scale: 47 } },
       hair12: { file: '../../assets/models/hair/Hair12.glb', meshName: null,
-               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+               defaults: { posx: 49, posy: 26, posz: 37, roty: 50, scale: 45 } },
       bald:  { file: null, defaults: null },
     };
 
@@ -119,11 +119,11 @@ class HairSystem {
     this.eyebrowModel = { file: '../../assets/models/facial/eyebrows.glb', meshName: null };
 
     // Beard model configs with per-model defaults
-    // defaults: { scale, posX, posY, posZ, rotY, rotZ } - all centered at 100
+    // defaults: { scale, posX, posY, posZ, rotY, rotZ } - calibrated values
     this.beardModels = {
       none: { file: null, defaults: null },
       beard1: { file: '../../assets/models/facial/Beard1.glb', meshName: null,
-                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 } },
+                defaults: { scale: 70, posX: 103, posY: 44, posZ: 74, rotY: 98, rotZ: 107 } },
     };
 
     // Hair material

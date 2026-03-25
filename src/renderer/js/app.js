@@ -102,9 +102,9 @@
         }, 120);
       };
 
-      // Generate initial hair
+      // Generate initial hair (use setStyle to apply calibrated defaults)
       console.log('[App] Generating initial hair...');
-      hairSystem.generate();
+      hairSystem.setStyle(hairSystem.currentStyle);
       console.log('[App] Generating eyebrows...');
       hairSystem.generateEyebrows();
       console.log('[App] Generating eyes...');
