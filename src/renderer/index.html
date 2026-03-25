@@ -89,6 +89,9 @@
       <button class="tool-btn" id="btnWrinklePaint" title="Paint Wrinkles (click and drag on face)">
         <i class="fas fa-paint-brush"></i>
       </button>
+      <button class="tool-btn" id="btnLipPaint" title="Paint Lip Color (click and drag on lips)">
+        <i class="fas fa-pen"></i>
+      </button>
     </div>
     <div class="toolbar-separator"></div>
     <div class="toolbar-group">
@@ -1599,6 +1602,42 @@
               <div class="color-picker-row">
                 <button class="btn-small" id="btnResetLipColor" title="Remove lip color">Reset / Off</button>
               </div>
+              <!-- Manual Lip Painting -->
+              <div class="lip-paint-section" id="lipPaintControls">
+                <div style="border-top: 1px solid var(--border-accent); padding-top: 8px; margin-top: 8px;">
+                  <label style="font-weight:600; margin-bottom:4px; display:block;">Manual Touch-Up</label>
+                  <button class="btn-small" id="btnToggleLipPaint">
+                    <i class="fas fa-pen"></i> Enable Lip Pen
+                  </button>
+                  <div class="slider-control" style="margin-top:6px;">
+                    <label>Brush Size</label>
+                    <div class="slider-row">
+                      <span class="slider-label-left">Fine</span>
+                      <input type="range" min="1" max="10" value="4" step="0.5" id="lipBrushSize" />
+                      <span class="slider-label-right">Wide</span>
+                    </div>
+                  </div>
+                  <div class="slider-control">
+                    <label>Brush Strength</label>
+                    <div class="slider-row">
+                      <span class="slider-label-left">Light</span>
+                      <input type="range" min="5" max="100" value="35" id="lipBrushStrength" />
+                      <span class="slider-label-right">Heavy</span>
+                    </div>
+                  </div>
+                  <div style="display:flex; gap:4px; margin-top:4px;">
+                    <button class="btn-small" id="btnLipErase" title="Toggle eraser mode">
+                      <i class="fas fa-eraser"></i> Eraser
+                    </button>
+                    <button class="btn-small" id="btnLipPaintUndo" title="Undo last stroke">
+                      <i class="fas fa-undo"></i> Undo
+                    </button>
+                    <button class="btn-small" id="btnLipPaintClear" title="Clear all manual lip paint">
+                      <i class="fas fa-trash"></i> Clear
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -2469,6 +2508,7 @@
   <script src="js/SkinMarkSystem.js"></script>
   <script src="js/SkinTextureSystem.js"></script>
   <script src="js/WrinklePainter.js"></script>
+  <script src="js/LipPainter.js"></script>
   <script src="js/MarkPositionMapper.js"></script>
   <script src="js/SnapshotManager.js"></script>
   <script src="js/UIController.js"></script>

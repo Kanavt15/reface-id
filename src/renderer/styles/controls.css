@@ -391,6 +391,21 @@ input[type="range"]:active::-webkit-slider-thumb {
   margin-top: 8px;
 }
 
+/* ─── Lip Painter Controls ─────────────────────────────────────────── */
+
+#btnLipPaint.active,
+#btnToggleLipPaint.active {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  border-color: var(--accent-primary);
+}
+
+#btnLipErase.active {
+  background: var(--accent-warning, #e6a817);
+  border-color: var(--accent-warning, #e6a817);
+  color: var(--bg-primary);
+}
+
 /* ─── Import Model ─────────────────────────────────────────────────── */
 
 .control-hint {

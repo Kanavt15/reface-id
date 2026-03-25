@@ -37,6 +37,7 @@
   let facePointEditor = null;
   let skinMarkSystem = null;
   let wrinklePainter = null;
+  let lipPainter = null;
 
   // Use OBJMorpher as the default morpher passed to UI
   // (falls back to FaceMorpher only if OBJ load fails)
@@ -154,6 +155,10 @@
       skinTextureSystem.wrinklePainter = wrinklePainter;
       console.log('[App] Wrinkle Painter initialized');
 
+      // ── Initialize Lip Painter ──
+      lipPainter = new LipPainter(sceneManager);
+      console.log('[App] Lip Painter initialized');
+
     } else {
       // ── OBJ failed — use procedural head ──
       console.warn('OBJ load failed, using procedural head');
@@ -174,6 +179,7 @@
     ui.eyeSystem = eyeSystem;               // expose eye system for UI control
     ui.skinTextureSystem = skinTextureSystem; // expose for skin texture UI
     ui.wrinklePainter = wrinklePainter;       // expose for wrinkle painting UI
+    ui.lipPainter = lipPainter;               // expose for lip painting UI
     console.log('[App] Initializing UIController...');
     ui.init();
     console.log('[App] UIController initialized successfully');
@@ -301,6 +307,16 @@
         if (btnWP) {
           btnWP.classList.remove('active');
           btnWP.innerHTML = '<i class="fas fa-paint-brush"></i> Enable Wrinkle Painting';
+        }
+      }
+      // Disable lip painter if active (mutual exclusion)
+      if (lipPainter && lipPainter.enabled) {
+        lipPainter.disable();
+        document.getElementById('btnLipPaint')?.classList.remove('active');
+        const btnLP = document.getElementById('btnToggleLipPaint');
+        if (btnLP) {
+          btnLP.classList.remove('active');
+          btnLP.innerHTML = '<i class="fas fa-pen"></i> Enable Lip Pen';
         }
       }
       const active = editor.toggle();

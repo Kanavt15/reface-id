@@ -28,6 +28,7 @@ class UIController {
     this.bindEyelashControls();
     this.bindSkinMarkControls();
     this.bindWrinklePainterControls();
+    this.bindLipPainterControls();
     this.bindCaseControls();
     this.bindGroupCollapse();
     this.bindKeyboardShortcuts();
@@ -1108,6 +1109,16 @@ class UIController {
           btnWP.innerHTML = '<i class="fas fa-paint-brush"></i> Enable Wrinkle Painting';
         }
       }
+      // Disable lip painter if active (mutual exclusion)
+      if (this.lipPainter && this.lipPainter.enabled) {
+        this.lipPainter.disable();
+        document.getElementById('btnLipPaint')?.classList.remove('active');
+        const btnLP = document.getElementById('btnToggleLipPaint');
+        if (btnLP) {
+          btnLP.classList.remove('active');
+          btnLP.innerHTML = '<i class="fas fa-pen"></i> Enable Lip Pen';
+        }
+      }
 
       const active = skinMarks.toggle();
       btnToggle?.classList.toggle('active', active);
@@ -1322,6 +1333,15 @@ class UIController {
         this.facePointEditor.disable();
         document.getElementById('btnEditPoints')?.classList.remove('active');
       }
+      if (this.lipPainter && this.lipPainter.enabled) {
+        this.lipPainter.disable();
+        document.getElementById('btnLipPaint')?.classList.remove('active');
+        const btnLP = document.getElementById('btnToggleLipPaint');
+        if (btnLP) {
+          btnLP.classList.remove('active');
+          btnLP.innerHTML = '<i class="fas fa-pen"></i> Enable Lip Pen';
+        }
+      }
 
       const active = painter.toggle();
       btnToolbar?.classList.toggle('active', active);
@@ -1372,6 +1392,90 @@ class UIController {
     // Persist changes
     painter.onChanged = () => {
       this.caseManager.updateAppearance('wrinklePaintData', painter.exportState());
+    };
+  }
+
+  // ─── Lip Painter Controls ─────────────────────────────────────────────────
+
+  bindLipPainterControls() {
+    const painter = this.lipPainter;
+    if (!painter) return;
+
+    const btnToolbar = document.getElementById('btnLipPaint');
+    const btnToggle = document.getElementById('btnToggleLipPaint');
+    const btnErase = document.getElementById('btnLipErase');
+    const btnUndo = document.getElementById('btnLipPaintUndo');
+    const btnClear = document.getElementById('btnLipPaintClear');
+    const sizeSlider = document.getElementById('lipBrushSize');
+    const strengthSlider = document.getElementById('lipBrushStrength');
+
+    const togglePainter = () => {
+      // Disable other edit modes (mutual exclusion)
+      if (this.skinMarkSystem && this.skinMarkSystem.enabled) {
+        this.skinMarkSystem.disable();
+        document.getElementById('btnSkinMarks')?.classList.remove('active');
+      }
+      if (this.facePointEditor && this.facePointEditor.enabled) {
+        this.facePointEditor.disable();
+        document.getElementById('btnEditPoints')?.classList.remove('active');
+      }
+      if (this.wrinklePainter && this.wrinklePainter.enabled) {
+        this.wrinklePainter.disable();
+        document.getElementById('btnWrinklePaint')?.classList.remove('active');
+        const btnWP = document.getElementById('btnToggleWrinklePaint');
+        if (btnWP) {
+          btnWP.classList.remove('active');
+          btnWP.innerHTML = '<i class="fas fa-paint-brush"></i> Enable Wrinkle Painting';
+        }
+      }
+
+      const active = painter.toggle();
+      btnToolbar?.classList.toggle('active', active);
+      if (btnToggle) {
+        btnToggle.classList.toggle('active', active);
+        btnToggle.innerHTML = active
+          ? '<i class="fas fa-times"></i> Disable Lip Pen'
+          : '<i class="fas fa-pen"></i> Enable Lip Pen';
+      }
+      this.addHistory(active ? 'Lip painting enabled' : 'Lip painting disabled');
+    };
+
+    btnToolbar?.addEventListener('click', togglePainter);
+    btnToggle?.addEventListener('click', togglePainter);
+
+    // Brush size
+    sizeSlider?.addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      painter.brushRadius = v / 100; // slider 1-10 maps to 0.01-0.10
+    });
+
+    // Brush strength
+    strengthSlider?.addEventListener('input', (e) => {
+      const v = parseInt(e.target.value);
+      painter.brushStrength = v / 100;
+    });
+
+    // Eraser toggle
+    btnErase?.addEventListener('click', () => {
+      painter.eraseMode = !painter.eraseMode;
+      btnErase.classList.toggle('active', painter.eraseMode);
+    });
+
+    // Undo
+    btnUndo?.addEventListener('click', () => {
+      painter.undo();
+      this.addHistory('Undo lip paint stroke');
+    });
+
+    // Clear
+    btnClear?.addEventListener('click', () => {
+      painter.clearAll();
+      this.addHistory('Cleared all manual lip paint');
+    });
+
+    // Persist changes
+    painter.onChanged = () => {
+      this.caseManager.updateAppearance('lipPaintData', painter.exportState());
     };
   }
 
@@ -1943,6 +2047,10 @@ class UIController {
       if (data.appearance?.wrinklePaintData && this.wrinklePainter) {
         this.wrinklePainter.loadState(data.appearance.wrinklePaintData);
       }
+      // Restore manual lip painting
+      if (data.appearance?.lipPaintData && this.lipPainter) {
+        this.lipPainter.loadState(data.appearance.lipPaintData);
+      }
       // Restore camera
       if (data.cameraState) {
         this.scene.loadCameraState(data.cameraState);
@@ -2154,6 +2262,11 @@ class UIController {
     // Restore manual wrinkle painting
     if (state.appearance?.wrinklePaintData && this.wrinklePainter) {
       this.wrinklePainter.loadState(state.appearance.wrinklePaintData);
+    }
+
+    // Restore manual lip painting
+    if (state.appearance?.lipPaintData && this.lipPainter) {
+      this.lipPainter.loadState(state.appearance.lipPaintData);
     }
 
     // Restore eyelash params

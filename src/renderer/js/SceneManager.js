@@ -23,6 +23,7 @@ class SceneManager {
     this._skinColor = '#d4a574';
     this._lipColor = null;
     this._lipWeights = null; // cached per-vertex lip weights
+    this._lipPaintOverrides = null; // Map<mesh, Float32Array> manual paint deltas
 
     // Skin texture system reference (set externally)
     this.skinTextureSystem = null;
@@ -389,6 +390,10 @@ class SceneManager {
     if (color) {
       if (!this._lipWeights) {
         this._computeLipWeights();
+        // Apply any manual paint overrides
+        if (this._lipPaintOverrides) {
+          this._applyPaintOverrides();
+        }
       }
       this._updateVertexColors();
     } else {
@@ -414,42 +419,81 @@ class SceneManager {
    * vertically while covering the full horizontal lip width.
    */
   _computeLipWeights() {
-    // Dense lip landmarks — upper lip arc, lower lip arc, and corners
+    // Dense lip landmarks — upper lip outer edge, inner edge, lower lip, and fill
     const lipLandmarks = [
-      // Upper lip arc
-      [-0.20, -0.30, 1.10],   // mouth_left corner
+      // ── Upper lip outer edge (top boundary — Cupid's bow shape) ──
+      [-0.19, -0.29, 1.10],   // mouth_left corner
       [-0.16, -0.27, 1.12],
-      [-0.12, -0.25, 1.14],
-      [-0.08, -0.25, 1.14],
-      [-0.04, -0.24, 1.15],
-      [ 0.00, -0.25, 1.15],   // upper lip center
-      [ 0.04, -0.24, 1.15],
-      [ 0.08, -0.25, 1.14],
-      [ 0.12, -0.25, 1.14],
+      [-0.13, -0.26, 1.13],
+      [-0.10, -0.255, 1.135],
+      [-0.07, -0.25, 1.14],
+      [-0.04, -0.245, 1.145],
+      [-0.02, -0.25, 1.15],   // Cupid's bow left dip
+      [ 0.00, -0.255, 1.15],  // upper lip center
+      [ 0.02, -0.25, 1.15],   // Cupid's bow right dip
+      [ 0.04, -0.245, 1.145],
+      [ 0.07, -0.25, 1.14],
+      [ 0.10, -0.255, 1.135],
+      [ 0.13, -0.26, 1.13],
       [ 0.16, -0.27, 1.12],
-      [ 0.20, -0.30, 1.10],   // mouth_right corner
+      [ 0.19, -0.29, 1.10],   // mouth_right corner
 
-      // Lower lip arc
-      [-0.16, -0.33, 1.11],
-      [-0.12, -0.35, 1.12],
-      [-0.08, -0.35, 1.12],
-      [-0.04, -0.36, 1.13],
-      [ 0.00, -0.35, 1.13],   // lower lip center
-      [ 0.04, -0.36, 1.13],
-      [ 0.08, -0.35, 1.12],
-      [ 0.12, -0.35, 1.12],
-      [ 0.16, -0.33, 1.11],
+      // ── Upper lip body (between outer edge and mouth opening) ──
+      [-0.15, -0.285, 1.12],
+      [-0.10, -0.275, 1.135],
+      [-0.05, -0.27, 1.145],
+      [ 0.00, -0.275, 1.15],
+      [ 0.05, -0.27, 1.145],
+      [ 0.10, -0.275, 1.135],
+      [ 0.15, -0.285, 1.12],
 
-      // Mid-lip fill (between upper and lower)
-      [-0.10, -0.30, 1.13],
-      [ 0.00, -0.30, 1.14],
-      [ 0.10, -0.30, 1.13],
+      // ── Mouth seam line (where lips meet) ──
+      [-0.17, -0.30, 1.11],
+      [-0.13, -0.295, 1.13],
+      [-0.09, -0.29, 1.14],
+      [-0.05, -0.29, 1.145],
+      [ 0.00, -0.29, 1.15],
+      [ 0.05, -0.29, 1.145],
+      [ 0.09, -0.29, 1.14],
+      [ 0.13, -0.295, 1.13],
+      [ 0.17, -0.30, 1.11],
+
+      // ── Lower lip body (between mouth opening and bottom edge) ──
+      [-0.15, -0.315, 1.115],
+      [-0.11, -0.325, 1.125],
+      [-0.07, -0.33, 1.13],
+      [-0.03, -0.335, 1.135],
+      [ 0.00, -0.335, 1.135],
+      [ 0.03, -0.335, 1.135],
+      [ 0.07, -0.33, 1.13],
+      [ 0.11, -0.325, 1.125],
+      [ 0.15, -0.315, 1.115],
+
+      // ── Lower lip outer edge (bottom boundary) ──
+      [-0.17, -0.31, 1.11],
+      [-0.14, -0.33, 1.115],
+      [-0.10, -0.345, 1.12],
+      [-0.06, -0.355, 1.125],
+      [-0.03, -0.36, 1.13],
+      [ 0.00, -0.36, 1.13],   // lower lip center bottom
+      [ 0.03, -0.36, 1.13],
+      [ 0.06, -0.355, 1.125],
+      [ 0.10, -0.345, 1.12],
+      [ 0.14, -0.33, 1.115],
+      [ 0.17, -0.31, 1.11],
+
+      // ── Extra lower lip fill (denser coverage for fuller lower lip) ──
+      [-0.08, -0.34, 1.125],
+      [-0.04, -0.35, 1.13],
+      [ 0.00, -0.35, 1.13],
+      [ 0.04, -0.35, 1.13],
+      [ 0.08, -0.34, 1.125],
     ];
 
-    const radius = 0.09;
+    const radius = 0.07;
     const twoR2 = 2 * radius * radius;
-    // Anisotropic scale: penalize Y distance 3x to prevent vertical bleed
-    const yScale = 3.0;
+    // Anisotropic scale: penalize Y distance 4x to prevent vertical bleed
+    const yScale = 4.0;
 
     const allWeights = [];
 
@@ -473,11 +517,11 @@ class SceneManager {
       // Threshold and smoothstep for clean lip edges
       for (let i = 0; i < N; i++) {
         let w = weights[i];
-        if (w < 0.15) {
+        if (w < 0.18) {
           weights[i] = 0;
         } else {
-          // Remap 0.15..0.8 → 0..1, then smoothstep
-          w = Math.max(0, Math.min(1, (w - 0.15) / 0.65));
+          // Remap 0.18..0.75 → 0..1, then smoothstep
+          w = Math.max(0, Math.min(1, (w - 0.18) / 0.57));
           weights[i] = w * w * (3 - 2 * w);
         }
       }
@@ -524,6 +568,30 @@ class SceneManager {
       mesh.material.color.set(0xffffff);
       mesh.material.needsUpdate = true;
     }
+  }
+
+  /**
+   * Apply manual paint overrides to computed lip weights.
+   * Called by LipPainter after each stroke.
+   */
+  _applyPaintOverrides() {
+    if (!this._lipWeights || !this._lipPaintOverrides) return;
+    for (const entry of this._lipWeights) {
+      const overrides = this._lipPaintOverrides.get(entry.mesh);
+      if (!overrides) continue;
+      for (let i = 0; i < entry.weights.length; i++) {
+        if (overrides[i] !== undefined) {
+          entry.weights[i] = Math.max(0, Math.min(1, entry.weights[i] + overrides[i]));
+        }
+      }
+    }
+  }
+
+  /**
+   * Invalidate cached lip weights so they recompute on next setLipColor.
+   */
+  invalidateLipWeights() {
+    this._lipWeights = null;
   }
 
   /**
