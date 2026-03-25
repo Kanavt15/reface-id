@@ -85,30 +85,45 @@ class HairSystem {
       opacity: 0.95,
     });
 
-    // Hair model configs
+    // Hair model configs with per-model default positions/scales
+    // defaults: { posx, posy, posz, roty, scale } - all centered at 50
     this.hairModels = {
-      hair1: { file: '../../assets/models/hair/Hair1.glb', meshName: null },
-      hair2: { file: '../../assets/models/hair/Hair2.glb', meshName: null },
-      hair3: { file: '../../assets/models/hair/Hair3.glb', meshName: 'hair02_hair02_0' },
-      hair4: { file: '../../assets/models/hair/Hair4.glb', meshName: 'hair11_hair11_0' },
-      hair5: { file: '../../assets/models/hair/Hair5.glb', meshName: null },
-      hair6: { file: '../../assets/models/hair/Hair6.glb', meshName: null },
-      hair7: { file: '../../assets/models/hair/Hair7.glb', meshName: null },
-      hair8: { file: '../../assets/models/hair/Hair8.glb', meshName: null },
-      hair9: { file: '../../assets/models/hair/Hair9.glb', meshName: null },
-      hair10: { file: '../../assets/models/hair/Hair10.glb', meshName: null },
-      hair11: { file: '../../assets/models/hair/Hair11.glb', meshName: null },
-      hair12: { file: '../../assets/models/hair/Hair12.glb', meshName: null },
-      bald:  { file: null },
+      hair1: { file: '../../assets/models/hair/Hair1.glb', meshName: null,
+               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+      hair2: { file: '../../assets/models/hair/Hair2.glb', meshName: null,
+               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+      hair3: { file: '../../assets/models/hair/Hair3.glb', meshName: 'hair02_hair02_0',
+               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+      hair4: { file: '../../assets/models/hair/Hair4.glb', meshName: 'hair11_hair11_0',
+               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+      hair5: { file: '../../assets/models/hair/Hair5.glb', meshName: null,
+               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+      hair6: { file: '../../assets/models/hair/Hair6.glb', meshName: null,
+               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+      hair7: { file: '../../assets/models/hair/Hair7.glb', meshName: null,
+               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+      hair8: { file: '../../assets/models/hair/Hair8.glb', meshName: null,
+               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+      hair9: { file: '../../assets/models/hair/Hair9.glb', meshName: null,
+               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+      hair10: { file: '../../assets/models/hair/Hair10.glb', meshName: null,
+               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+      hair11: { file: '../../assets/models/hair/Hair11.glb', meshName: null,
+               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+      hair12: { file: '../../assets/models/hair/Hair12.glb', meshName: null,
+               defaults: { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 } },
+      bald:  { file: null, defaults: null },
     };
 
     // Eyebrow model config
     this.eyebrowModel = { file: '../../assets/models/facial/eyebrows.glb', meshName: null };
 
-    // Beard model configs
+    // Beard model configs with per-model defaults
+    // defaults: { scale, posX, posY, posZ, rotY, rotZ } - all centered at 100
     this.beardModels = {
-      none: { file: null },
-      beard1: { file: '../../assets/models/facial/Beard1.glb', meshName: null },
+      none: { file: null, defaults: null },
+      beard1: { file: '../../assets/models/facial/Beard1.glb', meshName: null,
+                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 } },
     };
 
     // Hair material
@@ -156,7 +171,18 @@ class HairSystem {
 
   setStyle(style) {
     this.currentStyle = style;
+    // Apply model-specific defaults if available
+    const config = this.hairModels[style];
+    if (config && config.defaults) {
+      this.params.posx = config.defaults.posx;
+      this.params.posy = config.defaults.posy;
+      this.params.posz = config.defaults.posz;
+      this.params.roty = config.defaults.roty;
+      this.params.scale = config.defaults.scale;
+    }
     this.generate();
+    // Return the applied defaults so UI can update sliders
+    return config?.defaults || null;
   }
 
   setColor(color) {
@@ -521,7 +547,19 @@ class HairSystem {
 
   setBeard(style) {
     this.beardStyle = style;
+    // Apply model-specific defaults if available
+    const config = this.beardModels[style];
+    if (config && config.defaults) {
+      this.beardParams.scale = config.defaults.scale;
+      this.beardParams.posX = config.defaults.posX;
+      this.beardParams.posY = config.defaults.posY;
+      this.beardParams.posZ = config.defaults.posZ;
+      this.beardParams.rotY = config.defaults.rotY;
+      this.beardParams.rotZ = config.defaults.rotZ;
+    }
     this.generateBeard();
+    // Return the applied defaults so UI can update sliders
+    return config?.defaults || null;
   }
 
   generateBeard() {
@@ -684,6 +722,84 @@ class HairSystem {
   }
 
   clearHair() { this._clearGroup(this.hairGroup); this._hairContainer = null; this._hairBboxCache = null; }
+
+  /**
+   * Save current hair position/scale as the new default for this model.
+   * Logs the config to console so you can copy it into the code.
+   */
+  saveHairDefault() {
+    const style = this.currentStyle;
+    if (!style || style === 'bald') {
+      console.log('[HairSystem] No hair style to save defaults for');
+      return null;
+    }
+    const defaults = {
+      posx: this.params.posx,
+      posy: this.params.posy,
+      posz: this.params.posz,
+      roty: this.params.roty,
+      scale: this.params.scale
+    };
+    // Update in memory
+    if (this.hairModels[style]) {
+      this.hairModels[style].defaults = defaults;
+    }
+    // Log for copying into code
+    console.log(`[HairSystem] Default saved for ${style}:`);
+    console.log(`      ${style}: { file: '../../assets/models/hair/${style.charAt(0).toUpperCase() + style.slice(1)}.glb', meshName: ${this.hairModels[style]?.meshName ? `'${this.hairModels[style].meshName}'` : 'null'},`);
+    console.log(`               defaults: { posx: ${defaults.posx}, posy: ${defaults.posy}, posz: ${defaults.posz}, roty: ${defaults.roty}, scale: ${defaults.scale} } },`);
+    return defaults;
+  }
+
+  /**
+   * Save current beard position/scale as the new default for this model.
+   * Logs the config to console so you can copy it into the code.
+   */
+  saveBeardDefault() {
+    const style = this.beardStyle;
+    if (!style || style === 'none') {
+      console.log('[HairSystem] No beard style to save defaults for');
+      return null;
+    }
+    const defaults = {
+      scale: this.beardParams.scale,
+      posX: this.beardParams.posX,
+      posY: this.beardParams.posY,
+      posZ: this.beardParams.posZ,
+      rotY: this.beardParams.rotY,
+      rotZ: this.beardParams.rotZ
+    };
+    // Update in memory
+    if (this.beardModels[style]) {
+      this.beardModels[style].defaults = defaults;
+    }
+    // Log for copying into code
+    console.log(`[HairSystem] Default saved for ${style}:`);
+    console.log(`      ${style}: { file: '../../assets/models/facial/${style.charAt(0).toUpperCase() + style.slice(1)}.glb', meshName: null,`);
+    console.log(`                defaults: { scale: ${defaults.scale}, posX: ${defaults.posX}, posY: ${defaults.posY}, posZ: ${defaults.posZ}, rotY: ${defaults.rotY}, rotZ: ${defaults.rotZ} } },`);
+    return defaults;
+  }
+
+  /**
+   * Get current defaults for all hair/beard models (for debugging/inspection)
+   */
+  getAllDefaults() {
+    const hairDefaults = {};
+    for (const [style, config] of Object.entries(this.hairModels)) {
+      if (config.defaults) {
+        hairDefaults[style] = config.defaults;
+      }
+    }
+    const beardDefaults = {};
+    for (const [style, config] of Object.entries(this.beardModels)) {
+      if (config.defaults) {
+        beardDefaults[style] = config.defaults;
+      }
+    }
+    console.log('[HairSystem] All Hair Defaults:', hairDefaults);
+    console.log('[HairSystem] All Beard Defaults:', beardDefaults);
+    return { hair: hairDefaults, beard: beardDefaults };
+  }
 
   getParams() {
     return {

@@ -219,7 +219,13 @@ class UIController {
         card.classList.add('active');
 
         const style = card.dataset.style;
-        this.hair.setStyle(style);
+        const appliedDefaults = this.hair.setStyle(style);
+
+        // Update position sliders to reflect model-specific defaults
+        if (appliedDefaults) {
+          this._updateHairPositionSliders(appliedDefaults);
+        }
+
         this.caseManager.updateHairParams(this.hair.getParams());
         this.addHistory(`Hair style: ${this.formatStyleName(style)}`);
         this.updatePropertyPanel();
@@ -270,23 +276,33 @@ class UIController {
       slider.addEventListener('mouseup', onMouseUp);
     });
 
-    // Reset hair position button
+    // Reset hair position button - resets to model-specific defaults
     document.getElementById('btnResetHairPosition')?.addEventListener('click', (e) => {
       e.stopPropagation();
       this.caseManager.pushState('Reset hair position');
+
+      // Get model-specific defaults (or fallback to 50)
+      const config = this.hair.hairModels[this.hair.currentStyle];
+      const defaults = config?.defaults || { posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 };
+
       ['posx', 'posy', 'posz', 'roty', 'scale'].forEach(key => {
-        this.hair.setParam(key, 50);
+        this.hair.setParam(key, defaults[key]);
       });
-      const posGroup = e.currentTarget.closest('.control-group')?.querySelector('.control-group-body');
-      if (posGroup) {
-        posGroup.querySelectorAll('.hair-slider').forEach(slider => {
-          slider.value = 50;
-          const vd = slider.closest('.slider-control')?.querySelector('.slider-value');
-          if (vd) vd.textContent = '50';
-        });
-      }
+
+      this._updateHairPositionSliders(defaults);
+
       this.caseManager.updateHairParams(this.hair.getParams());
       this.addHistory('Reset hair position');
+    });
+
+    // Save hair position as default button
+    document.getElementById('btnSaveHairDefault')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const saved = this.hair.saveHairDefault();
+      if (saved) {
+        this.addHistory(`Saved ${this.hair.currentStyle} default position`);
+        alert(`Default saved for ${this.hair.currentStyle}!\nCheck console (F12) for the config to copy into HairSystem.js`);
+      }
     });
 
     // Hair color presets
@@ -522,7 +538,13 @@ class UIController {
     // Beard style dropdown
     document.getElementById('beardStyle')?.addEventListener('change', (e) => {
       this.caseManager.pushState(`Beard style: ${e.target.value}`);
-      this.hair.setBeard(e.target.value);
+      const appliedDefaults = this.hair.setBeard(e.target.value);
+
+      // Update position sliders to reflect model-specific defaults
+      if (appliedDefaults) {
+        this._updateBeardPositionSliders(appliedDefaults);
+      }
+
       this.caseManager.updateHairParams(this.hair.getParams());
       this.addHistory(`Beard: ${this.formatStyleName(e.target.value)}`);
     });
@@ -600,25 +622,21 @@ class UIController {
       });
     }
 
-    // Reset beard button
+    // Reset beard button - resets to model-specific defaults
     document.getElementById('btnResetBeard')?.addEventListener('click', (e) => {
       e.stopPropagation();
       this.caseManager.pushState('Reset beard');
 
-      const defaults = { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 };
+      // Get model-specific defaults (or fallback to center values)
+      const config = this.hair.beardModels[this.hair.beardStyle];
+      const defaults = config?.defaults || { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 };
+
       Object.entries(defaults).forEach(([key, val]) => {
         this.hair.setBeardParam(key, val);
       });
       this.hair.setBeardColor('#2c1b0e');
 
-      const groupBody = e.currentTarget.closest('.control-group')?.querySelector('.control-group-body');
-      if (groupBody) {
-        groupBody.querySelectorAll('.beard-slider').forEach(slider => {
-          slider.value = 100;
-          const vd = slider.closest('.slider-control')?.querySelector('.slider-value');
-          if (vd) vd.textContent = '100';
-        });
-      }
+      this._updateBeardPositionSliders(defaults);
 
       const picker = document.getElementById('beardColorPicker');
       if (picker) picker.value = '#2c1b0e';
@@ -628,6 +646,16 @@ class UIController {
 
       this.caseManager.updateHairParams(this.hair.getParams());
       this.addHistory('Reset beard');
+    });
+
+    // Save beard position as default button
+    document.getElementById('btnSaveBeardDefault')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const saved = this.hair.saveBeardDefault();
+      if (saved) {
+        this.addHistory(`Saved ${this.hair.beardStyle} default position`);
+        alert(`Default saved for ${this.hair.beardStyle}!\nCheck console (F12) for the config to copy into HairSystem.js`);
+      }
     });
   }
 
@@ -2364,6 +2392,52 @@ class UIController {
     // Same year — show month/day + time
     const opts = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
     return d.toLocaleDateString(undefined, opts);
+  }
+
+  // Helper: Update hair position sliders to given defaults
+  _updateHairPositionSliders(defaults) {
+    // Map HTML data-param to HairSystem param key
+    const sliderMap = {
+      'hairPosX': 'posx',
+      'hairPosY': 'posy',
+      'hairPosZ': 'posz',
+      'hairRotY': 'roty',
+      'hairScale': 'scale'
+    };
+
+    document.querySelectorAll('.hair-slider').forEach(slider => {
+      const control = slider.closest('.slider-control');
+      const param = control?.dataset.param;
+      const key = sliderMap[param];
+      if (key && defaults[key] !== undefined) {
+        slider.value = defaults[key];
+        const vd = control?.querySelector('.slider-value');
+        if (vd) vd.textContent = defaults[key];
+      }
+    });
+  }
+
+  // Helper: Update beard position sliders to given defaults
+  _updateBeardPositionSliders(defaults) {
+    const sliderMap = {
+      'beardScale': 'scale',
+      'beardPosX': 'posX',
+      'beardPosY': 'posY',
+      'beardPosZ': 'posZ',
+      'beardRotY': 'rotY',
+      'beardRotZ': 'rotZ'
+    };
+
+    document.querySelectorAll('.beard-slider').forEach(slider => {
+      const control = slider.closest('.slider-control');
+      const param = control?.dataset.param;
+      const key = sliderMap[param];
+      if (key && defaults[key] !== undefined) {
+        slider.value = defaults[key];
+        const vd = control?.querySelector('.slider-value');
+        if (vd) vd.textContent = defaults[key];
+      }
+    });
   }
 
   formatParamName(param) {
