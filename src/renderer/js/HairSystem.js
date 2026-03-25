@@ -145,8 +145,9 @@ class HairSystem {
     this._computeHeadMetrics();
   }
 
-  refreshFromMesh() {
+  refreshFromMesh(morphValues) {
     if (!this._headGroup) return;
+    if (morphValues) this._faceMorphValues = morphValues;
     this._computeHeadMetrics();
     if (this._hairContainer && this.currentStyle !== 'bald') {
       this._alignAndAdjust();
@@ -672,7 +673,7 @@ class HairSystem {
 
     // Slider-driven adjustments (0-200 range, centered at 100)
     const scaleF = 0.5 + (bp.scale / 200) * 1.0;
-    
+
     // Rotations (0-200 range, centered at 100)
     const rotY = ((bp.rotY - 100) / 100) * (Math.PI / 6);  // Y-axis: twist
     const rotZ = ((bp.rotZ - 100) / 100) * (Math.PI / 6);  // Z-axis: tilt
@@ -682,16 +683,107 @@ class HairSystem {
     const posOffsetY = ((bp.posY - 100) / 100) * 0.8;    // Up/Down: increased range ±0.8
     const posOffsetZ = ((bp.posZ - 100) / 100) * 0.8;    // Fwd/Back: increased range ±0.8
 
+    // ── Jaw/chin-aware beard synchronization ──
+    // Face morph values are 0-100 with 50 as neutral
+    const mv = this._faceMorphValues || {};
+    const neutral = 50;
+
+    // jawWidth (regions 13,14): scale beard X to match jaw spread
+    // morphMap range [0.85, 1.2] → at slider 0: 0.85x, at 50: ~1.025x, at 100: 1.2x
+    const jawT = ((mv.jawWidth ?? neutral) - neutral) / 50;        // -1 to 1
+    const jawScaleX = 1.0 + jawT * 0.18;  // beard widens/narrows with jaw
+
+    // chinWidth (region 15): further adjust beard X for chin area
+    const chinWT = ((mv.chinWidth ?? neutral) - neutral) / 50;
+    const chinScaleX = 1.0 + chinWT * 0.12;
+
+    // chinProtrusion (region 15): shift beard forward/back with chin
+    const chinPT = ((mv.chinProtrusion ?? neutral) - neutral) / 50;
+    const chinZOffset = chinPT * 0.05;
+
+    // chinHeight (region 15): shift beard up/down with chin
+    const chinHT = ((mv.chinHeight ?? neutral) - neutral) / 50;
+    const chinYOffset = chinHT * 0.05;
+
+    // chinShape (region 15): scale beard Z-depth with chin shape
+    const chinST = ((mv.chinShape ?? neutral) - neutral) / 50;
+    const chinScaleZ = 1.0 + chinST * 0.10;
+
+    // jawDefinition (jaw_angle landmarks): widens jaw outward and pulls inward
+    const jawDT = ((mv.jawDefinition ?? neutral) - neutral) / 50;
+    const jawDefScaleX = 1.0 + jawDT * 0.15;
+    const jawDefZOffset = jawDT * -0.02;
+
+    // ── Cheek parameters ──
+    // cheekFullness: pushes cheeks outward (X) and forward (Z)
+    const cheekFT = ((mv.cheekFullness ?? neutral) - neutral) / 50;
+    const cheekScaleX = 1.0 + cheekFT * 0.12;
+    const cheekZOffset = cheekFT * 0.03;
+
+    // cheekboneProminence: widens cheekbones outward (X) and forward (Z)
+    const cheekBT = ((mv.cheekboneProminence ?? neutral) - neutral) / 50;
+    const cheekBoneScaleX = 1.0 + cheekBT * 0.10;
+    const cheekBoneZOffset = cheekBT * 0.02;
+
+    // cheekHeight: shifts cheek area up/down (Y)
+    const cheekHT = ((mv.cheekHeight ?? neutral) - neutral) / 50;
+    const cheekYOffset = cheekHT * 0.03;
+
+    // nasolabialDepth: pulls inward around nasolabial folds (Z)
+    const nasoT = ((mv.nasolabialDepth ?? neutral) - neutral) / 50;
+    const nasoZOffset = nasoT * -0.03;
+
+    // ── Mouth parameters ──
+    // mouthWidth: widens mouth area (X)
+    const mouthWT = ((mv.mouthWidth ?? neutral) - neutral) / 50;
+    const mouthScaleX = 1.0 + mouthWT * 0.10;
+
+    // lipProtrusion: pushes lips forward (Z)
+    const lipPT = ((mv.lipProtrusion ?? neutral) - neutral) / 50;
+    const lipZOffset = lipPT * 0.04;
+
+    // mouthHeight: shifts mouth area up/down (Y)
+    const mouthHT = ((mv.mouthHeight ?? neutral) - neutral) / 50;
+    const mouthYOffset = mouthHT * 0.03;
+
+    // ── Lip position tracking (beard gap follows lip placement) ──
+    // upperLipThickness: lip moves up (Y) and forward (Z)
+    const upperLipT = ((mv.upperLipThickness ?? neutral) - neutral) / 50;
+    const upperLipYOffset = upperLipT * 0.025;
+    const upperLipZOffset = upperLipT * 0.03;
+
+    // lowerLipThickness: lip moves down (Y) and forward (Z)
+    const lowerLipT = ((mv.lowerLipThickness ?? neutral) - neutral) / 50;
+    const lowerLipYOffset = lowerLipT * -0.025;
+    const lowerLipZOffset = lowerLipT * 0.03;
+
+    // cupidBow: shifts upper lip area up (Y) and slightly forward (Z)
+    const cupidT = ((mv.cupidBow ?? neutral) - neutral) / 50;
+    const cupidYOffset = cupidT * 0.02;
+    const cupidZOffset = cupidT * 0.01;
+
+    // lipCornerAngle: shifts mouth corners up/down (Y)
+    const lipCornerT = ((mv.lipCornerAngle ?? neutral) - neutral) / 50;
+    const lipCornerYOffset = lipCornerT * 0.02;
+
+    // Combined lip Y/Z offsets — beard gap tracks where lips actually sit
+    const lipYShift = upperLipYOffset + lowerLipYOffset + cupidYOffset + lipCornerYOffset;
+    const lipZShift = upperLipZOffset + lowerLipZOffset + cupidZOffset;
+
+    // Combined face-morph scale factors
+    const faceScaleX = jawScaleX * chinScaleX * jawDefScaleX * cheekScaleX * cheekBoneScaleX * mouthScaleX;
+    const faceScaleZ = chinScaleZ;
+
     container.scale.set(
+      baseScale * scaleF * faceScaleX,
       baseScale * scaleF,
-      baseScale * scaleF,
-      baseScale * scaleF
+      baseScale * scaleF * faceScaleZ
     );
 
     container.position.set(
       this.modelCenter.x + posOffsetX,
-      beardRegionY + posOffsetY,
-      beardRegionZ + posOffsetZ
+      beardRegionY + posOffsetY + chinYOffset + cheekYOffset + mouthYOffset + lipYShift,
+      beardRegionZ + posOffsetZ + chinZOffset + jawDefZOffset + cheekZOffset + cheekBoneZOffset + nasoZOffset + lipZOffset + lipZShift
     );
 
     container.rotation.set(0, rotY, rotZ);

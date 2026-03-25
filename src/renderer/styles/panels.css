@@ -970,7 +970,8 @@
 
 .ai-send-btn,
 .ai-mic-btn,
-.ai-attach-btn {
+.ai-attach-btn,
+.ai-camera-btn {
   height: 32px;
   border: none;
   border-radius: var(--border-radius);
@@ -1024,6 +1025,104 @@
 .ai-attach-btn.active {
   border-color: var(--accent-primary);
   color: var(--accent-primary);
+}
+
+.ai-camera-btn {
+  width: 32px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  border: 1px solid var(--border-accent);
+}
+
+.ai-camera-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Camera Capture Modal */
+.ai-camera-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-camera-modal-content {
+  background: var(--bg-primary);
+  border-radius: 8px;
+  overflow: hidden;
+  width: 90%;
+  max-width: 480px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.ai-camera-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-accent);
+}
+
+.ai-camera-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px;
+}
+
+.ai-camera-close-btn:hover {
+  color: var(--text-primary);
+}
+
+.ai-camera-preview-wrapper {
+  position: relative;
+  width: 100%;
+  background: #000;
+}
+
+.ai-camera-preview-wrapper video {
+  display: block;
+  width: 100%;
+  max-height: 360px;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.ai-camera-controls {
+  display: flex;
+  justify-content: center;
+  padding: 14px;
+  background: var(--bg-primary);
+}
+
+.ai-camera-capture-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 3px solid var(--text-muted);
+  background: transparent;
+  color: var(--accent-primary);
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.ai-camera-capture-btn:hover {
+  border-color: var(--accent-primary);
+  background: rgba(122, 162, 247, 0.1);
+  transform: scale(1.05);
 }
 
 .ai-mic-btn.ai-mic-active {

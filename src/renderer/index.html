@@ -16,7 +16,7 @@
     <div class="titlebar-drag">
       <div class="titlebar-logo">
         <i class="fas fa-cube"></i>
-        <span>REface ID</span>
+        <span>ReFace</span>
         <span class="titlebar-version">v1.0</span>
       </div>
     </div>
@@ -2068,6 +2068,9 @@
                 <button class="ai-attach-btn" id="aiAttachBtn" title="Attach reference image">
                   <i class="fas fa-image"></i>
                 </button>
+                <button class="ai-camera-btn" id="aiCameraBtn" title="Capture photo from camera">
+                  <i class="fas fa-camera"></i>
+                </button>
                 <button class="ai-mic-btn" id="aiMicBtn" title="Voice input">
                   <i class="fas fa-microphone"></i>
                 </button>
@@ -2082,6 +2085,25 @@
               <button class="ai-quick-btn" data-prompt="Female, 25, thin face, high cheekbones, small nose, light skin">Thin female</button>
               <button class="ai-quick-btn" data-prompt="Make the nose wider and the eyes closer together">Wider nose</button>
               <button class="ai-quick-btn" data-prompt="Reset everything to default neutral face">Reset face</button>
+            </div>
+
+            <!-- Camera Capture Modal -->
+            <div class="ai-camera-modal" id="aiCameraModal" style="display:none;">
+              <div class="ai-camera-modal-content">
+                <div class="ai-camera-header">
+                  <span>Capture Photo</span>
+                  <button class="ai-camera-close-btn" id="aiCameraCloseBtn" title="Close"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="ai-camera-preview-wrapper">
+                  <video id="aiCameraVideo" autoplay playsinline></video>
+                  <canvas id="aiCameraCanvas" style="display:none;"></canvas>
+                </div>
+                <div class="ai-camera-controls">
+                  <button class="ai-camera-capture-btn" id="aiCameraCaptureBtn" title="Take photo">
+                    <i class="fas fa-circle"></i>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 

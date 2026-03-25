@@ -31,6 +31,15 @@ class AIController {
 
     this.referenceImages = [];
 
+    // Camera capture
+    this.cameraBtn = null;
+    this.cameraModal = null;
+    this.cameraVideo = null;
+    this.cameraCanvas = null;
+    this.cameraCaptureBtn = null;
+    this.cameraCloseBtn = null;
+    this._cameraStream = null;
+
     // Voice recognition
     this._recognition = null;
     this._isListening = false;
@@ -77,6 +86,24 @@ class AIController {
     if (this.attachBtn && this.imageInput) {
       this.attachBtn.addEventListener('click', () => this.imageInput.click());
       this.imageInput.addEventListener('change', (e) => this._onReferenceImageSelected(e));
+    }
+
+    // Camera capture
+    this.cameraBtn = document.getElementById('aiCameraBtn');
+    this.cameraModal = document.getElementById('aiCameraModal');
+    this.cameraVideo = document.getElementById('aiCameraVideo');
+    this.cameraCanvas = document.getElementById('aiCameraCanvas');
+    this.cameraCaptureBtn = document.getElementById('aiCameraCaptureBtn');
+    this.cameraCloseBtn = document.getElementById('aiCameraCloseBtn');
+
+    if (this.cameraBtn) {
+      this.cameraBtn.addEventListener('click', () => this._openCamera());
+    }
+    if (this.cameraCaptureBtn) {
+      this.cameraCaptureBtn.addEventListener('click', () => this._capturePhoto());
+    }
+    if (this.cameraCloseBtn) {
+      this.cameraCloseBtn.addEventListener('click', () => this._closeCamera());
     }
 
     if (this.undoAiBtn) {
@@ -833,6 +860,67 @@ class AIController {
     this.referenceImages = [];
     if (this.imageInput) this.imageInput.value = '';
     this._renderReferenceImages();
+  }
+
+  // ── Camera Capture ──────────────────────────────────────────
+
+  async _openCamera() {
+    if (!this.cameraModal || !this.cameraVideo) return;
+
+    const maxImages = 5;
+    if (this.referenceImages.length >= maxImages) {
+      this._addMessage('assistant', `You can attach up to ${maxImages} reference images per prompt.`);
+      return;
+    }
+
+    try {
+      this._cameraStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false,
+      });
+      this.cameraVideo.srcObject = this._cameraStream;
+      this.cameraModal.style.display = '';
+    } catch (err) {
+      this._addMessage('assistant', `Could not access camera: ${err.message}`);
+    }
+  }
+
+  _capturePhoto() {
+    if (!this.cameraVideo || !this.cameraCanvas) return;
+
+    const video = this.cameraVideo;
+    const canvas = this.cameraCanvas;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const dataUrl = canvas.toDataURL('image/png');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+
+    this.referenceImages.push({
+      name: `camera-${timestamp}.png`,
+      mimeType: 'image/png',
+      dataUrl,
+    });
+
+    this._renderReferenceImages();
+    this._closeCamera();
+    this._addMessage('assistant', 'Photo captured and attached as a reference image.');
+  }
+
+  _closeCamera() {
+    if (this._cameraStream) {
+      this._cameraStream.getTracks().forEach(track => track.stop());
+      this._cameraStream = null;
+    }
+    if (this.cameraVideo) {
+      this.cameraVideo.srcObject = null;
+    }
+    if (this.cameraModal) {
+      this.cameraModal.style.display = 'none';
+    }
   }
 
 }

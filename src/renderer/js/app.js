@@ -97,7 +97,7 @@
       objMorpher.onMorphApplied = () => {
         if (_morphTimer) clearTimeout(_morphTimer);
         _morphTimer = setTimeout(() => {
-          hairSystem.refreshFromMesh();
+          hairSystem.refreshFromMesh(objMorpher.morphValues);
           eyeSystem.refreshFromMesh();
         }, 120);
       };
