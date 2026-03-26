@@ -24,7 +24,10 @@ class AIController {
     this.chatInput = null;
     this.sendBtn = null;
     this.micBtn = null;
-    this.attachBtn = null;
+    this.actionBtn = null;
+    this.actionMenu = null;
+    this.menuUploadBtn = null;
+    this.menuCameraBtn = null;
     this.imageInput = null;
     this.referenceInfo = null;
     this.undoAiBtn = null;
@@ -32,7 +35,6 @@ class AIController {
     this.referenceImages = [];
 
     // Camera capture
-    this.cameraBtn = null;
     this.cameraModal = null;
     this.cameraVideo = null;
     this.cameraCanvas = null;
@@ -61,7 +63,10 @@ class AIController {
     this.chatInput = document.getElementById('aiChatInput');
     this.sendBtn = document.getElementById('aiSendBtn');
     this.micBtn = document.getElementById('aiMicBtn');
-    this.attachBtn = document.getElementById('aiAttachBtn');
+    this.actionBtn = document.getElementById('aiActionBtn');
+    this.actionMenu = document.getElementById('aiActionMenu');
+    this.menuUploadBtn = document.getElementById('aiMenuUploadBtn');
+    this.menuCameraBtn = document.getElementById('aiMenuCameraBtn');
     this.imageInput = document.getElementById('aiImageInput');
     this.referenceInfo = document.getElementById('aiReferenceInfo');
     this.undoAiBtn = document.getElementById('aiUndoBtn');
@@ -83,22 +88,45 @@ class AIController {
       this.micBtn.addEventListener('click', () => this.toggleVoice());
     }
 
-    if (this.attachBtn && this.imageInput) {
-      this.attachBtn.addEventListener('click', () => this.imageInput.click());
+    if (this.actionBtn && this.actionMenu) {
+      this.actionBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.actionMenu.classList.toggle('visible');
+        this.actionBtn.classList.toggle('active');
+      });
+
+      // Close menu when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!this.actionBtn.contains(e.target) && !this.actionMenu.contains(e.target)) {
+          this.actionMenu.classList.remove('visible');
+          this.actionBtn.classList.remove('active');
+        }
+      });
+    }
+
+    if (this.menuUploadBtn && this.imageInput) {
+      this.menuUploadBtn.addEventListener('click', () => {
+        this.actionMenu.classList.remove('visible');
+        this.actionBtn.classList.remove('active');
+        this.imageInput.click();
+      });
       this.imageInput.addEventListener('change', (e) => this._onReferenceImageSelected(e));
     }
 
+    if (this.menuCameraBtn) {
+      this.menuCameraBtn.addEventListener('click', () => {
+        this.actionMenu.classList.remove('visible');
+        this.actionBtn.classList.remove('active');
+        this._openCamera();
+      });
+    }
+
     // Camera capture
-    this.cameraBtn = document.getElementById('aiCameraBtn');
     this.cameraModal = document.getElementById('aiCameraModal');
     this.cameraVideo = document.getElementById('aiCameraVideo');
     this.cameraCanvas = document.getElementById('aiCameraCanvas');
     this.cameraCaptureBtn = document.getElementById('aiCameraCaptureBtn');
     this.cameraCloseBtn = document.getElementById('aiCameraCloseBtn');
-
-    if (this.cameraBtn) {
-      this.cameraBtn.addEventListener('click', () => this._openCamera());
-    }
     if (this.cameraCaptureBtn) {
       this.cameraCaptureBtn.addEventListener('click', () => this._capturePhoto());
     }
@@ -592,8 +620,8 @@ class AIController {
     if (this.chatInput) {
       this.chatInput.disabled = loading;
     }
-    if (this.attachBtn) {
-      this.attachBtn.disabled = loading;
+    if (this.actionBtn) {
+      this.actionBtn.disabled = loading;
     }
     if (loading) {
       this._addMessage('assistant', 'Thinking...');

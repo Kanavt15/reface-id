@@ -2143,12 +2143,19 @@
               </div>
               <div class="ai-btn-row">
                 <input type="file" id="aiImageInput" accept="image/png,image/jpeg,image/webp" multiple style="display:none;" />
-                <button class="ai-attach-btn" id="aiAttachBtn" title="Attach reference image">
-                  <i class="fas fa-image"></i>
-                </button>
-                <button class="ai-camera-btn" id="aiCameraBtn" title="Capture photo from camera">
-                  <i class="fas fa-camera"></i>
-                </button>
+                <div class="ai-action-wrapper">
+                  <button class="ai-action-btn" id="aiActionBtn" title="Add Image">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                  <div class="ai-action-menu" id="aiActionMenu">
+                    <button class="ai-menu-item" id="aiMenuUploadBtn">
+                      <i class="fas fa-image"></i> Upload Image
+                    </button>
+                    <button class="ai-menu-item" id="aiMenuCameraBtn">
+                      <i class="fas fa-camera"></i> Take Photo
+                    </button>
+                  </div>
+                </div>
                 <button class="ai-mic-btn" id="aiMicBtn" title="Voice input">
                   <i class="fas fa-microphone"></i>
                 </button>
