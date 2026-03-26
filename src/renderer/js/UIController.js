@@ -120,6 +120,16 @@ class UIController {
         e.currentTarget.classList.add('active');
         const panelId = 'panel-' + e.currentTarget.dataset.panel;
         document.getElementById(panelId)?.classList.add('active');
+
+        // Toggle hair preview visibility
+        const previewContainer = document.getElementById('hairPreviewContainer');
+        if (previewContainer) {
+          if (e.currentTarget.dataset.panel === 'hair') {
+            previewContainer.style.display = 'block';
+          } else {
+            previewContainer.style.display = 'none';
+          }
+        }
       });
     });
   }
@@ -233,41 +243,39 @@ class UIController {
       bald: '../../assets/Hair_Previews/Bald.mp4',
     };
 
-    document.querySelectorAll('.hair-style-card').forEach(card => {
-      // Hover preview video
-      card.addEventListener('mouseenter', (e) => {
-        const style = card.dataset.style;
-        const videoSrc = hairVideoMap[style];
-        if (videoSrc) {
-          previewVideo.src = videoSrc;
-          previewVideo.playbackRate = 1.3;
-          previewVideo.currentTime = 0;
-          previewVideo.play().catch(() => {});
-
-          // Position the preview to the right of the left panel using fixed coords
-          const cardRect = card.getBoundingClientRect();
-          const panelRect = document.getElementById('left-panel').getBoundingClientRect();
-          const containerWidth = 216;
-          const containerHeight = 216;
-
-          // Place to the right of the panel, vertically centered on the card
-          let left = panelRect.right + 8;
-          let top = cardRect.top + (cardRect.height / 2) - (containerHeight / 2);
-
-          // Clamp so it stays within viewport
-          top = Math.max(8, Math.min(top, window.innerHeight - containerHeight - 8));
-
-          previewContainer.style.left = left + 'px';
-          previewContainer.style.top = top + 'px';
-          previewContainer.style.display = 'block';
-        }
-      });
-
-      card.addEventListener('mouseleave', () => {
-        previewContainer.style.display = 'none';
+    const updatePreviewVideo = (style) => {
+      const videoSrc = hairVideoMap[style];
+      if (videoSrc) {
+        previewVideo.src = videoSrc;
+        previewVideo.playbackRate = 1.3;
+        previewVideo.currentTime = 0;
+        previewVideo.play().catch(() => {});
+      } else {
         previewVideo.pause();
         previewVideo.removeAttribute('src');
         previewVideo.load();
+      }
+    };
+
+    // Set initial active video
+    const initActiveHair = document.querySelector('.hair-style-card.active');
+    if (initActiveHair) {
+      updatePreviewVideo(initActiveHair.dataset.style);
+    }
+
+    document.querySelectorAll('.hair-style-card').forEach(card => {
+      // Hover preview video
+      card.addEventListener('mouseenter', (e) => {
+        updatePreviewVideo(card.dataset.style);
+      });
+
+      card.addEventListener('mouseleave', () => {
+        const activeCard = document.querySelector('.hair-style-card.active');
+        if (activeCard) {
+          updatePreviewVideo(activeCard.dataset.style);
+        } else {
+          updatePreviewVideo(null);
+        }
       });
 
       // Click handler
@@ -287,26 +295,8 @@ class UIController {
         this.caseManager.updateHairParams(this.hair.getParams());
         this.addHistory(`Hair style: ${this.formatStyleName(style)}`);
         this.updatePropertyPanel();
+        updatePreviewVideo(style);
       });
-
-      // Video preview on hover
-      const video = card.querySelector('.hair-preview-video');
-      if (video) {
-        card.addEventListener('mouseenter', () => {
-          // Lazy-load: load the video on first hover
-          if (video.preload === 'none') {
-            video.preload = 'auto';
-            video.load();
-          }
-          video.currentTime = 0;
-          video.play().catch(() => {}); // ignore autoplay errors
-        });
-
-        card.addEventListener('mouseleave', () => {
-          video.pause();
-          video.currentTime = 0;
-        });
-      }
     });
 
     // Hair property sliders
