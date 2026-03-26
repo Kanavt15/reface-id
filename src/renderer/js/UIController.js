@@ -231,6 +231,25 @@ class UIController {
         this.addHistory(`Hair style: ${this.formatStyleName(style)}`);
         this.updatePropertyPanel();
       });
+
+      // Video preview on hover
+      const video = card.querySelector('.hair-preview-video');
+      if (video) {
+        card.addEventListener('mouseenter', () => {
+          // Lazy-load: load the video on first hover
+          if (video.preload === 'none') {
+            video.preload = 'auto';
+            video.load();
+          }
+          video.currentTime = 0;
+          video.play().catch(() => {}); // ignore autoplay errors
+        });
+
+        card.addEventListener('mouseleave', () => {
+          video.pause();
+          video.currentTime = 0;
+        });
+      }
     });
 
     // Hair property sliders

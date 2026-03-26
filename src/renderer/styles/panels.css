@@ -390,6 +390,7 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
+  position: relative;
 }
 
 .hair-style-card {
@@ -402,17 +403,22 @@
   border-radius: var(--border-radius);
   background: var(--bg-secondary);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   font-size: 9px;
   color: var(--text-muted);
   text-align: center;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
 }
 
 .hair-style-card:hover {
   background: var(--bg-hover);
-  border-color: var(--border-accent);
+  border-color: var(--accent-primary);
   color: var(--text-secondary);
-  transform: translateY(-1px);
+  transform: scale(1.35);
+  z-index: 10;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--accent-primary);
 }
 
 .hair-style-card.active {
@@ -430,11 +436,36 @@
   justify-content: center;
   font-size: 14px;
   color: inherit;
+  transition: opacity 0.25s ease;
 }
 
 .hair-style-card span {
   line-height: 1.2;
   font-weight: 500;
+  transition: opacity 0.25s ease;
+}
+
+/* Hair Preview Video */
+.hair-preview-video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--border-radius);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.hair-style-card:hover .hair-preview-video {
+  opacity: 1;
+}
+
+.hair-style-card:hover .hair-icon,
+.hair-style-card:hover span {
+  opacity: 0;
 }
 
 /* ─── Skin Tone Grid ────────────────────────────────────────────────── */
