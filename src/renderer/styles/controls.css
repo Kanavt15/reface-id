@@ -6,7 +6,7 @@
 /* ─── Slider Controls ───────────────────────────────────────────────── */
 
 .slider-control {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .slider-control:last-child {
@@ -15,25 +15,30 @@
 
 .slider-control label {
   display: block;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-secondary);
-  margin-bottom: 4px;
-  font-weight: 400;
+  margin-bottom: 5px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
 }
 
 .slider-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .slider-value {
-  min-width: 24px;
+  min-width: 26px;
   text-align: right;
-  font-size: 10px;
+  font-size: 10.5px;
   font-family: var(--font-mono);
   color: var(--accent-primary);
-  font-weight: 500;
+  font-weight: 600;
+  padding: 2px 6px;
+  background: rgba(125, 163, 247, 0.1);
+  border-radius: 4px;
+  border: 1px solid rgba(125, 163, 247, 0.2);
 }
 
 .slider-label-left,
@@ -49,23 +54,29 @@ input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   flex: 1;
-  height: 4px;
-  border-radius: 2px;
+  height: 5px;
+  border-radius: 3px;
   outline: none;
   cursor: pointer;
-  background: var(--bg-primary);
+  background: linear-gradient(90deg, var(--bg-primary) 0%, var(--bg-elevated) 100%);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: all var(--transition-fast);
+}
+
+input[type="range"]:hover {
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.4),
+              0 0 8px rgba(125, 163, 247, 0.2);
 }
 
 /* Track */
 input[type="range"]::-webkit-slider-runnable-track {
-  height: 4px;
-  border-radius: 2px;
+  height: 5px;
+  border-radius: 3px;
   background: linear-gradient(
     to right,
     var(--accent-primary) 0%,
     var(--accent-primary) var(--slider-fill, 50%),
-    var(--bg-primary) var(--slider-fill, 50%),
-    var(--bg-primary) 100%
+    transparent var(--slider-fill, 50%)
   );
 }
 
@@ -73,26 +84,31 @@ input[type="range"]::-webkit-slider-runnable-track {
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: var(--text-primary);
+  background: linear-gradient(135deg, var(--text-primary) 0%, #d0d0e0 100%);
   border: 2px solid var(--accent-primary);
-  margin-top: -5px;
+  margin-top: -6px;
   cursor: pointer;
   transition: all var(--transition-fast);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4),
+              0 0 8px rgba(125, 163, 247, 0.3);
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
-  background: var(--accent-primary);
-  transform: scale(1.2);
-  box-shadow: 0 0 8px rgba(122, 162, 247, 0.4);
+  background: linear-gradient(135deg, var(--accent-primary-bright) 0%, var(--accent-primary) 100%);
+  border-color: var(--accent-primary-bright);
+  transform: scale(1.25);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5),
+              0 0 16px rgba(125, 163, 247, 0.5);
 }
 
 input[type="range"]:active::-webkit-slider-thumb {
   background: var(--accent-primary);
-  box-shadow: 0 0 12px rgba(122, 162, 247, 0.6);
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6),
+              0 0 20px rgba(125, 163, 247, 0.6);
 }
 
 /* Morph slider color variation */
@@ -119,22 +135,23 @@ input[type="range"]:active::-webkit-slider-thumb {
 /* ─── Select Controls ───────────────────────────────────────────────── */
 
 .select-control {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .select-control label {
   display: block;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-secondary);
-  margin-bottom: 4px;
+  margin-bottom: 5px;
+  font-weight: 500;
 }
 
 .custom-select {
   width: 100%;
-  padding: 6px 10px;
+  padding: 7px 12px;
   border: 1px solid var(--border-accent);
-  border-radius: var(--border-radius-sm);
-  background: var(--bg-primary);
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
   color: var(--text-primary);
   font-family: var(--font-main);
   font-size: 11px;
@@ -142,52 +159,58 @@ input[type="range"]:active::-webkit-slider-thumb {
   outline: none;
   appearance: none;
   -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235a5a6a'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237da3f7'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 10px center;
-  padding-right: 28px;
-  transition: border-color var(--transition-fast);
+  background-position: right 12px center;
+  padding-right: 32px;
+  transition: all var(--transition-fast);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .custom-select:hover {
-  border-color: var(--text-muted);
+  border-color: var(--accent-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3),
+              0 0 0 1px rgba(125, 163, 247, 0.2);
 }
 
 .custom-select:focus {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 2px rgba(122, 162, 247, 0.15);
+  box-shadow: 0 0 0 3px rgba(125, 163, 247, 0.2),
+              0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .custom-select option {
   background: var(--bg-tertiary);
   color: var(--text-primary);
-  padding: 4px;
+  padding: 6px;
 }
 
 /* ─── Text Inputs ───────────────────────────────────────────────────── */
 
 .input-control {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .input-control label {
   display: block;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-secondary);
-  margin-bottom: 4px;
+  margin-bottom: 5px;
+  font-weight: 500;
 }
 
 .text-input {
   width: 100%;
-  padding: 6px 10px;
+  padding: 7px 12px;
   border: 1px solid var(--border-accent);
-  border-radius: var(--border-radius-sm);
-  background: var(--bg-primary);
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
   color: var(--text-primary);
   font-family: var(--font-main);
   font-size: 11px;
   outline: none;
-  transition: border-color var(--transition-fast);
+  transition: all var(--transition-fast);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .text-input::placeholder {
@@ -195,27 +218,31 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 .text-input:hover {
-  border-color: var(--text-muted);
+  border-color: var(--accent-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3),
+              0 0 0 1px rgba(125, 163, 247, 0.2);
 }
 
 .text-input:focus {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 2px rgba(122, 162, 247, 0.15);
+  box-shadow: 0 0 0 3px rgba(125, 163, 247, 0.2),
+              0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .text-area {
   width: 100%;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border: 1px solid var(--border-accent);
-  border-radius: var(--border-radius-sm);
-  background: var(--bg-primary);
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
   color: var(--text-primary);
   font-family: var(--font-main);
   font-size: 11px;
   outline: none;
   resize: vertical;
-  min-height: 50px;
-  transition: border-color var(--transition-fast);
+  min-height: 60px;
+  transition: all var(--transition-fast);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .text-area::placeholder {
@@ -223,12 +250,15 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 .text-area:hover {
-  border-color: var(--text-muted);
+  border-color: var(--accent-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3),
+              0 0 0 1px rgba(125, 163, 247, 0.2);
 }
 
 .text-area:focus {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 2px rgba(122, 162, 247, 0.15);
+  box-shadow: 0 0 0 3px rgba(125, 163, 247, 0.2),
+              0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* ─── Checkbox ──────────────────────────────────────────────────────── */
@@ -236,31 +266,36 @@ input[type="range"]:active::-webkit-slider-thumb {
 .checkbox-control {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 0;
+  gap: 10px;
+  padding: 5px 0;
   cursor: pointer;
 }
 
 .checkbox-control input[type="checkbox"] {
   -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
-  border: 1px solid var(--border-accent);
-  border-radius: 3px;
-  background: var(--bg-primary);
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border-accent);
+  border-radius: 4px;
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
   cursor: pointer;
   position: relative;
   transition: all var(--transition-fast);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .checkbox-control input[type="checkbox"]:hover {
-  border-color: var(--text-muted);
+  border-color: var(--accent-primary);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3),
+              0 0 0 1px rgba(125, 163, 247, 0.2);
 }
 
 .checkbox-control input[type="checkbox"]:checked {
-  background: var(--accent-primary);
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-dim) 100%);
   border-color: var(--accent-primary);
+  box-shadow: 0 2px 6px rgba(125, 163, 247, 0.4),
+              0 0 12px rgba(125, 163, 247, 0.3);
 }
 
 .checkbox-control input[type="checkbox"]:checked::after {
@@ -269,15 +304,17 @@ input[type="range"]:active::-webkit-slider-thumb {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 11px;
-  color: var(--bg-primary);
-  font-weight: 600;
+  font-size: 12px;
+  color: #ffffff;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .checkbox-control label {
   font-size: 11px;
   color: var(--text-secondary);
   cursor: pointer;
+  font-weight: 500;
 }
 
 /* ─── Slider fill update via JS ─────────────────────────────────────── */
@@ -288,58 +325,65 @@ input[type="range"]:active::-webkit-slider-thumb {
 /* ─── Face Point Editor Controls ────────────────────────────────────── */
 
 .edit-points-desc {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-secondary);
-  line-height: 1.5;
-  margin-bottom: 10px;
-  padding: 6px 8px;
-  background: var(--bg-secondary);
-  border-radius: var(--border-radius-sm);
-  border-left: 2px solid var(--accent-primary);
+  line-height: 1.6;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  background: linear-gradient(135deg, rgba(125, 163, 247, 0.08) 0%, rgba(125, 163, 247, 0.03) 100%);
+  border-radius: 6px;
+  border-left: 3px solid var(--accent-primary);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .edit-points-controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
 }
 
 .edit-points-controls .btn {
   flex: 1;
-  min-width: 100px;
+  min-width: 110px;
 }
 
 .btn-sm {
-  padding: 4px 10px;
-  font-size: 10px;
+  padding: 5px 12px;
+  font-size: 10.5px;
 }
 
 .btn-accent {
-  background: var(--accent-primary);
-  color: var(--bg-primary);
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-dim) 100%);
+  color: #ffffff;
   border: 1px solid var(--accent-primary);
   font-weight: 600;
-  transition: var(--transition-fast);
+  transition: all var(--transition-fast);
+  box-shadow: 0 2px 8px rgba(125, 163, 247, 0.3);
 }
 
 .btn-accent:hover {
-  background: var(--accent-primary-dim);
-  border-color: var(--accent-primary-dim);
+  background: linear-gradient(135deg, var(--accent-primary-bright) 0%, var(--accent-primary) 100%);
+  border-color: var(--accent-primary-bright);
+  box-shadow: 0 4px 12px rgba(125, 163, 247, 0.4);
+  transform: translateY(-1px);
 }
 
 .btn-accent.active {
-  background: var(--accent-danger);
+  background: linear-gradient(135deg, var(--accent-danger) 0%, #e65878 100%);
   border-color: var(--accent-danger);
+  box-shadow: 0 0 16px rgba(250, 122, 152, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 #btnEditPoints.active {
-  background: var(--accent-primary);
-  color: var(--bg-primary);
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-dim) 100%);
+  color: #ffffff;
   border-color: var(--accent-primary);
+  box-shadow: 0 0 16px rgba(125, 163, 247, 0.4);
 }
 
 #btnTogglePointEdit.active {
-  background: var(--accent-danger);
+  background: linear-gradient(135deg, var(--accent-danger) 0%, #e65878 100%);
   border-color: var(--accent-danger);
 }
 
