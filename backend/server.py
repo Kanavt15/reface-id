@@ -327,7 +327,7 @@ def download_hair(filename):
 
 @app.route('/api/export', methods=['POST'])
 def export_model():
-    """Export the reconstructed face as OBJ/FBX/GLB."""
+    """Export the reconstructed face as OBJ/FBX/GLB with all edited features."""
     data = request.json
     format_type = data.get('format', 'obj')
     case_data = data.get('caseData', {})
@@ -343,17 +343,49 @@ def export_model():
         print(f"[Export] Error: {error_msg}")
         return jsonify({"error": error_msg})
 
-    print(f"[Export] Using base model: {base_model_path}")
-    print(f"[Export] Output path: {export_path}")
+    # Check if a morphed mesh exists (uploaded before this export call)
+    morphed_mesh_path = str(EXPORTS_DIR / 'morphed_head_for_render.obj')
+    use_morphed = os.path.exists(morphed_mesh_path)
 
-    result = run_blender_script('export_model.py', {
+    print(f"[Export] Using morphed mesh: {use_morphed}")
+    print(f"[Export] Output path: {export_path}")
+    print(f"[Export] MODELS_DIR: {MODELS_DIR}")
+    print(f"[Export] MODELS_DIR exists: {MODELS_DIR.exists()}")
+    print(f"[Export] Hair style: {case_data.get('hairStyle', 'bald')}")
+    print(f"[Export] Beard style: {case_data.get('beardStyle', 'none')}")
+
+    # Prepare the export arguments for Blender
+    export_args = {
         'morph_targets': case_data.get('morphTargets', {}),
         'hair_params': case_data.get('hairParams', {}),
         'appearance': case_data.get('appearance', {}),
         'format': format_type,
         'output_path': export_path,
-        'base_model': base_model_path
-    })
+        'base_model': base_model_path,
+        'morphed_mesh_path': morphed_mesh_path if use_morphed else '',
+        'models_dir': str(MODELS_DIR),
+        # Hair data
+        'hairStyle': case_data.get('hairStyle', 'bald'),
+        'hairColor': case_data.get('hairColor', '#2c1b0e'),
+        'hairTransform': case_data.get('hairTransform', None),
+        # Beard data
+        'beardStyle': case_data.get('beardStyle', 'none'),
+        'beardColor': case_data.get('beardColor', '#2c1b0e'),
+        'beardParams': case_data.get('beardParams', {}),
+        'beardTransform': case_data.get('beardTransform', None),
+        # Eyebrow data
+        'eyebrowColor': case_data.get('eyebrowColor', '#2c1b0e'),
+        'eyebrowParams': case_data.get('eyebrowParams', {}),
+        'eyebrowTransform': case_data.get('eyebrowTransform', None),
+        # Eye data
+        'eyeState': case_data.get('eyeState', {}),
+        'eyeTransforms': case_data.get('eyeTransforms', None),
+        'eyelashTransforms': case_data.get('eyelashTransforms', None),
+        # Skin color
+        'skinColor': case_data.get('skinColor', '#d4a574'),
+    }
+
+    result = run_blender_script('export_model.py', export_args)
 
     print(f"[Export] Blender result: {result}")
 

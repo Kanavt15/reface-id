@@ -1782,10 +1782,57 @@ class UIController {
   async exportModel(format) {
     console.log('[Export] Starting export with format:', format);
     this.updateCaseFromUI();
-    this.showLoading(`Exporting as ${format.toUpperCase()}...`);
+    this.showLoading(`Preparing export as ${format.toUpperCase()}...`);
 
     try {
+      // ── Upload current morphed mesh to backend so Blender uses it ──
+      if (this.facePointEditor) {
+        const objData = this.facePointEditor.exportCurrentMeshAsOBJ();
+        if (objData) {
+          const uploadResult = await this.api.uploadMorphedMesh(objData);
+          if (uploadResult?.error) {
+            console.warn('[Export] Mesh upload failed, will use base model:', uploadResult.error);
+          } else {
+            console.log('[Export] Morphed mesh uploaded for export');
+          }
+        }
+      }
+
+      this.showLoading(`Exporting as ${format.toUpperCase()}...`);
+
+      // ── Gather comprehensive export data including all assets ──
       const exportData = this.caseManager.getExportData();
+
+      // Add hair transform and params
+      if (this.hair) {
+        exportData.hairTransform = this.hair.getRenderTransform();
+        exportData.hairStyle = this.hair.currentStyle;
+        exportData.hairColor = this.hair.hairColor;
+        exportData.beardStyle = this.hair.beardStyle;
+        exportData.beardColor = this.hair.beardColor;
+        exportData.beardParams = { ...this.hair.beardParams };
+        exportData.beardTransform = this.hair.getBeardRenderTransform();
+        exportData.eyebrowColor = this.hair.eyebrowColor;
+        exportData.eyebrowParams = { ...this.hair.eyebrowParams };
+        exportData.eyebrowTransform = this.hair.getEyebrowRenderTransform();
+      }
+
+      // Add eye and eyelash data with transforms
+      if (this.eyes) {
+        exportData.eyeState = this.eyes.exportState();
+        exportData.eyeTransforms = this.eyes.getEyeRenderTransforms();
+        exportData.eyelashTransforms = this.eyes.getEyelashRenderTransforms();
+      }
+
+      // Add skin marks data
+      if (this.skinMarkSystem) {
+        exportData.skinMarksState = this.skinMarkSystem.exportState();
+      }
+
+      // Get skin color from UI
+      exportData.skinColor = document.getElementById('skinColorPicker')?.value || '#d4a574';
+      exportData.lipColor = document.getElementById('lipColorPicker')?.value || null;
+
       console.log('[Export] Export data:', exportData);
 
       const result = await this.api.exportModel(format, exportData);

@@ -337,12 +337,7 @@ def main():
         print(f"Head has {len(head_objects)} objects")
 
     # --- Import Hair ---
-    hair_file_map = {
-        'hair1': 'Hair1.glb',
-        'hair2': 'Hair2.glb',
-        'hair3': 'Hair3.glb',
-        'hair4': 'Hair4.glb',
-    }
+    hair_file_map = {f'hair{i}': f'Hair{i}.glb' for i in range(1, 13)}
 
     # Which mesh to use for multi-mesh models
     hair_mesh_filter = {
@@ -354,7 +349,7 @@ def main():
     dlog(f"Hair transform from frontend: {json.dumps(hair_transform) if hair_transform else 'None'}")
     hair_filename = hair_file_map.get(hair_style)
     if hair_filename:
-        hair_path = os.path.join(models_dir, hair_filename)
+        hair_path = os.path.join(models_dir, 'hair', hair_filename)
         dlog(f"Hair path: {hair_path}, exists: {os.path.exists(hair_path)}")
         if os.path.exists(hair_path):
             try:

@@ -496,11 +496,7 @@ def align_eyes_to_head(left_eye_objects, right_eye_objects, head_bbox, eye_param
 
 
 def align_eyelashes_to_head(eyelash_objects, head_bbox, eyelash_params=None):
-    """
-    Align eyelashes to eye area.
-    Frontend uses: lashRegionY=0.34, lashRegionZ=1.04
-    Base scale: lashRegionWidth (0.90) / lash_size.x
-    """
+    """Align eyelashes to eye area."""
     if not eyelash_objects or not head_bbox:
         return
 
@@ -508,15 +504,13 @@ def align_eyelashes_to_head(eyelash_objects, head_bbox, eyelash_params=None):
     if not lash_bbox:
         return
 
-    # Head metrics
     head_cx = head_bbox['center'][0]
-    head_bottom = head_bbox['min'][2]
+    head_cy = head_bbox['center'][1]
+    head_cz = head_bbox['center'][2]
     head_front = head_bbox['max'][1]
     head_width = head_bbox['size'][0]
     head_height = head_bbox['size'][2]
-    head_depth = head_bbox['size'][1]
 
-    # Eyelash model metrics
     lash_cx = lash_bbox['center'][0]
     lash_cy = lash_bbox['center'][1]
     lash_cz = lash_bbox['center'][2]
@@ -524,38 +518,23 @@ def align_eyelashes_to_head(eyelash_objects, head_bbox, eyelash_params=None):
 
     params = eyelash_params or {}
     scale_f = params.get('scale', 50)
-    thickness_f = params.get('thickness', 50)
-    posX = params.get('posX', 50)
-    posY = params.get('posY', 50)
-    posZ = params.get('posZ', 50)
 
-    # Frontend uses lashRegionWidth=0.90 (similar to eyebrows)
-    lashRegionWidth = head_width * 0.47  # 0.90 / ~1.9 head width
-    baseScale = lashRegionWidth / max(lash_sx, 0.001)
-    scaleF = 0.5 + (scale_f / 100) * 1.0
-    thicknessF = 1.0 + ((thickness_f - 50) / 50) * 0.5
+    # Scale to fit eye width area
+    baseScale = (head_width * 0.5) / max(lash_sx, 0.001)
+    scaleF = 0.7 + (scale_f / 100) * 0.6
+    s = baseScale * scaleF
 
-    # Position offsets
-    posOffX = ((posX - 50) / 50) * 0.3
-    posOffY = ((posY - 50) / 50) * 0.3
-    posOffZ = ((posZ - 50) / 50) * 0.3
+    # Position at eye level, front of face
+    tx = head_cx
+    ty = head_front - 0.03
+    tz = head_cz + head_height * 0.12
 
-    # Target position (lashRegionY=0.34, lashRegionZ=1.04 in Three.js)
-    # lashRegionY=0.34 -> 34% up from bottom (slightly below eyebrows at 39%)
-    # lashRegionZ=1.04 -> slightly more forward than eyebrows
-    tx = head_cx + posOffX
-    ty = head_front - head_depth * 0.06 + posOffZ  # Slightly more forward than brows
-    tz = head_bottom + head_height * 0.69 + posOffY  # Eye level (69% up)
-
-    print(f"[Export] Eyelash align: baseScale={baseScale:.3f}, scaleF={scaleF:.3f}")
-    print(f"[Export] Eyelash target: ({tx:.3f}, {ty:.3f}, {tz:.3f})")
+    print(f"[Export] Eyelash align: scale={s:.3f}, target=({tx:.3f}, {ty:.3f}, {tz:.3f})")
 
     container = bpy.data.objects.new("EyelashContainer", None)
     bpy.context.scene.collection.objects.link(container)
     container.location = (tx, ty, tz)
-    container.scale = (baseScale * scaleF, baseScale * thicknessF, baseScale * scaleF)
-    # Rotate -90° around X to curve lashes upward (like frontend's BASE_ROT_X = -π/2)
-    container.rotation_euler = (-math.pi / 2, 0, 0)
+    container.scale = (s, s, s)
 
     offset = bpy.data.objects.new("EyelashOffset", None)
     bpy.context.scene.collection.objects.link(offset)

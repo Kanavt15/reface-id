@@ -264,6 +264,55 @@ class EyeSystem {
     };
   }
 
+  /**
+   * Return the eyes' world-space transforms so Blender can replicate them.
+   */
+  getEyeRenderTransforms() {
+    const result = {
+      leftMatrix: null,
+      rightMatrix: null,
+      params: { ...this.params },
+      color: this.eyeColor,
+    };
+
+    if (this._leftEyeContainer) {
+      this._leftEyeContainer.updateWorldMatrix(true, false);
+      result.leftMatrix = Array.from(this._leftEyeContainer.matrixWorld.elements);
+    }
+
+    if (this._rightEyeContainer) {
+      this._rightEyeContainer.updateWorldMatrix(true, false);
+      result.rightMatrix = Array.from(this._rightEyeContainer.matrixWorld.elements);
+    }
+
+    return result;
+  }
+
+  /**
+   * Return the eyelashes' world-space transforms so Blender can replicate them.
+   */
+  getEyelashRenderTransforms() {
+    const result = {
+      leftMatrix: null,
+      rightMatrix: null,
+      params: { ...this.eyelashParams },
+      color: this.eyelashColor,
+      visible: this.eyelashesVisible,
+    };
+
+    if (this._leftLashContainer) {
+      this._leftLashContainer.updateWorldMatrix(true, false);
+      result.leftMatrix = Array.from(this._leftLashContainer.matrixWorld.elements);
+    }
+
+    if (this._rightLashContainer) {
+      this._rightLashContainer.updateWorldMatrix(true, false);
+      result.rightMatrix = Array.from(this._rightLashContainer.matrixWorld.elements);
+    }
+
+    return result;
+  }
+
   restoreState(state) {
     if (state.style) this.currentStyle = state.style;
     if (state.color) this.setEyeColor(state.color);

@@ -954,6 +954,51 @@ class HairSystem {
     };
   }
 
+  /**
+   * Return the beard's world-space transform so Blender can replicate it.
+   */
+  getBeardRenderTransform() {
+    if (!this._beardContainer || this.beardStyle === 'none') {
+      return { matrix: null, params: this.beardParams };
+    }
+
+    const c = this._beardContainer;
+    const o = c.children[0]; // offsetGroup
+
+    c.updateWorldMatrix(true, false);
+    o.updateWorldMatrix(true, false);
+    const combinedMatrix = o.matrixWorld;
+
+    return {
+      matrix: Array.from(combinedMatrix.elements),
+      params: { ...this.beardParams },
+      style: this.beardStyle,
+      color: this.beardColor,
+    };
+  }
+
+  /**
+   * Return the eyebrow's world-space transform so Blender can replicate it.
+   */
+  getEyebrowRenderTransform() {
+    if (!this._eyebrowContainer) {
+      return { matrix: null, params: this.eyebrowParams };
+    }
+
+    const c = this._eyebrowContainer;
+    const o = c.children[0]; // offsetGroup
+
+    c.updateWorldMatrix(true, false);
+    o.updateWorldMatrix(true, false);
+    const combinedMatrix = o.matrixWorld;
+
+    return {
+      matrix: Array.from(combinedMatrix.elements),
+      params: { ...this.eyebrowParams },
+      color: this.eyebrowColor,
+    };
+  }
+
   loadState(state) {
     if (!state) return;
     if (state.style) this.currentStyle = state.style;
