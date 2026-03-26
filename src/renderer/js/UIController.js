@@ -121,14 +121,10 @@ class UIController {
         const panelId = 'panel-' + e.currentTarget.dataset.panel;
         document.getElementById(panelId)?.classList.add('active');
 
-        // Toggle hair preview visibility
-        const previewContainer = document.getElementById('hairPreviewContainer');
-        if (previewContainer) {
-          if (e.currentTarget.dataset.panel === 'hair') {
-            previewContainer.style.display = 'block';
-          } else {
-            previewContainer.style.display = 'none';
-          }
+        // Hide hair preview if we leave hair tab (just in case)
+        if (e.currentTarget.dataset.panel !== 'hair') {
+          const previewContainer = document.getElementById('hairPreviewContainer');
+          if (previewContainer) previewContainer.style.display = 'none';
         }
       });
     });
@@ -250,18 +246,14 @@ class UIController {
         previewVideo.playbackRate = 1.3;
         previewVideo.currentTime = 0;
         previewVideo.play().catch(() => {});
+        if (previewContainer) previewContainer.style.display = 'block';
       } else {
         previewVideo.pause();
         previewVideo.removeAttribute('src');
         previewVideo.load();
+        if (previewContainer) previewContainer.style.display = 'none';
       }
     };
-
-    // Set initial active video
-    const initActiveHair = document.querySelector('.hair-style-card.active');
-    if (initActiveHair) {
-      updatePreviewVideo(initActiveHair.dataset.style);
-    }
 
     document.querySelectorAll('.hair-style-card').forEach(card => {
       // Hover preview video
@@ -270,12 +262,7 @@ class UIController {
       });
 
       card.addEventListener('mouseleave', () => {
-        const activeCard = document.querySelector('.hair-style-card.active');
-        if (activeCard) {
-          updatePreviewVideo(activeCard.dataset.style);
-        } else {
-          updatePreviewVideo(null);
-        }
+        updatePreviewVideo(null);
       });
 
       // Click handler
@@ -295,6 +282,7 @@ class UIController {
         this.caseManager.updateHairParams(this.hair.getParams());
         this.addHistory(`Hair style: ${this.formatStyleName(style)}`);
         this.updatePropertyPanel();
+        // Keep video playing the clicked style while hovered
         updatePreviewVideo(style);
       });
     });

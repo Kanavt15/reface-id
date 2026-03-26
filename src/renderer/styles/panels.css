@@ -490,11 +490,11 @@
   background: linear-gradient(135deg, var(--bg-hover) 0%, var(--bg-active) 100%);
   border-color: var(--accent-primary);
   color: var(--text-primary);
-  transform: scale(1.35);
+  transform: translateY(-2px);
   z-index: 10;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6),
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4),
               0 0 0 2px var(--accent-primary),
-              0 0 20px rgba(125, 163, 247, 0.4);
+              0 0 16px rgba(125, 163, 247, 0.3);
 }
 
 .hair-style-card:hover::before {
@@ -533,7 +533,7 @@
 .hair-preview-video-container {
   position: fixed;
   top: 86px;
-  left: 356px;
+  left: 386px;
   z-index: 10000;
   width: 216px;
   height: 216px;
