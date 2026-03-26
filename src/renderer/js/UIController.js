@@ -213,7 +213,64 @@ class UIController {
 
   bindHairControls() {
     // Hair style cards
+    const previewContainer = document.getElementById('hairPreviewContainer');
+    const previewVideo = document.getElementById('hairPreviewVideo');
+
+    // Map data-style to video file names
+    const hairVideoMap = {
+      hair1: '../../assets/Hair_Previews/Hair 1.mp4',
+      hair2: '../../assets/Hair_Previews/Hair 2.mp4',
+      hair3: '../../assets/Hair_Previews/Hair 3.mp4',
+      hair4: '../../assets/Hair_Previews/Hair 4.mp4',
+      hair5: '../../assets/Hair_Previews/Hair 5.mp4',
+      hair6: '../../assets/Hair_Previews/Hair 6.mp4',
+      hair7: '../../assets/Hair_Previews/Hair 7.mp4',
+      hair8: '../../assets/Hair_Previews/Hair 8.mp4',
+      hair9: '../../assets/Hair_Previews/Hair 9.mp4',
+      hair10: '../../assets/Hair_Previews/Hair 10.mp4',
+      hair11: '../../assets/Hair_Previews/Hair 11.mp4',
+      hair12: '../../assets/Hair_Previews/Hair 12.mp4',
+      bald: '../../assets/Hair_Previews/Bald.mp4',
+    };
+
     document.querySelectorAll('.hair-style-card').forEach(card => {
+      // Hover preview video
+      card.addEventListener('mouseenter', (e) => {
+        const style = card.dataset.style;
+        const videoSrc = hairVideoMap[style];
+        if (videoSrc) {
+          previewVideo.src = videoSrc;
+          previewVideo.playbackRate = 1.3;
+          previewVideo.currentTime = 0;
+          previewVideo.play().catch(() => {});
+
+          // Position the preview to the right of the left panel using fixed coords
+          const cardRect = card.getBoundingClientRect();
+          const panelRect = document.getElementById('left-panel').getBoundingClientRect();
+          const containerWidth = 216;
+          const containerHeight = 216;
+
+          // Place to the right of the panel, vertically centered on the card
+          let left = panelRect.right + 8;
+          let top = cardRect.top + (cardRect.height / 2) - (containerHeight / 2);
+
+          // Clamp so it stays within viewport
+          top = Math.max(8, Math.min(top, window.innerHeight - containerHeight - 8));
+
+          previewContainer.style.left = left + 'px';
+          previewContainer.style.top = top + 'px';
+          previewContainer.style.display = 'block';
+        }
+      });
+
+      card.addEventListener('mouseleave', () => {
+        previewContainer.style.display = 'none';
+        previewVideo.pause();
+        previewVideo.removeAttribute('src');
+        previewVideo.load();
+      });
+
+      // Click handler
       card.addEventListener('click', (e) => {
         this.caseManager.pushState(`Hair style: ${card.dataset.style}`);
         document.querySelectorAll('.hair-style-card').forEach(c => c.classList.remove('active'));
