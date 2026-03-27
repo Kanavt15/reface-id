@@ -441,13 +441,9 @@ class AIController {
    */
   _applySkinColor(hex) {
     this.caseManager.updateAppearance('skinColor', hex);
-    // Update the material on the head mesh
-    if (this.morpher.meshGroup) {
-      this.morpher.meshGroup.traverse(child => {
-        if (child.isMesh && child.material) {
-          child.material.color.set(hex);
-        }
-      });
+    // Use SceneManager.setSkinColor so _skinColor, texture system, and material all stay in sync
+    if (this.scene) {
+      this.scene.setSkinColor(hex);
     }
     // Update skin tone UI
     const picker = document.getElementById('skinColorPicker');

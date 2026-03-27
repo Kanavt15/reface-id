@@ -2303,6 +2303,18 @@ class UIController {
 
     // Restore appearance (skin color, eye color)
     if (state.appearance) {
+      // Restore wrinkle paint BEFORE skin color so that regenerate() uses the correct data.
+      // Clear wrinkle paint if the state doesn't have it.
+      if (this.wrinklePainter) {
+        if (state.appearance.wrinklePaintData) {
+          this.wrinklePainter.loadState(state.appearance.wrinklePaintData);
+        } else {
+          this.wrinklePainter.clearAll();
+        }
+      }
+
+      // Restore skin color — this regenerates the skin texture (which now includes
+      // the correct wrinkle data) and updates SceneManager._skinColor.
       if (state.appearance.skinColor) {
         this.scene.setSkinColor(state.appearance.skinColor);
         const skinPicker = document.getElementById('skinColorPicker');
@@ -2311,7 +2323,19 @@ class UIController {
           s.classList.toggle('active', s.dataset.color === state.appearance.skinColor);
         });
       }
-      // Restore lip color
+
+      // Restore lip paint overrides BEFORE lip color so vertex colors blend correctly.
+      // Clear lip paint if the state doesn't have it.
+      if (this.lipPainter) {
+        if (state.appearance.lipPaintData) {
+          // loadState calls _updateVertexColors internally
+          this.lipPainter.loadState(state.appearance.lipPaintData);
+        } else {
+          this.lipPainter.clearAll();
+        }
+      }
+
+      // Restore lip color AFTER skin color and lip paint so vertex colors are correct.
       {
         const lc = state.appearance.lipColor;
         this.scene.setLipColor(lc || null);
@@ -2363,16 +2387,6 @@ class UIController {
     // Restore skin marks
     if (state.skinMarks && this.skinMarkSystem) {
       this.skinMarkSystem.loadState(state.skinMarks);
-    }
-
-    // Restore manual wrinkle painting
-    if (state.appearance?.wrinklePaintData && this.wrinklePainter) {
-      this.wrinklePainter.loadState(state.appearance.wrinklePaintData);
-    }
-
-    // Restore manual lip painting
-    if (state.appearance?.lipPaintData && this.lipPainter) {
-      this.lipPainter.loadState(state.appearance.lipPaintData);
     }
 
     // Restore eyelash params
