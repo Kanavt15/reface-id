@@ -269,6 +269,16 @@
       });
     }
 
+    // ── Initialize Face Capture System ──
+    const faceCapture = new FaceCaptureSystem(aiController);
+    const btnFaceCapture = document.getElementById('btnFaceCapture');
+    if (btnFaceCapture) {
+      btnFaceCapture.addEventListener('click', () => {
+        faceCapture.start();
+        if (ui) ui.addHistory('Multi-angle face capture started');
+      });
+    }
+
     // ── Bind Face Point Editor UI controls ──
     _bindPointEditorUI(facePointEditor, ui);
   });
