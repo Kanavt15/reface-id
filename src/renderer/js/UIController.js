@@ -27,6 +27,7 @@ class UIController {
     this.bindEyeControls();
     this.bindEyelashControls();
     this.bindSkinMarkControls();
+    this.bindDecalControls();
     this.bindWrinklePainterControls();
     this.bindLipPainterControls();
     this.bindCaseControls();
@@ -1178,6 +1179,16 @@ class UIController {
           btnLP.innerHTML = '<i class="fas fa-pen"></i> Enable Lip Pen';
         }
       }
+      // Disable decal system if active (mutual exclusion)
+      if (this.decalSystem && this.decalSystem.enabled) {
+        this.decalSystem.disable();
+        document.getElementById('btnDecals')?.classList.remove('active');
+        const btnDC = document.getElementById('btnToggleDecalPlace');
+        if (btnDC) {
+          btnDC.classList.remove('active');
+          btnDC.innerHTML = '<i class="fas fa-crosshairs"></i> Place on Face';
+        }
+      }
 
       const active = skinMarks.toggle();
       btnToggle?.classList.toggle('active', active);
@@ -1361,6 +1372,258 @@ class UIController {
     };
   }
 
+  // ─── Decal System Controls ────────────────────────────────────────────
+
+  bindDecalControls() {
+    const decals = this.decalSystem;
+    if (!decals) return;
+
+    const btnToggle = document.getElementById('btnToggleDecalPlace');
+    const btnToolbar = document.getElementById('btnDecals');
+    const fileInput = document.getElementById('decalFileInput');
+    const btnUpload = document.getElementById('btnUploadDecalTexture');
+    const gallery = document.getElementById('decalTextureGallery');
+
+    // ── Toggle placement mode ──
+    const toggleDecalMode = () => {
+      // Disable point editor if active (mutual exclusion)
+      if (this.facePointEditor && this.facePointEditor.enabled) {
+        this.facePointEditor.disable();
+        document.getElementById('btnEditPoints')?.classList.remove('active');
+        const btnPE = document.getElementById('btnTogglePointEdit');
+        if (btnPE) {
+          btnPE.classList.remove('active');
+          btnPE.innerHTML = '<i class="fas fa-hand-pointer"></i> Enable Point Editing';
+        }
+      }
+      // Disable skin marks if active (mutual exclusion)
+      if (this.skinMarkSystem && this.skinMarkSystem.enabled) {
+        this.skinMarkSystem.disable();
+        document.getElementById('btnSkinMarks')?.classList.remove('active');
+        const btnSM = document.getElementById('btnToggleSkinMarks');
+        if (btnSM) {
+          btnSM.classList.remove('active');
+          btnSM.innerHTML = '<i class="fas fa-crosshairs"></i> Enable Mark Placement';
+        }
+      }
+      // Disable wrinkle painter if active (mutual exclusion)
+      if (this.wrinklePainter && this.wrinklePainter.enabled) {
+        this.wrinklePainter.disable();
+        document.getElementById('btnWrinklePaint')?.classList.remove('active');
+        const btnWP = document.getElementById('btnToggleWrinklePaint');
+        if (btnWP) {
+          btnWP.classList.remove('active');
+          btnWP.innerHTML = '<i class="fas fa-paint-brush"></i> Enable Wrinkle Painting';
+        }
+      }
+      // Disable lip painter if active (mutual exclusion)
+      if (this.lipPainter && this.lipPainter.enabled) {
+        this.lipPainter.disable();
+        document.getElementById('btnLipPaint')?.classList.remove('active');
+        const btnLP = document.getElementById('btnToggleLipPaint');
+        if (btnLP) {
+          btnLP.classList.remove('active');
+          btnLP.innerHTML = '<i class="fas fa-pen"></i> Enable Lip Pen';
+        }
+      }
+
+      const active = decals.toggle();
+      btnToggle?.classList.toggle('active', active);
+      btnToolbar?.classList.toggle('active', active);
+      if (btnToggle) {
+        btnToggle.innerHTML = active
+          ? '<i class="fas fa-times"></i> Disable Placement'
+          : '<i class="fas fa-crosshairs"></i> Place on Face';
+      }
+      this.addHistory(active ? 'Decal placement enabled' : 'Decal placement disabled');
+    };
+
+    btnToggle?.addEventListener('click', toggleDecalMode);
+    btnToolbar?.addEventListener('click', toggleDecalMode);
+
+    // ── Upload texture ──
+    btnUpload?.addEventListener('click', () => {
+      fileInput?.click();
+    });
+
+    fileInput?.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const entry = await decals.uploadTexture(file);
+      if (entry) {
+        this._refreshDecalGallery();
+        this.addHistory(`Uploaded decal texture: ${file.name}`);
+      } else {
+        this.addHistory('Failed to upload decal texture (check file type/size)');
+      }
+      // Reset file input so same file can be re-uploaded
+      fileInput.value = '';
+    });
+
+    // ── Scale slider ──
+    const scaleSlider = document.getElementById('decalScale');
+    const scaleValue = document.getElementById('decalScaleValue');
+    {
+      let isDragging = false;
+      const onScaleUp = () => {
+        if (isDragging) {
+          this.caseManager.endAction();
+          isDragging = false;
+          document.removeEventListener('pointerup', onScaleUp);
+        }
+      };
+      scaleSlider?.addEventListener('pointerdown', () => {
+        isDragging = true;
+        this.caseManager.beginAction('Modified decal scale');
+        document.addEventListener('pointerup', onScaleUp);
+      });
+      scaleSlider?.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value) / 100;
+        decals.updateSelectedDecal('scale', val);
+        if (scaleValue) scaleValue.textContent = val.toFixed(2) + 'x';
+      });
+    }
+
+    // ── Rotation slider ──
+    const rotSlider = document.getElementById('decalRotation');
+    const rotValue = document.getElementById('decalRotationValue');
+    {
+      let isDragging = false;
+      const onRotUp = () => {
+        if (isDragging) {
+          this.caseManager.endAction();
+          isDragging = false;
+          document.removeEventListener('pointerup', onRotUp);
+        }
+      };
+      rotSlider?.addEventListener('pointerdown', () => {
+        isDragging = true;
+        this.caseManager.beginAction('Modified decal rotation');
+        document.addEventListener('pointerup', onRotUp);
+      });
+      rotSlider?.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        decals.updateSelectedDecal('rotation', val);
+        if (rotValue) rotValue.textContent = val + '\u00B0';
+      });
+    }
+
+    // ── Opacity slider ──
+    const opacitySlider = document.getElementById('decalOpacity');
+    const opacityValue = document.getElementById('decalOpacityValue');
+    {
+      let isDragging = false;
+      const onOpacityUp = () => {
+        if (isDragging) {
+          this.caseManager.endAction();
+          isDragging = false;
+          document.removeEventListener('pointerup', onOpacityUp);
+        }
+      };
+      opacitySlider?.addEventListener('pointerdown', () => {
+        isDragging = true;
+        this.caseManager.beginAction('Modified decal opacity');
+        document.addEventListener('pointerup', onOpacityUp);
+      });
+      opacitySlider?.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        decals.updateSelectedDecal('opacity', val);
+        if (opacityValue) opacityValue.textContent = val + '%';
+      });
+    }
+
+    // ── Delete selected ──
+    document.getElementById('btnDeleteDecal')?.addEventListener('click', () => {
+      this.caseManager.beginAction('Deleted decal');
+      decals.deleteSelectedDecal();
+      this.caseManager.endAction();
+      this.addHistory('Deleted selected decal');
+    });
+
+    // ── Clear all ──
+    document.getElementById('btnClearAllDecals')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.caseManager.beginAction('Cleared all decals');
+      decals.clearAll();
+      this.caseManager.endAction();
+      this.addHistory('Cleared all decals');
+    });
+
+    // ── Callback: save undo state when a decal is placed ──
+    decals.onDecalPlaced = (decalData) => {
+      this.caseManager.beginAction('Placed decal');
+      // endAction fires after onDecalChanged updates currentCase below
+      this._decalPlacePending = true;
+      this.addHistory('Placed image decal');
+    };
+
+    // ── Callback: update UI when decals change ──
+    decals.onDecalChanged = () => {
+      const count = decals.getDecalCount();
+      const countEl = document.getElementById('decalCount');
+      if (countEl) countEl.textContent = count;
+
+      // Show/hide selected-decal properties sub-group
+      const propsGroup = document.getElementById('decalPropertiesGroup');
+      if (propsGroup) {
+        propsGroup.style.display = decals.selectedDecalIndex >= 0 ? 'block' : 'none';
+      }
+
+      // Update property controls to reflect selected decal
+      if (decals.selectedDecalIndex >= 0) {
+        const d = decals.decals[decals.selectedDecalIndex];
+        if (scaleSlider) scaleSlider.value = Math.round(d.scale * 100);
+        if (scaleValue) scaleValue.textContent = d.scale.toFixed(2) + 'x';
+        if (rotSlider) rotSlider.value = d.rotation;
+        if (rotValue) rotValue.textContent = d.rotation + '\u00B0';
+        if (opacitySlider) opacitySlider.value = d.opacity;
+        if (opacityValue) opacityValue.textContent = d.opacity + '%';
+      }
+
+      this.caseManager.updateDecals(decals.exportState());
+
+      // Commit undo snapshot after place action updates currentCase
+      if (this._decalPlacePending) {
+        this.caseManager.endAction();
+        this._decalPlacePending = false;
+      }
+
+      this._refreshDecalGallery();
+      this.updatePropertyPanel();
+    };
+  }
+
+  /**
+   * Refresh the decal texture thumbnail gallery.
+   */
+  _refreshDecalGallery() {
+    const decals = this.decalSystem;
+    if (!decals) return;
+
+    const gallery = document.getElementById('decalTextureGallery');
+    if (!gallery) return;
+
+    gallery.innerHTML = '';
+    if (decals.textures.length === 0) {
+      gallery.style.display = 'none';
+      return;
+    }
+    gallery.style.display = 'grid';
+
+    for (const tex of decals.textures) {
+      const thumb = document.createElement('div');
+      thumb.className = 'decal-thumb';
+      if (tex.id === decals.activeTextureId) thumb.classList.add('active');
+      thumb.innerHTML = `<img src="${tex.thumbnail}" alt="${tex.name}" title="${tex.name}" />`;
+      thumb.addEventListener('click', () => {
+        decals.activeTextureId = tex.id;
+        gallery.querySelectorAll('.decal-thumb').forEach(t => t.classList.remove('active'));
+        thumb.classList.add('active');
+      });
+      gallery.appendChild(thumb);
+    }
+  }
+
   // ─── Wrinkle Painter Controls ─────────────────────────────────────────
 
   bindWrinklePainterControls() {
@@ -1399,6 +1662,15 @@ class UIController {
         if (btnLP) {
           btnLP.classList.remove('active');
           btnLP.innerHTML = '<i class="fas fa-pen"></i> Enable Lip Pen';
+        }
+      }
+      if (this.decalSystem && this.decalSystem.enabled) {
+        this.decalSystem.disable();
+        document.getElementById('btnDecals')?.classList.remove('active');
+        const btnDC = document.getElementById('btnToggleDecalPlace');
+        if (btnDC) {
+          btnDC.classList.remove('active');
+          btnDC.innerHTML = '<i class="fas fa-crosshairs"></i> Place on Face';
         }
       }
 
@@ -1485,6 +1757,15 @@ class UIController {
         if (btnWP) {
           btnWP.classList.remove('active');
           btnWP.innerHTML = '<i class="fas fa-paint-brush"></i> Enable Wrinkle Painting';
+        }
+      }
+      if (this.decalSystem && this.decalSystem.enabled) {
+        this.decalSystem.disable();
+        document.getElementById('btnDecals')?.classList.remove('active');
+        const btnDC = document.getElementById('btnToggleDecalPlace');
+        if (btnDC) {
+          btnDC.classList.remove('active');
+          btnDC.innerHTML = '<i class="fas fa-crosshairs"></i> Place on Face';
         }
       }
 
@@ -1780,6 +2061,11 @@ class UIController {
       markCountEl.textContent = this.skinMarkSystem.getMarkCount();
     }
 
+    const decalCountEl = document.getElementById('currentDecalCount');
+    if (decalCountEl && this.decalSystem) {
+      decalCountEl.textContent = this.decalSystem.getDecalCount();
+    }
+
     // Vertex count
     const polyEl = document.getElementById('polyCount');
     if (polyEl) polyEl.textContent = `Vertices: ${this.scene.getVertexCount().toLocaleString()}`;
@@ -2063,6 +2349,7 @@ class UIController {
     this.scene.setLipColor(null);
     document.querySelectorAll('#lipColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
     if (this.skinMarkSystem) this.skinMarkSystem.clearAll();
+    if (this.decalSystem) this.decalSystem.clearAll();
 
     // Reset UI
     document.querySelectorAll('.morph-slider').forEach(s => {
@@ -2148,6 +2435,11 @@ class UIController {
       // Restore skin marks
       if (data.skinMarks && this.skinMarkSystem) {
         this.skinMarkSystem.loadState(data.skinMarks);
+      }
+      // Restore decals
+      if (data.decals && this.decalSystem) {
+        this.decalSystem.loadState(data.decals);
+        this._refreshDecalGallery();
       }
       // Restore manual wrinkle painting
       if (data.appearance?.wrinklePaintData && this.wrinklePainter) {
@@ -2387,6 +2679,15 @@ class UIController {
     // Restore skin marks
     if (state.skinMarks && this.skinMarkSystem) {
       this.skinMarkSystem.loadState(state.skinMarks);
+    }
+
+    // Restore decals
+    if (this.decalSystem) {
+      if (state.decals && state.decals.length > 0) {
+        this.decalSystem.deserialize(state.decals);
+      } else {
+        this.decalSystem.clearAll();
+      }
     }
 
     // Restore eyelash params

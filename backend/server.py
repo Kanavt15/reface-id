@@ -408,6 +408,64 @@ def export_model():
     return jsonify(result)
 
 
+@app.route('/api/decal/bake', methods=['POST'])
+def bake_decals():
+    """Bake decal textures onto the face mesh skin diffuse map.
+    Accepts base OBJ + array of decal texture/projection params.
+    Returns baked texture PNG + updated OBJ/MTL."""
+    data = request.json
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+
+    decals = data.get('decals', [])
+    if not decals:
+        return jsonify({"error": "No decals to bake"}), 400
+
+    obj_data = data.get('objData', '')
+    skin_color = data.get('skinColor', '#d4a574')
+    texture_size = data.get('textureSize', 2048)
+
+    # Save OBJ data to temp file if provided
+    obj_path = str(EXPORTS_DIR / 'decal_bake_input.obj')
+    if obj_data:
+        with open(obj_path, 'w') as f:
+            f.write(obj_data)
+    elif (EXPORTS_DIR / 'morphed_face.obj').exists():
+        obj_path = str(EXPORTS_DIR / 'morphed_face.obj')
+    else:
+        obj_path = str(MODELS_DIR / 'base' / 'base_face.obj')
+
+    output_dir = str(EXPORTS_DIR / 'decal_bake')
+
+    result = run_blender_script('bake_decals.py', {
+        'obj_path': obj_path,
+        'output_dir': output_dir,
+        'texture_size': texture_size,
+        'skin_color': skin_color,
+        'decals': decals,
+    })
+
+    if result.get('success'):
+        result_json_path = Path(output_dir) / 'bake_result.json'
+        if result_json_path.exists():
+            with open(result_json_path, 'r') as f:
+                bake_result = json.load(f)
+
+            # Read the baked texture as base64 for the frontend
+            baked_tex_path = bake_result.get('baked_texture', '')
+            if baked_tex_path and os.path.exists(baked_tex_path):
+                with open(baked_tex_path, 'rb') as f:
+                    tex_data = base64.b64encode(f.read()).decode('utf-8')
+                bake_result['baked_texture_data'] = f'data:image/png;base64,{tex_data}'
+
+            bake_result['success'] = True
+            return jsonify(bake_result)
+
+        return jsonify({"success": True, "message": "Bake completed but no result metadata found"})
+
+    return jsonify(result)
+
+
 @app.route('/api/export/download/<filename>', methods=['GET'])
 def download_export(filename):
     """Download an exported file."""

@@ -36,6 +36,7 @@
   // Face Point Editor (initialized after model loads)
   let facePointEditor = null;
   let skinMarkSystem = null;
+  let decalSystem = null;
   let wrinklePainter = null;
   let lipPainter = null;
 
@@ -127,7 +128,11 @@
       // Wire up reference in OBJMorpher for automatic mark refresh
       objMorpher.skinMarkSystem = skinMarkSystem;
 
-      // Refresh editor points and skin marks when morphs change
+      // ── Initialize Decal System ──
+      decalSystem = new DecalSystem(sceneManager, objMorpher);
+      console.log('[App] Decal System initialized');
+
+      // Refresh editor points, skin marks, and decals when morphs change
       const origOnMorph = objMorpher.onMorphApplied;
       objMorpher.onMorphApplied = () => {
         if (origOnMorph) origOnMorph();
@@ -135,6 +140,7 @@
           facePointEditor.refreshPoints();
         }
         skinMarkSystem.refreshMarksAfterMorph();
+        if (decalSystem) decalSystem.rebuildAll();
       };
 
       facePointEditor.onPointEdited = (name) => {
@@ -176,6 +182,7 @@
     ui = new UIController(sceneManager, activeMorpher, hairSystem, api, caseManager);
     ui.facePointEditor = facePointEditor;   // expose for render pipeline
     ui.skinMarkSystem = skinMarkSystem;     // expose for skin marks UI
+    ui.decalSystem = decalSystem;           // expose for decal/tattoo UI
     ui.eyeSystem = eyeSystem;               // expose eye system for UI control
     ui.skinTextureSystem = skinTextureSystem; // expose for skin texture UI
     ui.wrinklePainter = wrinklePainter;       // expose for wrinkle painting UI
@@ -327,6 +334,16 @@
         if (btnLP) {
           btnLP.classList.remove('active');
           btnLP.innerHTML = '<i class="fas fa-pen"></i> Enable Lip Pen';
+        }
+      }
+      // Disable decal system if active (mutual exclusion)
+      if (decalSystem && decalSystem.enabled) {
+        decalSystem.disable();
+        document.getElementById('btnDecals')?.classList.remove('active');
+        const btnDC = document.getElementById('btnToggleDecalPlace');
+        if (btnDC) {
+          btnDC.classList.remove('active');
+          btnDC.innerHTML = '<i class="fas fa-crosshairs"></i> Place on Face';
         }
       }
       const active = editor.toggle();

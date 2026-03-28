@@ -41,6 +41,7 @@ class CaseManager {
         sex: 'male',
       },
       skinMarks: [],
+      decals: [],
       cameraState: null,
       createdAt: new Date().toISOString(),
       modifiedAt: new Date().toISOString(),
@@ -167,6 +168,14 @@ class CaseManager {
    */
   updateSkinMarks(marksArray) {
     this.currentCase.skinMarks = marksArray ? [...marksArray] : [];
+    this.currentCase.modifiedAt = new Date().toISOString();
+  }
+
+  /**
+   * Update decals data
+   */
+  updateDecals(decalsArray) {
+    this.currentCase.decals = decalsArray ? [...decalsArray] : [];
     this.currentCase.modifiedAt = new Date().toISOString();
   }
 
