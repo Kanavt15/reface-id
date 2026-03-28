@@ -242,7 +242,7 @@
 
     // ── Initialize Head Tracker ──
     console.log('[App] Initializing Head Tracker...');
-    const headTracker = new HeadTracker(sceneManager, hairSystem, eyeSystem);
+    const headTracker = new HeadTracker(sceneManager, hairSystem, eyeSystem, decalSystem);
     headTracker.init().then(() => {
       console.log('[App] Head Tracker initialized');
     }).catch(err => {
