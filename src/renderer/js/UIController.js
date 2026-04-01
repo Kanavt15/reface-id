@@ -1624,6 +1624,7 @@ class UIController {
     }
   }
 
+
   // ─── Wrinkle Painter Controls ─────────────────────────────────────────
 
   bindWrinklePainterControls() {

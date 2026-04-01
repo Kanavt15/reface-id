@@ -2018,6 +2018,60 @@
             </div>
           </div>
 
+          <!-- Demographics (Hidden) -->
+          <div class="control-group" style="display: none;">
+            <div class="control-group-header">
+              <i class="fas fa-id-card"></i>
+              <span>Demographics</span>
+            </div>
+            <div class="control-group-body">
+              <!-- Identity Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-user"></i>
+                  <span>Identity</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="select-control">
+                    <label>Estimated Age Range</label>
+                    <select id="ageRange" class="custom-select">
+                      <option value="18-25">18–25</option>
+                      <option value="25-35" selected>25–35</option>
+                      <option value="35-45">35–45</option>
+                      <option value="45-55">45–55</option>
+                      <option value="55-65">55–65</option>
+                      <option value="65+">65+</option>
+                    </select>
+                  </div>
+                  <div class="select-control">
+                    <label>Sex</label>
+                    <select id="sexSelect" class="custom-select">
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <!-- Body Type Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-weight"></i>
+                  <span>Body Type</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="weight">
+                    <label>Weight Build</label>
+                    <div class="slider-row">
+                      <span class="slider-label-left">Thin</span>
+                      <input type="range" min="0" max="100" value="50" class="appearance-slider" />
+                      <span class="slider-label-right">Heavy</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Image Decals (Tattoos, Birthmarks, Graphics) -->
           <div class="control-group">
             <div class="control-group-header">
@@ -2092,60 +2146,6 @@
               </div>
               <div style="margin-top: 8px; font-size: 10px; color: var(--text-muted);">
                 Placed decals: <span id="decalCount" style="color: var(--accent-primary); font-family: 'JetBrains Mono', monospace;">0</span> / 10
-              </div>
-            </div>
-          </div>
-
-          <!-- Demographics (Hidden) -->
-          <div class="control-group" style="display: none;">
-            <div class="control-group-header">
-              <i class="fas fa-id-card"></i>
-              <span>Demographics</span>
-            </div>
-            <div class="control-group-body">
-              <!-- Identity Sub-group -->
-              <div class="feature-sub-group">
-                <div class="sub-group-header">
-                  <i class="fas fa-user"></i>
-                  <span>Identity</span>
-                </div>
-                <div class="sub-group-body">
-                  <div class="select-control">
-                    <label>Estimated Age Range</label>
-                    <select id="ageRange" class="custom-select">
-                      <option value="18-25">18–25</option>
-                      <option value="25-35" selected>25–35</option>
-                      <option value="35-45">35–45</option>
-                      <option value="45-55">45–55</option>
-                      <option value="55-65">55–65</option>
-                      <option value="65+">65+</option>
-                    </select>
-                  </div>
-                  <div class="select-control">
-                    <label>Sex</label>
-                    <select id="sexSelect" class="custom-select">
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <!-- Body Type Sub-group -->
-              <div class="feature-sub-group">
-                <div class="sub-group-header">
-                  <i class="fas fa-weight"></i>
-                  <span>Body Type</span>
-                </div>
-                <div class="sub-group-body">
-                  <div class="slider-control" data-param="weight">
-                    <label>Weight Build</label>
-                    <div class="slider-row">
-                      <span class="slider-label-left">Thin</span>
-                      <input type="range" min="0" max="100" value="50" class="appearance-slider" />
-                      <span class="slider-label-right">Heavy</span>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
