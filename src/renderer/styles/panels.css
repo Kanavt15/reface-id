@@ -460,18 +460,16 @@
 
 .hair-preview-video-container {
   position: fixed;
-  top: calc(var(--titlebar-height) + var(--toolbar-height));
-  left: var(--panel-width);
+  top: calc(var(--titlebar-height) + var(--toolbar-height) + 8px);
+  left: calc(var(--panel-width) + 8px);
   z-index: 100;
-  width: 180px;
-  height: 180px;
-  border-radius: 0 0 var(--border-radius) 0;
+  width: 160px;
+  height: 160px;
+  border-radius: var(--border-radius);
   overflow: hidden;
   border: 2px solid var(--accent-primary);
-  border-top: none;
-  border-left: none;
   background: var(--bg-primary);
-  box-shadow: 4px 4px 20px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   pointer-events: none;
 }
 
