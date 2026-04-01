@@ -6,7 +6,7 @@
 /* ─── Slider Controls ───────────────────────────────────────────────── */
 
 .slider-control {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .slider-control:last-child {
@@ -17,28 +17,27 @@
   display: block;
   font-size: 11px;
   color: var(--text-secondary);
-  margin-bottom: 5px;
+  margin-bottom: 6px;
   font-weight: 500;
-  letter-spacing: 0.2px;
 }
 
 .slider-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .slider-value {
-  min-width: 26px;
+  min-width: 32px;
   text-align: right;
-  font-size: 10.5px;
+  font-size: 11px;
   font-family: var(--font-mono);
   color: var(--accent-primary);
   font-weight: 600;
-  padding: 2px 6px;
-  background: rgba(125, 163, 247, 0.1);
-  border-radius: 4px;
-  border: 1px solid rgba(125, 163, 247, 0.2);
+  padding: 4px 8px;
+  background: var(--bg-elevated);
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-primary);
 }
 
 .slider-label-left,
@@ -54,23 +53,21 @@ input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   flex: 1;
-  height: 5px;
+  height: 6px;
   border-radius: 3px;
   outline: none;
   cursor: pointer;
-  background: linear-gradient(90deg, var(--bg-primary) 0%, var(--bg-elevated) 100%);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
-  transition: all var(--transition-fast);
+  background: var(--bg-tertiary);
+  transition: background var(--transition-fast);
 }
 
 input[type="range"]:hover {
-  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.4),
-              0 0 8px rgba(125, 163, 247, 0.2);
+  background: var(--bg-elevated);
 }
 
 /* Track */
 input[type="range"]::-webkit-slider-runnable-track {
-  height: 5px;
+  height: 6px;
   border-radius: 3px;
   background: linear-gradient(
     to right,
@@ -87,28 +84,23 @@ input[type="range"]::-webkit-slider-thumb {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--text-primary) 0%, #d0d0e0 100%);
+  background: white;
   border: 2px solid var(--accent-primary);
-  margin-top: -6px;
+  margin-top: -5px;
   cursor: pointer;
   transition: all var(--transition-fast);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4),
-              0 0 8px rgba(125, 163, 247, 0.3);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
-  background: linear-gradient(135deg, var(--accent-primary-bright) 0%, var(--accent-primary) 100%);
-  border-color: var(--accent-primary-bright);
-  transform: scale(1.25);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5),
-              0 0 16px rgba(125, 163, 247, 0.5);
+  background: var(--accent-primary);
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
 }
 
 input[type="range"]:active::-webkit-slider-thumb {
-  background: var(--accent-primary);
-  transform: scale(1.15);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6),
-              0 0 20px rgba(125, 163, 247, 0.6);
+  background: var(--accent-primary-bright);
+  transform: scale(1.1);
 }
 
 /* Morph slider color variation */
@@ -142,47 +134,43 @@ input[type="range"]:active::-webkit-slider-thumb {
   display: block;
   font-size: 11px;
   color: var(--text-secondary);
-  margin-bottom: 5px;
+  margin-bottom: 6px;
   font-weight: 500;
 }
 
 .custom-select {
   width: 100%;
-  padding: 7px 12px;
-  border: 1px solid var(--border-accent);
-  border-radius: 6px;
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  padding: 10px 14px;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-elevated);
   color: var(--text-primary);
   font-family: var(--font-main);
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
   outline: none;
   appearance: none;
   -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237da3f7'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%233b82f6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
-  padding-right: 32px;
+  padding-right: 36px;
   transition: all var(--transition-fast);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .custom-select:hover {
-  border-color: var(--accent-primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3),
-              0 0 0 1px rgba(125, 163, 247, 0.2);
+  border-color: var(--border-accent);
 }
 
 .custom-select:focus {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(125, 163, 247, 0.2),
-              0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
 }
 
 .custom-select option {
   background: var(--bg-tertiary);
   color: var(--text-primary);
-  padding: 6px;
+  padding: 8px;
 }
 
 /* ─── Text Inputs ───────────────────────────────────────────────────── */
@@ -195,22 +183,21 @@ input[type="range"]:active::-webkit-slider-thumb {
   display: block;
   font-size: 11px;
   color: var(--text-secondary);
-  margin-bottom: 5px;
+  margin-bottom: 6px;
   font-weight: 500;
 }
 
 .text-input {
   width: 100%;
-  padding: 7px 12px;
-  border: 1px solid var(--border-accent);
-  border-radius: 6px;
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  padding: 10px 14px;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-elevated);
   color: var(--text-primary);
   font-family: var(--font-main);
-  font-size: 11px;
+  font-size: 12px;
   outline: none;
   transition: all var(--transition-fast);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .text-input::placeholder {
@@ -218,31 +205,27 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 .text-input:hover {
-  border-color: var(--accent-primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3),
-              0 0 0 1px rgba(125, 163, 247, 0.2);
+  border-color: var(--border-accent);
 }
 
 .text-input:focus {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(125, 163, 247, 0.2),
-              0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
 }
 
 .text-area {
   width: 100%;
-  padding: 8px 12px;
-  border: 1px solid var(--border-accent);
-  border-radius: 6px;
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  padding: 10px 14px;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-elevated);
   color: var(--text-primary);
   font-family: var(--font-main);
-  font-size: 11px;
+  font-size: 12px;
   outline: none;
   resize: vertical;
-  min-height: 60px;
+  min-height: 80px;
   transition: all var(--transition-fast);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .text-area::placeholder {
@@ -250,9 +233,7 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 .text-area:hover {
-  border-color: var(--accent-primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3),
-              0 0 0 1px rgba(125, 163, 247, 0.2);
+  border-color: var(--border-accent);
 }
 
 .text-area:focus {
@@ -267,7 +248,7 @@ input[type="range"]:active::-webkit-slider-thumb {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 5px 0;
+  padding: 6px 0;
   cursor: pointer;
 }
 
@@ -278,24 +259,19 @@ input[type="range"]:active::-webkit-slider-thumb {
   height: 18px;
   border: 2px solid var(--border-accent);
   border-radius: 4px;
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  background: var(--bg-elevated);
   cursor: pointer;
   position: relative;
   transition: all var(--transition-fast);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .checkbox-control input[type="checkbox"]:hover {
   border-color: var(--accent-primary);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3),
-              0 0 0 1px rgba(125, 163, 247, 0.2);
 }
 
 .checkbox-control input[type="checkbox"]:checked {
-  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-dim) 100%);
+  background: var(--accent-primary);
   border-color: var(--accent-primary);
-  box-shadow: 0 2px 6px rgba(125, 163, 247, 0.4),
-              0 0 12px rgba(125, 163, 247, 0.3);
 }
 
 .checkbox-control input[type="checkbox"]:checked::after {
@@ -307,7 +283,6 @@ input[type="range"]:active::-webkit-slider-thumb {
   font-size: 12px;
   color: #ffffff;
   font-weight: 700;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .checkbox-control label {
@@ -329,11 +304,10 @@ input[type="range"]:active::-webkit-slider-thumb {
   color: var(--text-secondary);
   line-height: 1.6;
   margin-bottom: 12px;
-  padding: 8px 10px;
-  background: linear-gradient(135deg, rgba(125, 163, 247, 0.08) 0%, rgba(125, 163, 247, 0.03) 100%);
-  border-radius: 6px;
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  border-radius: var(--border-radius-sm);
   border-left: 3px solid var(--accent-primary);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .edit-points-controls {
@@ -348,43 +322,18 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 .btn-sm {
-  padding: 5px 12px;
-  font-size: 10.5px;
-}
-
-.btn-accent {
-  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-dim) 100%);
-  color: #ffffff;
-  border: 1px solid var(--accent-primary);
-  font-weight: 600;
-  transition: all var(--transition-fast);
-  box-shadow: 0 2px 8px rgba(125, 163, 247, 0.3);
-}
-
-.btn-accent:hover {
-  background: linear-gradient(135deg, var(--accent-primary-bright) 0%, var(--accent-primary) 100%);
-  border-color: var(--accent-primary-bright);
-  box-shadow: 0 4px 12px rgba(125, 163, 247, 0.4);
-  transform: translateY(-1px);
-}
-
-.btn-accent.active {
-  background: linear-gradient(135deg, var(--accent-danger) 0%, #e65878 100%);
-  border-color: var(--accent-danger);
-  box-shadow: 0 0 16px rgba(250, 122, 152, 0.4),
-              inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  padding: 6px 12px;
+  font-size: 11px;
 }
 
 #btnEditPoints.active {
-  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-dim) 100%);
-  color: #ffffff;
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 16px rgba(125, 163, 247, 0.4);
+  background: var(--accent-primary);
+  color: white;
 }
 
 #btnTogglePointEdit.active {
-  background: linear-gradient(135deg, var(--accent-danger) 0%, #e65878 100%);
-  border-color: var(--accent-danger);
+  background: var(--accent-danger);
+  color: white;
 }
 
 #btnTogglePointEdit.active i::before {
@@ -395,44 +344,41 @@ input[type="range"]:active::-webkit-slider-thumb {
 
 #btnToggleSkinMarks.active {
   background: var(--accent-danger);
-  border-color: var(--accent-danger);
+  color: white;
 }
 
 #btnSkinMarks.active {
   background: var(--accent-primary);
-  color: var(--bg-primary);
-  border-color: var(--accent-primary);
+  color: white;
 }
 
 #skinMarkProperties {
-  border-top: 1px solid var(--border-accent);
-  padding-top: 4px;
-  margin-top: 4px;
+  border-top: 1px solid var(--border-primary);
+  padding-top: 8px;
+  margin-top: 8px;
 }
 
 /* ─── Wrinkle Painter Controls ────────────────────────────────────── */
 
 #btnWrinklePaint.active {
   background: var(--accent-primary);
-  color: var(--bg-primary);
-  border-color: var(--accent-primary);
+  color: white;
 }
 
 #btnToggleWrinklePaint.active {
   background: var(--accent-danger);
-  border-color: var(--accent-danger);
+  color: white;
 }
 
 #btnWrinkleErase.active {
-  background: var(--accent-warning, #e6a817);
-  border-color: var(--accent-warning, #e6a817);
-  color: var(--bg-primary);
+  background: var(--accent-warning);
+  color: white;
 }
 
 #wrinklePaintControls {
-  border-top: 1px solid var(--border-accent);
-  padding-top: 8px;
-  margin-top: 8px;
+  border-top: 1px solid var(--border-primary);
+  padding-top: 10px;
+  margin-top: 10px;
 }
 
 /* ─── Lip Painter Controls ─────────────────────────────────────────── */
@@ -440,46 +386,43 @@ input[type="range"]:active::-webkit-slider-thumb {
 #btnLipPaint.active,
 #btnToggleLipPaint.active {
   background: var(--accent-primary);
-  color: var(--bg-primary);
-  border-color: var(--accent-primary);
+  color: white;
 }
 
 #btnLipErase.active {
-  background: var(--accent-warning, #e6a817);
-  border-color: var(--accent-warning, #e6a817);
-  color: var(--bg-primary);
+  background: var(--accent-warning);
+  color: white;
 }
 
 /* ─── Decal System Controls ───────────────────────────────────────── */
 
 #btnDecals.active {
   background: var(--accent-primary);
-  color: var(--bg-primary);
-  border-color: var(--accent-primary);
+  color: white;
 }
 
 #btnToggleDecalPlace.active {
   background: var(--accent-danger);
-  border-color: var(--accent-danger);
+  color: white;
 }
 
 #decalProperties {
-  border-top: 1px solid var(--border-accent);
-  padding-top: 4px;
-  margin-top: 4px;
+  border-top: 1px solid var(--border-primary);
+  padding-top: 8px;
+  margin-top: 8px;
 }
 
 .decal-texture-gallery {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
-  gap: 6px;
-  margin-bottom: 8px;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
 .decal-thumb {
   width: 100%;
   aspect-ratio: 1;
-  border-radius: 6px;
+  border-radius: var(--border-radius-sm);
   border: 2px solid var(--border-primary);
   overflow: hidden;
   cursor: pointer;
@@ -488,13 +431,12 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 .decal-thumb:hover {
-  border-color: var(--text-secondary);
-  transform: scale(1.05);
+  border-color: var(--border-accent);
+  transform: scale(1.02);
 }
 
 .decal-thumb.active {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 8px rgba(125, 163, 247, 0.4);
 }
 
 .decal-thumb img {
@@ -504,76 +446,13 @@ input[type="range"]:active::-webkit-slider-thumb {
   display: block;
 }
 
-/* ─── Glasses Gallery ─────────────────────────────────────────────── */
-
-.glasses-gallery {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.glasses-item {
-  width: 100%;
-  aspect-ratio: 1.5;
-  border-radius: 6px;
-  border: 2px solid var(--border-primary);
-  overflow: hidden;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  background: var(--bg-tertiary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-}
-
-.glasses-item:hover {
-  border-color: var(--text-secondary);
-  transform: scale(1.05);
-}
-
-.glasses-item.active {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 8px rgba(125, 163, 247, 0.4);
-}
-
-.glasses-item .glasses-preview {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
-  padding: 8px;
-}
-
-.glasses-item .glasses-name {
-  position: absolute;
-  bottom: 2px;
-  left: 0;
-  right: 0;
-  background: rgba(0, 0, 0, 0.7);
-  color: var(--text-primary);
-  font-size: 8px;
-  text-align: center;
-  padding: 2px 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-#glassesProperties {
-  border-top: 1px solid var(--border-accent);
-  padding-top: 4px;
-  margin-top: 4px;
-}
-
 /* ─── Import Model ─────────────────────────────────────────────────── */
 
 .control-hint {
   font-size: 11px;
   color: var(--text-muted);
-  margin: 0 0 8px 0;
-  line-height: 1.4;
+  margin: 0 0 10px 0;
+  line-height: 1.5;
 }
 
 .btn-danger {
