@@ -460,16 +460,16 @@
 
 .hair-preview-video-container {
   position: fixed;
-  top: 86px;
-  left: 346px;
+  top: 120px;
+  left: calc(var(--panel-width) + 16px);
   z-index: 10000;
-  width: 216px;
-  height: 216px;
+  width: 200px;
+  height: 200px;
   border-radius: var(--border-radius);
   overflow: hidden;
   border: 2px solid var(--accent-primary);
   background: var(--bg-primary);
-  box-shadow: var(--shadow-elevated);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   pointer-events: none;
 }
 
