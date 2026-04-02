@@ -2333,9 +2333,12 @@
                   <span>Saved</span>
                 </div>
                 <div class="sub-group-body">
-                  <div class="snapshot-clear-bar" id="snapshotClearBar" style="display:none;">
-                    <span class="snapshot-count" id="snapshotCount">0 snapshots</span>
-                    <button class="btn btn-outline" id="btnClearSnapshots" style="font-size:10px;padding:3px 8px;">
+                  <div class="snapshot-clear-bar" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                    <span class="snapshot-count" id="snapshotCount" style="display:none;">0 snapshots</span>
+                    <button class="btn btn-outline" id="btnImportSnapshot" style="font-size:10px;padding:3px 8px;">
+                      <i class="fas fa-file-import"></i> Import
+                    </button>
+                    <button class="btn btn-outline" id="btnClearSnapshots" style="font-size:10px;padding:3px 8px;display:none;">
                       <i class="fas fa-trash-alt"></i> Clear All
                     </button>
                   </div>

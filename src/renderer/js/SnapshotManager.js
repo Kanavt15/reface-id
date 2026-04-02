@@ -203,6 +203,96 @@ class SnapshotManager {
     }
   }
 
+  // ─── Export / Import ─────────────────────────────────────────────────
+
+  /**
+   * Export a snapshot to a downloadable .txt file containing the full JSON.
+   * Reads directly from this.snapshots to guarantee nothing is stripped.
+   * @param {number} id  Snapshot id
+   */
+  exportToFile(id) {
+    const snapshot = this.snapshots.find(s => s.id === id);
+    if (!snapshot) return;
+
+    const json = JSON.stringify(snapshot, null, 2);
+    const blob = new Blob([json], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+
+    const safeName = snapshot.name.replace(/[^a-zA-Z0-9_\- ]/g, '_');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `snapshot_${safeName}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Import a snapshot from a .txt file selected by the user.
+   * Opens a file picker, parses the JSON, and adds the snapshot.
+   * @returns {Promise<object|null>}  The imported snapshot metadata, or null
+   */
+  importFromFile() {
+    return new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.txt';
+      input.style.display = 'none';
+      document.body.appendChild(input);
+
+      input.addEventListener('change', () => {
+        const file = input.files[0];
+        document.body.removeChild(input);
+        if (!file) { resolve(null); return; }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const parsed = JSON.parse(reader.result);
+            if (!parsed || typeof parsed !== 'object' || !parsed.state) {
+              alert('Invalid snapshot file — missing state data.');
+              resolve(null);
+              return;
+            }
+
+            // Assign a new id but keep the original name
+            const snapshot = {
+              ...parsed,
+              id: this._nextId++,
+              timestamp: parsed.timestamp || Date.now(),
+            };
+
+            this.snapshots.push(snapshot);
+            this._persist();
+            this._notify();
+
+            alert(`Snapshot imported: ${snapshot.name}`);
+            resolve({ id: snapshot.id, name: snapshot.name, timestamp: snapshot.timestamp });
+          } catch (e) {
+            alert('Failed to parse snapshot file. Ensure it is valid JSON.');
+            console.error('[SnapshotManager] Import parse error', e);
+            resolve(null);
+          }
+        };
+        reader.onerror = () => {
+          alert('Failed to read file.');
+          document.body.removeChild(input);
+          resolve(null);
+        };
+        reader.readAsText(file);
+      });
+
+      // Handle cancel (no file selected)
+      input.addEventListener('cancel', () => {
+        document.body.removeChild(input);
+        resolve(null);
+      });
+
+      input.click();
+    });
+  }
+
   // ─── Notification ──────────────────────────────────────────────────
 
   _notify() {

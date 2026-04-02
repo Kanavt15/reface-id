@@ -902,6 +902,7 @@
   background: linear-gradient(135deg, rgba(125, 163, 247, 0.05), transparent);
   opacity: 0;
   transition: opacity var(--transition-fast);
+  pointer-events: none;
 }
 
 .snapshot-card:hover {
@@ -988,24 +989,19 @@
   font-weight: 500;
 }
 
-/* Action buttons on card */
+/* Action buttons on card — always visible */
 .snapshot-actions {
   display: flex;
   flex-direction: column;
   justify-content: center;
   gap: 5px;
-  opacity: 0;
-  transition: opacity var(--transition-fast);
-}
-
-.snapshot-card:hover .snapshot-actions {
-  opacity: 1;
+  flex-shrink: 0;
 }
 
 .snapshot-action-btn {
-  width: 26px;
-  height: 26px;
-  border: none;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-secondary);
   border-radius: 5px;
   background: var(--bg-active);
   color: var(--text-muted);
@@ -1015,8 +1011,9 @@
   justify-content: center;
   font-size: 11px;
   transition: all var(--transition-fast);
-  border: 1px solid transparent;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  position: relative;
+  z-index: 2;
 }
 
 .snapshot-action-btn:hover {
@@ -1038,6 +1035,13 @@
   background: var(--accent-success);
   border-color: var(--accent-success);
   box-shadow: 0 2px 8px rgba(125, 232, 216, 0.4);
+}
+
+.snapshot-action-btn.btn-export:hover {
+  color: #ffffff;
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  box-shadow: 0 2px 8px rgba(125, 163, 247, 0.4);
 }
 
 /* Clear all bar */

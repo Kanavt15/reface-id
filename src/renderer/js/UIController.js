@@ -2890,6 +2890,14 @@ class UIController {
       this.addHistory('All snapshots cleared');
     });
 
+    // Import snapshot button
+    document.getElementById('btnImportSnapshot')?.addEventListener('click', async () => {
+      const result = await this.snapshotManager.importFromFile();
+      if (result) {
+        this.addHistory(`Snapshot imported: ${result.name}`);
+      }
+    });
+
     // Re-render list when snapshots change
     this.snapshotManager.onSnapshotsChanged = (list) => this.renderSnapshotList(list);
 
@@ -2900,14 +2908,17 @@ class UIController {
   renderSnapshotList(list) {
     const container = document.getElementById('snapshotList');
     const emptyEl = document.getElementById('snapshotEmpty');
-    const clearBar = document.getElementById('snapshotClearBar');
     const countEl = document.getElementById('snapshotCount');
+    const clearBtn = document.getElementById('btnClearSnapshots');
     if (!container) return;
 
-    // Show/hide empty state and clear bar
+    // Show/hide empty state, count, and clear button
     if (emptyEl) emptyEl.style.display = list.length === 0 ? '' : 'none';
-    if (clearBar) clearBar.style.display = list.length > 0 ? '' : 'none';
-    if (countEl) countEl.textContent = `${list.length} snapshot${list.length !== 1 ? 's' : ''}`;
+    if (countEl) {
+      countEl.style.display = list.length > 0 ? '' : 'none';
+      countEl.textContent = `${list.length} snapshot${list.length !== 1 ? 's' : ''}`;
+    }
+    if (clearBtn) clearBtn.style.display = list.length > 0 ? '' : 'none';
 
     // Remove existing cards (keep the empty placeholder)
     container.querySelectorAll('.snapshot-card').forEach(c => c.remove());
@@ -2970,12 +2981,18 @@ class UIController {
       restoreBtn.title = 'Restore this snapshot';
       restoreBtn.innerHTML = '<i class="fas fa-undo"></i>';
 
+      const exportBtn = document.createElement('button');
+      exportBtn.className = 'snapshot-action-btn btn-export';
+      exportBtn.title = 'Export this snapshot to file';
+      exportBtn.innerHTML = '<i class="fas fa-download"></i>';
+
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'snapshot-action-btn btn-delete';
       deleteBtn.title = 'Delete this snapshot';
       deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
 
       actions.appendChild(restoreBtn);
+      actions.appendChild(exportBtn);
       actions.appendChild(deleteBtn);
 
       card.appendChild(thumb);
@@ -2985,7 +3002,7 @@ class UIController {
 
       // ── Event handlers ──
 
-      // Restore on card click (not on action buttons)
+      // Restore on card click (not on action buttons or rename input)
       card.addEventListener('click', (e) => {
         if (e.target.closest('.snapshot-action-btn') || e.target.closest('.snapshot-name-input')) return;
         this._restoreSnapshot(snap.id, card);
@@ -2997,6 +3014,13 @@ class UIController {
         this._restoreSnapshot(snap.id, card);
       });
 
+      // Export button
+      exportBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.snapshotManager.exportToFile(snap.id);
+        this.addHistory(`Snapshot exported: ${snap.name}`);
+      });
+
       // Delete button
       deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -3006,7 +3030,6 @@ class UIController {
 
       // Double-click name to rename
       nameEl.addEventListener('dblclick', (e) => {
-        e.stopPropagation();
         this._startSnapshotRename(snap.id, nameEl);
       });
     });
