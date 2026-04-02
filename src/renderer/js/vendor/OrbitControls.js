@@ -145,9 +145,9 @@ THREE.OrbitControls = function (camera, domElement) {
 
     // Scroll up (deltaY < 0) = zoom in, scroll down = zoom out
     if (event.deltaY < 0) {
-      scale /= Math.pow(0.95, self.zoomSpeed);
-    } else if (event.deltaY > 0) {
       scale *= Math.pow(0.95, self.zoomSpeed);
+    } else if (event.deltaY > 0) {
+      scale /= Math.pow(0.95, self.zoomSpeed);
     }
   }
 
