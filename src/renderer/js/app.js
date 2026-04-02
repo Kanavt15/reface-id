@@ -281,8 +281,15 @@
     const btnFaceCapture = document.getElementById('btnFaceCapture');
     if (btnFaceCapture) {
       btnFaceCapture.addEventListener('click', () => {
-        faceCapture.start();
-        if (ui) ui.addHistory('Multi-angle face capture started');
+        if (ui) {
+          console.log('[App] Resetting all features before face capture...');
+          ui.resetAllFeatures();
+        }
+        // Allow reset to render before starting capture overlay
+        requestAnimationFrame(() => {
+          faceCapture.start();
+          if (ui) ui.addHistory('Multi-angle face capture started');
+        });
       });
     }
 
