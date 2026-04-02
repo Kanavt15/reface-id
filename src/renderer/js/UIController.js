@@ -103,6 +103,11 @@ class UIController {
       this.importModel();
     });
 
+    // Reset All Features
+    document.getElementById('btnResetAll')?.addEventListener('click', () => {
+      this.resetAllFeatures();
+    });
+
     // Undo/Redo
     document.getElementById('btnUndo')?.addEventListener('click', () => this.undo());
     document.getElementById('btnRedo')?.addEventListener('click', () => this.redo());
@@ -2331,6 +2336,140 @@ class UIController {
       console.error('[Import] Error:', err);
       this.addHistory(`Import error: ${err.message}`);
     }
+  }
+
+  resetAllFeatures() {
+    this.caseManager.pushState('Reset all features');
+
+    // Reset facial morphs
+    this.morpher.resetAll();
+    document.querySelectorAll('.morph-slider').forEach(s => {
+      s.value = 50;
+      const v = s.closest('.slider-control')?.querySelector('.slider-value');
+      if (v) v.textContent = '50';
+    });
+
+    // Reset hair
+    this.hair.setStyle('hair1');
+    this.hair.setColor('#2c1b0e');
+    document.querySelectorAll('#hairStyleCards .style-card').forEach(c => {
+      c.classList.toggle('active', c.dataset.style === 'hair1');
+    });
+
+    // Reset beard
+    this.hair.setBeard('none');
+    this.hair.setBeardColor('#2c1b0e');
+    const beardDefaults = { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 };
+    Object.entries(beardDefaults).forEach(([key, val]) => this.hair.setBeardParam(key, val));
+    this._updateBeardPositionSliders(beardDefaults);
+    const beardPicker = document.getElementById('beardColorPicker');
+    if (beardPicker) beardPicker.value = '#2c1b0e';
+    document.querySelectorAll('#beardColorPresets .color-swatch').forEach(s => {
+      s.classList.toggle('active', s.dataset.color === '#2c1b0e');
+    });
+
+    // Reset eyebrows
+    this.hair.setEyebrowColor('#2c1b0e');
+    const ebDefaults = { thickness: 100, arch: 0, spacing: 42, density: 70,
+                          posX: 51, posY: 72, posZ: 49, rotation: 100, scale: 65,
+                          straighten: 51, tiltX: 69 };
+    Object.entries(ebDefaults).forEach(([key, val]) => this.hair.setEyebrowParam(key, val));
+    this.hair.generateEyebrows();
+    const ebSliderDefaults = { eyebrowThickness: 100, eyebrowArch: 0, eyebrowSpacing: 42,
+      eyebrowDensity: 70, eyebrowPosX: 51, eyebrowPosY: 72, eyebrowPosZ: 49,
+      eyebrowRotation: 100, eyebrowScale: 65, eyebrowStraighten: 51, eyebrowTiltX: 69 };
+    document.querySelectorAll('.eyebrow-slider').forEach(s => {
+      const param = s.closest('.slider-control')?.dataset.param;
+      const defaultVal = ebSliderDefaults[param] ?? 50;
+      s.value = defaultVal;
+      const v = s.closest('.slider-control')?.querySelector('.slider-value');
+      if (v) v.textContent = defaultVal;
+    });
+    const ebPicker = document.getElementById('eyebrowColorPicker');
+    if (ebPicker) ebPicker.value = '#2c1b0e';
+    document.querySelectorAll('#eyebrowColorPresets .color-swatch').forEach(s => {
+      s.classList.toggle('active', s.dataset.color === '#2c1b0e');
+    });
+
+    // Reset eyelashes
+    if (this.eyeSystem) {
+      const lashDefaults = { scale: 59, posX: 51, posY: 47, posZ: 15,
+        rotX: 50, rotY: 50, rotZ: 50, curl: 50, thickness: 65 };
+      Object.entries(lashDefaults).forEach(([key, val]) => this.eyeSystem.setEyelashParam(key, val));
+      this.eyeSystem.setEyelashColor('#0a0a0a');
+      this.eyeSystem.generateEyelashes();
+    }
+    const lashParamDefaults = {
+      eyelashScale: 59, eyelashPosX: 51, eyelashPosY: 47, eyelashPosZ: 15,
+      eyelashRotX: 50, eyelashRotY: 50, eyelashRotZ: 50, eyelashCurl: 50, eyelashThickness: 65,
+    };
+    document.querySelectorAll('.eyelash-slider').forEach(s => {
+      const param = s.closest('.slider-control')?.dataset.param;
+      const val = lashParamDefaults[param] ?? 50;
+      s.value = val;
+      const v = s.closest('.slider-control')?.querySelector('.slider-value');
+      if (v) v.textContent = String(val);
+    });
+    const lashPicker = document.getElementById('eyelashColorPicker');
+    if (lashPicker) lashPicker.value = '#0a0a0a';
+    document.querySelectorAll('#eyelashColorPresets .color-swatch').forEach(s => {
+      s.classList.toggle('active', s.dataset.color === '#0a0a0a');
+    });
+
+    // Reset eyes (color + positioning)
+    if (this.eyeSystem) {
+      this.eyeSystem.setEyeColor('#634e34');
+      const eyeDefaults = { scale: 50, spacing: 50, posX: 50, posY: 50, posZ: 50,
+        rotX: 50, rotY: 50, rotZ: 50, opacity: 100 };
+      Object.entries(eyeDefaults).forEach(([key, val]) => this.eyeSystem.setParam(key, val));
+    }
+    const eyeColorPicker = document.getElementById('eyeColorPicker');
+    if (eyeColorPicker) eyeColorPicker.value = '#634e34';
+    document.querySelectorAll('#eyeColorPresets .color-swatch').forEach(s => {
+      s.classList.toggle('active', s.dataset.color === '#634e34');
+    });
+    const eyeParamDefaults = {
+      eyeScale: 50, eyeSpacing: 50, eyePosX: 50, eyePosY: 50, eyePosZ: 50,
+      eyeRotX: 50, eyeRotY: 50, eyeRotZ: 50, eyeOpacity: 100,
+    };
+    document.querySelectorAll('.eye-slider').forEach(slider => {
+      const pName = slider.closest('.slider-control')?.dataset.param;
+      const val = eyeParamDefaults[pName] ?? 50;
+      slider.value = val;
+      const vd = slider.closest('.slider-control')?.querySelector('.slider-value');
+      if (vd) vd.textContent = String(val);
+    });
+
+    // Reset skin color
+    this.scene.setSkinColor('#d4a574');
+
+    // Reset lip color
+    this.scene.setLipColor(null);
+    document.querySelectorAll('#lipColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
+
+    // Clear wrinkles
+    if (this.wrinklePainter) this.wrinklePainter.clearAll();
+
+    // Clear lip paint
+    if (this.lipPainter) this.lipPainter.clearAll();
+
+    // Clear skin marks
+    if (this.skinMarkSystem) this.skinMarkSystem.clearAll();
+
+    // Clear decals
+    if (this.decalSystem) this.decalSystem.clearAll();
+
+    // Reset skin texture
+    if (this.skinTextureSystem) {
+      this.skinTextureSystem.params = {
+        age: 20, roughness: 50, freckles: 0,
+        poreDetail: 0, wrinkleDepth: 30, skinOiliness: 40, sunDamage: 10,
+      };
+      this.skinTextureSystem.regenerate();
+    }
+
+    this.updatePropertyPanel();
+    this.addHistory('Reset all features');
   }
 
   newCase() {
