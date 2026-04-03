@@ -1991,6 +1991,24 @@ class UIController {
       this.newCase();
     });
 
+    // Export case to JSON
+    document.getElementById('btnExportCase')?.addEventListener('click', () => {
+      this.updateCaseFromUI();
+      const success = this.caseManager.exportToFile();
+      if (success) {
+        this.showNotification('Case exported successfully', 'success');
+      }
+    });
+
+    // Import case from JSON
+    document.getElementById('btnImportCase')?.addEventListener('click', async () => {
+      const imported = await this.caseManager.importFromFile();
+      if (imported) {
+        await this.loadCaseToUI();
+        this.updateCaseTitle();
+        this.showNotification('Case imported successfully', 'success');
+      }
+    });
 
 
     // Case info fields — auto-update

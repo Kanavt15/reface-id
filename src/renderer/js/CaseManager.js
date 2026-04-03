@@ -230,6 +230,118 @@ class CaseManager {
     const num = this.currentCase.caseNumber ? `${this.currentCase.caseNumber} — ` : '';
     return `${num}${this.currentCase.caseName || 'Untitled Case'}`;
   }
+
+  // ─── Export / Import ─────────────────────────────────────────────────
+
+  /**
+   * Export the complete current case to a downloadable .json file.
+   * Includes all case details: metadata, morphTargets, hairParams, appearance,
+   * skinMarks, decals, and camera state.
+   */
+  exportToFile() {
+    const exportData = {
+      ...this.currentCase,
+      exportedAt: new Date().toISOString(),
+      version: '1.0',
+    };
+
+    const json = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    // Create safe filename from case number and name
+    const caseNum = this.currentCase.caseNumber || 'case';
+    const caseName = this.currentCase.caseName || 'untitled';
+    const safeName = `${caseNum}_${caseName}`.replace(/[^a-zA-Z0-9_\- ]/g, '_');
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${safeName}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    return true;
+  }
+
+  /**
+   * Import a case from a .json file selected by the user.
+   * Opens a file picker, parses the JSON, and loads the complete case.
+   * Saves current case to undo stack before loading.
+   * @returns {Promise<object|null>}  The imported case data, or null on failure
+   */
+  importFromFile() {
+    return new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.style.display = 'none';
+      document.body.appendChild(input);
+
+      input.addEventListener('change', () => {
+        const file = input.files[0];
+        document.body.removeChild(input);
+        if (!file) { resolve(null); return; }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const parsed = JSON.parse(reader.result);
+            if (!parsed || typeof parsed !== 'object') {
+              alert('Invalid case file — invalid JSON format.');
+              resolve(null);
+              return;
+            }
+
+            // Validate essential case structure
+            if (!parsed.caseName && !parsed.caseNumber && !parsed.morphTargets) {
+              alert('Invalid case file — missing required case data.');
+              resolve(null);
+              return;
+            }
+
+            // Save current state to undo before loading
+            this.pushState('Before case import');
+
+            // Merge imported data with template to ensure all fields exist
+            const template = this.newCaseTemplate();
+            this.currentCase = {
+              ...template,
+              ...parsed,
+              caseId: null, // Generate new ID on next save
+              createdAt: parsed.createdAt || new Date().toISOString(),
+              modifiedAt: new Date().toISOString(),
+            };
+
+            // Clear redo stack since we've made a new change
+            this.redoStack = [];
+
+            const displayName = this.currentCase.caseName || this.currentCase.caseNumber || 'Imported Case';
+            alert(`Case imported successfully: ${displayName}`);
+            resolve(this.currentCase);
+          } catch (e) {
+            alert('Failed to parse case file. Ensure it is valid JSON.');
+            console.error('[CaseManager] Import parse error', e);
+            resolve(null);
+          }
+        };
+        reader.onerror = () => {
+          alert('Failed to read file.');
+          resolve(null);
+        };
+        reader.readAsText(file);
+      });
+
+      // Handle cancel (no file selected)
+      input.addEventListener('cancel', () => {
+        document.body.removeChild(input);
+        resolve(null);
+      });
+
+      input.click();
+    });
+  }
 }
 
 window.CaseManager = CaseManager;
