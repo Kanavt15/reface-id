@@ -113,7 +113,7 @@ class HairSystem {
       hair12: { file: '../../assets/models/hair/Hair12.glb', meshName: null,
                defaults: { posx: 49, posy: 26, posz: 37, roty: 50, scale: 45 } },
       hair13: { file: '../../assets/models/hair/Hair13.glb', meshName: null,
-               defaults: { posx: 50, posy: 25, posz: 40, roty: 50, scale: 50 } },
+               defaults: { posx: 48, posy: 23, posz: 38, roty: 50, scale: 53 } },
       bald:  { file: null, defaults: null },
     };
 
