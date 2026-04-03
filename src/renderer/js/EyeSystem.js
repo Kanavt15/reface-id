@@ -861,6 +861,15 @@ class EyeSystem {
     const curlNorm = (ep.curl - 50) / 50;
     const thicknessNorm = (ep.thickness - 50) / 50;
 
+    // Use eye landmark tracking to position eyelashes relative to eyes
+    let eyeLandmarkOffsetY = 0;
+    let eyeLandmarkOffsetZ = 0;
+    if (this._leftEyeBasePos && this._initialBaseLeft) {
+      // Calculate Y and Z offset from eye landmark movement
+      eyeLandmarkOffsetY = this._leftEyeBasePos.y - this._initialBaseLeft.y;
+      eyeLandmarkOffsetZ = this._leftEyeBasePos.z - this._initialBaseLeft.z;
+    }
+
     if (cache.isPair) {
       // Full pair model — use the same approach as the eyebrow system:
       // Position using absolute world coordinates, not relative to eye base positions.
@@ -898,8 +907,8 @@ class EyeSystem {
 
       container.position.set(
         this.modelCenter.x + posOffsetX,
-        lashRegionY + posOffsetY,
-        lashRegionZ + posOffsetZ
+        lashRegionY + posOffsetY + eyeLandmarkOffsetY,
+        lashRegionZ + posOffsetZ + eyeLandmarkOffsetZ
       );
 
       // Rotations — negative 90° X to curve lashes UPWARD from the eyelid
@@ -940,19 +949,19 @@ class EyeSystem {
       left.scale.set(baseScale * scaleF, baseScale * thicknessF, baseScale * scaleF * lengthF);
       left.position.set(
         this.modelCenter.x - halfSpacing + posOffsetX,
-        lashRegionY + posOffsetY,
-        lashRegionZ + posOffsetZ
+        lashRegionY + posOffsetY + eyeLandmarkOffsetY,
+        lashRegionZ + posOffsetZ + eyeLandmarkOffsetZ
       );
       left.rotation.set(rotX, rotY, rotZ);
 
-      // Right eyelash (mirrored on X)
+      // Right eyelash
       const right = this._rightLashContainer;
       right.children[0].position.set(-cache.center.x, -cache.center.y, -cache.center.z);
       right.scale.set(baseScale * scaleF, baseScale * thicknessF, baseScale * scaleF * lengthF);
       right.position.set(
         this.modelCenter.x + halfSpacing + posOffsetX,
-        lashRegionY + posOffsetY,
-        lashRegionZ + posOffsetZ
+        lashRegionY + posOffsetY + eyeLandmarkOffsetY,
+        lashRegionZ + posOffsetZ + eyeLandmarkOffsetZ
       );
       right.rotation.set(rotX, -rotY, -rotZ);
 

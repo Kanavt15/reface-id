@@ -141,9 +141,10 @@ class HairSystem {
 
   // ── Head binding ──
 
-  setHeadMesh(headGroup, regionData) {
+  setHeadMesh(headGroup, regionData, morpher) {
     this._headGroup = headGroup;
     this._regionData = regionData;
+    this._morpher = morpher;
     this._computeHeadMetrics();
   }
 
@@ -168,6 +169,31 @@ class HairSystem {
     this.modelHeight = box.max.y - box.min.y;
     this.headTop = box.max.y;
     this.headWidth = box.max.x - box.min.x;
+
+    // Track eyebrow landmarks for automatic adjustment with face morphs
+    if (this._morpher && typeof this._morpher.getCurrentLandmarkPosition === 'function') {
+      // Get current eyebrow landmark positions (midpoint between left/right brow)
+      const leftBrowPos = this._morpher.getCurrentLandmarkPosition('brow_left_center');
+      const rightBrowPos = this._morpher.getCurrentLandmarkPosition('brow_right_center');
+      
+      if (leftBrowPos && rightBrowPos) {
+        // Calculate midpoint for eyebrow center tracking
+        const currentBrowCenter = new THREE.Vector3(
+          (leftBrowPos.x + rightBrowPos.x) / 2,
+          (leftBrowPos.y + rightBrowPos.y) / 2,
+          (leftBrowPos.z + rightBrowPos.z) / 2
+        );
+
+        // Store initial position on first call
+        if (!this._initialBrowCenter) {
+          this._initialBrowCenter = currentBrowCenter.clone();
+          this._initialBrowBaseY = 0.39; // Default browRegionY
+        }
+
+        // Calculate delta from initial to current position
+        this._browLandmarkDelta = currentBrowCenter.clone().sub(this._initialBrowCenter);
+      }
+    }
   }
 
   // ── Public API ──
@@ -507,6 +533,14 @@ class HairSystem {
     const posOffsetY = ((ep.posY - 50) / 50) * 0.3;
     const posOffsetZ = ((ep.posZ - 50) / 50) * 0.3;
 
+    // Apply landmark tracking delta if available (makes eyebrows follow face morphs)
+    let landmarkOffsetY = 0;
+    let landmarkOffsetZ = 0;
+    if (this._browLandmarkDelta) {
+      landmarkOffsetY = this._browLandmarkDelta.y;
+      landmarkOffsetZ = this._browLandmarkDelta.z;
+    }
+
     // Apply scale: X by overall scale, Y by thickness, Z by length
     container.scale.set(
       baseScale * scaleF,
@@ -516,8 +550,8 @@ class HairSystem {
 
     container.position.set(
       this.modelCenter.x + spacingOffset + posOffsetX,
-      browRegionY + archF + posOffsetY,
-      browRegionZ + posOffsetZ
+      browRegionY + archF + posOffsetY + landmarkOffsetY,
+      browRegionZ + posOffsetZ + landmarkOffsetZ
     );
 
     // Apply rotations: X (fwd/back tilt), Y (180° base + twist), Z (angle)

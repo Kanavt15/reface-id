@@ -79,7 +79,7 @@
       objMorpher.setMeshGroup(group);
       if (regionData) {
         objMorpher.setRegionData(regionData);
-        hairSystem.setHeadMesh(group, regionData);
+        hairSystem.setHeadMesh(group, regionData, objMorpher);
         eyeSystem.setHeadMesh(group, regionData, objMorpher);
       } else {
         // No region data — hair/eye system won't place properly
