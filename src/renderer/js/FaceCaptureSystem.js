@@ -1,9 +1,10 @@
 /**
  * FaceCaptureSystem.js
  * Guided multi-angle face capture using MediaPipe Face Mesh.
- * Automatically detects face orientation (front, left profile, right profile)
- * and walks the user through capturing all 3 views. The captured images are
- * then sent to the AI backend for agentic face reconstruction.
+ * Automatically detects face orientation across 7 angles (front, left/right
+ * three-quarter, left/right profile, tilt up, tilt down) and walks the user
+ * through capturing all views. The captured images are then sent to the AI
+ * backend for agentic face reconstruction.
  */
 
 class FaceCaptureSystem {
@@ -17,10 +18,15 @@ class FaceCaptureSystem {
     this.running = false;
 
     // Capture steps — order the user goes through
+    // Each step defines yaw (horizontal) and pitch (vertical) ranges
     this.steps = [
-      { id: 'front',  label: 'Front Face',        instruction: 'Look straight at the camera',       yawRange: [-0.25, 0.25] },
-      { id: 'left',   label: 'Left Side',          instruction: 'Turn your head to show your LEFT side',  yawRange: [-Infinity, -0.45] },
-      { id: 'right',  label: 'Right Side',         instruction: 'Turn your head to show your RIGHT side', yawRange: [0.45, Infinity] },
+      { id: 'front',       label: 'Front',      icon: 'fa-portrait',        instruction: 'Look straight at the camera',                    yawRange: [-0.15, 0.15],       pitchRange: [-0.15, 0.15] },
+      { id: 'left-three',  label: 'Left ¾',     icon: 'fa-angle-left',      instruction: 'Turn slightly LEFT — show your left cheekbone',  yawRange: [0.20, 0.50],        pitchRange: [-0.25, 0.25] },
+      { id: 'left',        label: 'Left',        icon: 'fa-arrow-left',      instruction: 'Turn fully LEFT — show your left profile',       yawRange: [0.50, Infinity],    pitchRange: [-0.25, 0.25] },
+      { id: 'right-three', label: 'Right ¾',    icon: 'fa-angle-right',     instruction: 'Turn slightly RIGHT — show your right cheekbone', yawRange: [-0.50, -0.20],     pitchRange: [-0.25, 0.25] },
+      { id: 'right',       label: 'Right',       icon: 'fa-arrow-right',     instruction: 'Turn fully RIGHT — show your right profile',     yawRange: [-Infinity, -0.50],  pitchRange: [-0.25, 0.25] },
+      { id: 'tilt-up',     label: 'Tilt Up',     icon: 'fa-arrow-up',        instruction: 'Tilt your chin UP slightly',                     yawRange: [-0.25, 0.25],       pitchRange: [-0.55, -0.20] },
+      { id: 'tilt-down',   label: 'Tilt Down',   icon: 'fa-arrow-down',      instruction: 'Tilt your chin DOWN slightly',                   yawRange: [-0.25, 0.25],       pitchRange: [0.20, 0.55] },
     ];
 
     this.currentStep = 0;
@@ -113,8 +119,11 @@ class FaceCaptureSystem {
 
     const landmarks = results.multiFaceLandmarks[0];
     const yaw = this._estimateYaw(landmarks);
+    const pitch = this._estimatePitch(landmarks);
     const step = this.steps[this.currentStep];
-    const inRange = yaw >= step.yawRange[0] && yaw <= step.yawRange[1];
+    const yawOk = yaw >= step.yawRange[0] && yaw <= step.yawRange[1];
+    const pitchOk = pitch >= step.pitchRange[0] && pitch <= step.pitchRange[1];
+    const inRange = yawOk && pitchOk;
 
     // Draw face landmark dots overlay
     this._drawLandmarks(landmarks, inRange);
@@ -135,7 +144,7 @@ class FaceCaptureSystem {
     }
   }
 
-  // ── Yaw estimation (reuses HeadTracker approach) ───────────
+  // ── Pose estimation (yaw + pitch) ─────────────────────────
 
   _estimateYaw(landmarks) {
     const noseTip   = landmarks[1];
@@ -146,6 +155,18 @@ class FaceCaptureSystem {
     if (faceWidth < 0.01) return 0;
     const noseCenterOffset = noseTip.x - (leftEdge.x + faceWidth / 2);
     return (noseCenterOffset / (faceWidth / 2)) * (Math.PI / 3);
+  }
+
+  _estimatePitch(landmarks) {
+    const noseTip   = landmarks[1];   // nose tip
+    const forehead  = landmarks[10];  // top of forehead
+    const chin      = landmarks[152]; // bottom of chin
+
+    const faceHeight = chin.y - forehead.y;
+    if (faceHeight < 0.01) return 0;
+    const noseCenterOffset = noseTip.y - (forehead.y + faceHeight / 2);
+    // Positive = looking down, negative = looking up
+    return (noseCenterOffset / (faceHeight / 2)) * (Math.PI / 3);
   }
 
   // ── Capture a frame ────────────────────────────────────────
@@ -205,8 +226,13 @@ class FaceCaptureSystem {
     this.ai.referenceImages = refImages;
 
     // Set the prompt and trigger send
-    const prompt = 'I have captured three angles of a face (front, left side, right side). ' +
-      'Analyze all three reference images carefully and reconstruct this face as accurately as possible. ' +
+    const angleNames = this.captures.map(c => c.id).join(', ');
+    const prompt = `I have captured ${this.captures.length} angles of a face (${angleNames}). ` +
+      'Analyze all reference images carefully and reconstruct this face as accurately as possible. ' +
+      'The three-quarter views reveal cheekbone depth and jawline contour. ' +
+      'The profile views show nose projection, ear placement, and jaw angle. ' +
+      'The tilt-up view shows the under-chin area, jawline from below, and nostril shape. ' +
+      'The tilt-down view reveals forehead shape, brow ridge, and hairline. ' +
       'Pay close attention to facial proportions, bone structure, nose shape, eye spacing, ' +
       'jaw line, cheekbones, and all distinguishing features visible from each angle. ' +
       'Also determine hair style/color, skin tone, approximate age, and sex from the images.';
@@ -224,6 +250,19 @@ class FaceCaptureSystem {
 
     this.overlay = document.createElement('div');
     this.overlay.id = 'face-capture-overlay';
+    // Build step indicators and thumbnails dynamically from this.steps
+    const stepDotsHTML = this.steps.map((s, i) => {
+      const dot = `<div class="fc-step-dot${i === 0 ? ' active' : ''}" data-step="${i}">
+              <i class="fas ${s.icon}"></i>
+              <span>${s.label}</span>
+            </div>`;
+      return i < this.steps.length - 1 ? dot + '\n            <div class="fc-step-line"></div>' : dot;
+    }).join('\n            ');
+
+    const thumbsHTML = this.steps.map((s, i) =>
+      `<div class="fc-thumb" data-step="${i}"><i class="fas ${s.icon}"></i></div>`
+    ).join('\n            ');
+
     this.overlay.innerHTML = `
       <div class="fc-modal">
         <div class="fc-header">
@@ -231,25 +270,13 @@ class FaceCaptureSystem {
             <i class="fas fa-user-circle"></i>
             <span>Multi-Angle Face Capture</span>
           </div>
+          <div class="fc-step-counter">Step <span class="fc-step-current">1</span> of ${this.steps.length}</div>
           <button class="fc-close-btn" title="Cancel"><i class="fas fa-times"></i></button>
         </div>
 
         <div class="fc-body">
           <div class="fc-step-indicators">
-            <div class="fc-step-dot active" data-step="0">
-              <i class="fas fa-portrait"></i>
-              <span>Front</span>
-            </div>
-            <div class="fc-step-line"></div>
-            <div class="fc-step-dot" data-step="1">
-              <i class="fas fa-arrow-left"></i>
-              <span>Left</span>
-            </div>
-            <div class="fc-step-line"></div>
-            <div class="fc-step-dot" data-step="2">
-              <i class="fas fa-arrow-right"></i>
-              <span>Right</span>
-            </div>
+            ${stepDotsHTML}
           </div>
 
           <div class="fc-camera-area">
@@ -269,9 +296,7 @@ class FaceCaptureSystem {
           </div>
 
           <div class="fc-thumbnails">
-            <div class="fc-thumb" data-step="0"><i class="fas fa-portrait"></i></div>
-            <div class="fc-thumb" data-step="1"><i class="fas fa-arrow-left"></i></div>
-            <div class="fc-thumb" data-step="2"><i class="fas fa-arrow-right"></i></div>
+            ${thumbsHTML}
           </div>
         </div>
       </div>
@@ -301,6 +326,10 @@ class FaceCaptureSystem {
     const step = this.steps[this.currentStep];
     this._setStatus(step.instruction, false);
     this._updateProgress(0);
+
+    // Update step counter
+    const counter = this.overlay.querySelector('.fc-step-current');
+    if (counter) counter.textContent = this.currentStep + 1;
 
     // Update step indicators
     this.overlay.querySelectorAll('.fc-step-dot').forEach((dot, i) => {

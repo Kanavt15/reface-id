@@ -198,7 +198,7 @@ class AIController {
     const currentState = this._getCurrentState();
 
     try {
-      const selected = this.providerSelect?.value || 'anthropic:claude-haiku-4-5-20251001';
+      const selected = this.providerSelect?.value || 'anthropic:claude-opus-4-6';
       const [provider, model] = selected.split(':');
       const response = await fetch(`${this.api.baseUrl}/api/ai/generate`, {
         method: 'POST',
@@ -777,7 +777,7 @@ class AIController {
     const files = Array.from(event.target?.files || []);
     if (!files.length) return;
 
-    const maxImages = 5;
+    const maxImages = 10;
     const remainingSlots = maxImages - this.referenceImages.length;
     if (remainingSlots <= 0) {
       this._addMessage('assistant', `You can attach up to ${maxImages} reference images per prompt.`);
@@ -891,7 +891,7 @@ class AIController {
   async _openCamera() {
     if (!this.cameraModal || !this.cameraVideo) return;
 
-    const maxImages = 5;
+    const maxImages = 10;
     if (this.referenceImages.length >= maxImages) {
       this._addMessage('assistant', `You can attach up to ${maxImages} reference images per prompt.`);
       return;

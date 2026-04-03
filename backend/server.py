@@ -796,7 +796,7 @@ def _parse_reference_images(reference_images):
     if len(reference_images) == 0:
         return []
 
-    max_images = 5
+    max_images = 10
     if len(reference_images) > max_images:
         raise ValueError(f"Too many reference images. Max allowed is {max_images}.")
 
