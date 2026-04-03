@@ -565,10 +565,12 @@ class HairSystem {
     // Apply landmark tracking delta if available (makes eyebrows follow face morphs)
     let landmarkOffsetY = 0;
     let landmarkOffsetZ = 0;
-    if (this._browLandmarkDelta) {
+    if (this._browLandmarkDelta && !isNaN(this._browLandmarkDelta.y) && !isNaN(this._browLandmarkDelta.z)) {
       landmarkOffsetY = this._browLandmarkDelta.y;
       landmarkOffsetZ = this._browLandmarkDelta.z;
       console.log('[HairSystem] Eyebrow landmark delta - Y:', landmarkOffsetY, 'Z:', landmarkOffsetZ);
+    } else {
+      console.log('[HairSystem] Eyebrow landmark tracking not available, using default positioning');
     }
 
     // Apply scale: X by overall scale, Y by thickness, Z by length
