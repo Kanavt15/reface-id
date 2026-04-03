@@ -412,9 +412,9 @@ class OBJMorpher {
     if (active.noseWidth !== undefined) {
       const t = active.noseWidth;
       const { weights, directions } = this._getDirectionalWeights(
-        ['nostril_left', 'nostril_right', 'alar_left', 'alar_right'], 0.06);
+        ['nostril_left', 'nostril_right', 'alar_left', 'alar_right'], 0.04);
       const disp = t * scale;
-      for (let i = 0; i < N; i++) offsets[i*3] += directions[i] * weights[i] * disp;
+      for (let i = 0; i < N; i++) offsets[i*3] += directions[i] * weights[i] * disp * 0.3;
     }
 
     if (active.noseBridgeWidth !== undefined) {
@@ -422,7 +422,7 @@ class OBJMorpher {
       const { weights, directions } = this._getDirectionalWeights(
         ['nose_bridge', 'nose_bridge_top'], 0.05);
       const disp = t * scale;
-      for (let i = 0; i < N; i++) offsets[i*3] += directions[i] * weights[i] * disp;
+      for (let i = 0; i < N; i++) offsets[i*3] += directions[i] * weights[i] * disp * 0.3;
     }
 
     if (active.noseBridgeHeight !== undefined) {
@@ -443,15 +443,15 @@ class OBJMorpher {
       const t = active.noseTipWidth;
       const { weights, directions } = this._getDirectionalWeights(['nose_tip'], 0.04);
       const disp = t * scale;
-      for (let i = 0; i < N; i++) offsets[i*3] += directions[i] * weights[i] * disp;
+      for (let i = 0; i < N; i++) offsets[i*3] += directions[i] * weights[i] * disp * 0.3;
     }
 
     if (active.nostrilFlare !== undefined) {
       const t = active.nostrilFlare;
       const { weights, directions } = this._getDirectionalWeights(
-        ['nostril_left', 'nostril_right', 'alar_left', 'alar_right'], 0.04);
+        ['nostril_left', 'nostril_right', 'alar_left', 'alar_right'], 0.03);
       const disp = t * scale;
-      for (let i = 0; i < N; i++) offsets[i*3] += directions[i] * weights[i] * disp;
+      for (let i = 0; i < N; i++) offsets[i*3] += directions[i] * weights[i] * disp * 0.3;
     }
 
     // ─── EYES ──────────────────────────────────────────────────────────

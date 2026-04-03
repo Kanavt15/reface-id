@@ -63,6 +63,7 @@ Forehead: foreheadHeight, foreheadSlope, foreheadWidth, templeWidth, foreheadBul
 Brows: browHeight, browSpacing, browProminence, browArch, browThickness
 Eyes: eyeSpacing, eyeHeight, eyeDepth, eyeSize, eyeTilt, eyeOpenness
 Nose: noseLength, noseWidth, noseBridgeWidth, noseBridgeHeight, noseTipHeight, noseTipWidth, nostrilFlare
+  ⚠ Nose width parameters (noseWidth, noseBridgeWidth, noseTipWidth, nostrilFlare) are HIGH SENSITIVITY — small value changes produce large visible effects. Use conservative values closer to 50. For "slightly wide" use 55-58, "wide" use 60-65, "slightly narrow" use 42-45, "narrow" use 38-40. Avoid extreme values unless explicitly requested.
 Cheeks: cheekFullness, cheekboneProminence, cheekHeight, nasolabialDepth
 Mouth: mouthWidth, mouthHeight, lipProtrusion, upperLipThickness, lowerLipThickness, cupidBow, philtrumDepth, philtrumWidth, lipCornerAngle
 Jaw/Chin: jawWidth, chinHeight, chinWidth, chinProtrusion, jawDefinition
