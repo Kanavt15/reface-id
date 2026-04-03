@@ -484,6 +484,8 @@ class HairSystem {
 
     const container = this._eyebrowContainer;
     const offsetGroup = container.children[0];
+    if (!offsetGroup) return; // Safety check
+    
     const ep = this.eyebrowParams;
 
     // Compute bbox only once and cache it
