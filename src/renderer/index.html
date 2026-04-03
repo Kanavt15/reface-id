@@ -128,12 +128,6 @@
       <button class="tool-btn accent" id="btnScreenshot" title="Take Screenshot">
         <i class="fas fa-camera"></i>
       </button>
-      <button class="tool-btn accent" id="btnExport" title="Export Model">
-        <i class="fas fa-file-export"></i>
-      </button>
-      <button class="tool-btn accent" id="btnImportModel" title="Import 3D Model">
-        <i class="fas fa-file-import"></i>
-      </button>
     </div>
     <div class="toolbar-separator"></div>
     <div class="toolbar-group">
@@ -1813,31 +1807,6 @@
                       <span class="slider-value" id="valPoreDetail">0</span>
                     </div>
                   </div>
-                  <div class="slider-control" data-param="skinOiliness">
-                    <label>Oiliness</label>
-                    <div class="slider-row">
-                      <span class="slider-label-left">Dry</span>
-                      <input type="range" min="0" max="100" value="40" class="skin-texture-slider" id="sliderSkinOiliness" />
-                      <span class="slider-label-right">Oily</span>
-                    </div>
-                    <div style="text-align:center;"><span class="slider-value" id="valSkinOiliness">40</span></div>
-                  </div>
-                </div>
-              </div>
-              <!-- Spots & Marks Sub-group -->
-              <div class="feature-sub-group">
-                <div class="sub-group-header">
-                  <i class="fas fa-circle"></i>
-                  <span>Spots & Marks</span>
-                </div>
-                <div class="sub-group-body">
-                  <div class="slider-control" data-param="skinFreckles">
-                    <label>Freckles / Age Spots</label>
-                    <div class="slider-row">
-                      <input type="range" min="0" max="100" value="0" class="skin-texture-slider" id="sliderSkinFreckles" />
-                      <span class="slider-value" id="valSkinFreckles">0</span>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -2483,67 +2452,9 @@
             </div>
           </div>
 
-          <div class="control-group">
-            <div class="control-group-header">
-              <i class="fas fa-file-import"></i>
-              <span>Import 3D Model</span>
-            </div>
-            <div class="control-group-body collapsed">
-              <p class="control-hint">Import an external 3D model (GLB, OBJ) as a reference overlay.</p>
-              <div class="export-buttons">
-                <button class="btn btn-outline" id="btnImportFile">
-                  <i class="fas fa-file-import"></i> Import Model
-                </button>
-                <button class="btn btn-outline btn-danger" id="btnRemoveImports" style="display:none;">
-                  <i class="fas fa-trash"></i> Remove All Imports
-                </button>
-              </div>
-              <div id="importedModelsList" class="imported-models-list"></div>
-            </div>
-          </div>
 
-          <div class="control-group">
-            <div class="control-group-header">
-              <i class="fas fa-file-export"></i>
-              <span>Export</span>
-            </div>
-            <div class="control-group-body collapsed">
-              <!-- 3D Model Export Sub-group -->
-              <div class="feature-sub-group">
-                <div class="sub-group-header">
-                  <i class="fas fa-cube"></i>
-                  <span>3D Model</span>
-                </div>
-                <div class="sub-group-body">
-                  <div class="export-buttons">
-                    <button class="btn btn-outline" id="btnExportOBJ">
-                      <i class="fas fa-cube"></i> OBJ
-                    </button>
-                    <button class="btn btn-outline" id="btnExportFBX">
-                      <i class="fas fa-cube"></i> FBX
-                    </button>
-                    <button class="btn btn-outline" id="btnExportGLB">
-                      <i class="fas fa-cube"></i> GLB
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <!-- Image Export Sub-group -->
-              <div class="feature-sub-group">
-                <div class="sub-group-header">
-                  <i class="fas fa-image"></i>
-                  <span>Image</span>
-                </div>
-                <div class="sub-group-body">
-                  <div class="export-buttons">
-                    <button class="btn btn-outline" id="btnExportPNG" style="width: 100%;">
-                      <i class="fas fa-camera"></i> Screenshot (PNG)
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+
+
 
         </div>
       </div>

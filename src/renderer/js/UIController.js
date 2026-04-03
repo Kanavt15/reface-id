@@ -99,15 +99,7 @@ class UIController {
       this.takeScreenshot();
     });
 
-    // Export button
-    document.getElementById('btnExport')?.addEventListener('click', () => {
-      this.showExportDialog();
-    });
 
-    // Import button (toolbar)
-    document.getElementById('btnImportModel')?.addEventListener('click', () => {
-      this.importModel();
-    });
 
     // Age Progression button
     document.getElementById('btnAgeProgression')?.addEventListener('click', () => {
@@ -890,8 +882,6 @@ class UIController {
       sliderWrinkleDepth:  { param: 'wrinkleDepth', valId: 'valWrinkleDepth' },
       sliderSkinRoughness: { param: 'roughness',    valId: 'valSkinRoughness' },
       sliderPoreDetail:    { param: 'poreDetail',   valId: 'valPoreDetail' },
-      sliderSkinFreckles:  { param: 'freckles',     valId: 'valSkinFreckles' },
-      sliderSkinOiliness:  { param: 'skinOiliness', valId: 'valSkinOiliness' },
       sliderSunDamage:     { param: 'sunDamage',    valId: 'valSunDamage' },
     };
 
@@ -948,7 +938,7 @@ class UIController {
       if (this.skinTextureSystem) {
         this.skinTextureSystem.params = {
           age: 20, roughness: 50, freckles: 0,
-          poreDetail: 0, wrinkleDepth: 30, skinOiliness: 40, sunDamage: 10,
+          poreDetail: 0, wrinkleDepth: 30, skinOiliness: 0, sunDamage: 10,
         };
         this.skinTextureSystem.regenerate();
         this.caseManager.updateAppearance('skinTextureParams', this.skinTextureSystem.getParams());
@@ -957,7 +947,7 @@ class UIController {
       for (const [sliderId, cfg] of Object.entries(sliderMap)) {
         const slider = document.getElementById(sliderId);
         const valEl = document.getElementById(cfg.valId);
-        const defaults = { age: 20, wrinkleDepth: 30, roughness: 50, poreDetail: 0, freckles: 0, skinOiliness: 40, sunDamage: 10 };
+        const defaults = { age: 20, wrinkleDepth: 30, roughness: 50, poreDetail: 0, sunDamage: 10 };
         const def = defaults[cfg.param] ?? 50;
         if (slider) slider.value = def;
         if (valEl) valEl.textContent = def;
@@ -2000,37 +1990,7 @@ class UIController {
       this.newCase();
     });
 
-    // Import button (case panel)
-    document.getElementById('btnImportFile')?.addEventListener('click', () => {
-      this.importModel();
-    });
 
-    // Remove all imports button
-    document.getElementById('btnRemoveImports')?.addEventListener('click', () => {
-      this.scene.removeImportedModel();
-      document.getElementById('importedModelsList').innerHTML = '';
-      document.getElementById('btnRemoveImports').style.display = 'none';
-      this.addHistory('Removed all imported models');
-    });
-
-    // Export buttons
-    ['OBJ', 'FBX', 'GLB'].forEach(format => {
-      const btn = document.getElementById(`btnExport${format}`);
-      if (btn) {
-        btn.addEventListener('click', () => {
-          console.log(`[Export Button] ${format} clicked`);
-          this.exportModel(format.toLowerCase());
-        });
-        console.log(`[Export] Bound btnExport${format}`);
-      } else {
-        console.warn(`[Export] Button btnExport${format} not found`);
-      }
-    });
-
-    // Screenshot
-    document.getElementById('btnExportPNG')?.addEventListener('click', () => {
-      this.takeScreenshot();
-    });
 
     // Case info fields — auto-update
     ['caseNumber', 'caseName', 'investigator'].forEach(field => {
@@ -2262,213 +2222,7 @@ class UIController {
     }
   }
 
-  async exportModel(format) {
-    console.log('[Export] Starting export with format:', format);
-    this.updateCaseFromUI();
-    this.showLoading(`Preparing export as ${format.toUpperCase()}...`);
 
-    try {
-      // ── Upload current morphed mesh to backend so Blender uses it ──
-      if (this.facePointEditor) {
-        const objData = this.facePointEditor.exportCurrentMeshAsOBJ();
-        if (objData) {
-          const uploadResult = await this.api.uploadMorphedMesh(objData);
-          if (uploadResult?.error) {
-            console.warn('[Export] Mesh upload failed, will use base model:', uploadResult.error);
-          } else {
-            console.log('[Export] Morphed mesh uploaded for export');
-          }
-        }
-      }
-
-      this.showLoading(`Exporting as ${format.toUpperCase()}...`);
-
-      // ── Gather comprehensive export data including all assets ──
-      const exportData = this.caseManager.getExportData();
-
-      // Add hair transform and params
-      if (this.hair) {
-        exportData.hairTransform = this.hair.getRenderTransform();
-        exportData.hairStyle = this.hair.currentStyle;
-        exportData.hairColor = this.hair.hairColor;
-        exportData.beardStyle = this.hair.beardStyle;
-        exportData.beardColor = this.hair.beardColor;
-        exportData.beardParams = { ...this.hair.beardParams };
-        exportData.beardTransform = this.hair.getBeardRenderTransform();
-        exportData.eyebrowColor = this.hair.eyebrowColor;
-        exportData.eyebrowParams = { ...this.hair.eyebrowParams };
-        exportData.eyebrowTransform = this.hair.getEyebrowRenderTransform();
-      }
-
-      // Add eye and eyelash data with transforms
-      if (this.eyes) {
-        exportData.eyeState = this.eyes.exportState();
-        exportData.eyeTransforms = this.eyes.getEyeRenderTransforms();
-        exportData.eyelashTransforms = this.eyes.getEyelashRenderTransforms();
-      }
-
-      // Add skin marks data
-      if (this.skinMarkSystem) {
-        exportData.skinMarksState = this.skinMarkSystem.exportState();
-      }
-
-      // Get skin color from UI
-      exportData.skinColor = document.getElementById('skinColorPicker')?.value || '#d4a574';
-      exportData.lipColor = document.getElementById('lipColorPicker')?.value || null;
-
-      console.log('[Export] Export data:', exportData);
-
-      const result = await this.api.exportModel(format, exportData);
-      console.log('[Export] API response:', result);
-
-      this.hideLoading();
-
-      if (result?.error) {
-        console.error('Export error:', result.error);
-        this.addHistory(`Export failed: ${result.error}`);
-      } else if (result?.filename) {
-        console.log('[Export] Triggering download for:', result.filename);
-
-        // Use Electron API to download the file
-        if (window.electronAPI?.downloadExportedFile) {
-          console.log('[Export] Using Electron API to download');
-          const downloadResult = await window.electronAPI.downloadExportedFile(result.filename, result.download_path);
-
-          if (downloadResult?.error) {
-            console.error('[Export] Download error:', downloadResult.error);
-            this.addHistory(`Export failed to download: ${downloadResult.error}`);
-          } else {
-            console.log('[Export] File downloaded to:', downloadResult.path);
-            this.addHistory(`Exported as ${format.toUpperCase()}: ${result.filename}`);
-          }
-        } else {
-          console.warn('[Export] Electron API not available, cannot download');
-          this.addHistory(`Export completed: ${result.filename}`);
-        }
-      } else {
-        console.log('Export result:', result);
-        this.addHistory(`Export completed as ${format.toUpperCase()}`);
-      }
-    } catch (error) {
-      this.hideLoading();
-      console.error('Export error:', error);
-      this.addHistory(`Export failed: ${error.message || 'Unknown error'}`);
-    }
-  }
-
-  async showExportDialog() {
-    // Switch to case panel and scroll to export
-    document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.panel-content').forEach(p => p.classList.remove('active'));
-    document.querySelector('[data-panel="case"]')?.classList.add('active');
-    document.getElementById('panel-case')?.classList.add('active');
-  }
-
-  async importModel() {
-    if (!window.electronAPI) {
-      console.warn('[Import] electronAPI not available');
-      return;
-    }
-
-    const result = await window.electronAPI.openDialog({
-      title: 'Import 3D Model',
-      filters: [
-        { name: '3D Models', extensions: ['glb', 'gltf', 'obj'] },
-        { name: 'GLB Files', extensions: ['glb'] },
-        { name: 'OBJ Files', extensions: ['obj'] },
-        { name: 'All Files', extensions: ['*'] }
-      ],
-      properties: ['openFile'],
-    });
-
-    if (result.canceled || !result.filePaths?.length) return;
-
-    const filePath = result.filePaths[0];
-    const fileName = filePath.split(/[\\/]/).pop();
-
-    this.addHistory(`Importing model: ${fileName}...`);
-
-    try {
-      const fileResult = await window.electronAPI.readBinaryFile(filePath);
-      if (fileResult.error) {
-        this.addHistory(`Import failed: ${fileResult.error}`);
-        return;
-      }
-
-      // Convert base64 back to ArrayBuffer
-      const binaryStr = atob(fileResult.data);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
-      }
-      const arrayBuffer = bytes.buffer;
-
-      const imported = this.scene.addImportedModel(arrayBuffer, fileName);
-      if (imported) {
-        this.addHistory(`Imported: ${fileName} (${imported.vertexCount.toLocaleString()} vertices)`);
-
-        // Update the imports list UI
-        const list = document.getElementById('importedModelsList');
-        const item = document.createElement('div');
-        item.className = 'imported-model-item';
-        item.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:4px 8px;margin-top:4px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:12px;';
-        const idx = (this.scene.importedModels?.length || 1) - 1;
-        item.innerHTML = `
-          <span style="color:var(--text-secondary);"><i class="fas fa-cube" style="margin-right:6px;color:var(--accent);"></i>${fileName}</span>
-          <button class="btn-icon" title="Remove" data-import-idx="${idx}" style="color:var(--text-muted);cursor:pointer;background:none;border:none;">
-            <i class="fas fa-times"></i>
-          </button>
-        `;
-        item.querySelector('button').addEventListener('click', (e) => {
-          const removeIdx = parseInt(e.currentTarget.dataset.importIdx);
-          this.scene.removeImportedModel(removeIdx);
-          item.remove();
-          this.addHistory(`Removed imported model: ${fileName}`);
-          if (!this.scene.importedModels?.length) {
-            document.getElementById('btnRemoveImports').style.display = 'none';
-          }
-        });
-        list.appendChild(item);
-        document.getElementById('btnRemoveImports').style.display = '';
-      } else {
-        this.addHistory(`Import failed: unsupported format or parse error`);
-      }
-    } catch (err) {
-      console.error('[Import] Error:', err);
-      this.addHistory(`Import error: ${err.message}`);
-    }
-  }
-
-  async importModelFromPath(filePath) {
-    if (!window.electronAPI) return;
-    const fileName = filePath.split(/[\\/]/).pop();
-    this.addHistory(`Importing model: ${fileName}...`);
-
-    try {
-      const fileResult = await window.electronAPI.readBinaryFile(filePath);
-      if (fileResult.error) {
-        this.addHistory(`Import failed: ${fileResult.error}`);
-        return;
-      }
-
-      const binaryStr = atob(fileResult.data);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
-      }
-
-      const imported = this.scene.addImportedModel(bytes.buffer, fileName);
-      if (imported) {
-        this.addHistory(`Imported: ${fileName} (${imported.vertexCount.toLocaleString()} vertices)`);
-        document.getElementById('btnRemoveImports').style.display = '';
-      } else {
-        this.addHistory(`Import failed: unsupported format or parse error`);
-      }
-    } catch (err) {
-      console.error('[Import] Error:', err);
-      this.addHistory(`Import error: ${err.message}`);
-    }
-  }
 
   resetAllFeatures() {
     this.caseManager.pushState('Reset all features');
@@ -2595,7 +2349,7 @@ class UIController {
     if (this.skinTextureSystem) {
       this.skinTextureSystem.params = {
         age: 20, roughness: 50, freckles: 0,
-        poreDetail: 0, wrinkleDepth: 30, skinOiliness: 40, sunDamage: 10,
+        poreDetail: 0, wrinkleDepth: 30, skinOiliness: 0, sunDamage: 10,
       };
       this.skinTextureSystem.regenerate();
     }
@@ -2958,7 +2712,7 @@ class UIController {
         } else {
           // Reset to defaults if no skin texture params in state
           console.log('[restoreState] No skinTextureParams, resetting to defaults');
-          const defaults = { age: 20, wrinkleDepth: 0, roughness: 30, poreDetail: 0, freckles: 0, skinOiliness: 30, sunDamage: 0 };
+          const defaults = { age: 20, wrinkleDepth: 0, roughness: 30, poreDetail: 0, freckles: 0, skinOiliness: 0, sunDamage: 0 };
           Object.entries(defaults).forEach(([key, val]) => {
             this.skinTextureSystem.setParam(key, val);
           });
@@ -2971,8 +2725,6 @@ class UIController {
           sliderWrinkleDepth: 'wrinkleDepth',
           sliderSkinRoughness: 'roughness',
           sliderPoreDetail: 'poreDetail',
-          sliderSkinFreckles: 'freckles',
-          sliderSkinOiliness: 'skinOiliness',
           sliderSunDamage: 'sunDamage',
         };
         const valMap = {
@@ -2980,11 +2732,9 @@ class UIController {
           sliderWrinkleDepth: 'valWrinkleDepth',
           sliderSkinRoughness: 'valSkinRoughness',
           sliderPoreDetail: 'valPoreDetail',
-          sliderSkinFreckles: 'valSkinFreckles',
-          sliderSkinOiliness: 'valSkinOiliness',
           sliderSunDamage: 'valSunDamage',
         };
-        const effectiveParams = params || { age: 20, wrinkleDepth: 0, roughness: 30, poreDetail: 0, freckles: 0, skinOiliness: 30, sunDamage: 0 };
+        const effectiveParams = params || { age: 20, wrinkleDepth: 0, roughness: 30, poreDetail: 0, freckles: 0, skinOiliness: 0, sunDamage: 0 };
         for (const [sliderId, paramKey] of Object.entries(sliderMap)) {
           const slider = document.getElementById(sliderId);
           const valEl = document.getElementById(valMap[sliderId]);

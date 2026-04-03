@@ -43,7 +43,7 @@ class CaseManager {
           roughness: 30,
           poreDetail: 0,
           freckles: 0,
-          skinOiliness: 30,
+          skinOiliness: 0,
           sunDamage: 0,
         },
         ageRange: '25-35',
