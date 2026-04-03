@@ -240,6 +240,7 @@ class UIController {
       hair10: '../../assets/Hair_Previews/Hair 10.mp4',
       hair11: '../../assets/Hair_Previews/Hair 11.mp4',
       hair12: '../../assets/Hair_Previews/Hair 12.mp4',
+      hair13: '../../assets/Hair_Previews/Hair 13.mp4',
       bald: '../../assets/Hair_Previews/Bald.mp4',
     };
 
