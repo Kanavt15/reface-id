@@ -568,6 +568,7 @@ class HairSystem {
     if (this._browLandmarkDelta) {
       landmarkOffsetY = this._browLandmarkDelta.y;
       landmarkOffsetZ = this._browLandmarkDelta.z;
+      console.log('[HairSystem] Eyebrow landmark delta - Y:', landmarkOffsetY, 'Z:', landmarkOffsetZ);
     }
 
     // Apply scale: X by overall scale, Y by thickness, Z by length
@@ -577,11 +578,14 @@ class HairSystem {
       baseScale * scaleF * lengthF
     );
 
-    container.position.set(
-      this.modelCenter.x + spacingOffset + posOffsetX,
-      browRegionY + archF + posOffsetY + landmarkOffsetY,
-      browRegionZ + posOffsetZ + landmarkOffsetZ
-    );
+    const finalX = this.modelCenter.x + spacingOffset + posOffsetX;
+    const finalY = browRegionY + archF + posOffsetY + landmarkOffsetY;
+    const finalZ = browRegionZ + posOffsetZ + landmarkOffsetZ;
+
+    container.position.set(finalX, finalY, finalZ);
+    
+    console.log('[HairSystem] Eyebrow final position - X:', finalX, 'Y:', finalY, 'Z:', finalZ);
+    console.log('[HairSystem] Eyebrow scale:', baseScale * scaleF, baseScale * thicknessF, baseScale * scaleF * lengthF);
 
     // Apply rotations: X (fwd/back tilt), Y (180° base + twist), Z (angle)
     container.rotation.set(rotX, Math.PI + rotY, rotZ);
