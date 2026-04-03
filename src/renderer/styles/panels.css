@@ -316,6 +316,7 @@
   border-left: 1px solid var(--border-primary);
   overflow-y: auto;
   padding: 12px;
+  position: relative; /* Added for age progression overlay positioning */
 }
 
 .mini-panel-header {

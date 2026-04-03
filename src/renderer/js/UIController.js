@@ -36,6 +36,11 @@ class UIController {
     this.bindKeyboardShortcuts();
     this.bindBackendStatus();
 
+    // Sync skin texture params to case manager so undo/redo has initial state
+    if (this.skinTextureSystem) {
+      this.caseManager.updateAppearance('skinTextureParams', this.skinTextureSystem.getParams());
+    }
+
     // Initial state
     this.updatePropertyPanel();
     this.addHistory('Session started');
@@ -965,31 +970,46 @@ class UIController {
   // ─── Age Progression Controls ────────────────────────────────────────────
 
   bindAgeProgressionControls() {
-    // Store original aging parameters
-    this.originalAgeParams = null;
-
-    // Age progression cards
-    document.querySelectorAll('.age-card').forEach(card => {
-      card.addEventListener('click', () => {
-        const years = parseInt(card.dataset.years);
-        this.applyAgeProgression(years);
+    // Use event delegation on the overlay container since buttons are initially hidden
+    const overlay = document.getElementById('ageProgressionOverlay');
+    
+    if (overlay) {
+      overlay.addEventListener('click', (e) => {
+        // Handle age card clicks
+        const ageCard = e.target.closest('.age-card');
+        if (ageCard) {
+          const years = parseInt(ageCard.dataset.years);
+          this.applyAgeProgression(years);
+          
+          // Update active state
+          document.querySelectorAll('.age-card').forEach(c => c.classList.remove('active'));
+          ageCard.classList.add('active');
+          return;
+        }
         
-        // Update active state
-        document.querySelectorAll('.age-card').forEach(c => c.classList.remove('active'));
-        card.classList.add('active');
+        // Handle Undo button
+        if (e.target.closest('#btnAgeUndo')) {
+          console.log('Undo button clicked');
+          this.undo();
+          document.querySelectorAll('.age-card').forEach(c => c.classList.remove('active'));
+          return;
+        }
+        
+        // Handle Redo button
+        if (e.target.closest('#btnAgeRedo')) {
+          console.log('Redo button clicked');
+          this.redo();
+          document.querySelectorAll('.age-card').forEach(c => c.classList.remove('active'));
+          return;
+        }
+        
+        // Handle Close button
+        if (e.target.closest('#btnCloseAgeOverlay')) {
+          this.toggleAgeProgressionPanel();
+          return;
+        }
       });
-    });
-
-    // Reset age progression
-    document.getElementById('btnResetAgeProgression')?.addEventListener('click', () => {
-      this.resetAgeProgression();
-      document.querySelectorAll('.age-card').forEach(c => c.classList.remove('active'));
-    });
-
-    // Close age progression overlay
-    document.getElementById('btnCloseAgeOverlay')?.addEventListener('click', () => {
-      this.toggleAgeProgressionPanel();
-    });
+    }
   }
 
   toggleAgeProgressionPanel() {
@@ -1003,10 +1023,15 @@ class UIController {
         // Hide the overlay
         overlay.style.display = 'none';
         btn?.classList.remove('active');
+        
+        // When closing, clear the active selection but keep the applied age
+        document.querySelectorAll('.age-card').forEach(c => c.classList.remove('active'));
       } else {
         // Show the overlay
         overlay.style.display = 'flex';
         btn?.classList.add('active');
+        
+        // DON'T reset originalAgeParams here - let it persist so Reset works
       }
     }
   }
@@ -1014,15 +1039,19 @@ class UIController {
   applyAgeProgression(years) {
     if (!this.skinTextureSystem) return;
 
-    // Store original parameters if not already stored
+    // Store original parameters ONLY ONCE (first time user clicks an age option)
     if (!this.originalAgeParams) {
-      this.originalAgeParams = { ...this.skinTextureSystem.getParams() };
+      this.originalAgeParams = {
+        age: this.skinTextureSystem.params.age,
+        poreDetail: this.skinTextureSystem.params.poreDetail
+      };
+      console.log('Stored original params:', this.originalAgeParams);
     }
 
     this.caseManager.pushState(`Age progression: +${years} years`);
 
     // Calculate age progression values - ONLY PORES
-    // Base values from original
+    // Base values from original stored state
     const baseAge = this.originalAgeParams.age;
     const basePoreDetail = this.originalAgeParams.poreDetail;
 
@@ -1033,6 +1062,10 @@ class UIController {
     // Progressive scaling: more visible pores as aging progresses
     const poreIncrement = Math.min(40, years * 1.6); // +1.6 per year, max +40
     const newPoreDetail = Math.min(100, basePoreDetail + poreIncrement);
+
+    console.log(`Applying age progression: +${years} years`);
+    console.log(`Age: ${baseAge} -> ${newAge}`);
+    console.log(`Pores: ${basePoreDetail} -> ${newPoreDetail}`);
 
     // Apply ONLY age and pore changes
     this.skinTextureSystem.setParam('age', newAge);
@@ -1053,36 +1086,6 @@ class UIController {
     this.caseManager.updateAppearance('skinTextureParams', this.skinTextureSystem.getParams());
     this.addHistory(`Applied +${years} years age progression (pores)`);
     this.updatePropertyPanel();
-  }
-
-  resetAgeProgression() {
-    if (!this.skinTextureSystem || !this.originalAgeParams) return;
-
-    this.caseManager.pushState('Reset age progression');
-
-    // Restore original parameters
-    Object.entries(this.originalAgeParams).forEach(([key, value]) => {
-      this.skinTextureSystem.setParam(key, value);
-    });
-    this.skinTextureSystem.regenerate();
-
-    // Update UI sliders
-    const sliderAge = document.getElementById('sliderSkinAge');
-    const valAge = document.getElementById('valSkinAge');
-    if (sliderAge) sliderAge.value = this.originalAgeParams.age;
-    if (valAge) valAge.textContent = this.originalAgeParams.age;
-
-    const sliderPore = document.getElementById('sliderPoreDetail');
-    const valPore = document.getElementById('valPoreDetail');
-    if (sliderPore) sliderPore.value = this.originalAgeParams.poreDetail;
-    if (valPore) valPore.textContent = this.originalAgeParams.poreDetail;
-
-    this.caseManager.updateAppearance('skinTextureParams', this.skinTextureSystem.getParams());
-    this.addHistory('Reset to original age');
-    this.updatePropertyPanel();
-
-    // Clear stored original params
-    this.originalAgeParams = null;
   }
 
   // ─── Eye Controls ───────────────────────────────────────────────────────
@@ -2942,6 +2945,54 @@ class UIController {
       if (state.appearance.sex) {
         const sexEl = document.getElementById('sexSelect');
         if (sexEl) sexEl.value = state.appearance.sex;
+      }
+      // Restore skin texture params (age, pores, etc.)
+      if (this.skinTextureSystem) {
+        const params = state.appearance.skinTextureParams;
+        console.log('[restoreState] skinTextureParams:', params);
+        
+        if (params) {
+          Object.entries(params).forEach(([key, val]) => {
+            this.skinTextureSystem.setParam(key, val);
+          });
+        } else {
+          // Reset to defaults if no skin texture params in state
+          console.log('[restoreState] No skinTextureParams, resetting to defaults');
+          const defaults = { age: 20, wrinkleDepth: 0, roughness: 30, poreDetail: 0, freckles: 0, skinOiliness: 30, sunDamage: 0 };
+          Object.entries(defaults).forEach(([key, val]) => {
+            this.skinTextureSystem.setParam(key, val);
+          });
+        }
+        this.skinTextureSystem.regenerate();
+        
+        // Update skin texture sliders
+        const sliderMap = {
+          sliderSkinAge: 'age',
+          sliderWrinkleDepth: 'wrinkleDepth',
+          sliderSkinRoughness: 'roughness',
+          sliderPoreDetail: 'poreDetail',
+          sliderSkinFreckles: 'freckles',
+          sliderSkinOiliness: 'skinOiliness',
+          sliderSunDamage: 'sunDamage',
+        };
+        const valMap = {
+          sliderSkinAge: 'valSkinAge',
+          sliderWrinkleDepth: 'valWrinkleDepth',
+          sliderSkinRoughness: 'valSkinRoughness',
+          sliderPoreDetail: 'valPoreDetail',
+          sliderSkinFreckles: 'valSkinFreckles',
+          sliderSkinOiliness: 'valSkinOiliness',
+          sliderSunDamage: 'valSunDamage',
+        };
+        const effectiveParams = params || { age: 20, wrinkleDepth: 0, roughness: 30, poreDetail: 0, freckles: 0, skinOiliness: 30, sunDamage: 0 };
+        for (const [sliderId, paramKey] of Object.entries(sliderMap)) {
+          const slider = document.getElementById(sliderId);
+          const valEl = document.getElementById(valMap[sliderId]);
+          if (slider && effectiveParams[paramKey] !== undefined) {
+            slider.value = effectiveParams[paramKey];
+            if (valEl) valEl.textContent = effectiveParams[paramKey];
+          }
+        }
       }
     }
 
