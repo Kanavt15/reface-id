@@ -2574,6 +2574,65 @@
 
     <!-- Right Panel — Quick Info -->
     <div id="right-panel" class="panel mini-panel">
+      <!-- Age Progression Overlay (inside right panel) -->
+      <div id="ageProgressionOverlay" class="age-progression-overlay" style="display: none;">
+        <div class="age-progression-container">
+          <div class="age-progression-header">
+            <h3><i class="fas fa-clock"></i> Age Progression</h3>
+            <button class="btn-close-overlay" id="btnCloseAgeOverlay">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="age-progression-content">
+            <p class="age-progression-desc">
+              Select how many years to age:
+            </p>
+            <div class="age-progression-grid">
+              <button class="age-card" data-years="5">
+                <i class="fas fa-user-clock"></i>
+                <div>
+                  <span class="age-label">+5 Years</span>
+                  <span class="age-desc">Subtle aging</span>
+                </div>
+              </button>
+              <button class="age-card" data-years="10">
+                <i class="fas fa-user-clock"></i>
+                <div>
+                  <span class="age-label">+10 Years</span>
+                  <span class="age-desc">Early aging</span>
+                </div>
+              </button>
+              <button class="age-card" data-years="15">
+                <i class="fas fa-user-clock"></i>
+                <div>
+                  <span class="age-label">+15 Years</span>
+                  <span class="age-desc">Moderate aging</span>
+                </div>
+              </button>
+              <button class="age-card" data-years="20">
+                <i class="fas fa-user-clock"></i>
+                <div>
+                  <span class="age-label">+20 Years</span>
+                  <span class="age-desc">Advanced aging</span>
+                </div>
+              </button>
+              <button class="age-card" data-years="25">
+                <i class="fas fa-user-clock"></i>
+                <div>
+                  <span class="age-label">+25 Years</span>
+                  <span class="age-desc">Significant aging</span>
+                </div>
+              </button>
+            </div>
+            <div class="age-progression-actions">
+              <button class="btn-reset-age" id="btnResetAgeProgression">
+                <i class="fas fa-undo"></i> Reset to Original
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="mini-panel-header">
         <i class="fas fa-info-circle"></i> Properties
       </div>
@@ -2684,6 +2743,7 @@
   <div class="hair-preview-video-container" id="hairPreviewContainer" style="display:none;">
     <video id="hairPreviewVideo" muted loop playsinline></video>
   </div>
+
 </body>
 </html>
 

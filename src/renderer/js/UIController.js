@@ -986,41 +986,27 @@ class UIController {
       document.querySelectorAll('.age-card').forEach(c => c.classList.remove('active'));
     });
 
-    // Close age progression panel
-    document.getElementById('btnCloseAgeProgression')?.addEventListener('click', (e) => {
-      e.stopPropagation();
+    // Close age progression overlay
+    document.getElementById('btnCloseAgeOverlay')?.addEventListener('click', () => {
       this.toggleAgeProgressionPanel();
     });
   }
 
   toggleAgeProgressionPanel() {
-    const panel = document.getElementById('ageProgressionPanel');
+    const overlay = document.getElementById('ageProgressionOverlay');
     const btn = document.getElementById('btnAgeProgression');
-    const appearanceTab = document.querySelector('.panel-tab[data-panel="appearance"]');
     
-    if (panel) {
-      const isCurrentlyVisible = panel.style.display !== 'none';
+    if (overlay) {
+      const isCurrentlyVisible = overlay.style.display !== 'none';
       
       if (isCurrentlyVisible) {
-        // Hide the panel
-        panel.style.display = 'none';
+        // Hide the overlay
+        overlay.style.display = 'none';
         btn?.classList.remove('active');
       } else {
-        // Show the panel and switch to appearance tab
-        panel.style.display = 'block';
+        // Show the overlay
+        overlay.style.display = 'flex';
         btn?.classList.add('active');
-        
-        // Switch to appearance panel
-        document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.panel-content').forEach(p => p.classList.remove('active'));
-        appearanceTab?.classList.add('active');
-        document.getElementById('panel-appearance')?.classList.add('active');
-        
-        // Expand the age progression control group
-        const controlGroup = panel.querySelector('.control-group-body');
-        if (controlGroup) {
-          controlGroup.style.display = 'block';
-        }
       }
     }
   }
@@ -1035,42 +1021,22 @@ class UIController {
 
     this.caseManager.pushState(`Age progression: +${years} years`);
 
-    // Calculate age progression values
+    // Calculate age progression values - ONLY PORES
     // Base values from original
     const baseAge = this.originalAgeParams.age;
     const basePoreDetail = this.originalAgeParams.poreDetail;
-    const baseWrinkleDepth = this.originalAgeParams.wrinkleDepth;
-    const baseSunDamage = this.originalAgeParams.sunDamage;
-    const baseRoughness = this.originalAgeParams.roughness;
 
-    // Calculate increment factors
-    const ageFactor = years / 25; // 0 to 1 for 0 to 25 years
-    
     // New age value
     const newAge = Math.min(100, baseAge + years);
     
     // Pore detail increases with age (more visible pores)
-    const poreIncrement = Math.min(30, years * 1.2); // +1.2 per year, max +30
+    // Progressive scaling: more visible pores as aging progresses
+    const poreIncrement = Math.min(40, years * 1.6); // +1.6 per year, max +40
     const newPoreDetail = Math.min(100, basePoreDetail + poreIncrement);
-    
-    // Wrinkle depth increases
-    const wrinkleIncrement = Math.min(40, years * 1.6); // +1.6 per year, max +40
-    const newWrinkleDepth = Math.min(100, baseWrinkleDepth + wrinkleIncrement);
-    
-    // Sun damage increases
-    const sunDamageIncrement = Math.min(35, years * 1.4); // +1.4 per year, max +35
-    const newSunDamage = Math.min(100, baseSunDamage + sunDamageIncrement);
-    
-    // Skin roughness increases
-    const roughnessIncrement = Math.min(25, years * 1.0); // +1.0 per year, max +25
-    const newRoughness = Math.min(100, baseRoughness + roughnessIncrement);
 
-    // Apply the changes
+    // Apply ONLY age and pore changes
     this.skinTextureSystem.setParam('age', newAge);
     this.skinTextureSystem.setParam('poreDetail', newPoreDetail);
-    this.skinTextureSystem.setParam('wrinkleDepth', newWrinkleDepth);
-    this.skinTextureSystem.setParam('sunDamage', newSunDamage);
-    this.skinTextureSystem.setParam('roughness', newRoughness);
     this.skinTextureSystem.regenerate();
 
     // Update UI sliders
@@ -1084,23 +1050,8 @@ class UIController {
     if (sliderPore) sliderPore.value = newPoreDetail;
     if (valPore) valPore.textContent = newPoreDetail;
 
-    const sliderWrinkle = document.getElementById('sliderWrinkleDepth');
-    const valWrinkle = document.getElementById('valWrinkleDepth');
-    if (sliderWrinkle) sliderWrinkle.value = newWrinkleDepth;
-    if (valWrinkle) valWrinkle.textContent = newWrinkleDepth;
-
-    const sliderSun = document.getElementById('sliderSunDamage');
-    const valSun = document.getElementById('valSunDamage');
-    if (sliderSun) sliderSun.value = newSunDamage;
-    if (valSun) valSun.textContent = newSunDamage;
-
-    const sliderRough = document.getElementById('sliderSkinRoughness');
-    const valRough = document.getElementById('valSkinRoughness');
-    if (sliderRough) sliderRough.value = newRoughness;
-    if (valRough) valRough.textContent = newRoughness;
-
     this.caseManager.updateAppearance('skinTextureParams', this.skinTextureSystem.getParams());
-    this.addHistory(`Applied +${years} years age progression`);
+    this.addHistory(`Applied +${years} years age progression (pores)`);
     this.updatePropertyPanel();
   }
 
@@ -1125,21 +1076,6 @@ class UIController {
     const valPore = document.getElementById('valPoreDetail');
     if (sliderPore) sliderPore.value = this.originalAgeParams.poreDetail;
     if (valPore) valPore.textContent = this.originalAgeParams.poreDetail;
-
-    const sliderWrinkle = document.getElementById('sliderWrinkleDepth');
-    const valWrinkle = document.getElementById('valWrinkleDepth');
-    if (sliderWrinkle) sliderWrinkle.value = this.originalAgeParams.wrinkleDepth;
-    if (valWrinkle) valWrinkle.textContent = this.originalAgeParams.wrinkleDepth;
-
-    const sliderSun = document.getElementById('sliderSunDamage');
-    const valSun = document.getElementById('valSunDamage');
-    if (sliderSun) sliderSun.value = this.originalAgeParams.sunDamage;
-    if (valSun) valSun.textContent = this.originalAgeParams.sunDamage;
-
-    const sliderRough = document.getElementById('sliderSkinRoughness');
-    const valRough = document.getElementById('valSkinRoughness');
-    if (sliderRough) sliderRough.value = this.originalAgeParams.roughness;
-    if (valRough) valRough.textContent = this.originalAgeParams.roughness;
 
     this.caseManager.updateAppearance('skinTextureParams', this.skinTextureSystem.getParams());
     this.addHistory('Reset to original age');
