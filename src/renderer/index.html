@@ -135,6 +135,12 @@
         <i class="fas fa-file-import"></i>
       </button>
     </div>
+    <div class="toolbar-separator"></div>
+    <div class="toolbar-group">
+      <button class="tool-btn" id="btnAgeProgression" title="Age Progression Preview">
+        <i class="fas fa-clock"></i>
+      </button>
+    </div>
   </div>
 
   <!-- ─── Main Layout ──────────────────────────────────────────────────── -->
@@ -1649,6 +1655,54 @@
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Age Progression -->
+          <div class="control-group" id="ageProgressionPanel" style="display: none;">
+            <div class="control-group-header">
+              <i class="fas fa-clock"></i>
+              <span>Age Progression Preview</span>
+              <button class="btn-reset-group" id="btnCloseAgeProgression" title="Close">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            <div class="control-group-body">
+              <div style="margin-bottom: 12px; color: var(--text-secondary); font-size: 13px;">
+                Select a time period to see how the face may appear after aging:
+              </div>
+              <div class="age-progression-grid">
+                <button class="age-card" data-years="5">
+                  <i class="fas fa-user-clock"></i>
+                  <span class="age-label">+5 Years</span>
+                  <span class="age-desc">Subtle aging</span>
+                </button>
+                <button class="age-card" data-years="10">
+                  <i class="fas fa-user-clock"></i>
+                  <span class="age-label">+10 Years</span>
+                  <span class="age-desc">Early aging</span>
+                </button>
+                <button class="age-card" data-years="15">
+                  <i class="fas fa-user-clock"></i>
+                  <span class="age-label">+15 Years</span>
+                  <span class="age-desc">Moderate aging</span>
+                </button>
+                <button class="age-card" data-years="20">
+                  <i class="fas fa-user-clock"></i>
+                  <span class="age-label">+20 Years</span>
+                  <span class="age-desc">Advanced aging</span>
+                </button>
+                <button class="age-card" data-years="25">
+                  <i class="fas fa-user-clock"></i>
+                  <span class="age-label">+25 Years</span>
+                  <span class="age-desc">Significant aging</span>
+                </button>
+              </div>
+              <div style="margin-top: 12px;">
+                <button class="btn-small" id="btnResetAgeProgression" style="width: 100%;">
+                  <i class="fas fa-undo"></i> Reset to Original Age
+                </button>
               </div>
             </div>
           </div>

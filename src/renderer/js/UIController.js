@@ -24,6 +24,7 @@ class UIController {
     this.bindEyebrowControls();
     this.bindBeardControls();
     this.bindAppearanceControls();
+    this.bindAgeProgressionControls();
     this.bindEyeControls();
     this.bindEyelashControls();
     this.bindSkinMarkControls();
@@ -101,6 +102,11 @@ class UIController {
     // Import button (toolbar)
     document.getElementById('btnImportModel')?.addEventListener('click', () => {
       this.importModel();
+    });
+
+    // Age Progression button
+    document.getElementById('btnAgeProgression')?.addEventListener('click', () => {
+      this.toggleAgeProgressionPanel();
     });
 
     // Reset All Features
@@ -954,6 +960,193 @@ class UIController {
       this.addHistory('Reset skin texture');
       this.updatePropertyPanel();
     });
+  }
+
+  // ─── Age Progression Controls ────────────────────────────────────────────
+
+  bindAgeProgressionControls() {
+    // Store original aging parameters
+    this.originalAgeParams = null;
+
+    // Age progression cards
+    document.querySelectorAll('.age-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const years = parseInt(card.dataset.years);
+        this.applyAgeProgression(years);
+        
+        // Update active state
+        document.querySelectorAll('.age-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+      });
+    });
+
+    // Reset age progression
+    document.getElementById('btnResetAgeProgression')?.addEventListener('click', () => {
+      this.resetAgeProgression();
+      document.querySelectorAll('.age-card').forEach(c => c.classList.remove('active'));
+    });
+
+    // Close age progression panel
+    document.getElementById('btnCloseAgeProgression')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleAgeProgressionPanel();
+    });
+  }
+
+  toggleAgeProgressionPanel() {
+    const panel = document.getElementById('ageProgressionPanel');
+    const btn = document.getElementById('btnAgeProgression');
+    const appearanceTab = document.querySelector('.panel-tab[data-panel="appearance"]');
+    
+    if (panel) {
+      const isCurrentlyVisible = panel.style.display !== 'none';
+      
+      if (isCurrentlyVisible) {
+        // Hide the panel
+        panel.style.display = 'none';
+        btn?.classList.remove('active');
+      } else {
+        // Show the panel and switch to appearance tab
+        panel.style.display = 'block';
+        btn?.classList.add('active');
+        
+        // Switch to appearance panel
+        document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel-content').forEach(p => p.classList.remove('active'));
+        appearanceTab?.classList.add('active');
+        document.getElementById('panel-appearance')?.classList.add('active');
+        
+        // Expand the age progression control group
+        const controlGroup = panel.querySelector('.control-group-body');
+        if (controlGroup) {
+          controlGroup.style.display = 'block';
+        }
+      }
+    }
+  }
+
+  applyAgeProgression(years) {
+    if (!this.skinTextureSystem) return;
+
+    // Store original parameters if not already stored
+    if (!this.originalAgeParams) {
+      this.originalAgeParams = { ...this.skinTextureSystem.getParams() };
+    }
+
+    this.caseManager.pushState(`Age progression: +${years} years`);
+
+    // Calculate age progression values
+    // Base values from original
+    const baseAge = this.originalAgeParams.age;
+    const basePoreDetail = this.originalAgeParams.poreDetail;
+    const baseWrinkleDepth = this.originalAgeParams.wrinkleDepth;
+    const baseSunDamage = this.originalAgeParams.sunDamage;
+    const baseRoughness = this.originalAgeParams.roughness;
+
+    // Calculate increment factors
+    const ageFactor = years / 25; // 0 to 1 for 0 to 25 years
+    
+    // New age value
+    const newAge = Math.min(100, baseAge + years);
+    
+    // Pore detail increases with age (more visible pores)
+    const poreIncrement = Math.min(30, years * 1.2); // +1.2 per year, max +30
+    const newPoreDetail = Math.min(100, basePoreDetail + poreIncrement);
+    
+    // Wrinkle depth increases
+    const wrinkleIncrement = Math.min(40, years * 1.6); // +1.6 per year, max +40
+    const newWrinkleDepth = Math.min(100, baseWrinkleDepth + wrinkleIncrement);
+    
+    // Sun damage increases
+    const sunDamageIncrement = Math.min(35, years * 1.4); // +1.4 per year, max +35
+    const newSunDamage = Math.min(100, baseSunDamage + sunDamageIncrement);
+    
+    // Skin roughness increases
+    const roughnessIncrement = Math.min(25, years * 1.0); // +1.0 per year, max +25
+    const newRoughness = Math.min(100, baseRoughness + roughnessIncrement);
+
+    // Apply the changes
+    this.skinTextureSystem.setParam('age', newAge);
+    this.skinTextureSystem.setParam('poreDetail', newPoreDetail);
+    this.skinTextureSystem.setParam('wrinkleDepth', newWrinkleDepth);
+    this.skinTextureSystem.setParam('sunDamage', newSunDamage);
+    this.skinTextureSystem.setParam('roughness', newRoughness);
+    this.skinTextureSystem.regenerate();
+
+    // Update UI sliders
+    const sliderAge = document.getElementById('sliderSkinAge');
+    const valAge = document.getElementById('valSkinAge');
+    if (sliderAge) sliderAge.value = newAge;
+    if (valAge) valAge.textContent = newAge;
+
+    const sliderPore = document.getElementById('sliderPoreDetail');
+    const valPore = document.getElementById('valPoreDetail');
+    if (sliderPore) sliderPore.value = newPoreDetail;
+    if (valPore) valPore.textContent = newPoreDetail;
+
+    const sliderWrinkle = document.getElementById('sliderWrinkleDepth');
+    const valWrinkle = document.getElementById('valWrinkleDepth');
+    if (sliderWrinkle) sliderWrinkle.value = newWrinkleDepth;
+    if (valWrinkle) valWrinkle.textContent = newWrinkleDepth;
+
+    const sliderSun = document.getElementById('sliderSunDamage');
+    const valSun = document.getElementById('valSunDamage');
+    if (sliderSun) sliderSun.value = newSunDamage;
+    if (valSun) valSun.textContent = newSunDamage;
+
+    const sliderRough = document.getElementById('sliderSkinRoughness');
+    const valRough = document.getElementById('valSkinRoughness');
+    if (sliderRough) sliderRough.value = newRoughness;
+    if (valRough) valRough.textContent = newRoughness;
+
+    this.caseManager.updateAppearance('skinTextureParams', this.skinTextureSystem.getParams());
+    this.addHistory(`Applied +${years} years age progression`);
+    this.updatePropertyPanel();
+  }
+
+  resetAgeProgression() {
+    if (!this.skinTextureSystem || !this.originalAgeParams) return;
+
+    this.caseManager.pushState('Reset age progression');
+
+    // Restore original parameters
+    Object.entries(this.originalAgeParams).forEach(([key, value]) => {
+      this.skinTextureSystem.setParam(key, value);
+    });
+    this.skinTextureSystem.regenerate();
+
+    // Update UI sliders
+    const sliderAge = document.getElementById('sliderSkinAge');
+    const valAge = document.getElementById('valSkinAge');
+    if (sliderAge) sliderAge.value = this.originalAgeParams.age;
+    if (valAge) valAge.textContent = this.originalAgeParams.age;
+
+    const sliderPore = document.getElementById('sliderPoreDetail');
+    const valPore = document.getElementById('valPoreDetail');
+    if (sliderPore) sliderPore.value = this.originalAgeParams.poreDetail;
+    if (valPore) valPore.textContent = this.originalAgeParams.poreDetail;
+
+    const sliderWrinkle = document.getElementById('sliderWrinkleDepth');
+    const valWrinkle = document.getElementById('valWrinkleDepth');
+    if (sliderWrinkle) sliderWrinkle.value = this.originalAgeParams.wrinkleDepth;
+    if (valWrinkle) valWrinkle.textContent = this.originalAgeParams.wrinkleDepth;
+
+    const sliderSun = document.getElementById('sliderSunDamage');
+    const valSun = document.getElementById('valSunDamage');
+    if (sliderSun) sliderSun.value = this.originalAgeParams.sunDamage;
+    if (valSun) valSun.textContent = this.originalAgeParams.sunDamage;
+
+    const sliderRough = document.getElementById('sliderSkinRoughness');
+    const valRough = document.getElementById('valSkinRoughness');
+    if (sliderRough) sliderRough.value = this.originalAgeParams.roughness;
+    if (valRough) valRough.textContent = this.originalAgeParams.roughness;
+
+    this.caseManager.updateAppearance('skinTextureParams', this.skinTextureSystem.getParams());
+    this.addHistory('Reset to original age');
+    this.updatePropertyPanel();
+
+    // Clear stored original params
+    this.originalAgeParams = null;
   }
 
   // ─── Eye Controls ───────────────────────────────────────────────────────
