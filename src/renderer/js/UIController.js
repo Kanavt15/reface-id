@@ -1964,8 +1964,69 @@ class UIController {
     document.getElementById('btnLoadCase')?.addEventListener('click', async () => {
       const imported = await this.caseManager.importFromFile();
       if (imported) {
-        await this.loadCaseToUI();
+        // Apply the imported case data to UI
+        const data = this.caseManager.currentCase;
+        
+        // Restore morph values
+        if (data.morphTargets) {
+          this.morpher.loadState(data.morphTargets);
+        }
+        // Restore hair
+        if (data.hairParams) {
+          this.hair.loadState(data.hairParams);
+        }
+        // Restore appearance
+        if (data.appearance?.skinColor) {
+          this.scene.setSkinColor(data.appearance.skinColor);
+        }
+        if (data.appearance?.lipColor) {
+          this.scene.setLipColor(data.appearance.lipColor);
+        }
+        if (data.appearance?.eyeColor) {
+          this.scene.setEyeColor(data.appearance.eyeColor);
+        }
+        // Restore eye parameters
+        if (data.appearance?.eyeParams && this.scene.eyeSystem) {
+          Object.entries(data.appearance.eyeParams).forEach(([key, value]) => {
+            this.scene.eyeSystem.setParam(key, value);
+          });
+        }
+        // Restore skin texture parameters
+        if (data.appearance?.skinTextureParams) {
+          Object.entries(data.appearance.skinTextureParams).forEach(([key, value]) => {
+            this.scene.setSkinTextureParam(key, value);
+          });
+        }
+        // Restore skin marks
+        if (data.skinMarks && this.skinMarkSystem) {
+          this.skinMarkSystem.loadState(data.skinMarks);
+        }
+        // Restore decals
+        if (data.decals && this.decalSystem) {
+          this.decalSystem.loadState(data.decals);
+          this._refreshDecalGallery();
+        }
+        // Restore manual wrinkle painting
+        if (data.appearance?.wrinklePaintData && this.wrinklePainter) {
+          this.wrinklePainter.loadState(data.appearance.wrinklePaintData);
+        }
+        // Restore manual lip painting
+        if (data.appearance?.lipPaintData && this.lipPainter) {
+          this.lipPainter.loadState(data.appearance.lipPaintData);
+        }
+        // Restore camera
+        if (data.cameraState) {
+          this.scene.loadCameraState(data.cameraState);
+        }
+        // Update UI fields
+        document.getElementById('caseNumber').value = data.caseNumber || '';
+        document.getElementById('caseName').value = data.caseName || '';
+        document.getElementById('investigator').value = data.investigator || '';
+        document.getElementById('caseDescription').value = data.description || '';
+        document.getElementById('caseNotes').value = data.notes || '';
+
         this.updateCaseTitle();
+        this.updatePropertyPanel();
         this.showNotification('Case imported successfully', 'success');
       }
     });
