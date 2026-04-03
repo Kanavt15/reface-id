@@ -451,7 +451,10 @@ class HairSystem {
   _showCachedEyebrows() {
     this._clearGroup(this._eyebrowGroup);
     const cached = this._modelCache['eyebrows'];
-    if (!cached) return;
+    if (!cached) {
+      console.warn('[HairSystem] No cached eyebrow model to show');
+      return;
+    }
 
     const container = new THREE.Group();
     container.name = 'EyebrowContainer';
@@ -459,6 +462,7 @@ class HairSystem {
     const offsetGroup = new THREE.Group();
     offsetGroup.name = 'EyebrowOffset';
 
+    let meshCount = 0;
     cached.traverse(child => {
       if (child.isMesh) {
         const clone = child.clone();
@@ -466,8 +470,11 @@ class HairSystem {
         clone.castShadow = true;
         clone.receiveShadow = true;
         offsetGroup.add(clone);
+        meshCount++;
       }
     });
+
+    console.log(`[HairSystem] Eyebrow meshes found: ${meshCount}`);
 
     container.add(offsetGroup);
     this._eyebrowGroup.add(container);
@@ -476,20 +483,29 @@ class HairSystem {
     // Clear bbox cache for new model
     this._eyebrowBboxCache = null;
 
+    console.log('[HairSystem] Calling _alignAndAdjustEyebrows...');
     this._alignAndAdjustEyebrows();
+    console.log('[HairSystem] Eyebrows displayed successfully');
   }
 
   _alignAndAdjustEyebrows() {
-    if (!this._eyebrowContainer || !this._headGroup) return;
+    if (!this._eyebrowContainer || !this._headGroup) {
+      console.warn('[HairSystem] _alignAndAdjustEyebrows early return - container or headGroup missing');
+      return;
+    }
 
     const container = this._eyebrowContainer;
     const offsetGroup = container.children[0];
-    if (!offsetGroup) return; // Safety check
+    if (!offsetGroup) {
+      console.warn('[HairSystem] _alignAndAdjustEyebrows early return - offsetGroup missing');
+      return;
+    }
     
     const ep = this.eyebrowParams;
 
     // Compute bbox only once and cache it
     if (!this._eyebrowBboxCache) {
+      console.log('[HairSystem] Computing eyebrow bbox...');
       // Reset transforms for bbox computation
       container.scale.set(1, 1, 1);
       container.position.set(0, 0, 0);
@@ -502,12 +518,18 @@ class HairSystem {
       const browSize = new THREE.Vector3();
       browBox.getSize(browSize);
 
-      if (browSize.x < 0.001) return;
+      console.log('[HairSystem] Eyebrow bbox - size:', browSize.x, browSize.y, browSize.z);
+
+      if (browSize.x < 0.001) {
+        console.warn('[HairSystem] Eyebrow bbox size too small, aborting');
+        return;
+      }
 
       this._eyebrowBboxCache = { center: browCenter, size: browSize };
       
       // Center eyebrow model at origin (only needed once)
       offsetGroup.position.set(-browCenter.x, -browCenter.y, -browCenter.z);
+      console.log('[HairSystem] Eyebrow bbox cached successfully');
     }
 
     const browSize = this._eyebrowBboxCache.size;
