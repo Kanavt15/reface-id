@@ -172,26 +172,31 @@ class HairSystem {
 
     // Track eyebrow landmarks for automatic adjustment with face morphs
     if (this._morpher && typeof this._morpher.getCurrentLandmarkPosition === 'function') {
-      // Get current eyebrow landmark positions (midpoint between left/right brow)
-      const leftBrowPos = this._morpher.getCurrentLandmarkPosition('brow_left_center');
-      const rightBrowPos = this._morpher.getCurrentLandmarkPosition('brow_right_center');
-      
-      if (leftBrowPos && rightBrowPos) {
-        // Calculate midpoint for eyebrow center tracking
-        const currentBrowCenter = new THREE.Vector3(
-          (leftBrowPos.x + rightBrowPos.x) / 2,
-          (leftBrowPos.y + rightBrowPos.y) / 2,
-          (leftBrowPos.z + rightBrowPos.z) / 2
-        );
+      try {
+        // Get current eyebrow landmark positions (midpoint between left/right brow)
+        const leftBrowPos = this._morpher.getCurrentLandmarkPosition('brow_left_center');
+        const rightBrowPos = this._morpher.getCurrentLandmarkPosition('brow_right_center');
+        
+        if (leftBrowPos && rightBrowPos) {
+          // Calculate midpoint for eyebrow center tracking
+          const currentBrowCenter = new THREE.Vector3(
+            (leftBrowPos.x + rightBrowPos.x) / 2,
+            (leftBrowPos.y + rightBrowPos.y) / 2,
+            (leftBrowPos.z + rightBrowPos.z) / 2
+          );
 
-        // Store initial position on first call
-        if (!this._initialBrowCenter) {
-          this._initialBrowCenter = currentBrowCenter.clone();
-          this._initialBrowBaseY = 0.39; // Default browRegionY
+          // Store initial position on first call
+          if (!this._initialBrowCenter) {
+            this._initialBrowCenter = currentBrowCenter.clone();
+            this._initialBrowBaseY = 0.39; // Default browRegionY
+          }
+
+          // Calculate delta from initial to current position
+          this._browLandmarkDelta = currentBrowCenter.clone().sub(this._initialBrowCenter);
         }
-
-        // Calculate delta from initial to current position
-        this._browLandmarkDelta = currentBrowCenter.clone().sub(this._initialBrowCenter);
+      } catch (e) {
+        // Silently fail if landmarks aren't available - eyebrows will use default positioning
+        console.warn('[HairSystem] Eyebrow landmark tracking unavailable:', e.message);
       }
     }
   }
