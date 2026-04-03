@@ -1951,48 +1951,8 @@ class UIController {
   // ─── Case Controls ───────────────────────────────────────────────────────
 
   bindCaseControls() {
-    // Save
-    document.getElementById('btnSaveCase')?.addEventListener('click', async () => {
-      this.updateCaseFromUI();
-
-      // Create a snapshot with the case information
-      if (this.snapshotManager) {
-        const caseName = this.caseManager.currentCase.caseName || 'Untitled Case';
-        const caseNum = this.caseManager.currentCase.caseNumber;
-        const snapshotName = caseNum ? `${caseNum} - ${caseName}` : caseName;
-        this.snapshotManager.capture(snapshotName);
-      }
-
-      const result = await this.caseManager.save();
-      if (result?.success) {
-        this.addHistory('Case saved and snapshot created');
-        this.updateCaseTitle();
-      } else {
-        this.addHistory('Save failed: ' + (result?.error || 'Unknown error'));
-      }
-    });
-
-    // Load
-    document.getElementById('btnLoadCase')?.addEventListener('click', async () => {
-      if (window.electronAPI) {
-        const result = await window.electronAPI.openDialog({
-          title: 'Open Case File',
-          filters: [{ name: 'REface Case', extensions: ['rfc'] }],
-          properties: ['openFile'],
-        });
-        if (!result.canceled && result.filePaths?.length > 0) {
-          await this.loadCase(result.filePaths[0]);
-        }
-      }
-    });
-
-    // New case
-    document.getElementById('btnNewCase')?.addEventListener('click', () => {
-      this.newCase();
-    });
-
-    // Export case to JSON
-    document.getElementById('btnExportCase')?.addEventListener('click', () => {
+    // Save - Export case to JSON file
+    document.getElementById('btnSaveCase')?.addEventListener('click', () => {
       this.updateCaseFromUI();
       const success = this.caseManager.exportToFile();
       if (success) {
@@ -2000,14 +1960,19 @@ class UIController {
       }
     });
 
-    // Import case from JSON
-    document.getElementById('btnImportCase')?.addEventListener('click', async () => {
+    // Load - Import case from JSON file
+    document.getElementById('btnLoadCase')?.addEventListener('click', async () => {
       const imported = await this.caseManager.importFromFile();
       if (imported) {
         await this.loadCaseToUI();
         this.updateCaseTitle();
         this.showNotification('Case imported successfully', 'success');
       }
+    });
+
+    // New case
+    document.getElementById('btnNewCase')?.addEventListener('click', () => {
+      this.newCase();
     });
 
 
