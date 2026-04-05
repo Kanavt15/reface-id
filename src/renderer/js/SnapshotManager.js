@@ -206,7 +206,7 @@ class SnapshotManager {
   // ─── Export / Import ─────────────────────────────────────────────────
 
   /**
-   * Export a snapshot to a downloadable .txt file containing the full JSON.
+   * Export a snapshot to a downloadable .json file containing the full JSON.
    * Reads directly from this.snapshots to guarantee nothing is stripped.
    * @param {number} id  Snapshot id
    */
@@ -215,13 +215,13 @@ class SnapshotManager {
     if (!snapshot) return;
 
     const json = JSON.stringify(snapshot, null, 2);
-    const blob = new Blob([json], { type: 'text/plain' });
+    const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
 
     const safeName = snapshot.name.replace(/[^a-zA-Z0-9_\- ]/g, '_');
     const a = document.createElement('a');
     a.href = url;
-    a.download = `snapshot_${safeName}.txt`;
+    a.download = `snapshot_${safeName}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -229,7 +229,7 @@ class SnapshotManager {
   }
 
   /**
-   * Import a snapshot from a .txt file selected by the user.
+   * Import a snapshot from a .json file selected by the user.
    * Opens a file picker, parses the JSON, and adds the snapshot.
    * @returns {Promise<object|null>}  The imported snapshot metadata, or null
    */
@@ -237,7 +237,7 @@ class SnapshotManager {
     return new Promise((resolve) => {
       const input = document.createElement('input');
       input.type = 'file';
-      input.accept = '.txt';
+      input.accept = '.json';
       input.style.display = 'none';
       document.body.appendChild(input);
 
