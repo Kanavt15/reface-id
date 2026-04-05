@@ -129,21 +129,20 @@ class SnapshotManager {
   // ─── Persistence ───────────────────────────────────────────────────
 
   _persist() {
+    const caseId = this.caseManager.currentCase.caseId || '_default';
+    const key = `${this._storageKey}_${caseId}`;
+    const payload = JSON.stringify({
+      nextId: this._nextId,
+      snapshots: this.snapshots,
+    });
+    
     try {
-      const caseId = this.caseManager.currentCase.caseId || '_default';
-      const key = `${this._storageKey}_${caseId}`;
-      const payload = JSON.stringify({
-        nextId: this._nextId,
-        snapshots: this.snapshots,
-      });
       localStorage.setItem(key, payload);
     } catch (e) {
       // localStorage quota exceeded — delete oldest thumbnails to free space
       console.warn('[SnapshotManager] localStorage write failed, trimming thumbnails', e);
       this._trimThumbnails();
       try {
-        const caseId = this.caseManager.currentCase.caseId || '_default';
-        const key = `${this._storageKey}_${caseId}`;
         localStorage.setItem(key, JSON.stringify({
           nextId: this._nextId,
           snapshots: this.snapshots,
@@ -277,7 +276,6 @@ class SnapshotManager {
         };
         reader.onerror = () => {
           alert('Failed to read file.');
-          document.body.removeChild(input);
           resolve(null);
         };
         reader.readAsText(file);
