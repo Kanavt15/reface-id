@@ -35,6 +35,7 @@ class CaseManager {
           posZ: 50,
           rotX: 50,
           rotY: 50,
+          rotZ: 50,
           opacity: 100,
         },
         skinTextureParams: {

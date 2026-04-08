@@ -1089,12 +1089,12 @@ class UIController {
       const valueDisplay = control?.querySelector('.slider-value');
       let isDragging = false;
 
-      const onMouseDown = () => {
+      const onPointerDown = () => {
         isDragging = true;
         this.caseManager.beginAction(`Modified eye ${param}`);
       };
 
-      const onMouseUp = () => {
+      const onPointerUp = () => {
         if (isDragging) {
           if (this.eyeSystem) {
             this.caseManager.updateAppearance('eyeParams', this.eyeSystem.getParams());
@@ -1102,14 +1102,16 @@ class UIController {
           this.caseManager.endAction();
           this.addHistory(`Changed ${this.formatParamName(param)}`);
           isDragging = false;
-          document.removeEventListener('mouseup', onMouseUp);
+          document.removeEventListener('pointerup', onPointerUp);
         }
       };
 
-      slider.addEventListener('mousedown', () => {
-        onMouseDown();
-        document.addEventListener('mouseup', onMouseUp);
+      slider.addEventListener('pointerdown', () => {
+        onPointerDown();
+        document.addEventListener('pointerup', onPointerUp);
       });
+
+      slider.addEventListener('pointerup', onPointerUp);
 
       slider.addEventListener('input', (e) => {
         const value = parseInt(e.target.value, 10);
@@ -1168,12 +1170,12 @@ class UIController {
       const valueDisplay = control?.querySelector('.slider-value');
       let isDragging = false;
 
-      const onMouseDown = () => {
+      const onPointerDown = () => {
         isDragging = true;
         this.caseManager.beginAction(`Modified eyelash ${param}`);
       };
 
-      const onMouseUp = () => {
+      const onPointerUp = () => {
         if (isDragging) {
           if (this.eyeSystem) {
             this.caseManager.updateAppearance('eyelashParams', this.eyeSystem.getEyelashParams());
@@ -1181,14 +1183,16 @@ class UIController {
           this.caseManager.endAction();
           this.addHistory(`Changed ${this.formatParamName(param)}`);
           isDragging = false;
-          document.removeEventListener('mouseup', onMouseUp);
+          document.removeEventListener('pointerup', onPointerUp);
         }
       };
 
-      slider.addEventListener('mousedown', () => {
-        onMouseDown();
-        document.addEventListener('mouseup', onMouseUp);
+      slider.addEventListener('pointerdown', () => {
+        onPointerDown();
+        document.addEventListener('pointerup', onPointerUp);
       });
+
+      slider.addEventListener('pointerup', onPointerUp);
 
       slider.addEventListener('input', (e) => {
         const value = parseInt(e.target.value, 10);
