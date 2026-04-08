@@ -229,15 +229,15 @@ class AIController {
         // Apply the parameters
         const changes = this._applyParams(data.params);
 
-        // Update conversation history for refinement
+        // Update conversation history for refinement (text only — strip images to save tokens)
         this.conversationHistory.push(
           { role: 'user', content: userMessage },
           { role: 'assistant', content: data.aiResponse }
         );
 
-        // Keep history reasonable (last 10 turns)
-        if (this.conversationHistory.length > 20) {
-          this.conversationHistory = this.conversationHistory.slice(-20);
+        // Keep history to last 3 turns (6 messages) to control API costs
+        if (this.conversationHistory.length > 6) {
+          this.conversationHistory = this.conversationHistory.slice(-6);
         }
 
         // Show success message with summary

@@ -691,9 +691,27 @@ def ai_generate_face():
         if provider == 'anthropic':
             # Use Anthropic Claude
             messages = []
-            # Add conversation history
-            for msg in conversation_history:
-                messages.append({"role": msg["role"], "content": msg["content"]})
+            # Add conversation history — strip image blocks to save tokens
+            # (the AI already analyzed them on the first call)
+            for i, msg in enumerate(conversation_history):
+                content = msg["content"]
+                if isinstance(content, list):
+                    # Keep only text blocks, drop image blocks
+                    content = [block for block in content if block.get("type") != "image"]
+                    if not content:
+                        continue
+                entry = {"role": msg["role"], "content": content}
+                # Mark last history message for prompt caching
+                if i == len(conversation_history) - 1:
+                    if isinstance(entry["content"], str):
+                        entry["content"] = [
+                            {"type": "text", "text": entry["content"], "cache_control": {"type": "ephemeral"}}
+                        ]
+                    elif isinstance(entry["content"], list):
+                        entry["content"] = list(entry["content"])
+                        if entry["content"]:
+                            entry["content"][-1] = {**entry["content"][-1], "cache_control": {"type": "ephemeral"}}
+                messages.append(entry)
             if image_payloads:
                 user_blocks = [
                     {
@@ -717,8 +735,14 @@ def ai_generate_face():
             anthropic_model = model if model else "claude-haiku-4-5-20251001"
             response = anthropic_client.messages.create(
                 model=anthropic_model,
-                max_tokens=2048,
-                system=AI_SYSTEM_PROMPT,
+                max_tokens=1024,
+                system=[
+                    {
+                        "type": "text",
+                        "text": AI_SYSTEM_PROMPT,
+                        "cache_control": {"type": "ephemeral"}
+                    }
+                ],
                 messages=messages,
             )
             ai_text = response.content[0].text.strip()
