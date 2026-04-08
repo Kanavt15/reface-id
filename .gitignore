@@ -7,3 +7,6 @@ __pycache__/
 .env
 .claude/
 venv/
+DEMO_SCRIPT.md
+upload.txt
+
