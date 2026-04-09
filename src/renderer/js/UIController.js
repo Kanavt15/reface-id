@@ -2050,15 +2050,6 @@ class UIController {
           btnDC.innerHTML = '<i class="fas fa-crosshairs"></i> Place on Face';
         }
       }
-      if (this.pigmentationPainter && this.pigmentationPainter.enabled) {
-        this.pigmentationPainter.disable();
-        document.getElementById('btnPigmentPaint')?.classList.remove('active');
-        const btnPP = document.getElementById('btnTogglePigmentPaint');
-        if (btnPP) {
-          btnPP.classList.remove('active');
-          btnPP.innerHTML = '<i class="fas fa-tint"></i> Enable Pigmentation Pen';
-        }
-      }
 
       const active = painter.toggle();
       btnToolbar?.classList.toggle('active', active);
