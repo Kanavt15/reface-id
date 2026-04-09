@@ -31,6 +31,7 @@ class UIController {
     this.bindDecalControls();
     this.bindWrinklePainterControls();
     this.bindLipPainterControls();
+    this.bindPigmentationPainterControls();
     this.bindCaseControls();
     this.bindGroupCollapse();
     this.bindKeyboardShortcuts();
@@ -1311,6 +1312,16 @@ class UIController {
           btnLP.innerHTML = '<i class="fas fa-pen"></i> Enable Lip Pen';
         }
       }
+      // Disable pigmentation painter if active (mutual exclusion)
+      if (this.pigmentationPainter && this.pigmentationPainter.enabled) {
+        this.pigmentationPainter.disable();
+        document.getElementById('btnPigmentPaint')?.classList.remove('active');
+        const btnPP = document.getElementById('btnTogglePigmentPaint');
+        if (btnPP) {
+          btnPP.classList.remove('active');
+          btnPP.innerHTML = '<i class="fas fa-tint"></i> Enable Pigmentation Pen';
+        }
+      }
       // Disable decal system if active (mutual exclusion)
       if (this.decalSystem && this.decalSystem.enabled) {
         this.decalSystem.disable();
@@ -1556,6 +1567,16 @@ class UIController {
         if (btnLP) {
           btnLP.classList.remove('active');
           btnLP.innerHTML = '<i class="fas fa-pen"></i> Enable Lip Pen';
+        }
+      }
+      // Disable pigmentation painter if active (mutual exclusion)
+      if (this.pigmentationPainter && this.pigmentationPainter.enabled) {
+        this.pigmentationPainter.disable();
+        document.getElementById('btnPigmentPaint')?.classList.remove('active');
+        const btnPP = document.getElementById('btnTogglePigmentPaint');
+        if (btnPP) {
+          btnPP.classList.remove('active');
+          btnPP.innerHTML = '<i class="fas fa-tint"></i> Enable Pigmentation Pen';
         }
       }
 
@@ -1806,6 +1827,15 @@ class UIController {
           btnDC.innerHTML = '<i class="fas fa-crosshairs"></i> Place on Face';
         }
       }
+      if (this.pigmentationPainter && this.pigmentationPainter.enabled) {
+        this.pigmentationPainter.disable();
+        document.getElementById('btnPigmentPaint')?.classList.remove('active');
+        const btnPP = document.getElementById('btnTogglePigmentPaint');
+        if (btnPP) {
+          btnPP.classList.remove('active');
+          btnPP.innerHTML = '<i class="fas fa-tint"></i> Enable Pigmentation Pen';
+        }
+      }
 
       const active = painter.toggle();
       btnToolbar?.classList.toggle('active', active);
@@ -1901,6 +1931,15 @@ class UIController {
           btnDC.innerHTML = '<i class="fas fa-crosshairs"></i> Place on Face';
         }
       }
+      if (this.pigmentationPainter && this.pigmentationPainter.enabled) {
+        this.pigmentationPainter.disable();
+        document.getElementById('btnPigmentPaint')?.classList.remove('active');
+        const btnPP = document.getElementById('btnTogglePigmentPaint');
+        if (btnPP) {
+          btnPP.classList.remove('active');
+          btnPP.innerHTML = '<i class="fas fa-tint"></i> Enable Pigmentation Pen';
+        }
+      }
 
       const active = painter.toggle();
       btnToolbar?.classList.toggle('active', active);
@@ -1949,6 +1988,161 @@ class UIController {
     // Persist changes
     painter.onChanged = () => {
       this.caseManager.updateAppearance('lipPaintData', painter.exportState());
+    };
+  }
+
+  // ─── Pigmentation Painter Controls ──────────────────────────────────────────
+
+  bindPigmentationPainterControls() {
+    const painter = this.pigmentationPainter;
+    if (!painter) return;
+
+    const btnToolbar = document.getElementById('btnPigmentPaint');
+    const btnToggle = document.getElementById('btnTogglePigmentPaint');
+    const btnErase = document.getElementById('btnPigmentErase');
+    const btnUndo = document.getElementById('btnPigmentUndo');
+    const btnClear = document.getElementById('btnPigmentClear');
+    const sizeSlider = document.getElementById('pigmentBrushSize');
+    const sizeValue = document.getElementById('pigmentBrushSizeValue');
+    const strengthSlider = document.getElementById('pigmentBrushStrength');
+    const strengthValue = document.getElementById('pigmentBrushStrengthValue');
+    const colorPicker = document.getElementById('pigmentColorPicker');
+
+    const togglePainter = () => {
+      // Disable other edit modes (mutual exclusion)
+      if (this.skinMarkSystem && this.skinMarkSystem.enabled) {
+        this.skinMarkSystem.disable();
+        document.getElementById('btnSkinMarks')?.classList.remove('active');
+        const btnSM = document.getElementById('btnToggleSkinMarks');
+        if (btnSM) {
+          btnSM.classList.remove('active');
+          btnSM.innerHTML = '<i class="fas fa-crosshairs"></i> Enable Mark Placement';
+        }
+      }
+      if (this.facePointEditor && this.facePointEditor.enabled) {
+        this.facePointEditor.disable();
+        document.getElementById('btnEditPoints')?.classList.remove('active');
+      }
+      if (this.wrinklePainter && this.wrinklePainter.enabled) {
+        this.wrinklePainter.disable();
+        document.getElementById('btnWrinklePaint')?.classList.remove('active');
+        const btnWP = document.getElementById('btnToggleWrinklePaint');
+        if (btnWP) {
+          btnWP.classList.remove('active');
+          btnWP.innerHTML = '<i class="fas fa-paint-brush"></i> Enable Wrinkle Painting';
+        }
+      }
+      if (this.lipPainter && this.lipPainter.enabled) {
+        this.lipPainter.disable();
+        document.getElementById('btnLipPaint')?.classList.remove('active');
+        const btnLP = document.getElementById('btnToggleLipPaint');
+        if (btnLP) {
+          btnLP.classList.remove('active');
+          btnLP.innerHTML = '<i class="fas fa-pen"></i> Enable Lip Pen';
+        }
+      }
+      if (this.decalSystem && this.decalSystem.enabled) {
+        this.decalSystem.disable();
+        document.getElementById('btnDecals')?.classList.remove('active');
+        const btnDC = document.getElementById('btnToggleDecalPlace');
+        if (btnDC) {
+          btnDC.classList.remove('active');
+          btnDC.innerHTML = '<i class="fas fa-crosshairs"></i> Place on Face';
+        }
+      }
+      if (this.pigmentationPainter && this.pigmentationPainter.enabled) {
+        this.pigmentationPainter.disable();
+        document.getElementById('btnPigmentPaint')?.classList.remove('active');
+        const btnPP = document.getElementById('btnTogglePigmentPaint');
+        if (btnPP) {
+          btnPP.classList.remove('active');
+          btnPP.innerHTML = '<i class="fas fa-tint"></i> Enable Pigmentation Pen';
+        }
+      }
+
+      const active = painter.toggle();
+      btnToolbar?.classList.toggle('active', active);
+      if (btnToggle) {
+        btnToggle.classList.toggle('active', active);
+        btnToggle.innerHTML = active
+          ? '<i class="fas fa-times"></i> Disable Pigmentation Pen'
+          : '<i class="fas fa-tint"></i> Enable Pigmentation Pen';
+      }
+      this.addHistory(active ? 'Pigmentation painting enabled' : 'Pigmentation painting disabled');
+    };
+
+    btnToolbar?.addEventListener('click', togglePainter);
+    btnToggle?.addEventListener('click', togglePainter);
+
+    // Brush size
+    sizeSlider?.addEventListener('input', (e) => {
+      const v = parseInt(e.target.value);
+      painter.brushSize = v;
+      if (sizeValue) sizeValue.textContent = v;
+    });
+
+    // Brush strength
+    strengthSlider?.addEventListener('input', (e) => {
+      const v = parseInt(e.target.value);
+      painter.brushStrength = v / 100;
+      if (strengthValue) strengthValue.textContent = v;
+    });
+
+    // Eraser toggle
+    btnErase?.addEventListener('click', () => {
+      painter.eraseMode = !painter.eraseMode;
+      btnErase.classList.toggle('active', painter.eraseMode);
+    });
+
+    // Undo
+    btnUndo?.addEventListener('click', () => {
+      this.caseManager.pushState('Undo pigmentation stroke');
+      painter.undo();
+      this.caseManager.updateAppearance('pigmentPaintData', painter.exportState());
+      this.addHistory('Undo pigmentation stroke');
+    });
+
+    // Clear
+    btnClear?.addEventListener('click', () => {
+      this.caseManager.pushState('Clear all pigmentation');
+      painter.clearAll();
+      this.caseManager.updateAppearance('pigmentPaintData', painter.exportState());
+      this.addHistory('Cleared all pigmentation');
+    });
+
+    // Color presets
+    document.querySelectorAll('#pigmentColorPresets .color-swatch').forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        const color = swatch.getAttribute('data-pigment-color');
+        if (color) {
+          painter.brushColor = color;
+          if (colorPicker) colorPicker.value = color;
+          // Highlight active swatch
+          document.querySelectorAll('#pigmentColorPresets .color-swatch').forEach(s => {
+            s.style.borderColor = 'transparent';
+          });
+          swatch.style.borderColor = '#fff';
+        }
+      });
+    });
+
+    // Custom color picker
+    colorPicker?.addEventListener('input', (e) => {
+      painter.brushColor = e.target.value;
+      // Deselect preset swatches
+      document.querySelectorAll('#pigmentColorPresets .color-swatch').forEach(s => {
+        s.style.borderColor = 'transparent';
+      });
+    });
+
+    // Highlight default swatch
+    const defaultSwatch = document.querySelector('#pigmentColorPresets .color-swatch[data-pigment-color="#6B3A2A"]');
+    if (defaultSwatch) defaultSwatch.style.borderColor = '#fff';
+
+    // Persist changes and push to global undo stack
+    painter.onChanged = () => {
+      this.caseManager.pushState('Pigmentation stroke');
+      this.caseManager.updateAppearance('pigmentPaintData', painter.exportState());
     };
   }
 
@@ -2017,6 +2211,10 @@ class UIController {
         // Restore manual lip painting
         if (data.appearance?.lipPaintData && this.lipPainter) {
           this.lipPainter.loadState(data.appearance.lipPaintData);
+        }
+        // Restore manual pigmentation painting
+        if (data.appearance?.pigmentPaintData && this.pigmentationPainter) {
+          this.pigmentationPainter.loadState(data.appearance.pigmentPaintData);
         }
         // Restore camera
         if (data.cameraState) {
@@ -2385,6 +2583,9 @@ class UIController {
     // Clear wrinkles
     if (this.wrinklePainter) this.wrinklePainter.clearAll();
 
+    // Clear pigmentation
+    if (this.pigmentationPainter) this.pigmentationPainter.clearAll();
+
     // Clear lip paint
     if (this.lipPainter) this.lipPainter.clearAll();
 
@@ -2523,6 +2724,10 @@ class UIController {
       // Restore manual lip painting
       if (data.appearance?.lipPaintData && this.lipPainter) {
         this.lipPainter.loadState(data.appearance.lipPaintData);
+      }
+      // Restore manual pigmentation painting
+      if (data.appearance?.pigmentPaintData && this.pigmentationPainter) {
+        this.pigmentationPainter.loadState(data.appearance.pigmentPaintData);
       }
       // Restore camera
       if (data.cameraState) {
@@ -2677,6 +2882,15 @@ class UIController {
           this.wrinklePainter.loadState(state.appearance.wrinklePaintData);
         } else {
           this.wrinklePainter.clearAll();
+        }
+      }
+
+      // Restore/clear pigmentation paint
+      if (this.pigmentationPainter) {
+        if (state.appearance.pigmentPaintData) {
+          this.pigmentationPainter.loadState(state.appearance.pigmentPaintData);
+        } else {
+          this.pigmentationPainter.clearAll();
         }
       }
 

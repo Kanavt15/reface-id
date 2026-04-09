@@ -92,6 +92,9 @@
       <button class="tool-btn" id="btnLipPaint" title="Paint Lip Color (click and drag on lips)">
         <i class="fas fa-pen"></i>
       </button>
+      <button class="tool-btn" id="btnPigmentPaint" title="Paint Pigmentation (dark spots, melasma)">
+        <i class="fas fa-tint"></i>
+      </button>
       <button class="tool-btn" id="btnDecals" title="Place Image Decals (tattoos, birthmarks, graphics)">
         <i class="fas fa-stamp"></i>
       </button>
@@ -1788,6 +1791,65 @@
                   </div>
                 </div>
               </div>
+              <!-- Pigmentation Painting Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-tint"></i>
+                  <span>Pigmentation / Dark Spots</span>
+                </div>
+                <div class="sub-group-body" id="pigmentPaintControls">
+                  <button class="btn-small" id="btnTogglePigmentPaint">
+                    <i class="fas fa-tint"></i> Enable Pigmentation Pen
+                  </button>
+                  <!-- Color presets -->
+                  <div style="margin-top:6px;">
+                    <label style="font-weight:600; margin-bottom:4px; display:block;">Pigment Color</label>
+                    <div id="pigmentColorPresets" style="display:flex; flex-wrap:wrap; gap:3px;">
+                      <button class="color-swatch" data-pigment-color="#6B3A2A" style="background:#6B3A2A; width:22px; height:22px; border:2px solid transparent; border-radius:3px; cursor:pointer;" title="Dark Brown"></button>
+                      <button class="color-swatch" data-pigment-color="#8B5E3C" style="background:#8B5E3C; width:22px; height:22px; border:2px solid transparent; border-radius:3px; cursor:pointer;" title="Medium Brown"></button>
+                      <button class="color-swatch" data-pigment-color="#4A2820" style="background:#4A2820; width:22px; height:22px; border:2px solid transparent; border-radius:3px; cursor:pointer;" title="Deep Brown"></button>
+                      <button class="color-swatch" data-pigment-color="#7A3B3B" style="background:#7A3B3B; width:22px; height:22px; border:2px solid transparent; border-radius:3px; cursor:pointer;" title="Reddish Brown"></button>
+                      <button class="color-swatch" data-pigment-color="#5C3A1E" style="background:#5C3A1E; width:22px; height:22px; border:2px solid transparent; border-radius:3px; cursor:pointer;" title="Warm Brown"></button>
+                      <button class="color-swatch" data-pigment-color="#D4A574" style="background:#D4A574; width:22px; height:22px; border:2px solid transparent; border-radius:3px; cursor:pointer;" title="Light (Vitiligo)"></button>
+                      <button class="color-swatch" data-pigment-color="#C4956A" style="background:#C4956A; width:22px; height:22px; border:2px solid transparent; border-radius:3px; cursor:pointer;" title="Pale Spot"></button>
+                      <button class="color-swatch" data-pigment-color="#3D2B1F" style="background:#3D2B1F; width:22px; height:22px; border:2px solid transparent; border-radius:3px; cursor:pointer;" title="Very Dark"></button>
+                    </div>
+                    <div style="margin-top:4px; display:flex; align-items:center; gap:6px;">
+                      <label style="font-size:11px;">Custom</label>
+                      <input type="color" id="pigmentColorPicker" value="#6B3A2A" style="width:28px; height:22px; padding:0; border:1px solid #555; cursor:pointer;" />
+                    </div>
+                  </div>
+                  <div class="slider-control">
+                    <label>Brush Size</label>
+                    <div class="slider-row">
+                      <span class="slider-label-left">Fine</span>
+                      <input type="range" min="3" max="60" value="12" id="pigmentBrushSize" />
+                      <span class="slider-label-right">Wide</span>
+                    </div>
+                    <div style="text-align:center;"><span class="slider-value" id="pigmentBrushSizeValue">12</span></div>
+                  </div>
+                  <div class="slider-control">
+                    <label>Brush Strength</label>
+                    <div class="slider-row">
+                      <span class="slider-label-left">Subtle</span>
+                      <input type="range" min="2" max="100" value="15" id="pigmentBrushStrength" />
+                      <span class="slider-label-right">Heavy</span>
+                    </div>
+                    <div style="text-align:center;"><span class="slider-value" id="pigmentBrushStrengthValue">15</span></div>
+                  </div>
+                  <div style="display:flex; gap:4px; margin-top:4px;">
+                    <button class="btn-small" id="btnPigmentErase" title="Toggle eraser mode">
+                      <i class="fas fa-eraser"></i> Eraser
+                    </button>
+                    <button class="btn-small" id="btnPigmentUndo" title="Undo last stroke">
+                      <i class="fas fa-undo"></i> Undo
+                    </button>
+                    <button class="btn-small" id="btnPigmentClear" title="Clear all pigmentation">
+                      <i class="fas fa-trash"></i> Clear
+                    </button>
+                  </div>
+                </div>
+              </div>
               <!-- Skin Surface Sub-group -->
               <div class="feature-sub-group">
                 <div class="sub-group-header">
@@ -2645,6 +2707,7 @@
   <script src="js/DecalSystem.js"></script>
   <script src="js/SkinTextureSystem.js"></script>
   <script src="js/WrinklePainter.js"></script>
+  <script src="js/PigmentationPainter.js"></script>
   <script src="js/LipPainter.js"></script>
   <script src="js/MarkPositionMapper.js"></script>
   <script src="js/SnapshotManager.js"></script>

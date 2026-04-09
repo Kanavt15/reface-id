@@ -49,6 +49,7 @@ class CaseManager {
         },
         ageRange: '25-35',
         sex: 'male',
+        pigmentPaintData: null,
       },
       skinMarks: [],
       decals: [],

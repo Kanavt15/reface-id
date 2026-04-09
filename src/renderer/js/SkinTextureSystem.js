@@ -43,6 +43,9 @@ class SkinTextureSystem {
 
     // Reference to WrinklePainter (set externally)
     this.wrinklePainter = null;
+
+    // Reference to PigmentationPainter (set externally)
+    this.pigmentationPainter = null;
   }
 
   // ─── PRNG ─────────────────────────────────────────────────────────────────
@@ -401,6 +404,22 @@ class SkinTextureSystem {
           const avg = (r + g + b) / 3;
           r += (avg-r)*da; g += (avg-g)*da; b += (avg-b)*da;
           r += ageFactor * 6; g += ageFactor * 2; b -= ageFactor * 5;
+        }
+
+        // ── Manual pigmentation painting (lerp blend) ──
+        if (this.pigmentationPainter) {
+          const pigMap = this.pigmentationPainter.getPigmentMap();
+          const colMap = this.pigmentationPainter.getColorMap();
+          if (pigMap) {
+            const intensity = pigMap[ni];
+            if (intensity > 0.001) {
+              const ci3 = ni * 3;
+              const pr = colMap[ci3], pg = colMap[ci3+1], pb = colMap[ci3+2];
+              r = r * (1 - intensity) + pr * intensity;
+              g = g * (1 - intensity) + pg * intensity;
+              b = b * (1 - intensity) + pb * intensity;
+            }
+          }
         }
 
         d[idx]   = r < 0 ? 0 : r > 255 ? 255 : (r|0);

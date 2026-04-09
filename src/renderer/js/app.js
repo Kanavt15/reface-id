@@ -39,6 +39,7 @@
   let decalSystem = null;
   let wrinklePainter = null;
   let lipPainter = null;
+  let pigmentationPainter = null;
 
   // Use OBJMorpher as the default morpher passed to UI
   // (falls back to FaceMorpher only if OBJ load fails)
@@ -165,6 +166,11 @@
       lipPainter = new LipPainter(sceneManager);
       console.log('[App] Lip Painter initialized');
 
+      // ── Initialize Pigmentation Painter ──
+      pigmentationPainter = new PigmentationPainter(sceneManager, skinTextureSystem);
+      skinTextureSystem.pigmentationPainter = pigmentationPainter;
+      console.log('[App] Pigmentation Painter initialized');
+
     } else {
       // ── OBJ failed — use procedural head ──
       console.warn('OBJ load failed, using procedural head');
@@ -187,6 +193,7 @@
     ui.skinTextureSystem = skinTextureSystem; // expose for skin texture UI
     ui.wrinklePainter = wrinklePainter;       // expose for wrinkle painting UI
     ui.lipPainter = lipPainter;               // expose for lip painting UI
+    ui.pigmentationPainter = pigmentationPainter; // expose for pigmentation painting UI
     console.log('[App] Initializing UIController...');
     ui.init();
     console.log('[App] UIController initialized successfully');
@@ -341,6 +348,16 @@
         if (btnLP) {
           btnLP.classList.remove('active');
           btnLP.innerHTML = '<i class="fas fa-pen"></i> Enable Lip Pen';
+        }
+      }
+      // Disable pigmentation painter if active (mutual exclusion)
+      if (pigmentationPainter && pigmentationPainter.enabled) {
+        pigmentationPainter.disable();
+        document.getElementById('btnPigmentPaint')?.classList.remove('active');
+        const btnPP = document.getElementById('btnTogglePigmentPaint');
+        if (btnPP) {
+          btnPP.classList.remove('active');
+          btnPP.innerHTML = '<i class="fas fa-tint"></i> Enable Pigmentation Pen';
         }
       }
       // Disable decal system if active (mutual exclusion)
