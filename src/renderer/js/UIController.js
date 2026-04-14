@@ -32,6 +32,7 @@ class UIController {
     this.bindWrinklePainterControls();
     this.bindLipPainterControls();
     this.bindPigmentationPainterControls();
+    this.bindTintControls();
     this.bindCaseControls();
     this.bindGroupCollapse();
     this.bindKeyboardShortcuts();
@@ -598,6 +599,17 @@ class UIController {
         s.classList.toggle('active', s.dataset.color === '#2c1b0e');
       });
 
+      // Reset eyebrow tint
+      this.hair.setEyebrowTintIntensity(0);
+      this.hair.setEyebrowTintColor('#8b2500');
+      const ebTintPicker = document.getElementById('eyebrowTintPicker');
+      if (ebTintPicker) ebTintPicker.value = '#8b2500';
+      const ebTintSlider = document.getElementById('eyebrowTintIntensity');
+      if (ebTintSlider) ebTintSlider.value = 0;
+      const ebTintValue = document.getElementById('eyebrowTintIntensityValue');
+      if (ebTintValue) ebTintValue.textContent = '0';
+      document.querySelectorAll('#eyebrowTintPresets .color-swatch').forEach(s => s.classList.remove('active'));
+
       this.caseManager.updateHairParams(this.hair.getParams());
       this.addHistory('Reset eyebrows');
     });
@@ -714,6 +726,17 @@ class UIController {
       document.querySelectorAll('#beardColorPresets .color-swatch').forEach(s => {
         s.classList.toggle('active', s.dataset.color === '#2c1b0e');
       });
+
+      // Reset beard tint
+      this.hair.setBeardTintIntensity(0);
+      this.hair.setBeardTintColor('#8b2500');
+      const beardTintPicker = document.getElementById('beardTintPicker');
+      if (beardTintPicker) beardTintPicker.value = '#8b2500';
+      const beardTintSlider = document.getElementById('beardTintIntensity');
+      if (beardTintSlider) beardTintSlider.value = 0;
+      const beardTintValue = document.getElementById('beardTintIntensityValue');
+      if (beardTintValue) beardTintValue.textContent = '0';
+      document.querySelectorAll('#beardTintPresets .color-swatch').forEach(s => s.classList.remove('active'));
 
       this.caseManager.updateHairParams(this.hair.getParams());
       this.addHistory('Reset beard');
@@ -2137,6 +2160,98 @@ class UIController {
     };
   }
 
+  // ─── Tint / Overlay Color Controls ──────────────────────────────────────
+
+  bindTintControls() {
+    // ── Helper: bind tint presets, picker, and intensity for a target ──
+    const bindTintGroup = (presetsId, pickerId, intensityId, intensityValueId, setTintColor, setTintIntensity) => {
+      // Tint preset swatches
+      document.querySelectorAll(`#${presetsId} .color-swatch`).forEach(swatch => {
+        swatch.addEventListener('click', () => {
+          this.caseManager.pushState('Changed tint color');
+          document.querySelectorAll(`#${presetsId} .color-swatch`).forEach(s => s.classList.remove('active'));
+          swatch.classList.add('active');
+
+          const color = swatch.dataset.color;
+          setTintColor(color);
+          const picker = document.getElementById(pickerId);
+          if (picker) picker.value = color;
+          this.caseManager.updateHairParams(this.hair.getParams());
+          this.addHistory('Changed tint color');
+        });
+      });
+
+      // Tint color picker
+      {
+        let _capturing = false;
+        const picker = document.getElementById(pickerId);
+        picker?.addEventListener('input', (e) => {
+          if (!_capturing) {
+            this.caseManager.beginAction('Changed tint color');
+            _capturing = true;
+          }
+          setTintColor(e.target.value);
+          document.querySelectorAll(`#${presetsId} .color-swatch`).forEach(s => s.classList.remove('active'));
+        });
+        picker?.addEventListener('change', () => {
+          this.caseManager.updateHairParams(this.hair.getParams());
+          this.caseManager.endAction();
+          _capturing = false;
+          this.addHistory('Changed tint color');
+        });
+      }
+
+      // Tint intensity slider
+      {
+        let _dragging = false;
+        const slider = document.getElementById(intensityId);
+        const valueDisplay = document.getElementById(intensityValueId);
+
+        slider?.addEventListener('mousedown', () => {
+          _dragging = true;
+          this.caseManager.beginAction('Changed tint intensity');
+          document.addEventListener('mouseup', onUp);
+        });
+
+        const onUp = () => {
+          if (_dragging) {
+            this.caseManager.updateHairParams(this.hair.getParams());
+            this.caseManager.endAction();
+            _dragging = false;
+            document.removeEventListener('mouseup', onUp);
+          }
+        };
+
+        slider?.addEventListener('input', (e) => {
+          const v = parseInt(e.target.value);
+          if (valueDisplay) valueDisplay.textContent = v;
+          setTintIntensity(v / 100);
+        });
+      }
+    };
+
+    // Hair tint controls
+    bindTintGroup(
+      'hairTintPresets', 'hairTintPicker', 'hairTintIntensity', 'hairTintIntensityValue',
+      (color) => this.hair.setHairTintColor(color),
+      (intensity) => this.hair.setHairTintIntensity(intensity)
+    );
+
+    // Beard tint controls
+    bindTintGroup(
+      'beardTintPresets', 'beardTintPicker', 'beardTintIntensity', 'beardTintIntensityValue',
+      (color) => this.hair.setBeardTintColor(color),
+      (intensity) => this.hair.setBeardTintIntensity(intensity)
+    );
+
+    // Eyebrow tint controls
+    bindTintGroup(
+      'eyebrowTintPresets', 'eyebrowTintPicker', 'eyebrowTintIntensity', 'eyebrowTintIntensityValue',
+      (color) => this.hair.setEyebrowTintColor(color),
+      (intensity) => this.hair.setEyebrowTintIntensity(intensity)
+    );
+  }
+
   // ─── Case Controls ───────────────────────────────────────────────────────
 
   bindCaseControls() {
@@ -2806,6 +2921,18 @@ class UIController {
           s.classList.toggle('active', s.dataset.color === state.hairParams.color);
         });
       }
+      // Restore hair tint
+      if (state.hairParams.hairTintColor) {
+        const tintPicker = document.getElementById('hairTintPicker');
+        if (tintPicker) tintPicker.value = state.hairParams.hairTintColor;
+      }
+      if (state.hairParams.hairTintIntensity !== undefined) {
+        const tintSlider = document.getElementById('hairTintIntensity');
+        const tintValue = document.getElementById('hairTintIntensityValue');
+        const v = Math.round(state.hairParams.hairTintIntensity * 100);
+        if (tintSlider) tintSlider.value = v;
+        if (tintValue) tintValue.textContent = v;
+      }
       // Update beard dropdown and params
       if (state.hairParams.beard) {
         const beard = state.hairParams.beard;
@@ -2836,6 +2963,18 @@ class UIController {
             s.classList.toggle('active', s.dataset.color === beard.color);
           });
         }
+        // Restore beard tint
+        if (beard.tintColor) {
+          const tintPicker = document.getElementById('beardTintPicker');
+          if (tintPicker) tintPicker.value = beard.tintColor;
+        }
+        if (beard.tintIntensity !== undefined) {
+          const tintSlider = document.getElementById('beardTintIntensity');
+          const tintValue = document.getElementById('beardTintIntensityValue');
+          const v = Math.round(beard.tintIntensity * 100);
+          if (tintSlider) tintSlider.value = v;
+          if (tintValue) tintValue.textContent = v;
+        }
       }
       // Restore eyebrow params
       if (state.hairParams.eyebrows) {
@@ -2860,6 +2999,18 @@ class UIController {
           document.querySelectorAll('#eyebrowColorPresets .color-swatch').forEach(s => {
             s.classList.toggle('active', s.dataset.color === eb.color);
           });
+        }
+        // Restore eyebrow tint
+        if (eb.tintColor) {
+          const tintPicker = document.getElementById('eyebrowTintPicker');
+          if (tintPicker) tintPicker.value = eb.tintColor;
+        }
+        if (eb.tintIntensity !== undefined) {
+          const tintSlider = document.getElementById('eyebrowTintIntensity');
+          const tintValue = document.getElementById('eyebrowTintIntensityValue');
+          const v = Math.round(eb.tintIntensity * 100);
+          if (tintSlider) tintSlider.value = v;
+          if (tintValue) tintValue.textContent = v;
         }
       }
     }

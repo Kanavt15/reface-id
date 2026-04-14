@@ -1124,7 +1124,7 @@
             </div>
             <div class="control-group-body">
               <div class="color-picker-row">
-                <label>Color</label>
+                <label>Base Color</label>
                 <div class="color-presets" id="hairColorPresets">
                   <button class="color-swatch active" data-color="#0a0a0a" style="background: #0a0a0a" title="Black"></button>
                   <button class="color-swatch" data-color="#2c1b0e" style="background: #2c1b0e" title="Dark Brown"></button>
@@ -1137,6 +1137,37 @@
                   <button class="color-swatch" data-color="#f5f5f5" style="background: #f5f5f5" title="White"></button>
                 </div>
                 <input type="color" id="hairColorPicker" value="#2c1b0e" class="color-input" />
+              </div>
+              <!-- Hair Tint / Overlay Color -->
+              <div class="feature-sub-group" style="margin-top: 8px;">
+                <div class="sub-group-header">
+                  <i class="fas fa-tint"></i>
+                  <span>Color Tint / Overlay</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="color-picker-row">
+                    <label>Tint Color</label>
+                    <div class="color-presets" id="hairTintPresets">
+                      <button class="color-swatch" data-color="#8b2500" style="background: #8b2500" title="Auburn"></button>
+                      <button class="color-swatch" data-color="#cc3333" style="background: #cc3333" title="Red"></button>
+                      <button class="color-swatch" data-color="#4a0080" style="background: #4a0080" title="Purple"></button>
+                      <button class="color-swatch" data-color="#003366" style="background: #003366" title="Blue-Black"></button>
+                      <button class="color-swatch" data-color="#d4a23f" style="background: #d4a23f" title="Golden"></button>
+                      <button class="color-swatch" data-color="#c4956a" style="background: #c4956a" title="Caramel"></button>
+                      <button class="color-swatch" data-color="#e8c87a" style="background: #e8c87a" title="Honey"></button>
+                      <button class="color-swatch" data-color="#8b0000" style="background: #8b0000" title="Burgundy"></button>
+                      <button class="color-swatch" data-color="#c0c0c0" style="background: #c0c0c0" title="Silver"></button>
+                    </div>
+                    <input type="color" id="hairTintPicker" value="#8b2500" class="color-input" />
+                  </div>
+                  <div class="slider-control" data-param="hairTintIntensity">
+                    <label>Tint Intensity</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="0" id="hairTintIntensity" class="hair-tint-slider" />
+                      <span class="slider-value" id="hairTintIntensityValue">0</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1183,6 +1214,38 @@
                       <button class="color-swatch" data-color="#c4c4c4" style="background: #c4c4c4" title="Grey"></button>
                     </div>
                     <input type="color" id="beardColorPicker" value="#2c1b0e" class="color-input" />
+                  </div>
+
+                  <!-- Beard Tint / Overlay Color -->
+                  <div class="feature-sub-group" style="margin-top: 8px;">
+                    <div class="sub-group-header">
+                      <i class="fas fa-tint"></i>
+                      <span>Color Tint / Overlay</span>
+                    </div>
+                    <div class="sub-group-body">
+                      <div class="color-picker-row">
+                        <label>Tint Color</label>
+                        <div class="color-presets" id="beardTintPresets">
+                          <button class="color-swatch" data-color="#8b2500" style="background: #8b2500" title="Auburn"></button>
+                          <button class="color-swatch" data-color="#cc3333" style="background: #cc3333" title="Red"></button>
+                          <button class="color-swatch" data-color="#4a0080" style="background: #4a0080" title="Purple"></button>
+                          <button class="color-swatch" data-color="#003366" style="background: #003366" title="Blue-Black"></button>
+                          <button class="color-swatch" data-color="#d4a23f" style="background: #d4a23f" title="Golden"></button>
+                          <button class="color-swatch" data-color="#c4956a" style="background: #c4956a" title="Caramel"></button>
+                          <button class="color-swatch" data-color="#e8c87a" style="background: #e8c87a" title="Honey"></button>
+                          <button class="color-swatch" data-color="#8b0000" style="background: #8b0000" title="Burgundy"></button>
+                          <button class="color-swatch" data-color="#c0c0c0" style="background: #c0c0c0" title="Silver"></button>
+                        </div>
+                        <input type="color" id="beardTintPicker" value="#8b2500" class="color-input" />
+                      </div>
+                      <div class="slider-control" data-param="beardTintIntensity">
+                        <label>Tint Intensity</label>
+                        <div class="slider-row">
+                          <input type="range" min="0" max="100" value="0" id="beardTintIntensity" class="beard-tint-slider" />
+                          <span class="slider-value" id="beardTintIntensityValue">0</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1286,6 +1349,38 @@
                     <div class="slider-row">
                       <input type="range" min="0" max="100" value="85" class="eyebrow-slider" />
                       <span class="slider-value">85</span>
+                    </div>
+                  </div>
+
+                  <!-- Eyebrow Tint / Overlay Color -->
+                  <div class="feature-sub-group" style="margin-top: 8px;">
+                    <div class="sub-group-header">
+                      <i class="fas fa-tint"></i>
+                      <span>Color Tint / Overlay</span>
+                    </div>
+                    <div class="sub-group-body">
+                      <div class="color-picker-row">
+                        <label>Tint Color</label>
+                        <div class="color-presets" id="eyebrowTintPresets">
+                          <button class="color-swatch" data-color="#8b2500" style="background: #8b2500" title="Auburn"></button>
+                          <button class="color-swatch" data-color="#cc3333" style="background: #cc3333" title="Red"></button>
+                          <button class="color-swatch" data-color="#4a0080" style="background: #4a0080" title="Purple"></button>
+                          <button class="color-swatch" data-color="#003366" style="background: #003366" title="Blue-Black"></button>
+                          <button class="color-swatch" data-color="#d4a23f" style="background: #d4a23f" title="Golden"></button>
+                          <button class="color-swatch" data-color="#c4956a" style="background: #c4956a" title="Caramel"></button>
+                          <button class="color-swatch" data-color="#e8c87a" style="background: #e8c87a" title="Honey"></button>
+                          <button class="color-swatch" data-color="#8b0000" style="background: #8b0000" title="Burgundy"></button>
+                          <button class="color-swatch" data-color="#c0c0c0" style="background: #c0c0c0" title="Silver"></button>
+                        </div>
+                        <input type="color" id="eyebrowTintPicker" value="#8b2500" class="color-input" />
+                      </div>
+                      <div class="slider-control" data-param="eyebrowTintIntensity">
+                        <label>Tint Intensity</label>
+                        <div class="slider-row">
+                          <input type="range" min="0" max="100" value="0" id="eyebrowTintIntensity" class="eyebrow-tint-slider" />
+                          <span class="slider-value" id="eyebrowTintIntensityValue">0</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -24,17 +24,23 @@ class HairSystem {
     // State
     this.currentStyle = 'hair1';
     this.hairColor = '#2c1b0e';
+    this.hairTintColor = '#8b2500';  // default tint color (auburn)
+    this.hairTintIntensity = 0;      // 0 = no tint, 1 = full tint
     this.params = { length: 50, density: 50, volume: 50, curl: 0,
                      posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 };
     this.beardStyle = 'none';
     this.beardParams = { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 };
     this.beardColor = '#2c1b0e';
+    this.beardTintColor = '#8b2500';  // default tint color
+    this.beardTintIntensity = 0;      // 0 = no tint, 1 = full tint
     this.eyebrowParams = { thickness: 100, arch: 0, spacing: 42,
                            density: 70, posX: 51, posY: 72, posZ: 49,
                            rotation: 100, scale: 65,
                            straighten: 51, tiltX: 69,
                            length: 50, opacity: 85 };
     this.eyebrowColor = '#2c1b0e';
+    this.eyebrowTintColor = '#8b2500'; // default tint color
+    this.eyebrowTintIntensity = 0;     // 0 = no tint, 1 = full tint
 
     // Head metrics (updated on morph)
     this.modelCenter = new THREE.Vector3();
@@ -221,8 +227,22 @@ class HairSystem {
 
   setColor(color) {
     this.hairColor = color;
-    this._hairMat.color.set(color);
-    // Material is shared, color update applies to all meshes automatically
+    this._applyHairTint();
+  }
+
+  setHairTintColor(color) {
+    this.hairTintColor = color;
+    this._applyHairTint();
+  }
+
+  setHairTintIntensity(intensity) {
+    this.hairTintIntensity = Math.max(0, Math.min(1, intensity));
+    this._applyHairTint();
+  }
+
+  _applyHairTint() {
+    const blended = this._blendColors(this.hairColor, this.hairTintColor, this.hairTintIntensity);
+    this._hairMat.color.set(blended);
   }
 
   setParam(param, value) {
@@ -397,8 +417,22 @@ class HairSystem {
 
   setEyebrowColor(color) {
     this.eyebrowColor = color;
-    this._eyebrowMat.color.set(color);
-    // Material is shared, color update applies to all meshes automatically
+    this._applyEyebrowTint();
+  }
+
+  setEyebrowTintColor(color) {
+    this.eyebrowTintColor = color;
+    this._applyEyebrowTint();
+  }
+
+  setEyebrowTintIntensity(intensity) {
+    this.eyebrowTintIntensity = Math.max(0, Math.min(1, intensity));
+    this._applyEyebrowTint();
+  }
+
+  _applyEyebrowTint() {
+    const blended = this._blendColors(this.eyebrowColor, this.eyebrowTintColor, this.eyebrowTintIntensity);
+    this._eyebrowMat.color.set(blended);
   }
 
   setEyebrowParam(param, value) {
@@ -608,8 +642,22 @@ class HairSystem {
 
   setBeardColor(color) {
     this.beardColor = color;
-    this._beardMat.color.set(color);
-    // Material is shared, color update applies to all meshes automatically
+    this._applyBeardTint();
+  }
+
+  setBeardTintColor(color) {
+    this.beardTintColor = color;
+    this._applyBeardTint();
+  }
+
+  setBeardTintIntensity(intensity) {
+    this.beardTintIntensity = Math.max(0, Math.min(1, intensity));
+    this._applyBeardTint();
+  }
+
+  _applyBeardTint() {
+    const blended = this._blendColors(this.beardColor, this.beardTintColor, this.beardTintIntensity);
+    this._beardMat.color.set(blended);
   }
 
   setBeardParam(param, value) {
@@ -875,6 +923,33 @@ class HairSystem {
 
   updateColor() { this.setColor(this.hairColor); }
 
+  /**
+   * Blend two hex colors by lerping RGB channels.
+   * @param {string} baseHex - Base color (#rrggbb)
+   * @param {string} tintHex - Tint/overlay color (#rrggbb)
+   * @param {number} t - Blend factor (0 = all base, 1 = all tint)
+   * @returns {string} Blended hex color
+   */
+  _blendColors(baseHex, tintHex, t) {
+    if (t <= 0) return baseHex;
+    if (t >= 1) return tintHex;
+    const base = this._hexToRgbObj(baseHex);
+    const tint = this._hexToRgbObj(tintHex);
+    const r = Math.round(base.r * (1 - t) + tint.r * t);
+    const g = Math.round(base.g * (1 - t) + tint.g * t);
+    const b = Math.round(base.b * (1 - t) + tint.b * t);
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  }
+
+  _hexToRgbObj(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16),
+    } : { r: 44, g: 27, b: 14 }; // fallback to dark brown
+  }
+
   _clearGroup(group) {
     while (group.children.length) {
       const c = group.children[0];
@@ -967,13 +1042,16 @@ class HairSystem {
   getParams() {
     return {
       style: this.currentStyle, color: this.hairColor,
+      hairTintColor: this.hairTintColor, hairTintIntensity: this.hairTintIntensity,
       length: this.params.length / 100, density: this.params.density / 100,
       volume: this.params.volume / 100, curl: this.params.curl / 100,
       posX: this.params.posx / 100, posY: this.params.posy / 100,
       posZ: this.params.posz / 100, rotY: this.params.roty / 100,
       hairScale: this.params.scale / 100,
-      beard: { style: this.beardStyle, ...this.beardParams, color: this.beardColor },
-      eyebrows: { ...this.eyebrowParams, color: this.eyebrowColor },
+      beard: { style: this.beardStyle, ...this.beardParams, color: this.beardColor,
+               tintColor: this.beardTintColor, tintIntensity: this.beardTintIntensity },
+      eyebrows: { ...this.eyebrowParams, color: this.eyebrowColor,
+                  tintColor: this.eyebrowTintColor, tintIntensity: this.eyebrowTintIntensity },
     };
   }
 
@@ -1073,7 +1151,10 @@ class HairSystem {
   loadState(state) {
     if (!state) return;
     if (state.style) this.currentStyle = state.style;
-    if (state.color) { this.hairColor = state.color; this._hairMat.color.set(state.color); }
+    if (state.color) this.hairColor = state.color;
+    if (state.hairTintColor) this.hairTintColor = state.hairTintColor;
+    if (state.hairTintIntensity !== undefined) this.hairTintIntensity = state.hairTintIntensity;
+    this._applyHairTint();
     if (state.length !== undefined) this.params.length = Math.round(state.length * 100);
     if (state.density !== undefined) this.params.density = Math.round(state.density * 100);
     if (state.volume !== undefined) this.params.volume = Math.round(state.volume * 100);
@@ -1090,10 +1171,10 @@ class HairSystem {
       for (const key of ['scale', 'posX', 'posY', 'posZ', 'rotY', 'rotZ']) {
         if (state.beard[key] !== undefined) this.beardParams[key] = state.beard[key];
       }
-      if (state.beard.color) {
-        this.beardColor = state.beard.color;
-        this._beardMat.color.set(state.beard.color);
-      }
+      if (state.beard.color) this.beardColor = state.beard.color;
+      if (state.beard.tintColor) this.beardTintColor = state.beard.tintColor;
+      if (state.beard.tintIntensity !== undefined) this.beardTintIntensity = state.beard.tintIntensity;
+      this._applyBeardTint();
     } else if (state.facialHair) {
       // Legacy support - just ignore old facial hair data
       console.log('Legacy facial hair data ignored - please use beard system');
@@ -1104,10 +1185,10 @@ class HairSystem {
       for (const key of ['thickness', 'arch', 'spacing', 'density', 'posX', 'posY', 'posZ', 'rotation', 'scale', 'straighten', 'tiltX', 'length', 'opacity']) {
         if (eb[key] !== undefined) this.eyebrowParams[key] = eb[key];
       }
-      if (eb.color) {
-        this.eyebrowColor = eb.color;
-        this._eyebrowMat.color.set(eb.color);
-      }
+      if (eb.color) this.eyebrowColor = eb.color;
+      if (eb.tintColor) this.eyebrowTintColor = eb.tintColor;
+      if (eb.tintIntensity !== undefined) this.eyebrowTintIntensity = eb.tintIntensity;
+      this._applyEyebrowTint();
     }
     this.generate();
     this.generateBeard();
