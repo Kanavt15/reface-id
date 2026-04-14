@@ -1637,6 +1637,107 @@
             </div>
           </div>
 
+          <!-- Manual Tint Painting -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-paint-brush"></i>
+              <span>Manual Tint Painting</span>
+            </div>
+            <div class="control-group-body collapsed">
+              <!-- Target & Toggle Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-bullseye"></i>
+                  <span>Target & Tool</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="select-control">
+                    <label>Paint Target</label>
+                    <select id="hairTintPaintTarget" class="custom-select">
+                      <option value="hair" selected>Hair</option>
+                      <option value="beard">Beard</option>
+                      <option value="eyebrow">Eyebrows</option>
+                    </select>
+                  </div>
+                  <button class="btn-small" id="btnToggleHairTintPaint">
+                    <i class="fas fa-paint-brush"></i> Enable Tint Brush
+                  </button>
+                </div>
+              </div>
+              <!-- Brush Color Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-palette"></i>
+                  <span>Brush Color</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="color-picker-row">
+                    <label>Tint Color</label>
+                    <div class="color-presets" id="hairTintBrushPresets">
+                      <button class="color-swatch active" data-color="#8b2500" style="background: #8b2500" title="Auburn"></button>
+                      <button class="color-swatch" data-color="#cc3333" style="background: #cc3333" title="Red"></button>
+                      <button class="color-swatch" data-color="#4a0080" style="background: #4a0080" title="Purple"></button>
+                      <button class="color-swatch" data-color="#003366" style="background: #003366" title="Blue-Black"></button>
+                      <button class="color-swatch" data-color="#d4a23f" style="background: #d4a23f" title="Golden"></button>
+                      <button class="color-swatch" data-color="#c4956a" style="background: #c4956a" title="Caramel"></button>
+                      <button class="color-swatch" data-color="#e8c87a" style="background: #e8c87a" title="Honey"></button>
+                      <button class="color-swatch" data-color="#8b0000" style="background: #8b0000" title="Burgundy"></button>
+                      <button class="color-swatch" data-color="#c0c0c0" style="background: #c0c0c0" title="Silver"></button>
+                      <button class="color-swatch" data-color="#f5f5f5" style="background: #f5f5f5" title="White/Bleach"></button>
+                    </div>
+                    <input type="color" id="hairTintBrushPicker" value="#8b2500" class="color-input" />
+                  </div>
+                </div>
+              </div>
+              <!-- Brush Settings Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-sliders-h"></i>
+                  <span>Brush Settings</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control">
+                    <label>Brush Size</label>
+                    <div class="slider-row">
+                      <input type="range" min="1" max="100" value="30" id="hairTintBrushSize" />
+                    </div>
+                    <div style="text-align:center;"><span class="slider-value" id="hairTintBrushSizeValue">30</span></div>
+                  </div>
+                  <div class="slider-control">
+                    <label>Brush Strength</label>
+                    <div class="slider-row">
+                      <input type="range" min="2" max="100" value="25" id="hairTintBrushStrength" />
+                    </div>
+                    <div style="text-align:center;"><span class="slider-value" id="hairTintBrushStrengthValue">25</span></div>
+                  </div>
+                </div>
+              </div>
+              <!-- Actions Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-tools"></i>
+                  <span>Actions</span>
+                </div>
+                <div class="sub-group-body">
+                  <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                    <button class="btn-small" id="btnHairTintErase" title="Toggle eraser mode">
+                      <i class="fas fa-eraser"></i> Eraser
+                    </button>
+                    <button class="btn-small" id="btnHairTintUndo" title="Undo last stroke">
+                      <i class="fas fa-undo"></i> Undo
+                    </button>
+                    <button class="btn-small" id="btnHairTintClearTarget" title="Clear current target">
+                      <i class="fas fa-broom"></i> Clear Target
+                    </button>
+                    <button class="btn-small" id="btnHairTintClearAll" title="Clear all tint paint">
+                      <i class="fas fa-trash-alt"></i> Clear All
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- TODO: Re-enable render feature when hair transform pipeline is fixed -->
           <div class="panel-actions" style="flex-direction: column; gap: 8px; display: none;" id="renderSection">
             <div style="display: flex; gap: 8px; width: 100%;">
@@ -2804,6 +2905,7 @@
   <script src="js/WrinklePainter.js"></script>
   <script src="js/PigmentationPainter.js"></script>
   <script src="js/LipPainter.js"></script>
+  <script src="js/HairTintPainter.js"></script>
   <script src="js/MarkPositionMapper.js"></script>
   <script src="js/SnapshotManager.js"></script>
   <script src="js/UIController.js"></script>

@@ -243,6 +243,10 @@ class HairSystem {
   _applyHairTint() {
     const blended = this._blendColors(this.hairColor, this.hairTintColor, this.hairTintIntensity);
     this._hairMat.color.set(blended);
+    // Refresh manual tint painter vertex colors if it has painted data
+    if (this.hairTintPainter && this.hairTintPainter._hasAnyTintData('hair')) {
+      this.hairTintPainter.refreshVertexColors('hair');
+    }
   }
 
   setParam(param, value) {
@@ -256,6 +260,8 @@ class HairSystem {
 
   generate() {
     console.log('[HairSystem] generate() called for style:', this.currentStyle);
+    // Notify tint painter to clean up before clearing old meshes
+    if (this.hairTintPainter) this.hairTintPainter.onModelChanged('hair');
     this._clearGroup(this.hairGroup);
     this._hairContainer = null;
 
@@ -433,6 +439,9 @@ class HairSystem {
   _applyEyebrowTint() {
     const blended = this._blendColors(this.eyebrowColor, this.eyebrowTintColor, this.eyebrowTintIntensity);
     this._eyebrowMat.color.set(blended);
+    if (this.hairTintPainter && this.hairTintPainter._hasAnyTintData('eyebrow')) {
+      this.hairTintPainter.refreshVertexColors('eyebrow');
+    }
   }
 
   setEyebrowParam(param, value) {
@@ -442,6 +451,7 @@ class HairSystem {
 
   generateEyebrows() {
     console.log('[HairSystem] generateEyebrows() called');
+    if (this.hairTintPainter) this.hairTintPainter.onModelChanged('eyebrow');
     this._clearGroup(this._eyebrowGroup);
     this._eyebrowContainer = null;
 
@@ -658,6 +668,9 @@ class HairSystem {
   _applyBeardTint() {
     const blended = this._blendColors(this.beardColor, this.beardTintColor, this.beardTintIntensity);
     this._beardMat.color.set(blended);
+    if (this.hairTintPainter && this.hairTintPainter._hasAnyTintData('beard')) {
+      this.hairTintPainter.refreshVertexColors('beard');
+    }
   }
 
   setBeardParam(param, value) {
@@ -683,6 +696,7 @@ class HairSystem {
   }
 
   generateBeard() {
+    if (this.hairTintPainter) this.hairTintPainter.onModelChanged('beard');
     this._clearGroup(this._beardGroup);
     this._beardContainer = null;
 

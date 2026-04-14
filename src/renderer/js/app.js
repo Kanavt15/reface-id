@@ -40,6 +40,7 @@
   let wrinklePainter = null;
   let lipPainter = null;
   let pigmentationPainter = null;
+  let hairTintPainter = null;
 
   // Use OBJMorpher as the default morpher passed to UI
   // (falls back to FaceMorpher only if OBJ load fails)
@@ -171,6 +172,11 @@
       skinTextureSystem.pigmentationPainter = pigmentationPainter;
       console.log('[App] Pigmentation Painter initialized');
 
+      // ── Initialize Hair Tint Painter ──
+      hairTintPainter = new HairTintPainter(sceneManager, hairSystem);
+      hairSystem.hairTintPainter = hairTintPainter;
+      console.log('[App] Hair Tint Painter initialized');
+
     } else {
       // ── OBJ failed — use procedural head ──
       console.warn('OBJ load failed, using procedural head');
@@ -194,6 +200,7 @@
     ui.wrinklePainter = wrinklePainter;       // expose for wrinkle painting UI
     ui.lipPainter = lipPainter;               // expose for lip painting UI
     ui.pigmentationPainter = pigmentationPainter; // expose for pigmentation painting UI
+    ui.hairTintPainter = hairTintPainter;           // expose for manual hair tint painting UI
     console.log('[App] Initializing UIController...');
     ui.init();
     console.log('[App] UIController initialized successfully');
@@ -368,6 +375,15 @@
         if (btnDC) {
           btnDC.classList.remove('active');
           btnDC.innerHTML = '<i class="fas fa-crosshairs"></i> Place on Face';
+        }
+      }
+      // Disable hair tint painter if active (mutual exclusion)
+      if (hairTintPainter && hairTintPainter.enabled) {
+        hairTintPainter.disable();
+        const btnHTP = document.getElementById('btnToggleHairTintPaint');
+        if (btnHTP) {
+          btnHTP.classList.remove('active');
+          btnHTP.innerHTML = '<i class="fas fa-paint-brush"></i> Enable Tint Brush';
         }
       }
       const active = editor.toggle();

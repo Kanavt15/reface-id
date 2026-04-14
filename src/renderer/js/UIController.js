@@ -33,6 +33,7 @@ class UIController {
     this.bindLipPainterControls();
     this.bindPigmentationPainterControls();
     this.bindTintControls();
+    this.bindHairTintPainterControls();
     this.bindCaseControls();
     this.bindGroupCollapse();
     this.bindKeyboardShortcuts();
@@ -1355,6 +1356,14 @@ class UIController {
           btnDC.innerHTML = '<i class="fas fa-crosshairs"></i> Place on Face';
         }
       }
+      if (this.hairTintPainter && this.hairTintPainter.enabled) {
+        this.hairTintPainter.disable();
+        const btnHTP = document.getElementById('btnToggleHairTintPaint');
+        if (btnHTP) {
+          btnHTP.classList.remove('active');
+          btnHTP.innerHTML = '<i class="fas fa-paint-brush"></i> Enable Tint Brush';
+        }
+      }
 
       const active = skinMarks.toggle();
       btnToggle?.classList.toggle('active', active);
@@ -1600,6 +1609,14 @@ class UIController {
         if (btnPP) {
           btnPP.classList.remove('active');
           btnPP.innerHTML = '<i class="fas fa-tint"></i> Enable Pigmentation Pen';
+        }
+      }
+      if (this.hairTintPainter && this.hairTintPainter.enabled) {
+        this.hairTintPainter.disable();
+        const btnHTP = document.getElementById('btnToggleHairTintPaint');
+        if (btnHTP) {
+          btnHTP.classList.remove('active');
+          btnHTP.innerHTML = '<i class="fas fa-paint-brush"></i> Enable Tint Brush';
         }
       }
 
@@ -1859,6 +1876,14 @@ class UIController {
           btnPP.innerHTML = '<i class="fas fa-tint"></i> Enable Pigmentation Pen';
         }
       }
+      if (this.hairTintPainter && this.hairTintPainter.enabled) {
+        this.hairTintPainter.disable();
+        const btnHTP = document.getElementById('btnToggleHairTintPaint');
+        if (btnHTP) {
+          btnHTP.classList.remove('active');
+          btnHTP.innerHTML = '<i class="fas fa-paint-brush"></i> Enable Tint Brush';
+        }
+      }
 
       const active = painter.toggle();
       btnToolbar?.classList.toggle('active', active);
@@ -1961,6 +1986,14 @@ class UIController {
         if (btnPP) {
           btnPP.classList.remove('active');
           btnPP.innerHTML = '<i class="fas fa-tint"></i> Enable Pigmentation Pen';
+        }
+      }
+      if (this.hairTintPainter && this.hairTintPainter.enabled) {
+        this.hairTintPainter.disable();
+        const btnHTP = document.getElementById('btnToggleHairTintPaint');
+        if (btnHTP) {
+          btnHTP.classList.remove('active');
+          btnHTP.innerHTML = '<i class="fas fa-paint-brush"></i> Enable Tint Brush';
         }
       }
 
@@ -2071,6 +2104,14 @@ class UIController {
         if (btnDC) {
           btnDC.classList.remove('active');
           btnDC.innerHTML = '<i class="fas fa-crosshairs"></i> Place on Face';
+        }
+      }
+      if (this.hairTintPainter && this.hairTintPainter.enabled) {
+        this.hairTintPainter.disable();
+        const btnHTP = document.getElementById('btnToggleHairTintPaint');
+        if (btnHTP) {
+          btnHTP.classList.remove('active');
+          btnHTP.innerHTML = '<i class="fas fa-paint-brush"></i> Enable Tint Brush';
         }
       }
 
@@ -2250,6 +2291,142 @@ class UIController {
       (color) => this.hair.setEyebrowTintColor(color),
       (intensity) => this.hair.setEyebrowTintIntensity(intensity)
     );
+  }
+
+  // ─── Manual Hair Tint Painter Controls ──────────────────────────────────
+
+  bindHairTintPainterControls() {
+    const painter = this.hairTintPainter;
+    if (!painter) return;
+
+    const btnToggle       = document.getElementById('btnToggleHairTintPaint');
+    const targetSelect    = document.getElementById('hairTintPaintTarget');
+    const sizeSlider      = document.getElementById('hairTintBrushSize');
+    const sizeValue       = document.getElementById('hairTintBrushSizeValue');
+    const strengthSlider  = document.getElementById('hairTintBrushStrength');
+    const strengthValue   = document.getElementById('hairTintBrushStrengthValue');
+    const colorPicker     = document.getElementById('hairTintBrushPicker');
+    const btnErase        = document.getElementById('btnHairTintErase');
+    const btnUndo         = document.getElementById('btnHairTintUndo');
+    const btnClearTarget  = document.getElementById('btnHairTintClearTarget');
+    const btnClearAll     = document.getElementById('btnHairTintClearAll');
+
+    // ── Disable other painters (mutual exclusion) ──
+    const disableOtherPainters = () => {
+      if (this.facePointEditor && this.facePointEditor.enabled) {
+        this.facePointEditor.disable();
+        document.getElementById('btnEditPoints')?.classList.remove('active');
+        const btn = document.getElementById('btnTogglePointEdit');
+        if (btn) { btn.classList.remove('active'); btn.innerHTML = '<i class="fas fa-hand-pointer"></i> Enable Point Editing'; }
+      }
+      if (this.skinMarkSystem && this.skinMarkSystem.enabled) {
+        this.skinMarkSystem.disable();
+        document.getElementById('btnSkinMarks')?.classList.remove('active');
+        const btn = document.getElementById('btnToggleSkinMarks');
+        if (btn) { btn.classList.remove('active'); btn.innerHTML = '<i class="fas fa-crosshairs"></i> Enable Mark Placement'; }
+      }
+      if (this.wrinklePainter && this.wrinklePainter.enabled) {
+        this.wrinklePainter.disable();
+        document.getElementById('btnWrinklePaint')?.classList.remove('active');
+        const btn = document.getElementById('btnToggleWrinklePaint');
+        if (btn) { btn.classList.remove('active'); btn.innerHTML = '<i class="fas fa-paint-brush"></i> Enable Wrinkle Painting'; }
+      }
+      if (this.lipPainter && this.lipPainter.enabled) {
+        this.lipPainter.disable();
+        document.getElementById('btnLipPaint')?.classList.remove('active');
+        const btn = document.getElementById('btnToggleLipPaint');
+        if (btn) { btn.classList.remove('active'); btn.innerHTML = '<i class="fas fa-pen"></i> Enable Lip Pen'; }
+      }
+      if (this.pigmentationPainter && this.pigmentationPainter.enabled) {
+        this.pigmentationPainter.disable();
+        document.getElementById('btnPigmentPaint')?.classList.remove('active');
+        const btn = document.getElementById('btnTogglePigmentPaint');
+        if (btn) { btn.classList.remove('active'); btn.innerHTML = '<i class="fas fa-tint"></i> Enable Pigmentation Pen'; }
+      }
+      if (this.decalSystem && this.decalSystem.enabled) {
+        this.decalSystem.disable();
+        document.getElementById('btnDecals')?.classList.remove('active');
+        const btn = document.getElementById('btnToggleDecalPlace');
+        if (btn) { btn.classList.remove('active'); btn.innerHTML = '<i class="fas fa-crosshairs"></i> Place on Face'; }
+      }
+    };
+
+    // ── Toggle painter ──
+    const togglePainter = () => {
+      disableOtherPainters();
+      const active = painter.toggle();
+      if (btnToggle) {
+        btnToggle.classList.toggle('active', active);
+        btnToggle.innerHTML = active
+          ? '<i class="fas fa-times"></i> Disable Tint Brush'
+          : '<i class="fas fa-paint-brush"></i> Enable Tint Brush';
+      }
+      this.addHistory(active ? 'Hair tint brush enabled' : 'Hair tint brush disabled');
+    };
+
+    btnToggle?.addEventListener('click', togglePainter);
+
+    // ── Target selector ──
+    targetSelect?.addEventListener('change', (e) => {
+      painter.setTarget(e.target.value);
+      this.addHistory(`Tint brush target: ${e.target.value}`);
+    });
+
+    // ── Brush size ──
+    sizeSlider?.addEventListener('input', (e) => {
+      const v = parseInt(e.target.value);
+      // Map slider 1-100 to world-space radius 0.01 – 0.25
+      painter.brushRadius = 0.01 + (v / 100) * 0.24;
+      if (sizeValue) sizeValue.textContent = v;
+    });
+
+    // ── Brush strength ──
+    strengthSlider?.addEventListener('input', (e) => {
+      const v = parseInt(e.target.value);
+      painter.brushStrength = v / 100;
+      if (strengthValue) strengthValue.textContent = v;
+    });
+
+    // ── Brush color presets ──
+    document.querySelectorAll('#hairTintBrushPresets .color-swatch').forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        const color = swatch.dataset.color;
+        painter.brushColor = color;
+        if (colorPicker) colorPicker.value = color;
+        document.querySelectorAll('#hairTintBrushPresets .color-swatch').forEach(s => s.classList.remove('active'));
+        swatch.classList.add('active');
+      });
+    });
+
+    // ── Brush color picker ──
+    colorPicker?.addEventListener('input', (e) => {
+      painter.brushColor = e.target.value;
+      document.querySelectorAll('#hairTintBrushPresets .color-swatch').forEach(s => s.classList.remove('active'));
+    });
+
+    // ── Eraser toggle ──
+    btnErase?.addEventListener('click', () => {
+      painter.eraseMode = !painter.eraseMode;
+      btnErase.classList.toggle('active', painter.eraseMode);
+    });
+
+    // ── Undo ──
+    btnUndo?.addEventListener('click', () => {
+      painter.undo();
+      this.addHistory('Undo tint brush stroke');
+    });
+
+    // ── Clear current target ──
+    btnClearTarget?.addEventListener('click', () => {
+      painter.clearTarget();
+      this.addHistory(`Cleared tint paint for ${painter.target}`);
+    });
+
+    // ── Clear all ──
+    btnClearAll?.addEventListener('click', () => {
+      painter.clearAll();
+      this.addHistory('Cleared all tint paint');
+    });
   }
 
   // ─── Case Controls ───────────────────────────────────────────────────────
