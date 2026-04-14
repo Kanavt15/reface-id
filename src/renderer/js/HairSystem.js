@@ -132,6 +132,20 @@ class HairSystem {
       none: { file: null, defaults: null },
       beard1: { file: '../../assets/models/facial/Beard1.glb', meshName: null,
                 defaults: { scale: 70, posX: 103, posY: 44, posZ: 74, rotY: 98, rotZ: 107 } },
+      beard2: { file: '../../assets/models/facial/Beard2.glb', meshName: null,
+                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 } },
+      beard3: { file: '../../assets/models/facial/Beard3.glb', meshName: null,
+                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 } },
+      beard4: { file: '../../assets/models/facial/Beard4.glb', meshName: null,
+                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 } },
+      beard5: { file: '../../assets/models/facial/Beard5.glb', meshName: null,
+                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 } },
+      beard6: { file: '../../assets/models/facial/Beard6.glb', meshName: null,
+                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 } },
+      beard7: { file: '../../assets/models/facial/Beard7.glb', meshName: null,
+                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 } },
+      moustache1: { file: '../../assets/models/facial/Moustache1.glb', meshName: null,
+                    defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 } },
     };
 
     // Hair material
