@@ -7,17 +7,545 @@
   <link rel="stylesheet" href="styles/main.css" />
   <link rel="stylesheet" href="styles/panels.css" />
   <link rel="stylesheet" href="styles/controls.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles/screens.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet" />
 </head>
 <body>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       Screen Router — manages Hero, Case Setup, Input Method, Editor
+       All new screens sit here. Existing app HTML is wrapped in
+       #rf-screen-editor. New screens are activated by ScreenRouter.js.
+       ══════════════════════════════════════════════════════════════════ -->
+  <div id="rf-screen-router">
+
+    <!-- Screen 1: Hero/Landing — Editorial Two-Column -->
+    <div id="rf-screen-hero" class="rf-screen rf-screen-active">
+
+      <!-- Multi-layer background -->
+      <div class="rf-hero-bg">
+        <div class="rf-hero-gradient-mesh"></div>
+        <div class="rf-hero-grid-pattern"></div>
+        <div class="rf-hero-dot-field"></div>
+        <div class="rf-hero-vignette"></div>
+        <div class="rf-hero-noise"></div>
+        <div class="rf-hero-glow-orb rf-orb-1"></div>
+        <div class="rf-hero-glow-orb rf-orb-2"></div>
+      </div>
+
+      <!-- Corner brackets -->
+      <div class="rf-hero-bracket rf-bracket-tl" aria-hidden="true"></div>
+      <div class="rf-hero-bracket rf-bracket-tr" aria-hidden="true"></div>
+      <div class="rf-hero-bracket rf-bracket-bl" aria-hidden="true"></div>
+      <div class="rf-hero-bracket rf-bracket-br" aria-hidden="true"></div>
+
+      <!-- Header -->
+      <header class="rf-hero-header" role="banner">
+        <div class="rf-hero-header-inner">
+          <div class="rf-hero-logo">
+            <div class="rf-logo-icon">
+              <span class="rf-logo-diamond"></span>
+            </div>
+            <div class="rf-logo-text">
+              <span class="rf-logo-wordmark"><span class="rf-logo-re">Re</span>Face</span>
+            </div>
+            <span class="rf-logo-badge">PRO</span>
+          </div>
+
+          <nav class="rf-hero-nav">
+            <button id="rf-hero-load-case" class="rf-nav-ghost-btn">Load Case</button>
+            <button id="rf-hero-open-editor" class="rf-nav-outline-btn">Open Editor</button>
+            <span class="rf-nav-status"><span class="rf-status-dot"></span>System Online</span>
+          </nav>
+
+          <div class="rf-hero-header-right">
+            <div class="rf-hero-wctrl" aria-label="Window controls">
+              <button id="rf-wc-close" class="rf-wc rf-wc-close" title="Close"></button>
+              <button id="rf-wc-min"   class="rf-wc rf-wc-min"   title="Minimize"></button>
+              <button id="rf-wc-max"   class="rf-wc rf-wc-max"   title="Maximize"></button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main: asymmetric split -->
+      <main class="rf-hero-split">
+
+        <!-- Left: Content -->
+        <div class="rf-hero-content">
+          <div class="rf-hero-content-inner">
+
+            <div class="rf-hero-eyebrow">
+              <span class="rf-eyebrow-line"></span>
+              <span class="rf-eyebrow-text">Forensic Intelligence Platform</span>
+              <span class="rf-eyebrow-line"></span>
+            </div>
+
+            <h1 class="rf-hero-title">
+              <span class="rf-title-row rf-title-row-1">
+                <span class="rf-title-serif">Facial</span>
+              </span>
+              <span class="rf-title-row rf-title-row-2">
+                <span class="rf-title-heavy">RECON</span>
+              </span>
+              <span class="rf-title-row rf-title-row-3">
+                <span class="rf-title-thin">STRUCTION</span>
+                <span class="rf-title-accent-dot"></span>
+              </span>
+            </h1>
+
+            <div class="rf-hero-desc-block">
+              <div class="rf-desc-rule"></div>
+              <p class="rf-hero-desc">
+                Professional-grade 3D facial reconstruction
+                powered by AI analysis, real-time sculpting,
+                and forensic-standard export.
+              </p>
+            </div>
+
+            <div class="rf-hero-cta-row">
+              <button id="rf-hero-new-case" class="rf-hero-btn-primary">
+                <span class="rf-btn-label">Begin Reconstruction</span>
+                <span class="rf-btn-icon"><i class="fas fa-arrow-right"></i></span>
+              </button>
+            </div>
+
+            <!-- Stats bar -->
+            <div class="rf-hero-stats">
+              <div class="rf-stat">
+                <span class="rf-stat-val">50+</span>
+                <span class="rf-stat-label">Morph<br>Parameters</span>
+              </div>
+              <div class="rf-stat-sep"></div>
+              <div class="rf-stat">
+                <span class="rf-stat-val">AI</span>
+                <span class="rf-stat-label">Powered<br>Analysis</span>
+              </div>
+              <div class="rf-stat-sep"></div>
+              <div class="rf-stat">
+                <span class="rf-stat-val">3D</span>
+                <span class="rf-stat-label">Real-Time<br>Sculpting</span>
+              </div>
+              <div class="rf-stat-sep"></div>
+              <div class="rf-stat">
+                <span class="rf-stat-val">GLB</span>
+                <span class="rf-stat-label">Forensic<br>Export</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Right: Visual -->
+        <div class="rf-hero-visual">
+
+          <!-- Glass panel behind visual -->
+          <div class="rf-visual-glass">
+            <div class="rf-glass-border"></div>
+          </div>
+
+          <div class="rf-visual-container">
+
+            <!-- Outer rings -->
+            <div class="rf-ring rf-ring-outer"></div>
+            <div class="rf-ring rf-ring-mid"></div>
+            <div class="rf-ring rf-ring-inner"></div>
+            <div class="rf-ring rf-ring-core"></div>
+
+            <!-- Tick marks around outer ring -->
+            <div class="rf-ring-ticks"></div>
+
+            <!-- Crosshair -->
+            <div class="rf-crosshair rf-cross-h"></div>
+            <div class="rf-crosshair rf-cross-v"></div>
+            <div class="rf-crosshair rf-cross-d1"></div>
+            <div class="rf-crosshair rf-cross-d2"></div>
+
+            <!-- Scanner sweep -->
+            <div class="rf-scanner-sweep"></div>
+
+            <!-- Face scan line — horizontal pass over wireframe -->
+            <div class="rf-face-scanline" aria-hidden="true"></div>
+
+            <!-- Face wireframe SVG -->
+            <svg class="rf-face-wire" viewBox="0 0 200 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M100 12 C55 12 28 55 28 100 C28 130 32 155 45 180 C55 200 70 220 85 238 C90 244 95 248 100 250 C105 248 110 244 115 238 C130 220 145 200 155 180 C168 155 172 130 172 100 C172 55 145 12 100 12Z" class="rf-wire-path rf-wire-head"/>
+              <path d="M48 90 C60 82 75 80 85 83 M152 90 C140 82 125 80 115 83" class="rf-wire-path rf-wire-brow"/>
+              <ellipse cx="75" cy="100" rx="16" ry="10" class="rf-wire-path rf-wire-eye"/>
+              <ellipse cx="125" cy="100" rx="16" ry="10" class="rf-wire-path rf-wire-eye"/>
+              <circle cx="75" cy="100" r="4" class="rf-wire-pupil"/>
+              <circle cx="125" cy="100" r="4" class="rf-wire-pupil"/>
+              <path d="M100 90 L100 130 M88 135 C92 140 97 142 100 142 C103 142 108 140 112 135" class="rf-wire-path rf-wire-nose"/>
+              <path d="M78 162 C85 158 92 156 100 156 C108 156 115 158 122 162" class="rf-wire-path rf-wire-mouth"/>
+              <path d="M82 162 C90 170 95 172 100 172 C105 172 110 170 118 162" class="rf-wire-path rf-wire-mouth-lower"/>
+              <path d="M40 105 C42 145 55 185 100 210" class="rf-wire-path rf-wire-contour" opacity="0.4"/>
+              <path d="M160 105 C158 145 145 185 100 210" class="rf-wire-path rf-wire-contour" opacity="0.4"/>
+              <!-- Mapping grid lines -->
+              <line x1="28" y1="100" x2="172" y2="100" class="rf-wire-grid" opacity="0.15"/>
+              <line x1="28" y1="135" x2="172" y2="135" class="rf-wire-grid" opacity="0.1"/>
+              <line x1="28" y1="165" x2="172" y2="165" class="rf-wire-grid" opacity="0.1"/>
+              <line x1="100" y1="12" x2="100" y2="250" class="rf-wire-grid" opacity="0.12"/>
+              <!-- Connection lines from points -->
+              <line x1="75" y1="100" x2="125" y2="100" class="rf-wire-connect"/>
+              <line x1="100" y1="42" x2="100" y2="200" class="rf-wire-connect"/>
+              <line x1="55" y1="80" x2="145" y2="80" class="rf-wire-connect"/>
+              <!-- Mapping points -->
+              <circle cx="100" cy="42" r="3" class="rf-map-point rf-mp-1"/>
+              <circle cx="55"  cy="80" r="3" class="rf-map-point rf-mp-2"/>
+              <circle cx="145" cy="80" r="3" class="rf-map-point rf-mp-3"/>
+              <circle cx="75"  cy="100" r="3" class="rf-map-point rf-mp-4"/>
+              <circle cx="125" cy="100" r="3" class="rf-map-point rf-mp-5"/>
+              <circle cx="100" cy="135" r="3" class="rf-map-point rf-mp-6"/>
+              <circle cx="100" cy="164" r="3" class="rf-map-point rf-mp-7"/>
+              <circle cx="65"  cy="165" r="3" class="rf-map-point rf-mp-8"/>
+              <circle cx="135" cy="165" r="3" class="rf-map-point rf-mp-9"/>
+              <circle cx="100" cy="200" r="3" class="rf-map-point rf-mp-10"/>
+              <circle cx="42"  cy="120" r="2.5" class="rf-map-point rf-mp-11"/>
+              <circle cx="158" cy="120" r="2.5" class="rf-map-point rf-mp-12"/>
+              <circle cx="80"  cy="190" r="2.5" class="rf-map-point rf-mp-13"/>
+              <circle cx="120" cy="190" r="2.5" class="rf-map-point rf-mp-14"/>
+            </svg>
+
+            <!-- Floating data labels -->
+            <div class="rf-data-tag rf-dtag-1">
+              <span class="rf-dtag-dot"></span>
+              <div class="rf-dtag-body">
+                <span class="rf-dtag-label">CRANIAL WIDTH</span>
+                <span class="rf-dtag-val">94.2 mm</span>
+              </div>
+            </div>
+            <div class="rf-data-tag rf-dtag-2">
+              <span class="rf-dtag-dot"></span>
+              <div class="rf-dtag-body">
+                <span class="rf-dtag-label">ORBITAL DEPTH</span>
+                <span class="rf-dtag-val">38.1 mm</span>
+              </div>
+            </div>
+            <div class="rf-data-tag rf-dtag-3">
+              <span class="rf-dtag-dot"></span>
+              <div class="rf-dtag-body">
+                <span class="rf-dtag-label">MANDIBLE ARC</span>
+                <span class="rf-dtag-val">112.7 mm</span>
+              </div>
+            </div>
+            <div class="rf-data-tag rf-dtag-4">
+              <span class="rf-dtag-dot"></span>
+              <div class="rf-dtag-body">
+                <span class="rf-dtag-label">NASAL BRIDGE</span>
+                <span class="rf-dtag-val">22.4 mm</span>
+              </div>
+            </div>
+
+            <!-- Corner readouts inside visual -->
+            <div class="rf-vis-readout rf-vr-tl">
+              <span>SCAN MODE</span>
+              <span class="rf-vr-val">ACTIVE</span>
+            </div>
+            <div class="rf-vis-readout rf-vr-tr">
+              <span>POINTS</span>
+              <span class="rf-vr-val">14 / 68</span>
+            </div>
+            <div class="rf-vis-readout rf-vr-bl">
+              <span>ACCURACY</span>
+              <span class="rf-vr-val">99.2%</span>
+            </div>
+            <div class="rf-vis-readout rf-vr-br">
+              <span>MESH</span>
+              <span class="rf-vr-val">12.4K TRI</span>
+            </div>
+
+          </div>
+        </div>
+
+      </main>
+
+      <!-- Footer: feature strip -->
+      <footer class="rf-hero-footer" role="contentinfo">
+        <div class="rf-hero-footer-inner">
+          <div class="rf-feat-item">
+            <span class="rf-feat-num">01</span>
+            <span class="rf-feat-label">AI-Powered Analysis</span>
+          </div>
+          <div class="rf-feat-item">
+            <span class="rf-feat-num">02</span>
+            <span class="rf-feat-label">Real-Time 3D Sculpting</span>
+          </div>
+          <div class="rf-feat-item">
+            <span class="rf-feat-num">03</span>
+            <span class="rf-feat-label">Forensic Export</span>
+          </div>
+          <div class="rf-feat-item">
+            <span class="rf-feat-num">04</span>
+            <span class="rf-feat-label">Case Management</span>
+          </div>
+        </div>
+        <div class="rf-footer-progress">
+          <div class="rf-footer-progress-fill"></div>
+        </div>
+      </footer>
+
+    </div><!-- /rf-screen-hero -->
+
+    <!-- Screen 2: Case Setup — Dark editorial form -->
+    <div id="rf-screen-case-setup" class="rf-screen rf-screen-hidden">
+
+      <!-- Background layers (matches hero) -->
+      <div class="rf-hero-bg">
+        <div class="rf-hero-gradient-mesh"></div>
+        <div class="rf-hero-grid-pattern"></div>
+        <div class="rf-hero-dot-field"></div>
+        <div class="rf-hero-vignette"></div>
+        <div class="rf-hero-noise"></div>
+        <div class="rf-hero-glow-orb rf-orb-1"></div>
+        <div class="rf-hero-glow-orb rf-orb-2"></div>
+      </div>
+
+      <!-- Corner brackets -->
+      <div class="rf-hero-bracket rf-bracket-tl" aria-hidden="true"></div>
+      <div class="rf-hero-bracket rf-bracket-tr" aria-hidden="true"></div>
+      <div class="rf-hero-bracket rf-bracket-bl" aria-hidden="true"></div>
+      <div class="rf-hero-bracket rf-bracket-br" aria-hidden="true"></div>
+
+      <!-- Nav bar -->
+      <nav class="rf-form-screen-nav">
+        <div class="rf-form-nav-left">
+          <button class="rf-back-btn" id="rf-case-setup-back">
+            <i class="fas fa-arrow-left"></i> Back
+          </button>
+        </div>
+        <div class="rf-form-nav-center">
+          <span class="rf-form-screen-title">New Case File</span>
+        </div>
+        <div class="rf-form-nav-right">
+          <span class="rf-step-badge">01 / 02</span>
+        </div>
+      </nav>
+
+      <!-- Form layout: centered column -->
+      <div class="rf-form-screen-body">
+        <div class="rf-form-container">
+
+          <!-- Section heading -->
+          <div class="rf-form-heading">
+            <h2 class="rf-form-title">Case Details</h2>
+            <p class="rf-form-hint">Establish the case record before reconstruction begins.</p>
+          </div>
+
+          <!-- Form -->
+          <form class="rf-flat-form" autocomplete="off" onsubmit="return false;">
+
+            <!-- Row: Case ID + Case Name -->
+            <div class="rf-field-row">
+
+              <div class="rf-field">
+                <label class="rf-field-label" for="rf-form-case-number">
+                  Case ID <span class="rf-required-mark">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="rf-form-case-number"
+                  class="rf-flat-input rf-mono"
+                  placeholder="FC-2026-001"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+                <span class="rf-field-err" id="rf-error-case-number">Required</span>
+              </div>
+
+              <div class="rf-field">
+                <label class="rf-field-label" for="rf-form-case-name">
+                  Case Name <span class="rf-required-mark">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="rf-form-case-name"
+                  class="rf-flat-input"
+                  placeholder="Unidentified Male — River District"
+                  autocomplete="off"
+                />
+                <span class="rf-field-err" id="rf-error-case-name">Required</span>
+              </div>
+
+            </div>
+
+            <div class="rf-field">
+              <label class="rf-field-label" for="rf-form-investigator">Investigator</label>
+              <input
+                type="text"
+                id="rf-form-investigator"
+                class="rf-flat-input"
+                placeholder="Det. J. Morrison"
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="rf-field">
+              <label class="rf-field-label" for="rf-form-description">Description</label>
+              <textarea
+                id="rf-form-description"
+                class="rf-flat-textarea"
+                rows="3"
+                placeholder="Brief case description and context..."
+              ></textarea>
+            </div>
+
+            <div class="rf-field">
+              <label class="rf-field-label" for="rf-form-notes">
+                Notes <span class="rf-optional-mark">— optional</span>
+              </label>
+              <textarea
+                id="rf-form-notes"
+                class="rf-flat-textarea"
+                rows="2"
+                placeholder="Additional notes or references..."
+              ></textarea>
+            </div>
+
+            <!-- Form action bar -->
+            <div class="rf-form-action-bar">
+              <span class="rf-form-secure-note">
+                <i class="fas fa-lock"></i> Stored locally
+              </span>
+              <button
+                type="button"
+                class="rf-cta-fill rf-cta-disabled"
+                id="rf-case-setup-continue"
+                disabled
+              >
+                Continue <i class="fas fa-arrow-right"></i>
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+
+    </div><!-- /rf-screen-case-setup -->
+
+    <!-- Screen 3: Input Method Selection — Numbered list rows -->
+    <div id="rf-screen-input-method" class="rf-screen rf-screen-hidden">
+
+      <!-- Background layers (matches hero) -->
+      <div class="rf-hero-bg">
+        <div class="rf-hero-gradient-mesh"></div>
+        <div class="rf-hero-grid-pattern"></div>
+        <div class="rf-hero-dot-field"></div>
+        <div class="rf-hero-vignette"></div>
+        <div class="rf-hero-noise"></div>
+        <div class="rf-hero-glow-orb rf-orb-1"></div>
+        <div class="rf-hero-glow-orb rf-orb-2"></div>
+      </div>
+
+      <!-- Corner brackets -->
+      <div class="rf-hero-bracket rf-bracket-tl" aria-hidden="true"></div>
+      <div class="rf-hero-bracket rf-bracket-tr" aria-hidden="true"></div>
+      <div class="rf-hero-bracket rf-bracket-bl" aria-hidden="true"></div>
+      <div class="rf-hero-bracket rf-bracket-br" aria-hidden="true"></div>
+
+      <!-- Nav bar -->
+      <nav class="rf-form-screen-nav">
+        <div class="rf-form-nav-left">
+          <button class="rf-back-btn" id="rf-input-method-back">
+            <i class="fas fa-arrow-left"></i> Back
+          </button>
+        </div>
+        <div class="rf-form-nav-center">
+          <span class="rf-form-screen-title">Reconstruction Method</span>
+        </div>
+        <div class="rf-form-nav-right">
+          <span class="rf-step-badge">02 / 02</span>
+        </div>
+      </nav>
+
+      <!-- Body -->
+      <div class="rf-method-screen-body">
+
+        <div class="rf-method-heading">
+          <h2 class="rf-method-title-text">How would you like to begin?</h2>
+          <p class="rf-method-subtitle">Select one or more — methods can be combined in the editor</p>
+        </div>
+
+        <!-- Numbered method rows -->
+        <div class="rf-method-list" id="rf-method-grid">
+
+          <div class="rf-method-row" data-method="text-description">
+            <span class="rf-method-num">01</span>
+            <div class="rf-method-row-icon"><i class="fas fa-comment-alt"></i></div>
+            <div class="rf-method-row-body">
+              <div class="rf-method-row-title">Describe a Face</div>
+              <div class="rf-method-row-desc">Type a description — AI generates all facial parameters automatically</div>
+            </div>
+            <div class="rf-method-row-check" aria-hidden="true">
+              <i class="fas fa-check"></i>
+            </div>
+          </div>
+
+          <div class="rf-method-row" data-method="upload-photos">
+            <span class="rf-method-num">02</span>
+            <div class="rf-method-row-icon"><i class="fas fa-images"></i></div>
+            <div class="rf-method-row-body">
+              <div class="rf-method-row-title">Upload Reference Photos</div>
+              <div class="rf-method-row-desc">Provide reference images for AI-guided reconstruction and feature matching</div>
+            </div>
+            <div class="rf-method-row-check" aria-hidden="true">
+              <i class="fas fa-check"></i>
+            </div>
+          </div>
+
+          <div class="rf-method-row" data-method="live-capture">
+            <span class="rf-method-num">03</span>
+            <div class="rf-method-row-icon"><i class="fas fa-camera"></i></div>
+            <div class="rf-method-row-body">
+              <div class="rf-method-row-title">Live Capture</div>
+              <div class="rf-method-row-desc">Use your webcam to capture front, left, and right-angle photos</div>
+            </div>
+            <div class="rf-method-row-check" aria-hidden="true">
+              <i class="fas fa-check"></i>
+            </div>
+          </div>
+
+          <div class="rf-method-row" data-method="manual-editor">
+            <span class="rf-method-num">04</span>
+            <div class="rf-method-row-icon"><i class="fas fa-sliders-h"></i></div>
+            <div class="rf-method-row-body">
+              <div class="rf-method-row-title">Manual Editor</div>
+              <div class="rf-method-row-desc">Start from a neutral base and sculpt every feature with full precision</div>
+            </div>
+            <div class="rf-method-row-check" aria-hidden="true">
+              <i class="fas fa-check"></i>
+            </div>
+          </div>
+
+        </div><!-- /rf-method-list -->
+
+        <!-- Action footer -->
+        <div class="rf-method-actions">
+          <button
+            class="rf-cta-fill rf-cta-disabled"
+            id="rf-input-method-begin"
+            disabled
+          >
+            Begin Reconstruction <i class="fas fa-arrow-right"></i>
+          </button>
+          <button class="rf-skip-btn" id="rf-input-method-skip">
+            Skip — open editor directly
+          </button>
+        </div>
+
+      </div><!-- /rf-method-screen-body -->
+    </div><!-- /rf-screen-input-method -->
+
+    <!-- Screen 4: Main Editor (all existing app HTML below) -->
+    <div id="rf-screen-editor" class="rf-screen rf-screen-hidden">
+
   <!-- ─── Custom Title Bar ─────────────────────────────────────────────── -->
   <div id="titlebar">
     <div class="titlebar-drag">
       <div class="titlebar-logo">
-        <i class="fas fa-cube"></i>
-        <span>ReFace</span>
-        <span class="titlebar-version">v1.0</span>
+        <i class="fas fa-gem rf-logo-icon"></i>
+        <span class="rf-logo-wordmark"><span class="titlebar-re">Re</span>Face</span>
+        <span class="titlebar-version">PRO</span>
       </div>
     </div>
     <div class="titlebar-center" id="caseTitle">New Case — Untitled</div>
@@ -26,15 +554,18 @@
         <span class="status-dot"></span>
         <span class="status-text">Backend</span>
       </div>
-      <button class="titlebar-btn" id="btnMinimize" title="Minimize">
-        <i class="fas fa-minus"></i>
-      </button>
-      <button class="titlebar-btn" id="btnMaximize" title="Maximize">
-        <i class="far fa-square"></i>
-      </button>
-      <button class="titlebar-btn btn-close" id="btnClose" title="Close">
-        <i class="fas fa-times"></i>
-      </button>
+      <!-- macOS-style window controls -->
+      <div class="rf-wc-group">
+        <button class="titlebar-btn rf-wc-btn rf-wc-close" id="btnClose" title="Close">
+          <i class="fas fa-times rf-wc-icon"></i>
+        </button>
+        <button class="titlebar-btn rf-wc-btn rf-wc-min" id="btnMinimize" title="Minimize">
+          <i class="fas fa-minus rf-wc-icon"></i>
+        </button>
+        <button class="titlebar-btn rf-wc-btn rf-wc-max" id="btnMaximize" title="Maximize">
+          <i class="far fa-square rf-wc-icon"></i>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -2880,6 +3411,9 @@
     </div>
   </div>
 
+    </div><!-- /rf-screen-editor -->
+  </div><!-- /rf-screen-router -->
+
   <!-- Scripts -->
   <script>
     // Resolve Three.js from node_modules using absolute path in Electron
@@ -2922,6 +3456,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
   <script src="js/HeadTracker.js"></script>
   <script src="js/FaceCaptureSystem.js"></script>
+  <script src="js/ScreenRouter.js"></script>
   <script src="js/app.js"></script>
 
   <!-- Hair style video preview tooltip (outside overflow containers) -->

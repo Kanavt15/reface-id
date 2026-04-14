@@ -47,8 +47,8 @@
   --gradient-surface: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
 
   /* Sizes */
-  --titlebar-height: 40px;
-  --toolbar-height: 48px;
+  --titlebar-height: 44px;
+  --toolbar-height: 52px;
   --statusbar-height: 28px;
   --panel-width: 360px;
   --mini-panel-width: 220px;
@@ -157,6 +157,11 @@ body {
   font-size: 16px;
   color: var(--accent-primary);
   -webkit-text-fill-color: var(--accent-primary);
+}
+
+.titlebar-re {
+  -webkit-text-fill-color: var(--accent-primary);
+  color: var(--accent-primary);
 }
 
 .titlebar-version {
@@ -524,4 +529,603 @@ body {
   height: 34px;
   padding: 0;
   border-radius: var(--border-radius-sm);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   ReFace ID — Redesign Design System
+   Premium luxury dark theme — all variables prefixed with --rf-
+   Added in Phase 1 of the UI redesign. Never remove existing variables above.
+   ══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ─── Backgrounds ─────────────────────────────────────────────────── */
+  --rf-bg-base:        #06060a;
+  --rf-bg-surface:     #0b0b10;
+  --rf-bg-raised:      #10101a;
+  --rf-bg-card:        #14141e;
+  --rf-bg-overlay:     #1a1a28;
+  --rf-bg-hover:       #1e1e2e;
+  --rf-bg-active:      #242438;
+  --rf-bg-glass:       rgba(14, 14, 22, 0.82);
+
+  /* ─── Borders ─────────────────────────────────────────────────────── */
+  --rf-border-faint:   rgba(255, 255, 255, 0.04);
+  --rf-border-subtle:  rgba(255, 255, 255, 0.08);
+  --rf-border-normal:  rgba(255, 255, 255, 0.12);
+  --rf-border-bright:  rgba(255, 255, 255, 0.20);
+  --rf-border-accent:  rgba(79, 142, 247, 0.30);
+
+  /* ─── Text ────────────────────────────────────────────────────────── */
+  --rf-text-primary:   #f0f0f8;
+  --rf-text-secondary: #9898b8;
+  --rf-text-tertiary:  #5a5a7a;
+  --rf-text-accent:    #7eb8ff;
+  --rf-text-gold:      #d4af6e;
+  --rf-text-on-accent: #ffffff;
+
+  /* ─── Accent Colors ───────────────────────────────────────────────── */
+  --rf-accent-blue:        #4f8ef7;
+  --rf-accent-blue-dim:    #3a70d4;
+  --rf-accent-blue-bright: #6fa8ff;
+  --rf-accent-blue-glow:   rgba(79, 142, 247, 0.25);
+  --rf-accent-teal:        #14d9b4;
+  --rf-accent-teal-glow:   rgba(20, 217, 180, 0.20);
+  --rf-accent-purple:      #9b6dff;
+  --rf-accent-purple-dim:  #7a52d4;
+  --rf-accent-purple-glow: rgba(155, 109, 255, 0.20);
+  --rf-accent-amber:       #f0b440;
+  --rf-accent-amber-glow:  rgba(240, 180, 64, 0.20);
+  --rf-accent-red:         #ff4d6a;
+  --rf-accent-red-glow:    rgba(255, 77, 106, 0.20);
+  --rf-accent-green:       #2ecc71;
+  --rf-accent-green-glow:  rgba(46, 204, 113, 0.20);
+
+  /* ─── Gold Accent (Primary Editor Theme) ─────────────────────────── */
+  --rf-accent-gold:        #c9a96e;
+  --rf-accent-gold-bright: #e0be87;
+  --rf-accent-gold-dim:    #a8813e;
+  --rf-accent-gold-glow:   rgba(201, 169, 110, 0.25);
+  --rf-accent-gold-soft:   rgba(201, 169, 110, 0.10);
+
+  /* ─── Neutral borders (UI chrome, no color tint) ─────────────────── */
+  --rf-border-neutral-faint:  rgba(255, 255, 255, 0.04);
+  --rf-border-neutral-subtle: rgba(255, 255, 255, 0.08);
+
+  /* ─── Gold-tinted borders (panels, highlights) ───────────────────── */
+  --rf-border-gold-faint:  rgba(201, 169, 110, 0.06);
+  --rf-border-gold-subtle: rgba(201, 169, 110, 0.12);
+  --rf-border-gold-normal: rgba(201, 169, 110, 0.22);
+  --rf-border-gold-bright: rgba(201, 169, 110, 0.38);
+
+  /* ─── Gradients ───────────────────────────────────────────────────── */
+  --rf-gradient-hero:    linear-gradient(135deg, #4f8ef7 0%, #9b6dff 50%, #14d9b4 100%);
+  --rf-gradient-cta:     linear-gradient(135deg, #4f8ef7 0%, #7b5ef0 100%);
+  --rf-gradient-cta-hover: linear-gradient(135deg, #6fa8ff 0%, #9b6dff 100%);
+  --rf-gradient-card:    linear-gradient(145deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+  --rf-gradient-surface: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 100%);
+  --rf-gradient-teal:    linear-gradient(135deg, #14d9b4 0%, #4f8ef7 100%);
+  --rf-gradient-purple:  linear-gradient(135deg, #9b6dff 0%, #4f8ef7 100%);
+
+  /* ─── Typography ──────────────────────────────────────────────────── */
+  --rf-font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --rf-font-hero:    'Space Grotesk', 'Inter', sans-serif;
+  --rf-font-mono:    'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+
+  --rf-text-hero:    clamp(48px, 6vw, 80px);
+  --rf-text-title:   clamp(28px, 3vw, 40px);
+  --rf-text-heading: 20px;
+  --rf-text-body:    14px;
+  --rf-text-small:   12px;
+  --rf-text-micro:   10px;
+
+  --rf-weight-light:    300;
+  --rf-weight-normal:   400;
+  --rf-weight-medium:   500;
+  --rf-weight-semibold: 600;
+  --rf-weight-bold:     700;
+
+  --rf-tracking-tight:   -0.02em;
+  --rf-tracking-normal:   0em;
+  --rf-tracking-wide:     0.06em;
+  --rf-tracking-widest:   0.12em;
+
+  --rf-leading-tight:  1.2;
+  --rf-leading-normal: 1.6;
+  --rf-leading-loose:  1.8;
+
+  /* ─── Spacing ─────────────────────────────────────────────────────── */
+  --rf-space-1:  4px;
+  --rf-space-2:  8px;
+  --rf-space-3:  12px;
+  --rf-space-4:  16px;
+  --rf-space-5:  20px;
+  --rf-space-6:  24px;
+  --rf-space-8:  32px;
+  --rf-space-10: 40px;
+  --rf-space-12: 48px;
+  --rf-space-16: 64px;
+  --rf-space-20: 80px;
+
+  /* ─── Border Radius ───────────────────────────────────────────────── */
+  --rf-radius-xs:   4px;
+  --rf-radius-sm:   6px;
+  --rf-radius-md:   10px;
+  --rf-radius-lg:   16px;
+  --rf-radius-xl:   24px;
+  --rf-radius-2xl:  32px;
+  --rf-radius-full: 9999px;
+
+  /* ─── Shadows ─────────────────────────────────────────────────────── */
+  --rf-shadow-xs:  0 1px 2px rgba(0, 0, 0, 0.4);
+  --rf-shadow-sm:  0 2px 8px rgba(0, 0, 0, 0.5);
+  --rf-shadow-md:  0 4px 20px rgba(0, 0, 0, 0.6);
+  --rf-shadow-lg:  0 8px 40px rgba(0, 0, 0, 0.7);
+  --rf-shadow-xl:  0 20px 60px rgba(0, 0, 0, 0.8);
+  --rf-shadow-2xl: 0 32px 80px rgba(0, 0, 0, 0.85);
+
+  --rf-glow-blue:     0 0 24px rgba(79, 142, 247, 0.30);
+  --rf-glow-blue-lg:  0 0 48px rgba(79, 142, 247, 0.25);
+  --rf-glow-blue-xl:  0 0 80px rgba(79, 142, 247, 0.20);
+  --rf-glow-purple:   0 0 24px rgba(155, 109, 255, 0.25);
+  --rf-glow-teal:     0 0 24px rgba(20, 217, 180, 0.25);
+  --rf-glow-amber:    0 0 24px rgba(240, 180, 64, 0.25);
+  --rf-glow-inner:    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+
+  /* ─── Animation Easings ───────────────────────────────────────────── */
+  --rf-ease-out:    cubic-bezier(0.0, 0.0, 0.2, 1);
+  --rf-ease-in:     cubic-bezier(0.4, 0.0, 1.0, 1.0);
+  --rf-ease-inout:  cubic-bezier(0.4, 0.0, 0.2, 1);
+  --rf-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --rf-ease-decel:  cubic-bezier(0.05, 0.7, 0.1, 1.0);
+  --rf-ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  /* ─── Animation Durations ─────────────────────────────────────────── */
+  --rf-dur-instant: 80ms;
+  --rf-dur-fast:    150ms;
+  --rf-dur-normal:  250ms;
+  --rf-dur-slow:    400ms;
+  --rf-dur-screen:  400ms;
+  --rf-dur-orb:     22s;
+
+  /* ─── Composite Transitions ───────────────────────────────────────── */
+  --rf-transition-base:   all var(--rf-dur-fast) var(--rf-ease-out);
+  --rf-transition-color:  color var(--rf-dur-fast) var(--rf-ease-out),
+                          background-color var(--rf-dur-fast) var(--rf-ease-out),
+                          border-color var(--rf-dur-fast) var(--rf-ease-out);
+  --rf-transition-smooth: all var(--rf-dur-normal) var(--rf-ease-inout);
+  --rf-transition-spring: all var(--rf-dur-slow) var(--rf-ease-spring);
+  --rf-transition-screen: opacity var(--rf-dur-screen) var(--rf-ease-inout),
+                          transform var(--rf-dur-screen) var(--rf-ease-out);
+
+  /* ─── Component Sizes ─────────────────────────────────────────────── */
+  --rf-navbar-height:   52px;
+  --rf-screen-max-sm:   480px;
+  --rf-screen-max-md:   600px;
+  --rf-screen-max-lg:   760px;
+  --rf-screen-max-hero: 860px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   PHASE 6 — Titlebar & Toolbar Visual Redesign
+   Overrides existing titlebar/toolbar rules with luxury gold theme.
+   All IDs and JS bindings remain intact — CSS only.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ─── Titlebar ──────────────────────────────────────────────────────── */
+
+#titlebar {
+  background: var(--rf-bg-surface);
+  border-bottom: 1px solid var(--rf-border-neutral-faint);
+  padding: 0 6px 0 0;
+}
+
+.titlebar-logo {
+  gap: 9px;
+  padding: 0 14px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  background: none;
+  -webkit-background-clip: unset;
+  -webkit-text-fill-color: unset;
+  background-clip: unset;
+  color: var(--rf-text-primary);
+}
+
+.rf-logo-icon {
+  font-size: 13px;
+  color: var(--rf-accent-gold) !important;
+  -webkit-text-fill-color: var(--rf-accent-gold) !important;
+  filter: drop-shadow(0 0 6px rgba(201, 169, 110, 0.5));
+}
+
+.rf-logo-wordmark {
+  color: var(--rf-text-primary);
+  -webkit-text-fill-color: var(--rf-text-primary);
+}
+
+/* Retain .titlebar-re gold color */
+.titlebar-re {
+  color: var(--rf-accent-gold) !important;
+  -webkit-text-fill-color: var(--rf-accent-gold) !important;
+}
+
+/* PRO badge — replaces old .titlebar-version */
+.titlebar-version {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--rf-accent-gold);
+  background: rgba(201, 169, 110, 0.09);
+  border: 1px solid rgba(201, 169, 110, 0.22);
+  border-radius: 5px;
+  padding: 2px 7px;
+  -webkit-text-fill-color: var(--rf-accent-gold);
+}
+
+/* Case title — monospace, center, muted gold */
+.titlebar-center {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--rf-text-secondary);
+  letter-spacing: 0.04em;
+}
+
+/* Backend status pill */
+.backend-status {
+  background: rgba(201, 169, 110, 0.05);
+  border: 1px solid rgba(201, 169, 110, 0.13);
+  border-radius: 999px;
+  padding: 4px 12px;
+  margin-right: 8px;
+  gap: 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  color: var(--rf-text-secondary);
+  transition: border-color var(--rf-dur-fast) var(--rf-ease-out),
+              background var(--rf-dur-fast) var(--rf-ease-out);
+}
+
+/* Overwrite old status-dot sizing/color to match design */
+.status-dot {
+  width: 7px;
+  height: 7px;
+  background: var(--rf-accent-red);
+  box-shadow: 0 0 6px rgba(255, 77, 106, 0.55);
+}
+
+.status-dot.connected {
+  background: var(--rf-accent-green);
+  box-shadow: 0 0 8px rgba(46, 204, 113, 0.8), 0 0 18px rgba(46, 204, 113, 0.35);
+}
+
+/* macOS-style window control circles */
+.rf-wc-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  -webkit-app-region: no-drag;
+}
+
+.rf-wc-btn {
+  width: 13px !important;
+  height: 13px !important;
+  min-width: 13px;
+  min-height: 13px;
+  border-radius: 50% !important;
+  border: none !important;
+  background: transparent;
+  cursor: pointer;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  margin: 0 !important;
+  padding: 0 !important;
+  transition: filter var(--rf-dur-fast) var(--rf-ease-out),
+              opacity var(--rf-dur-fast) var(--rf-ease-out);
+}
+
+.rf-wc-icon {
+  font-size: 7px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity var(--rf-dur-fast) var(--rf-ease-out);
+}
+
+.rf-wc-group:hover .rf-wc-icon {
+  opacity: 0.75;
+}
+
+.rf-wc-close { background: #ff5f57 !important; color: #660000; }
+.rf-wc-min   { background: #febc2e !important; color: #5a3500; }
+.rf-wc-max   { background: #28c840 !important; color: #004d10; }
+
+.rf-wc-close:hover { filter: brightness(1.08); background: #ff5f57 !important; }
+.rf-wc-min:hover   { filter: brightness(1.08); background: #febc2e !important; }
+.rf-wc-max:hover   { filter: brightness(1.08); background: #28c840 !important; }
+
+/* Hide the old-style titlebar buttons that are NOT wrapped in rf-wc-group */
+.titlebar-btn:not(.rf-wc-btn) {
+  display: none;
+}
+
+/* ─── Toolbar ───────────────────────────────────────────────────────── */
+
+#toolbar {
+  background: var(--rf-bg-raised);
+  border-bottom: 1px solid var(--rf-border-neutral-subtle);
+  padding: 0 12px;
+  gap: 0;
+  overflow: hidden;
+}
+
+.toolbar-group {
+  display: flex;
+  gap: 2px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  align-items: center;
+}
+
+/* Separator between groups */
+.toolbar-separator {
+  width: 1px;
+  height: 18px;
+  background: var(--rf-border-neutral-faint);
+  margin: 0 8px;
+  flex-shrink: 0;
+}
+
+/* Tool buttons */
+.tool-btn {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--rf-text-secondary);
+  font-size: 13px;
+  transition: background var(--rf-dur-fast) var(--rf-ease-out),
+              border-color var(--rf-dur-fast) var(--rf-ease-out),
+              color var(--rf-dur-fast) var(--rf-ease-out),
+              box-shadow var(--rf-dur-fast) var(--rf-ease-out);
+  position: relative;
+}
+
+.tool-btn:hover {
+  background: var(--rf-bg-hover);
+  border-color: var(--rf-border-subtle);
+  color: var(--rf-text-primary);
+}
+
+.tool-btn.active {
+  background: rgba(201, 169, 110, 0.11);
+  border-color: rgba(201, 169, 110, 0.22);
+  color: var(--rf-accent-gold);
+  box-shadow: none;
+}
+
+.tool-btn.active:hover {
+  background: rgba(201, 169, 110, 0.16);
+  border-color: rgba(201, 169, 110, 0.32);
+  color: var(--rf-accent-gold-bright);
+}
+
+.tool-btn.accent {
+  color: var(--rf-accent-gold);
+}
+
+.tool-btn.accent:hover {
+  background: rgba(201, 169, 110, 0.09);
+  border-color: rgba(201, 169, 110, 0.18);
+  color: var(--rf-accent-gold-bright);
+}
+
+/* Custom tooltip — gold-tinted glass, no arrow, JetBrains Mono */
+.tool-btn::after {
+  content: attr(title);
+  position: absolute;
+  bottom: calc(100% + 9px);
+  left: 50%;
+  transform: translateX(-50%) translateY(5px);
+  background: var(--rf-bg-overlay);
+  color: var(--rf-text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(201, 169, 110, 0.12);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--rf-dur-fast) var(--rf-ease-out),
+              transform var(--rf-dur-fast) var(--rf-ease-out);
+  z-index: 2000;
+  box-shadow: var(--rf-shadow-md);
+}
+
+.tool-btn:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   PHASE 13 — Viewport, Status Bar & Loading Polish
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Viewport frame — thin gold-faint border */
+#viewport {
+  border: 1px solid var(--rf-border-faint);
+  background: var(--rf-bg-base);
+}
+
+/* Viewport info overlay — glass pill */
+.viewport-info {
+  top: 10px;
+  left: 10px;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px;
+  background: rgba(12, 12, 16, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--rf-border-neutral-subtle);
+  border-radius: var(--rf-radius-full);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 500;
+  color: var(--rf-text-secondary);
+  letter-spacing: 0.06em;
+  box-shadow: var(--rf-shadow-sm);
+}
+
+.viewport-info #viewAngle {
+  text-transform: uppercase;
+  color: var(--rf-text-primary);
+}
+
+.viewport-info #polyCount {
+  color: var(--rf-text-tertiary);
+  font-size: 9px;
+}
+
+/* Axis labels — JetBrains Mono, bolder colors */
+.axis-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.axis-x { color: #f7768e; text-shadow: 0 0 8px rgba(247,118,142,0.6); }
+.axis-y { color: #9ece6a; text-shadow: 0 0 8px rgba(158,206,106,0.6); }
+.axis-z { color: #7aa2f7; text-shadow: 0 0 8px rgba(122,162,247,0.6); }
+
+/* Loading spinner — gold */
+.loading-spinner {
+  border-color: var(--rf-border-neutral-faint);
+  border-top-color: var(--rf-accent-gold);
+  width: 40px;
+  height: 40px;
+}
+
+.loading-text {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--rf-text-secondary);
+  text-shadow: none;
+}
+
+/* ─── Status Bar ─── */
+#statusbar {
+  background: var(--rf-bg-raised);
+  border-top: 1px solid var(--rf-border-neutral-subtle);
+  height: 26px;
+  padding: 0 14px;
+}
+
+.status-left, .status-right {
+  gap: 14px;
+}
+
+.status-item {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: var(--rf-text-tertiary);
+  gap: 5px;
+}
+
+.status-item i {
+  color: var(--rf-text-tertiary);
+  opacity: 0.60;
+}
+
+/* Backend/Blender status pills */
+#statusBackend,
+#statusBlender {
+  background: var(--rf-bg-overlay);
+  border: 1px solid var(--rf-border-neutral-faint);
+  border-radius: var(--rf-radius-full);
+  padding: 1px 8px;
+  font-size: 9px;
+  color: var(--rf-text-secondary);
+}
+
+.status-dot-small {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--rf-accent-red);
+}
+
+.status-dot-small.connected {
+  background: var(--rf-accent-green);
+  box-shadow: var(--rf-glow-green);
+}
+
+/* ─── Button gold polish ─── */
+.btn-primary {
+  background: var(--rf-gradient-cta);
+  color: #07070b;
+  border: none;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  box-shadow: var(--rf-glow-gold-sm);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--rf-accent-gold-bright) 0%, var(--rf-accent-gold) 100%);
+  box-shadow: var(--rf-glow-gold);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: var(--rf-bg-raised);
+  color: var(--rf-text-secondary);
+  border: 1px solid var(--rf-border-neutral-subtle);
+  font-family: 'Inter', sans-serif;
+}
+
+.btn-secondary:hover {
+  background: var(--rf-bg-hover);
+  border-color: var(--rf-border-normal);
+  color: var(--rf-text-primary);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--rf-text-secondary);
+  border: 1px solid var(--rf-border-neutral-subtle);
+  font-family: 'Inter', sans-serif;
+}
+
+.btn-outline:hover {
+  background: var(--rf-bg-hover);
+  border-color: var(--rf-border-normal);
+  color: var(--rf-text-primary);
+}
+
+/* Button press micro-animation */
+.btn:active,
+.btn-small:active,
+.tool-btn:active {
+  transform: scale(0.96) !important;
+  transition: transform var(--rf-duration-instant) var(--rf-ease-out) !important;
 }

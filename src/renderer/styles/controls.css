@@ -33,12 +33,12 @@
   text-align: right;
   font-size: 10.5px;
   font-family: var(--font-mono);
-  color: var(--accent-primary);
+  color: var(--rf-accent-gold);
   font-weight: 600;
   padding: 2px 6px;
-  background: rgba(125, 163, 247, 0.1);
+  background: rgba(201, 169, 110, 0.1);
   border-radius: 4px;
-  border: 1px solid rgba(125, 163, 247, 0.2);
+  border: 1px solid rgba(201, 169, 110, 0.2);
 }
 
 .slider-label-left,
@@ -65,7 +65,7 @@ input[type="range"] {
 
 input[type="range"]:hover {
   box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.4),
-              0 0 8px rgba(125, 163, 247, 0.2);
+              0 0 8px rgba(201, 169, 110, 0.2);
 }
 
 /* Track */
@@ -74,8 +74,8 @@ input[type="range"]::-webkit-slider-runnable-track {
   border-radius: 3px;
   background: linear-gradient(
     to right,
-    var(--accent-primary) 0%,
-    var(--accent-primary) var(--slider-fill, 50%),
+    var(--rf-accent-gold) 0%,
+    var(--rf-accent-gold) var(--slider-fill, 50%),
     transparent var(--slider-fill, 50%)
   );
 }
@@ -88,40 +88,40 @@ input[type="range"]::-webkit-slider-thumb {
   height: 16px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--text-primary) 0%, #d0d0e0 100%);
-  border: 2px solid var(--accent-primary);
+  border: 2px solid var(--rf-accent-gold);
   margin-top: -6px;
   cursor: pointer;
   transition: all var(--transition-fast);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4),
-              0 0 8px rgba(125, 163, 247, 0.3);
+              0 0 8px rgba(201, 169, 110, 0.3);
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
-  background: linear-gradient(135deg, var(--accent-primary-bright) 0%, var(--accent-primary) 100%);
-  border-color: var(--accent-primary-bright);
+  background: linear-gradient(135deg, var(--rf-accent-gold-bright) 0%, var(--rf-accent-gold) 100%);
+  border-color: var(--rf-accent-gold-bright);
   transform: scale(1.25);
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5),
-              0 0 16px rgba(125, 163, 247, 0.5);
+              0 0 16px rgba(201, 169, 110, 0.5);
 }
 
 input[type="range"]:active::-webkit-slider-thumb {
-  background: var(--accent-primary);
+  background: var(--rf-accent-gold);
   transform: scale(1.15);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6),
-              0 0 20px rgba(125, 163, 247, 0.6);
+              0 0 20px rgba(201, 169, 110, 0.6);
 }
 
 /* Morph slider color variation */
 .morph-slider::-webkit-slider-runnable-track {
-  background: linear-gradient(to right, var(--accent-primary-dim), var(--accent-primary));
+  background: linear-gradient(to right, #a8844a, var(--rf-accent-gold));
 }
 
 .hair-slider::-webkit-slider-runnable-track {
-  background: linear-gradient(to right, var(--accent-warning), var(--accent-primary));
+  background: linear-gradient(to right, #a8844a, var(--rf-accent-gold-bright));
 }
 
 .appearance-slider::-webkit-slider-runnable-track {
-  background: linear-gradient(to right, var(--accent-secondary), var(--accent-primary));
+  background: linear-gradient(to right, #a8844a, var(--rf-accent-gold));
 }
 
 .skin-texture-slider::-webkit-slider-runnable-track {
@@ -129,7 +129,7 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 .eyebrow-slider::-webkit-slider-runnable-track {
-  background: linear-gradient(to right, var(--accent-danger), var(--accent-primary));
+  background: linear-gradient(to right, #a8844a, var(--rf-accent-gold));
 }
 
 /* ─── Select Controls ───────────────────────────────────────────────── */
@@ -168,14 +168,14 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 .custom-select:hover {
-  border-color: var(--accent-primary);
+  border-color: var(--rf-accent-gold);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3),
-              0 0 0 1px rgba(125, 163, 247, 0.2);
+              0 0 0 1px rgba(201, 169, 110, 0.2);
 }
 
 .custom-select:focus {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(125, 163, 247, 0.2),
+  border-color: var(--rf-accent-gold);
+  box-shadow: 0 0 0 3px rgba(201, 169, 110, 0.2),
               0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
@@ -218,14 +218,14 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 .text-input:hover {
-  border-color: var(--accent-primary);
+  border-color: var(--rf-accent-gold);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3),
-              0 0 0 1px rgba(125, 163, 247, 0.2);
+              0 0 0 1px rgba(201, 169, 110, 0.2);
 }
 
 .text-input:focus {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(125, 163, 247, 0.2),
+  border-color: var(--rf-accent-gold);
+  box-shadow: 0 0 0 3px rgba(201, 169, 110, 0.2),
               0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
@@ -250,14 +250,14 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 .text-area:hover {
-  border-color: var(--accent-primary);
+  border-color: var(--rf-accent-gold);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3),
-              0 0 0 1px rgba(125, 163, 247, 0.2);
+              0 0 0 1px rgba(201, 169, 110, 0.2);
 }
 
 .text-area:focus {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(125, 163, 247, 0.2),
+  border-color: var(--rf-accent-gold);
+  box-shadow: 0 0 0 3px rgba(201, 169, 110, 0.2),
               0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
@@ -286,16 +286,16 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 .checkbox-control input[type="checkbox"]:hover {
-  border-color: var(--accent-primary);
+  border-color: var(--rf-accent-gold);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3),
-              0 0 0 1px rgba(125, 163, 247, 0.2);
+              0 0 0 1px rgba(201, 169, 110, 0.2);
 }
 
 .checkbox-control input[type="checkbox"]:checked {
-  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-dim) 100%);
-  border-color: var(--accent-primary);
-  box-shadow: 0 2px 6px rgba(125, 163, 247, 0.4),
-              0 0 12px rgba(125, 163, 247, 0.3);
+  background: linear-gradient(135deg, var(--rf-accent-gold) 0%, #a8844a 100%);
+  border-color: var(--rf-accent-gold);
+  box-shadow: 0 2px 6px rgba(201, 169, 110, 0.4),
+              0 0 12px rgba(201, 169, 110, 0.3);
 }
 
 .checkbox-control input[type="checkbox"]:checked::after {
@@ -330,9 +330,9 @@ input[type="range"]:active::-webkit-slider-thumb {
   line-height: 1.6;
   margin-bottom: 12px;
   padding: 8px 10px;
-  background: linear-gradient(135deg, rgba(125, 163, 247, 0.08) 0%, rgba(125, 163, 247, 0.03) 100%);
+  background: linear-gradient(135deg, rgba(201, 169, 110, 0.08) 0%, rgba(201, 169, 110, 0.03) 100%);
   border-radius: 6px;
-  border-left: 3px solid var(--accent-primary);
+  border-left: 3px solid var(--rf-accent-gold);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
@@ -353,18 +353,18 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 .btn-accent {
-  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-dim) 100%);
+  background: linear-gradient(135deg, var(--rf-accent-gold) 0%, #a8844a 100%);
   color: #ffffff;
-  border: 1px solid var(--accent-primary);
+  border: 1px solid var(--rf-accent-gold);
   font-weight: 600;
   transition: all var(--transition-fast);
-  box-shadow: 0 2px 8px rgba(125, 163, 247, 0.3);
+  box-shadow: 0 2px 8px rgba(201, 169, 110, 0.3);
 }
 
 .btn-accent:hover {
-  background: linear-gradient(135deg, var(--accent-primary-bright) 0%, var(--accent-primary) 100%);
-  border-color: var(--accent-primary-bright);
-  box-shadow: 0 4px 12px rgba(125, 163, 247, 0.4);
+  background: linear-gradient(135deg, var(--rf-accent-gold-bright) 0%, var(--rf-accent-gold) 100%);
+  border-color: var(--rf-accent-gold-bright);
+  box-shadow: 0 4px 12px rgba(201, 169, 110, 0.4);
   transform: translateY(-1px);
 }
 
@@ -376,10 +376,10 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 #btnEditPoints.active {
-  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-dim) 100%);
+  background: linear-gradient(135deg, var(--rf-accent-gold) 0%, #a8844a 100%);
   color: #ffffff;
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 16px rgba(125, 163, 247, 0.4);
+  border-color: var(--rf-accent-gold);
+  box-shadow: 0 0 16px rgba(201, 169, 110, 0.4);
 }
 
 #btnTogglePointEdit.active {
@@ -399,9 +399,9 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 #btnSkinMarks.active {
-  background: var(--accent-primary);
+  background: var(--rf-accent-gold);
   color: var(--bg-primary);
-  border-color: var(--accent-primary);
+  border-color: var(--rf-accent-gold);
 }
 
 #skinMarkProperties {
@@ -413,9 +413,9 @@ input[type="range"]:active::-webkit-slider-thumb {
 /* ─── Wrinkle Painter Controls ────────────────────────────────────── */
 
 #btnWrinklePaint.active {
-  background: var(--accent-primary);
+  background: var(--rf-accent-gold);
   color: var(--bg-primary);
-  border-color: var(--accent-primary);
+  border-color: var(--rf-accent-gold);
 }
 
 #btnToggleWrinklePaint.active {
@@ -439,9 +439,9 @@ input[type="range"]:active::-webkit-slider-thumb {
 
 #btnLipPaint.active,
 #btnToggleLipPaint.active {
-  background: var(--accent-primary);
+  background: var(--rf-accent-gold);
   color: var(--bg-primary);
-  border-color: var(--accent-primary);
+  border-color: var(--rf-accent-gold);
 }
 
 #btnLipErase.active {
@@ -453,9 +453,9 @@ input[type="range"]:active::-webkit-slider-thumb {
 /* ─── Decal System Controls ───────────────────────────────────────── */
 
 #btnDecals.active {
-  background: var(--accent-primary);
+  background: var(--rf-accent-gold);
   color: var(--bg-primary);
-  border-color: var(--accent-primary);
+  border-color: var(--rf-accent-gold);
 }
 
 #btnToggleDecalPlace.active {
@@ -493,8 +493,8 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 .decal-thumb.active {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 8px rgba(125, 163, 247, 0.4);
+  border-color: var(--rf-accent-gold);
+  box-shadow: 0 0 8px rgba(201, 169, 110, 0.4);
 }
 
 .decal-thumb img {
@@ -534,8 +534,8 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 .glasses-item.active {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 8px rgba(125, 163, 247, 0.4);
+  border-color: var(--rf-accent-gold);
+  box-shadow: 0 0 8px rgba(201, 169, 110, 0.4);
 }
 
 .glasses-item .glasses-preview {
@@ -644,7 +644,7 @@ input[type="range"]:active::-webkit-slider-thumb {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: linear-gradient(135deg, rgba(125, 163, 247, 0.15) 0%, rgba(125, 163, 247, 0.08) 100%);
+  background: linear-gradient(135deg, rgba(201, 169, 110, 0.15) 0%, rgba(201, 169, 110, 0.08) 100%);
   border-bottom: 1px solid var(--border-accent);
   border-radius: 8px 8px 0 0;
   margin: 0 10px;
@@ -661,7 +661,7 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 .age-progression-header h3 i {
-  color: var(--accent-primary);
+  color: var(--rf-accent-gold);
   font-size: 16px;
 }
 
@@ -728,16 +728,16 @@ input[type="range"]:active::-webkit-slider-thumb {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(125, 163, 247, 0.05) 0%, transparent 100%);
+  background: linear-gradient(135deg, rgba(201, 169, 110, 0.05) 0%, transparent 100%);
   opacity: 0;
   transition: opacity var(--transition-fast);
 }
 
 .age-card:hover {
-  border-color: var(--accent-primary);
+  border-color: var(--rf-accent-gold);
   transform: translateX(4px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3),
-              0 0 0 1px rgba(125, 163, 247, 0.3);
+              0 0 0 1px rgba(201, 169, 110, 0.3);
 }
 
 .age-card:hover::before {
@@ -745,31 +745,31 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 .age-card.active {
-  border-color: var(--accent-primary);
-  background: linear-gradient(135deg, rgba(125, 163, 247, 0.2) 0%, rgba(125, 163, 247, 0.1) 100%);
-  box-shadow: 0 4px 12px rgba(125, 163, 247, 0.4),
-              0 0 0 2px rgba(125, 163, 247, 0.4);
+  border-color: var(--rf-accent-gold);
+  background: linear-gradient(135deg, rgba(201, 169, 110, 0.2) 0%, rgba(201, 169, 110, 0.1) 100%);
+  box-shadow: 0 4px 12px rgba(201, 169, 110, 0.4),
+              0 0 0 2px rgba(201, 169, 110, 0.4);
 }
 
 .age-card.active::before {
   opacity: 1;
-  background: linear-gradient(135deg, rgba(125, 163, 247, 0.1) 0%, transparent 100%);
+  background: linear-gradient(135deg, rgba(201, 169, 110, 0.1) 0%, transparent 100%);
 }
 
 .age-card i {
   font-size: 24px;
-  color: var(--accent-primary);
+  color: var(--rf-accent-gold);
   transition: all var(--transition-fast);
   flex-shrink: 0;
 }
 
 .age-card:hover i {
-  color: var(--accent-primary-bright);
+  color: var(--rf-accent-gold-bright);
   transform: scale(1.1);
 }
 
 .age-card.active i {
-  color: var(--accent-primary-bright);
+  color: var(--rf-accent-gold-bright);
 }
 
 .age-card > div {
@@ -817,14 +817,93 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 .btn-reset-age:hover {
-  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-dim) 100%);
-  border-color: var(--accent-primary);
+  background: linear-gradient(135deg, var(--rf-accent-gold) 0%, #a8844a 100%);
+  border-color: var(--rf-accent-gold);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(125, 163, 247, 0.3);
+  box-shadow: 0 4px 12px rgba(201, 169, 110, 0.3);
   color: #ffffff;
 }
 
 .btn-reset-age i {
   font-size: 12px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   PHASE 8 — Slider Track Deep Polish (dynamic fill via --fill-pct)
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Base track override — uses JS-driven --fill-pct for all range inputs */
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    var(--rf-accent-gold) 0%,
+    var(--rf-accent-gold) var(--fill-pct, 50%),
+    var(--rf-bg-overlay) var(--fill-pct, 50%),
+    var(--rf-bg-overlay) 100%
+  );
+}
+
+/* Morph sliders — standard gold fill */
+.morph-slider::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    var(--rf-accent-gold) 0%,
+    var(--rf-accent-gold) var(--fill-pct, 50%),
+    var(--rf-bg-overlay) var(--fill-pct, 50%),
+    var(--rf-bg-overlay) 100%
+  );
+}
+
+/* Hair sliders — gold-bright fill */
+.hair-slider::-webkit-slider-runnable-track,
+.beard-slider::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    var(--rf-accent-gold-bright) 0%,
+    var(--rf-accent-gold-bright) var(--fill-pct, 50%),
+    var(--rf-bg-overlay) var(--fill-pct, 50%),
+    var(--rf-bg-overlay) 100%
+  );
+}
+
+/* Eye / Eyebrow / Eyelash sliders — subtle purple accent */
+.eye-slider::-webkit-slider-runnable-track,
+.eyebrow-slider::-webkit-slider-runnable-track,
+.eyelash-slider::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    rgba(140, 115, 200, 0.80) 0%,
+    rgba(140, 115, 200, 0.80) var(--fill-pct, 50%),
+    var(--rf-bg-overlay) var(--fill-pct, 50%),
+    var(--rf-bg-overlay) 100%
+  );
+}
+
+.eye-slider::-webkit-slider-thumb,
+.eyebrow-slider::-webkit-slider-thumb,
+.eyelash-slider::-webkit-slider-thumb {
+  border-color: rgba(140, 115, 200, 0.90);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), 0 0 8px rgba(140, 115, 200, 0.35);
+}
+
+.eye-slider::-webkit-slider-thumb:hover,
+.eyebrow-slider::-webkit-slider-thumb:hover,
+.eyelash-slider::-webkit-slider-thumb:hover {
+  border-color: rgba(170, 145, 230, 1.0);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 14px rgba(140, 115, 200, 0.55);
+}
+
+/* Appearance / skin-texture sliders — muted gold */
+.appearance-slider::-webkit-slider-runnable-track,
+.skin-texture-slider::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    rgba(201, 169, 110, 0.70) 0%,
+    rgba(201, 169, 110, 0.70) var(--fill-pct, 50%),
+    var(--rf-bg-overlay) var(--fill-pct, 50%),
+    var(--rf-bg-overlay) 100%
+  );
 }
 

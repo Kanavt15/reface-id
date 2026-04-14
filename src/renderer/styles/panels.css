@@ -1743,3 +1743,1375 @@
   height: 100%;
   object-fit: cover;
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   PHASE 7 — Left Panel Frame & Tabs Redesign
+   CSS-only overrides. All IDs, data-panel attrs, JS bindings intact.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ─── Panel Frame ───────────────────────────────────────────────────── */
+
+#left-panel {
+  width: 380px;
+  min-width: 380px;
+  background: var(--rf-bg-surface);
+  border-right: 1px solid var(--rf-border-neutral-subtle);
+}
+
+/* ─── Panel Tabs ────────────────────────────────────────────────────── */
+
+.panel-tabs {
+  background: var(--rf-bg-raised);
+  border-bottom: 1px solid var(--rf-border-neutral-faint);
+  padding: 0;
+  gap: 0;
+  height: 44px;
+}
+
+.panel-tab {
+  flex: 1;
+  padding: 0 4px;
+  height: 44px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--rf-text-tertiary);
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  transition: background var(--rf-dur-fast) var(--rf-ease-out),
+              color var(--rf-dur-fast) var(--rf-ease-out),
+              border-color var(--rf-dur-fast) var(--rf-ease-out);
+}
+
+.panel-tab i {
+  font-size: 14px;
+  transition: color var(--rf-dur-fast) var(--rf-ease-out);
+}
+
+.panel-tab:hover {
+  background: var(--rf-bg-hover);
+  color: var(--rf-text-secondary);
+}
+
+.panel-tab:hover i {
+  color: var(--rf-text-secondary);
+}
+
+.panel-tab.active {
+  color: var(--rf-accent-gold);
+  background: transparent;
+  border-bottom-color: var(--rf-accent-gold);
+}
+
+.panel-tab.active i {
+  color: var(--rf-accent-gold);
+}
+
+/* ─── Panel Scroll Area ─────────────────────────────────────────────── */
+
+.panel-scroll {
+  padding: 10px;
+}
+
+.panel-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.panel-scroll::-webkit-scrollbar-thumb {
+  background: var(--rf-border-subtle);
+  border-radius: 2px;
+}
+
+.panel-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 169, 110, 0.20);
+}
+
+/* ─── Control Groups ────────────────────────────────────────────────── */
+
+.control-group {
+  margin-bottom: 6px;
+  border-radius: 10px;
+  background: var(--rf-bg-card);
+  border: 1px solid var(--rf-border-neutral-faint);
+  transition: border-color var(--rf-dur-fast) var(--rf-ease-out);
+}
+
+.control-group:hover {
+  border-color: var(--rf-border-subtle);
+}
+
+.control-group-header {
+  padding: 11px 14px;
+  background: transparent;
+  font-size: 11.5px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  color: var(--rf-text-primary);
+  letter-spacing: 0.01em;
+  border-bottom: 1px solid var(--rf-border-neutral-faint);
+  gap: 9px;
+  transition: background var(--rf-dur-fast) var(--rf-ease-out);
+}
+
+.control-group-header:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.control-group-header i {
+  font-size: 11px;
+  color: var(--rf-accent-gold);
+  width: 15px;
+  opacity: 0.75;
+}
+
+/* Chevron — gold when expanded */
+.control-group-header::after {
+  font-size: 8px;
+  color: var(--rf-accent-gold);
+  opacity: 0.6;
+  transition: transform var(--rf-dur-normal) var(--rf-ease-inout),
+              opacity var(--rf-dur-fast) var(--rf-ease-out);
+}
+
+.control-group-header:hover::after {
+  opacity: 0.9;
+}
+
+.control-group-header.collapsed::after {
+  color: var(--rf-text-tertiary);
+  opacity: 0.5;
+}
+
+/* Reset & save-default buttons — pill shape, appear on hover */
+.btn-reset-group,
+.btn-save-default {
+  width: auto;
+  height: 20px;
+  border-radius: 999px;
+  padding: 0 8px;
+  font-size: 9px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  opacity: 0;
+  transition: opacity var(--rf-dur-fast) var(--rf-ease-out),
+              background var(--rf-dur-fast) var(--rf-ease-out),
+              color var(--rf-dur-fast) var(--rf-ease-out);
+}
+
+.control-group-header:hover .btn-reset-group,
+.control-group-header:hover .btn-save-default {
+  opacity: 1;
+}
+
+.btn-reset-group:hover {
+  background: rgba(255, 77, 106, 0.14);
+  color: var(--rf-accent-red);
+  border: 1px solid rgba(255, 77, 106, 0.22);
+}
+
+.btn-save-default:hover {
+  background: rgba(46, 204, 113, 0.12);
+  color: var(--rf-accent-green);
+  border: 1px solid rgba(46, 204, 113, 0.20);
+}
+
+.control-group-body {
+  padding: 10px 12px;
+  background: transparent;
+}
+
+.control-group-body.collapsed {
+  padding: 0 12px;
+}
+
+/* ─── Sub-Groups ────────────────────────────────────────────────────── */
+
+.feature-sub-group {
+  background: var(--rf-bg-surface);
+  border: 1px solid var(--rf-border-neutral-faint);
+  border-radius: 8px;
+  margin: 5px 0;
+  transition: border-color var(--rf-dur-fast) var(--rf-ease-out);
+}
+
+.feature-sub-group:hover {
+  border-color: var(--rf-border-subtle);
+}
+
+.sub-group-header {
+  padding: 8px 11px;
+  background: transparent;
+  font-size: 10.5px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  color: var(--rf-text-secondary);
+  gap: 7px;
+  border-bottom: 1px solid var(--rf-border-neutral-faint);
+  transition: background var(--rf-dur-fast) var(--rf-ease-out),
+              color var(--rf-dur-fast) var(--rf-ease-out);
+}
+
+.sub-group-header:hover {
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--rf-text-primary);
+}
+
+.sub-group-header i {
+  font-size: 9px;
+  color: var(--rf-accent-gold);
+  opacity: 0.7;
+  width: 13px;
+}
+
+.sub-group-header::after {
+  font-size: 7px;
+  color: var(--rf-accent-gold);
+  opacity: 0.45;
+  transition: transform var(--rf-dur-normal) var(--rf-ease-inout);
+}
+
+.sub-group-body {
+  padding: 8px 10px;
+}
+
+.sub-group-body.collapsed {
+  padding: 0 10px;
+}
+
+/* ─── Slider Label & Value Typography ───────────────────────────────── */
+/* Track/thumb redesign is Phase 8 — this phase handles typography only */
+
+.slider-control label {
+  font-size: 11px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  color: var(--rf-text-secondary);
+  letter-spacing: 0.01em;
+  margin-bottom: 4px;
+}
+
+.slider-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--rf-accent-gold);
+  background: rgba(201, 169, 110, 0.08);
+  border: 1px solid rgba(201, 169, 110, 0.16);
+  border-radius: 4px;
+  padding: 2px 7px;
+  min-width: 30px;
+  text-align: right;
+}
+
+/* Sub-group sliders — slightly smaller */
+.sub-group-body .slider-control label {
+  font-size: 10px;
+  color: var(--rf-text-tertiary);
+}
+
+.sub-group-body .slider-value {
+  font-size: 9.5px;
+  min-width: 26px;
+  padding: 1px 6px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   PHASE 8 — Face Panel Group Icon Tints & Sub-group Dividers
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Sub-group dividers within a control-group */
+.control-group-body .feature-sub-group + .feature-sub-group {
+  margin-top: 6px;
+  border-top: 1px solid var(--rf-border-neutral-faint);
+  padding-top: 2px;
+}
+
+/* Face panel group icon tints — progressively tuned per region */
+#panel-face .control-group:nth-child(1) .control-group-header > i { color: rgba(201,169,110,0.70); }
+#panel-face .control-group:nth-child(2) .control-group-header > i { color: rgba(201,169,110,0.55); }
+#panel-face .control-group:nth-child(3) .control-group-header > i { color: rgba(201,169,110,0.60); }
+#panel-face .control-group:nth-child(4) .control-group-header > i { color: rgba(201,169,110,0.85); }
+#panel-face .control-group:nth-child(5) .control-group-header > i { color: rgba(201,169,110,0.65); }
+#panel-face .control-group:nth-child(6) .control-group-header > i { color: rgba(201,169,110,0.60); }
+#panel-face .control-group:nth-child(7) .control-group-header > i { color: rgba(224,190,135,0.75); }
+#panel-face .control-group:nth-child(8) .control-group-header > i { color: rgba(201,169,110,0.50); }
+#panel-face .control-group:nth-child(9) .control-group-header > i { color: rgba(201,169,110,0.55); }
+
+/* ══════════════════════════════════════════════════════════════════════
+   PHASE 9 — Hair Panel Redesign
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Hair Style Grid — 3 columns, premium cards */
+.hair-style-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+
+.hair-style-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 6px;
+  border: 1px solid var(--rf-border-neutral-faint);
+  border-radius: 12px;
+  background: var(--rf-gradient-card);
+  background-color: var(--rf-bg-card);
+  cursor: pointer;
+  transition: border-color var(--rf-duration-fast) var(--rf-ease-out),
+              box-shadow var(--rf-duration-fast) var(--rf-ease-out),
+              transform var(--rf-duration-fast) var(--rf-ease-out),
+              background-color var(--rf-duration-fast) var(--rf-ease-out);
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
+  color: var(--rf-text-secondary);
+  text-align: center;
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+}
+
+.hair-style-card:hover {
+  background-color: var(--rf-bg-hover);
+  border-color: var(--rf-border-normal);
+  color: var(--rf-text-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--rf-shadow-sm);
+}
+
+.hair-style-card.active {
+  background-color: rgba(201, 169, 110, 0.06);
+  border-color: var(--rf-border-bright);
+  color: var(--rf-accent-gold);
+  box-shadow: var(--rf-glow-gold-sm), var(--rf-shadow-sm);
+}
+
+/* Gold checkmark badge on active card */
+.hair-style-card.active::after {
+  content: '\f00c';
+  font-family: 'Font Awesome 5 Free';
+  font-weight: 900;
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  font-size: 8px;
+  color: var(--rf-accent-gold);
+  background: rgba(201, 169, 110, 0.15);
+  border: 1px solid rgba(201, 169, 110, 0.30);
+  border-radius: 50%;
+  width: 15px;
+  height: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 15px;
+  text-align: center;
+}
+
+/* Bald card — distinct neutral look */
+.hair-style-card[data-style="bald"] {
+  border-color: var(--rf-border-neutral-subtle);
+  color: var(--rf-text-tertiary);
+}
+
+.hair-style-card[data-style="bald"]:hover {
+  border-color: var(--rf-border-normal);
+  color: var(--rf-text-secondary);
+}
+
+/* Hair icon inside card */
+.hair-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: inherit;
+  transition: color var(--rf-duration-fast) var(--rf-ease-out);
+}
+
+.hair-style-card.active .hair-icon {
+  color: var(--rf-accent-gold);
+}
+
+/* Card label */
+.hair-style-card span {
+  font-size: 9.5px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+/* Preview video container — gold themed */
+.hair-preview-video-container {
+  position: fixed;
+  top: calc(var(--titlebar-height) + var(--toolbar-height) + 8px);
+  left: calc(var(--panel-width) + 12px);
+  z-index: 200;
+  width: 200px;
+  height: 200px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--rf-border-bright);
+  background: var(--rf-bg-card);
+  box-shadow: var(--rf-glow-gold), var(--rf-shadow-lg);
+  pointer-events: none;
+}
+
+/* Hair panel control group header icons */
+#panel-hair .control-group .control-group-header > i {
+  color: var(--rf-accent-gold);
+  opacity: 0.75;
+}
+
+/* Color presets row — tighter for hair */
+#panel-hair .color-presets {
+  gap: 6px;
+}
+
+/* Beard select dropdown gold styling */
+#panel-hair .custom-select {
+  border-color: var(--rf-border-neutral-subtle);
+  background-color: var(--rf-bg-card);
+  color: var(--rf-text-primary);
+  font-family: 'Inter', sans-serif;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23c9a96e'/%3E%3C/svg%3E");
+}
+
+#panel-hair .custom-select:focus {
+  border-color: var(--rf-border-bright);
+  box-shadow: 0 0 0 2px var(--rf-accent-gold-glow);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   PHASE 10 — Appearance Panel Redesign
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ─── Skin Tone Grid ─── */
+.skin-tone-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.skin-swatch {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform var(--rf-duration-fast) var(--rf-ease-out),
+              border-color var(--rf-duration-fast) var(--rf-ease-out),
+              box-shadow var(--rf-duration-fast) var(--rf-ease-out);
+}
+
+.skin-swatch:hover {
+  transform: scale(1.10);
+  border-color: var(--rf-border-normal);
+  box-shadow: var(--rf-shadow-sm);
+}
+
+.skin-swatch.active {
+  transform: scale(1.08);
+  border-color: var(--rf-accent-gold);
+  box-shadow: 0 0 0 2px var(--rf-accent-gold-glow), var(--rf-glow-gold-sm);
+}
+
+/* ─── Color Swatches (lip, eye, eyebrow, eyelash) ─── */
+.color-presets {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  padding: 6px 0;
+}
+
+.color-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform var(--rf-duration-fast) var(--rf-ease-out),
+              border-color var(--rf-duration-fast) var(--rf-ease-out),
+              box-shadow var(--rf-duration-fast) var(--rf-ease-out);
+  flex-shrink: 0;
+}
+
+.color-swatch:hover {
+  transform: scale(1.18);
+  border-color: var(--rf-border-normal);
+}
+
+.color-swatch.active {
+  transform: scale(1.12);
+  border-color: var(--rf-accent-gold);
+  box-shadow: 0 0 0 2px var(--rf-accent-gold-glow);
+}
+
+/* ─── Color Picker Row ─── */
+.color-picker-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 0;
+}
+
+.color-picker-row label {
+  font-size: 10.5px;
+  font-family: 'Inter', sans-serif;
+  color: var(--rf-text-secondary);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+.color-input {
+  width: 100%;
+  height: 32px;
+  border: 1px solid var(--rf-border-neutral-subtle);
+  border-radius: 8px;
+  background: var(--rf-bg-card);
+  cursor: pointer;
+  padding: 0;
+  transition: border-color var(--rf-duration-fast) var(--rf-ease-out),
+              box-shadow var(--rf-duration-fast) var(--rf-ease-out);
+}
+
+.color-input:hover {
+  border-color: var(--rf-border-normal);
+}
+
+.color-input:focus {
+  border-color: var(--rf-border-bright);
+  box-shadow: 0 0 0 2px var(--rf-accent-gold-glow);
+  outline: none;
+}
+
+/* ─── Age Progression ─── */
+.age-progression-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  position: relative;
+  padding: 4px 0;
+}
+
+/* Timeline connector line */
+.age-progression-grid::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: var(--rf-border-normal);
+  transform: translateY(-50%);
+  z-index: 0;
+}
+
+.age-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px 8px;
+  border: 1px solid var(--rf-border-neutral-subtle);
+  border-radius: 10px;
+  background: var(--rf-bg-card);
+  cursor: pointer;
+  transition: border-color var(--rf-duration-fast) var(--rf-ease-out),
+              box-shadow var(--rf-duration-fast) var(--rf-ease-out),
+              background-color var(--rf-duration-fast) var(--rf-ease-out),
+              transform var(--rf-duration-fast) var(--rf-ease-out);
+  color: var(--rf-text-secondary);
+  font-family: 'Inter', sans-serif;
+  position: relative;
+  z-index: 1;
+}
+
+.age-card:hover {
+  border-color: var(--rf-border-normal);
+  background: var(--rf-bg-hover);
+  color: var(--rf-text-primary);
+  transform: translateY(-2px);
+}
+
+.age-card.active {
+  border-color: var(--rf-border-bright);
+  background: rgba(201, 169, 110, 0.07);
+  color: var(--rf-accent-gold);
+  box-shadow: var(--rf-glow-gold-sm);
+}
+
+.age-card > i {
+  font-size: 13px;
+  color: inherit;
+}
+
+.age-label {
+  font-size: 9.5px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  color: inherit;
+  line-height: 1.2;
+}
+
+.age-desc {
+  font-size: 8.5px;
+  font-family: 'Inter', sans-serif;
+  color: var(--rf-text-tertiary);
+  line-height: 1.2;
+  text-align: center;
+}
+
+/* ─── Paint Toggle Buttons ─── */
+.btn-small {
+  padding: 5px 12px;
+  font-size: 10.5px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  background: var(--rf-bg-raised);
+  color: var(--rf-text-secondary);
+  border: 1px solid var(--rf-border-neutral-subtle);
+  border-radius: var(--rf-radius-full);
+  cursor: pointer;
+  transition: background var(--rf-duration-fast) var(--rf-ease-out),
+              border-color var(--rf-duration-fast) var(--rf-ease-out),
+              color var(--rf-duration-fast) var(--rf-ease-out);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.btn-small:hover {
+  background: var(--rf-bg-hover);
+  color: var(--rf-text-primary);
+  border-color: var(--rf-border-normal);
+}
+
+/* Active paint toggle — gold pill */
+#btnToggleWrinklePaint.active,
+#btnToggleLipPaint.active,
+#btnTogglePigmentPaint.active {
+  background: rgba(201, 169, 110, 0.15);
+  border-color: var(--rf-border-bright);
+  color: var(--rf-accent-gold);
+}
+
+/* Erase/Undo/Clear icon buttons */
+#btnWrinkleErase, #btnWrinkleUndo, #btnWrinkleClear,
+#btnLipErase, #btnLipPaintUndo, #btnLipPaintClear,
+#btnPigmentErase, #btnPigmentUndo, #btnPigmentClear {
+  padding: 5px 8px;
+  min-width: 0;
+  font-size: 10px;
+  border-color: var(--rf-border-neutral-subtle);
+}
+
+#btnWrinkleErase.active,
+#btnLipErase.active,
+#btnPigmentErase.active {
+  background: rgba(255, 77, 106, 0.12);
+  border-color: rgba(255, 77, 106, 0.35);
+  color: var(--rf-accent-red);
+}
+
+/* Brush controls compact row */
+#wrinklePaintControls .slider-control,
+#pigmentPaintControls .slider-control,
+.lip-paint-section .slider-control {
+  margin-bottom: 6px;
+}
+
+/* Pigment color presets — compact swatches */
+#pigmentColorPresets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+#pigmentColorPresets .color-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+}
+
+/* ─── Appearance Panel Group Icons ─── */
+#panel-appearance .control-group .control-group-header > i {
+  color: var(--rf-accent-gold);
+  opacity: 0.70;
+}
+
+/* ─── Custom select dropdown (appearance panel) ─── */
+#panel-appearance .custom-select,
+#panel-hair .custom-select {
+  border-color: var(--rf-border-neutral-subtle);
+  background-color: var(--rf-bg-card);
+  color: var(--rf-text-primary);
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   PHASE 11 — AI Panel Redesign (gold/purple theme)
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Chat header */
+.ai-chat-header {
+  background: var(--rf-bg-raised);
+  border-bottom: 1px solid var(--rf-border-neutral-subtle);
+  padding: 11px 14px;
+}
+
+.ai-chat-title {
+  font-size: 11.5px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  color: var(--rf-text-primary);
+  letter-spacing: 0.01em;
+}
+
+.ai-chat-title i {
+  color: var(--rf-accent-gold);
+  font-size: 13px;
+}
+
+/* Provider select */
+.ai-provider-select {
+  border: 1px solid var(--rf-border-neutral-subtle);
+  background: var(--rf-bg-card);
+  color: var(--rf-text-secondary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  border-radius: 6px;
+  height: 24px;
+}
+
+.ai-provider-select:hover {
+  border-color: var(--rf-border-normal);
+  box-shadow: none;
+}
+
+.ai-provider-select:focus {
+  border-color: var(--rf-border-bright);
+  box-shadow: 0 0 0 2px var(--rf-accent-gold-glow);
+  outline: none;
+}
+
+/* Header action buttons */
+.ai-chat-header .ai-action-btn {
+  width: 26px;
+  height: 26px;
+  background: var(--rf-bg-overlay);
+  border: 1px solid var(--rf-border-neutral-faint);
+  color: var(--rf-text-secondary);
+  border-radius: 6px;
+}
+
+.ai-chat-header .ai-action-btn:hover {
+  background: var(--rf-bg-hover);
+  border-color: var(--rf-border-normal);
+  color: var(--rf-accent-gold);
+  transform: none;
+}
+
+/* Messages area */
+.ai-chat-messages {
+  background: var(--rf-bg-base);
+  padding: 12px;
+  gap: 8px;
+}
+
+/* User bubble — gold tinted */
+.ai-chat-user {
+  background: rgba(201, 169, 110, 0.12);
+  border: 1px solid var(--rf-border-subtle);
+  color: var(--rf-text-primary);
+  border-bottom-right-radius: 4px;
+  box-shadow: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 11.5px;
+}
+
+/* AI bubble — card bg with gold left border */
+.ai-chat-assistant {
+  background: var(--rf-bg-card);
+  border: 1px solid var(--rf-border-neutral-faint);
+  border-left: 2px solid var(--rf-accent-gold);
+  color: var(--rf-text-primary);
+  border-bottom-left-radius: 4px;
+  box-shadow: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 11.5px;
+}
+
+/* Input area */
+.ai-chat-input-area {
+  background: var(--rf-bg-raised);
+  border-top: 1px solid var(--rf-border-neutral-subtle);
+  box-shadow: none;
+  padding: 10px 12px;
+}
+
+/* Textarea */
+.ai-chat-textarea {
+  background: var(--rf-bg-card);
+  border: 1px solid var(--rf-border-neutral-subtle);
+  color: var(--rf-text-primary);
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.ai-chat-textarea::placeholder {
+  color: var(--rf-text-tertiary);
+}
+
+.ai-chat-textarea:focus {
+  border-color: var(--rf-border-bright);
+  box-shadow: 0 0 0 2px var(--rf-accent-gold-glow);
+}
+
+/* Send button — gold gradient */
+.ai-send-btn {
+  background: var(--rf-gradient-cta);
+  color: #07070b;
+  font-weight: 700;
+  border-radius: 8px;
+  box-shadow: var(--rf-glow-gold-sm);
+  padding: 0 16px;
+  height: 32px;
+}
+
+.ai-send-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--rf-accent-gold-bright) 0%, var(--rf-accent-gold) 100%);
+  box-shadow: var(--rf-glow-gold);
+  transform: translateY(-1px);
+}
+
+/* Mic and action buttons — gold hover */
+.ai-mic-btn,
+.ai-btn-row .ai-action-btn {
+  background: var(--rf-bg-overlay);
+  border: 1px solid var(--rf-border-neutral-subtle);
+  color: var(--rf-text-secondary);
+  border-radius: 8px;
+  height: 32px;
+  width: 32px;
+}
+
+.ai-mic-btn:hover,
+.ai-btn-row .ai-action-btn:hover,
+.ai-btn-row .ai-action-btn.active {
+  background: var(--rf-bg-hover);
+  border-color: var(--rf-border-normal);
+  color: var(--rf-accent-gold);
+  transform: none;
+}
+
+/* Action menu — gold border */
+.ai-action-menu {
+  background: var(--rf-bg-overlay);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--rf-border-normal);
+  box-shadow: var(--rf-shadow-xl), var(--rf-glow-gold-sm);
+}
+
+.ai-menu-item {
+  color: var(--rf-text-secondary);
+  font-family: 'Inter', sans-serif;
+  font-size: 11.5px;
+  border-radius: 6px;
+}
+
+.ai-menu-item i {
+  color: var(--rf-accent-gold);
+}
+
+.ai-menu-item:hover {
+  background: rgba(201, 169, 110, 0.10);
+  color: var(--rf-text-primary);
+}
+
+/* Quick prompts */
+.ai-quick-prompts {
+  background: var(--rf-bg-surface);
+  border-top: 1px solid var(--rf-border-neutral-faint);
+  padding: 8px 12px;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+
+.ai-quick-btn {
+  background: var(--rf-bg-card);
+  border: 1px solid var(--rf-border-neutral-faint);
+  color: var(--rf-text-secondary);
+  font-family: 'Inter', sans-serif;
+  font-size: 9.5px;
+  font-weight: 400;
+  border-radius: var(--rf-radius-full);
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: none;
+  padding: 4px 10px;
+}
+
+.ai-quick-btn:hover {
+  background: var(--rf-bg-hover);
+  border-color: var(--rf-border-normal);
+  color: var(--rf-accent-gold);
+  transform: none;
+  box-shadow: var(--rf-glow-gold-sm);
+}
+
+/* Reference chips — gold tinted */
+.ai-reference-chip {
+  background: var(--rf-bg-card);
+  border: 1px solid var(--rf-border-subtle);
+  color: var(--rf-text-secondary);
+  font-family: 'Inter', sans-serif;
+  border-radius: var(--rf-radius-sm);
+}
+
+.ai-reference-clear {
+  background: rgba(255, 77, 106, 0.08);
+  border: 1px solid rgba(255, 77, 106, 0.18);
+  color: var(--rf-text-tertiary);
+}
+
+.ai-reference-clear:hover {
+  background: var(--rf-accent-red);
+  border-color: var(--rf-accent-red);
+  color: #fff;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Camera modal — dark glass */
+.ai-camera-modal {
+  background: rgba(7, 7, 11, 0.90);
+  backdrop-filter: blur(10px);
+}
+
+.ai-camera-modal-content {
+  background: var(--rf-bg-overlay);
+  border: 1px solid var(--rf-border-normal);
+  box-shadow: var(--rf-shadow-xl), var(--rf-glow-gold);
+  border-radius: 14px;
+}
+
+.ai-camera-header {
+  border-bottom: 1px solid var(--rf-border-neutral-subtle);
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: var(--rf-text-primary);
+}
+
+.ai-camera-capture-btn {
+  border: 3px solid var(--rf-border-normal);
+  color: var(--rf-accent-gold);
+}
+
+.ai-camera-capture-btn:hover {
+  border-color: var(--rf-accent-gold);
+  background: rgba(201, 169, 110, 0.10);
+}
+
+/* AI panel group icons */
+#panel-ai .control-group .control-group-header > i {
+  color: rgba(140, 115, 200, 0.80);
+}
+
+/* Typing indicator (3 gold dots) */
+.ai-typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 14px;
+  align-self: flex-start;
+}
+
+.ai-typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rf-accent-gold);
+  opacity: 0.7;
+  animation: rf-typing-bounce 1.4s infinite ease-in-out;
+}
+
+.ai-typing-dot:nth-child(1) { animation-delay: 0ms; }
+.ai-typing-dot:nth-child(2) { animation-delay: 200ms; }
+.ai-typing-dot:nth-child(3) { animation-delay: 400ms; }
+
+@keyframes rf-typing-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+  40%            { transform: translateY(-5px); opacity: 1; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   PHASE 12 — Snapshots & Case Panel Redesign
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ─── Snapshot Panel ─── */
+.snapshot-empty {
+  text-align: center;
+  padding: 28px 12px;
+  color: var(--rf-text-tertiary);
+  font-size: 10.5px;
+  font-family: 'Inter', sans-serif;
+  line-height: 1.7;
+  background: var(--rf-bg-card);
+  border-radius: 10px;
+  border: 1px dashed var(--rf-border-normal);
+}
+
+.snapshot-empty i {
+  display: block;
+  font-size: 28px;
+  margin-bottom: 10px;
+  color: var(--rf-accent-gold);
+  opacity: 0.30;
+}
+
+.snapshot-card {
+  background: var(--rf-bg-card);
+  border: 1px solid var(--rf-border-neutral-faint);
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.snapshot-card::before {
+  display: none;
+}
+
+.snapshot-card:hover {
+  background: var(--rf-bg-hover);
+  border-color: var(--rf-border-normal);
+  box-shadow: var(--rf-shadow-sm);
+  transform: none;
+}
+
+.snapshot-card.restoring {
+  border-color: var(--rf-border-bright);
+  box-shadow: var(--rf-glow-gold-sm);
+}
+
+.snapshot-card.restored {
+  animation: rf-snapshot-restore 1.2s ease-out;
+}
+
+@keyframes rf-snapshot-restore {
+  0%   { border-color: var(--rf-accent-gold); box-shadow: var(--rf-glow-gold); }
+  100% { border-color: var(--rf-border-neutral-faint); box-shadow: none; }
+}
+
+.snapshot-name {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--rf-text-primary);
+}
+
+.snapshot-time {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  color: var(--rf-accent-gold);
+}
+
+.snapshot-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--rf-text-tertiary);
+}
+
+.snapshot-meta {
+  color: var(--rf-text-tertiary);
+  font-style: normal;
+  font-size: 9.5px;
+}
+
+.snapshot-action-btn {
+  background: var(--rf-bg-raised);
+  border: 1px solid var(--rf-border-neutral-faint);
+  color: var(--rf-text-secondary);
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.snapshot-action-btn:hover {
+  background: var(--rf-bg-hover);
+  border-color: var(--rf-border-normal);
+  color: var(--rf-text-primary);
+  transform: none;
+  box-shadow: none;
+}
+
+.snapshot-action-btn.btn-delete:hover {
+  background: rgba(255, 77, 106, 0.12);
+  border-color: rgba(255, 77, 106, 0.35);
+  color: var(--rf-accent-red);
+  box-shadow: none;
+}
+
+.snapshot-action-btn.btn-restore:hover {
+  background: rgba(201, 169, 110, 0.12);
+  border-color: var(--rf-border-bright);
+  color: var(--rf-accent-gold);
+  box-shadow: none;
+}
+
+.snapshot-capture-bar {
+  background: var(--rf-bg-card);
+  border: 1px solid var(--rf-border-neutral-faint);
+  border-radius: 10px;
+  padding: 8px;
+  margin-bottom: 6px;
+}
+
+.snapshot-thumb {
+  border-color: var(--rf-border-neutral-subtle);
+  border-radius: 8px;
+}
+
+/* Snapshot buttons */
+#panel-snapshots .btn-primary {
+  background: var(--rf-gradient-cta);
+  color: #07070b;
+  border: none;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  box-shadow: var(--rf-glow-gold-sm);
+}
+
+#panel-snapshots .btn-primary:hover {
+  box-shadow: var(--rf-glow-gold);
+  transform: translateY(-1px);
+}
+
+#panel-snapshots .btn-outline {
+  border-color: var(--rf-border-neutral-subtle);
+  color: var(--rf-text-secondary);
+  background: var(--rf-bg-raised);
+  font-size: 10px;
+  padding: 3px 10px;
+  border-radius: var(--rf-radius-full);
+}
+
+#panel-snapshots .btn-outline:hover {
+  border-color: var(--rf-border-normal);
+  color: var(--rf-text-primary);
+}
+
+/* ─── Case Panel ─── */
+
+/* Form inputs */
+#panel-case .text-input,
+#panel-case .text-area {
+  background: var(--rf-bg-card);
+  border: 1px solid var(--rf-border-neutral-subtle);
+  color: var(--rf-text-primary);
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+#panel-case .text-input:focus,
+#panel-case .text-area:focus {
+  border-color: var(--rf-border-bright);
+  box-shadow: 0 0 0 2px var(--rf-accent-gold-glow);
+}
+
+#panel-case .text-input::placeholder,
+#panel-case .text-area::placeholder {
+  color: var(--rf-text-tertiary);
+}
+
+/* Case ID field — monospace */
+#caseNumber {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+}
+
+/* Form labels */
+#panel-case .input-control label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--rf-text-secondary);
+  margin-bottom: 5px;
+}
+
+/* History list — timeline style */
+.history-list {
+  padding: 4px 0;
+}
+
+.history-item {
+  padding: 5px 10px 5px 16px;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
+  color: var(--rf-text-tertiary);
+  position: relative;
+  margin-left: 4px;
+  margin-bottom: 2px;
+  border-left: 1px solid var(--rf-border-neutral-faint);
+}
+
+.history-item::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--rf-border-neutral-subtle);
+}
+
+.history-item:first-child {
+  color: var(--rf-text-secondary);
+  border-left-color: var(--rf-border-normal);
+}
+
+.history-item:first-child::before {
+  background: var(--rf-accent-gold);
+}
+
+/* Case action buttons */
+#panel-case #btnSaveCase {
+  background: var(--rf-gradient-cta);
+  color: #07070b;
+  border: none;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  font-size: 11.5px;
+  box-shadow: var(--rf-glow-gold-sm);
+  border-radius: var(--rf-radius-md);
+}
+
+#panel-case #btnSaveCase:hover {
+  box-shadow: var(--rf-glow-gold);
+  transform: translateY(-1px);
+}
+
+#panel-case #btnLoadCase {
+  background: transparent;
+  border: 1px solid var(--rf-border-bright);
+  color: var(--rf-accent-gold);
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  border-radius: var(--rf-radius-md);
+}
+
+#panel-case #btnLoadCase:hover {
+  background: rgba(201, 169, 110, 0.08);
+  box-shadow: var(--rf-glow-gold-sm);
+}
+
+#panel-case #btnNewCase {
+  background: transparent;
+  border: 1px solid rgba(255, 77, 106, 0.35);
+  color: var(--rf-accent-red);
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  border-radius: var(--rf-radius-md);
+}
+
+#panel-case #btnNewCase:hover {
+  background: rgba(255, 77, 106, 0.08);
+  border-color: var(--rf-accent-red);
+}
+
+/* Modified count badge */
+#modifiedCount {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--rf-accent-gold);
+  font-size: 11px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   PHASE 13 — Right Panel Polish
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Right mini panel */
+#right-panel {
+  background: var(--rf-bg-surface);
+  border-left: 1px solid var(--rf-border-neutral-subtle);
+  padding: 10px;
+}
+
+.mini-panel-header {
+  background: var(--rf-bg-card);
+  border: 1px solid var(--rf-border-neutral-faint);
+  border-radius: var(--rf-radius-md);
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: var(--rf-text-secondary);
+}
+
+.mini-panel-header i {
+  color: var(--rf-accent-gold);
+  font-size: 10px;
+}
+
+/* Property list */
+.property-list {
+  padding: 4px 0;
+}
+
+.property-item {
+  padding: 6px 10px;
+  border-radius: var(--rf-radius-sm);
+  font-size: 10.5px;
+}
+
+.property-item:hover {
+  background: var(--rf-bg-card);
+}
+
+.prop-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  color: var(--rf-text-tertiary);
+  font-weight: 400;
+}
+
+.prop-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--rf-accent-gold);
+}
+
+.mini-swatch {
+  border-color: var(--rf-border-neutral-subtle);
+  border-radius: 3px;
+}
