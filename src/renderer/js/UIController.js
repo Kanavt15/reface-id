@@ -713,7 +713,7 @@ class UIController {
 
       // Get model-specific defaults (or fallback to center values)
       const config = this.hair.beardModels[this.hair.beardStyle];
-      const defaults = config?.defaults || { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 };
+      const defaults = config?.defaults || { scale: 100, posX: 100, posY: 100, posZ: 100, rotX: 100, rotY: 100, rotZ: 100 };
 
       Object.entries(defaults).forEach(([key, val]) => {
         this.hair.setBeardParam(key, val);
@@ -743,15 +743,225 @@ class UIController {
       this.addHistory('Reset beard');
     });
 
-    // Save beard position as default button
+    // Save beard position as default button → opens the Defaults Editor modal
     document.getElementById('btnSaveBeardDefault')?.addEventListener('click', (e) => {
       e.stopPropagation();
-      const saved = this.hair.saveBeardDefault();
-      if (saved) {
-        this.addHistory(`Saved ${this.hair.beardStyle} default position`);
-        alert(`Default saved for ${this.hair.beardStyle}!\nCheck console (F12) for the config to copy into HairSystem.js`);
+      // Snapshot current sliders into memory first
+      if (this.hair.beardStyle !== 'none') {
+        this.hair.saveBeardDefault();
       }
+      this._openBeardDefaultsModal();
     });
+
+    // Initialise modal once
+    this._initBeardDefaultsModal();
+  }
+
+  // ─── Beard Defaults Editor Modal ────────────────────────────────────────
+
+  _initBeardDefaultsModal() {
+    const modal     = document.getElementById('beardDefaultsModal');
+    const closeBtn  = document.getElementById('btnBeardDefaultsClose');
+    const cancelBtn = document.getElementById('btnBeardDefaultsCancel');
+    const saveBtn   = document.getElementById('btnBeardDefaultsSaveAll');
+    const exportBtn = document.getElementById('btnBeardDefaultsExport');
+    const importBtn = document.getElementById('btnBeardDefaultsImport');
+    const fileInput = document.getElementById('beardDefaultsFileInput');
+    const clearBtn  = document.getElementById('btnBeardDefaultsClearStorage');
+    if (!modal) return;
+
+    const closeModal = () => { modal.style.display = 'none'; };
+    closeBtn?.addEventListener('click', closeModal);
+    cancelBtn?.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+    // Save All
+    saveBtn?.addEventListener('click', () => {
+      const allDefaults = this._collectBeardDefaultsFromModal();
+      this.hair.saveAllBeardDefaultsToStorage(allDefaults);
+      this.addHistory('Saved all facial hair defaults');
+      closeModal();
+      // Flash confirmation
+      saveBtn.textContent = '✓ Saved!';
+      setTimeout(() => { saveBtn.innerHTML = '<i class="fas fa-save"></i> Save All Defaults'; }, 1500);
+    });
+
+    // Export JSON
+    exportBtn?.addEventListener('click', () => {
+      const allDefaults = this._collectBeardDefaultsFromModal();
+      const json = JSON.stringify(allDefaults, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'facial_hair_defaults.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // Import JSON
+    importBtn?.addEventListener('click', () => fileInput?.click());
+    fileInput?.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          this._populateBeardDefaultsModal(data);
+          fileInput.value = '';
+        } catch {
+          alert('Invalid JSON file.');
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // Clear localStorage defaults
+    clearBtn?.addEventListener('click', () => {
+      if (!confirm('Clear all saved defaults? The built-in code defaults will be used instead.')) return;
+      localStorage.removeItem('rf_beardDefaults');
+      // Reload code-built defaults
+      this.addHistory('Cleared all facial hair saved defaults');
+      closeModal();
+      alert('Cleared. Reload the page for built-in defaults to take effect.');
+    });
+  }
+
+  _openBeardDefaultsModal() {
+    const modal = document.getElementById('beardDefaultsModal');
+    if (!modal) return;
+    const allDefaults = this.hair.getAllBeardDefaults();
+    this._populateBeardDefaultsModal(allDefaults);
+    modal.style.display = 'flex';
+  }
+
+  _populateBeardDefaultsModal(allDefaults) {
+    const body = document.getElementById('beardDefaultsBody');
+    if (!body) return;
+
+    const PARAMS = [
+      { key: 'scale', label: 'Scale',         range: [0, 500], neutral: 100 },
+      { key: 'posX',  label: 'Pos X (L/R)',   range: [0, 200], neutral: 100 },
+      { key: 'posY',  label: 'Pos Y (Up/Dn)', range: [0, 200], neutral: 100 },
+      { key: 'posZ',  label: 'Pos Z (Fwd/Bk)',range: [0, 200], neutral: 100 },
+      { key: 'rotX',  label: 'Rot X (Fwd/Bk Tilt — fix upward)', range: [0, 200], neutral: 100 },
+      { key: 'rotY',  label: 'Rot Y (Twist)', range: [0, 200], neutral: 100 },
+      { key: 'rotZ',  label: 'Rot Z (Angle)', range: [0, 200], neutral: 100 },
+    ];
+
+    const styleNames = {
+      beard1: 'Beard 1', beard2: 'Beard 2', beard3: 'Beard 3', beard4: 'Beard 4',
+      beard5: 'Beard 5', beard6: 'Beard 6', beard7: 'Beard 7', moustache1: 'Moustache 1',
+    };
+
+    body.innerHTML = '';
+
+    for (const [style, styleName] of Object.entries(styleNames)) {
+      const vals = allDefaults[style] || {};
+
+      const card = document.createElement('div');
+      card.style.cssText = 'background:#111128; border:1px solid #2e2e4e; border-radius:10px; margin-bottom:12px; overflow:hidden;';
+
+      // Style header with Copy button
+      const header = document.createElement('div');
+      header.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:9px 14px; background:#1c1c3a; cursor:pointer; user-select:none;';
+      header.innerHTML = `
+        <span style="font-weight:700; font-size:13px; color:#a09be8;">${styleName}</span>
+        <div style="display:flex; gap:6px;">
+          <button class="btn-copy-current" data-style="${style}" title="Copy current slider values here" style="background:#2a2a4a; border:1px solid #555; color:#bbb; border-radius:6px; padding:3px 10px; cursor:pointer; font-size:11px;"><i class="fas fa-arrow-down"></i> Use Current</button>
+          <button class="btn-reset-style" data-style="${style}" title="Reset to neutral 100" style="background:#2a2a4a; border:1px solid #555; color:#bbb; border-radius:6px; padding:3px 10px; cursor:pointer; font-size:11px;"><i class="fas fa-undo"></i> Reset</button>
+          <i class="fas fa-chevron-down" style="color:#666; transition:transform 0.2s;"></i>
+        </div>`;
+
+      const body2 = document.createElement('div');
+      body2.style.cssText = 'padding:10px 14px 14px; display:grid; grid-template-columns:1fr 1fr; gap:8px 16px;';
+
+      for (const p of PARAMS) {
+        const val = vals[p.key] ?? p.neutral;
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex; flex-direction:column; gap:3px;';
+        row.innerHTML = `
+          <label style="font-size:11px; color:#999; margin-bottom:2px;">${p.label}</label>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <input type="range" min="${p.range[0]}" max="${p.range[1]}" value="${val}"
+                   data-style="${style}" data-param="${p.key}"
+                   class="bd-range-input"
+                   style="flex:1; accent-color:#7c6af7; height:4px; cursor:pointer;">
+            <input type="number" min="${p.range[0]}" max="${p.range[1]}" value="${val}"
+                   data-style="${style}" data-param="${p.key}"
+                   class="bd-num-input"
+                   style="width:52px; background:#0e0e22; border:1px solid #444; color:#e0e0e0; border-radius:5px; padding:3px 6px; font-size:12px; text-align:center;">
+          </div>`;
+        body2.appendChild(row);
+      }
+
+      card.appendChild(header);
+      card.appendChild(body2);
+      body.appendChild(card);
+
+      // Collapsible
+      header.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        const isOpen = body2.style.display !== 'none';
+        body2.style.display = isOpen ? 'none' : 'grid';
+        const icon = header.querySelector('.fa-chevron-down, .fa-chevron-right');
+        if (icon) {
+          icon.classList.toggle('fa-chevron-down', !isOpen);
+          icon.classList.toggle('fa-chevron-right', isOpen);
+        }
+      });
+
+      // Use Current slider values
+      header.querySelector('.btn-copy-current')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const st = e.currentTarget.dataset.style;
+        if (this.hair.beardStyle === st) {
+          // Copy live beardParams
+          const bp = this.hair.beardParams;
+          const live = { scale:bp.scale, posX:bp.posX, posY:bp.posY, posZ:bp.posZ,
+                         rotX:bp.rotX??100, rotY:bp.rotY, rotZ:bp.rotZ };
+          body2.querySelectorAll('.bd-range-input, .bd-num-input').forEach(inp => {
+            const v = live[inp.dataset.param] ?? 100;
+            inp.value = v;
+          });
+        } else {
+          alert(`Switch to ${styleName} first, position it with the sliders, then click "Use Current".`);
+        }
+      });
+
+      // Reset style to neutral
+      header.querySelector('.btn-reset-style')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        body2.querySelectorAll('.bd-range-input, .bd-num-input').forEach(inp => { inp.value = 100; });
+      });
+    }
+
+    // Sync range ↔ number inputs
+    body.addEventListener('input', (e) => {
+      const inp = e.target;
+      if (!inp.classList.contains('bd-range-input') && !inp.classList.contains('bd-num-input')) return;
+      const st = inp.dataset.style;
+      const pm = inp.dataset.param;
+      const isRange = inp.classList.contains('bd-range-input');
+      const partner = body.querySelector(
+        `.${isRange ? 'bd-num-input' : 'bd-range-input'}[data-style="${st}"][data-param="${pm}"]`
+      );
+      if (partner) partner.value = inp.value;
+    });
+  }
+
+  _collectBeardDefaultsFromModal() {
+    const body = document.getElementById('beardDefaultsBody');
+    if (!body) return {};
+    const result = {};
+    body.querySelectorAll('.bd-num-input').forEach(inp => {
+      const style = inp.dataset.style;
+      const param = inp.dataset.param;
+      if (!result[style]) result[style] = {};
+      result[style][param] = parseInt(inp.value, 10);
+    });
+    return result;
   }
 
   // ─── Appearance Controls ─────────────────────────────────────────────────
@@ -3633,6 +3843,7 @@ class UIController {
       'beardPosX': 'posX',
       'beardPosY': 'posY',
       'beardPosZ': 'posZ',
+      'beardRotX': 'rotX',
       'beardRotY': 'rotY',
       'beardRotZ': 'rotZ'
     };

@@ -29,7 +29,7 @@ class HairSystem {
     this.params = { length: 50, density: 50, volume: 50, curl: 0,
                      posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 };
     this.beardStyle = 'none';
-    this.beardParams = { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 };
+    this.beardParams = { scale: 100, posX: 100, posY: 100, posZ: 100, rotX: 100, rotY: 100, rotZ: 100 };
     this.beardColor = '#2c1b0e';
     this.beardTintColor = '#8b2500';  // default tint color
     this.beardTintIntensity = 0;      // 0 = no tint, 1 = full tint
@@ -127,26 +127,30 @@ class HairSystem {
     this.eyebrowModel = { file: '../../assets/models/facial/eyebrows.glb', meshName: null };
 
     // Beard model configs with per-model defaults
-    // defaults: { scale, posX, posY, posZ, rotY, rotZ } - calibrated values
+    // defaults: { scale, posX, posY, posZ, rotX, rotY, rotZ } - calibrated values
+    // NOTE: rotX=100 is neutral (no rotation). Values < 100 tilt forward, > 100 tilt backward.
     this.beardModels = {
       none: { file: null, defaults: null },
       beard1: { file: '../../assets/models/facial/Beard1.glb', meshName: null,
-                defaults: { scale: 70, posX: 103, posY: 44, posZ: 74, rotY: 98, rotZ: 107 } },
+                defaults: { scale: 70, posX: 103, posY: 44, posZ: 74, rotX: 100, rotY: 98, rotZ: 107 } },
       beard2: { file: '../../assets/models/facial/Beard2.glb', meshName: null,
-                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 } },
+                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotX: 100, rotY: 100, rotZ: 100 } },
       beard3: { file: '../../assets/models/facial/Beard3.glb', meshName: null,
-                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 } },
+                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotX: 100, rotY: 100, rotZ: 100 } },
       beard4: { file: '../../assets/models/facial/Beard4.glb', meshName: null,
-                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 } },
+                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotX: 100, rotY: 100, rotZ: 100 } },
       beard5: { file: '../../assets/models/facial/Beard5.glb', meshName: null,
-                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 } },
+                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotX: 100, rotY: 100, rotZ: 100 } },
       beard6: { file: '../../assets/models/facial/Beard6.glb', meshName: null,
-                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 } },
+                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotX: 100, rotY: 100, rotZ: 100 } },
       beard7: { file: '../../assets/models/facial/Beard7.glb', meshName: null,
-                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 } },
+                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotX: 100, rotY: 100, rotZ: 100 } },
       moustache1: { file: '../../assets/models/facial/Moustache1.glb', meshName: null,
-                    defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotY: 100, rotZ: 100 } },
+                    defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotX: 100, rotY: 100, rotZ: 100 } },
     };
+
+    // Override defaults from localStorage (user-set in-app defaults)
+    this._loadBeardDefaultsFromStorage();
 
     // Hair material
     this._hairMat = new THREE.MeshStandardMaterial({
@@ -701,6 +705,7 @@ class HairSystem {
       this.beardParams.posX = config.defaults.posX;
       this.beardParams.posY = config.defaults.posY;
       this.beardParams.posZ = config.defaults.posZ;
+      this.beardParams.rotX = config.defaults.rotX ?? 100;
       this.beardParams.rotY = config.defaults.rotY;
       this.beardParams.rotZ = config.defaults.rotZ;
     }
@@ -818,10 +823,11 @@ class HairSystem {
     // Base scale: match head width (same approach as hair system)
     const baseScale = this.headWidth / Math.max(beardSize.x, beardSize.z);
 
-    // Slider-driven adjustments (0-200 range, centered at 100)
-    const scaleF = 0.5 + (bp.scale / 200) * 1.0;
+    // Slider-driven adjustments (scale: 0-500, centered reference at 100; position/rotation: 0-200 centered at 100)
+    const scaleF = bp.scale / 200;  // 0=0x, 100=0.5x, 200=1x (neutral), 500=2.5x
 
     // Rotations (0-200 range, centered at 100)
+    const rotX = ((bp.rotX - 100) / 100) * Math.PI;        // X-axis: forward/back tilt — full π range to fix upward-facing models
     const rotY = ((bp.rotY - 100) / 100) * (Math.PI / 6);  // Y-axis: twist
     const rotZ = ((bp.rotZ - 100) / 100) * (Math.PI / 6);  // Z-axis: tilt
 
@@ -933,7 +939,7 @@ class HairSystem {
       beardRegionZ + posOffsetZ + chinZOffset + jawDefZOffset + cheekZOffset + cheekBoneZOffset + nasoZOffset + lipZOffset + lipZShift
     );
 
-    container.rotation.set(0, rotY, rotZ);
+    container.rotation.set(rotX, rotY, rotZ);
   }
 
   clearBeard() {
@@ -1032,6 +1038,7 @@ class HairSystem {
       posX: this.beardParams.posX,
       posY: this.beardParams.posY,
       posZ: this.beardParams.posZ,
+      rotX: this.beardParams.rotX ?? 100,
       rotY: this.beardParams.rotY,
       rotZ: this.beardParams.rotZ
     };
@@ -1039,11 +1046,77 @@ class HairSystem {
     if (this.beardModels[style]) {
       this.beardModels[style].defaults = defaults;
     }
+    // Persist to localStorage so defaults survive page refresh
+    this._saveBeardDefaultToStorage(style, defaults);
     // Log for copying into code
     console.log(`[HairSystem] Default saved for ${style}:`);
     console.log(`      ${style}: { file: '../../assets/models/facial/${style.charAt(0).toUpperCase() + style.slice(1)}.glb', meshName: null,`);
-    console.log(`                defaults: { scale: ${defaults.scale}, posX: ${defaults.posX}, posY: ${defaults.posY}, posZ: ${defaults.posZ}, rotY: ${defaults.rotY}, rotZ: ${defaults.rotZ} } },`);
+    console.log(`                defaults: { scale: ${defaults.scale}, posX: ${defaults.posX}, posY: ${defaults.posY}, posZ: ${defaults.posZ}, rotX: ${defaults.rotX}, rotY: ${defaults.rotY}, rotZ: ${defaults.rotZ} } },`);
     return defaults;
+  }
+
+  /**
+   * Save a single style's defaults to localStorage.
+   */
+  _saveBeardDefaultToStorage(style, defaults) {
+    try {
+      const stored = JSON.parse(localStorage.getItem('rf_beardDefaults') || '{}');
+      stored[style] = defaults;
+      localStorage.setItem('rf_beardDefaults', JSON.stringify(stored));
+    } catch (e) {
+      console.warn('[HairSystem] Could not save beard defaults to localStorage:', e);
+    }
+  }
+
+  /**
+   * Save all current model defaults to localStorage at once (batch set).
+   * Called from the in-app Defaults Editor modal.
+   */
+  saveAllBeardDefaultsToStorage(allDefaults) {
+    try {
+      const stored = JSON.parse(localStorage.getItem('rf_beardDefaults') || '{}');
+      for (const [style, defaults] of Object.entries(allDefaults)) {
+        if (this.beardModels[style] !== undefined) {
+          stored[style] = defaults;
+          this.beardModels[style].defaults = defaults;
+        }
+      }
+      localStorage.setItem('rf_beardDefaults', JSON.stringify(stored));
+      console.log('[HairSystem] All beard defaults saved to localStorage:', stored);
+    } catch (e) {
+      console.warn('[HairSystem] Could not save beard defaults to localStorage:', e);
+    }
+  }
+
+  /**
+   * Load defaults from localStorage and override the built-in defaults.
+   * Called on construction so user-set defaults take effect immediately.
+   */
+  _loadBeardDefaultsFromStorage() {
+    try {
+      const stored = JSON.parse(localStorage.getItem('rf_beardDefaults') || '{}');
+      for (const [style, defaults] of Object.entries(stored)) {
+        if (this.beardModels[style]) {
+          this.beardModels[style].defaults = { ...this.beardModels[style].defaults, ...defaults };
+          console.log(`[HairSystem] Loaded localStorage defaults for ${style}:`, defaults);
+        }
+      }
+    } catch (e) {
+      console.warn('[HairSystem] Could not load beard defaults from localStorage:', e);
+    }
+  }
+
+  /**
+   * Get all current defaults (in-memory, which includes localStorage overrides).
+   * Used by the Defaults Editor modal to pre-populate fields.
+   */
+  getAllBeardDefaults() {
+    const result = {};
+    for (const [style, config] of Object.entries(this.beardModels)) {
+      if (style === 'none') continue;
+      result[style] = { ...(config.defaults || { scale: 100, posX: 100, posY: 100, posZ: 100, rotX: 100, rotY: 100, rotZ: 100 }) };
+    }
+    return result;
   }
 
   /**
@@ -1196,7 +1269,7 @@ class HairSystem {
     // Handle beard (new system) or legacy facialHair
     if (state.beard) {
       this.beardStyle = state.beard.style || 'none';
-      for (const key of ['scale', 'posX', 'posY', 'posZ', 'rotY', 'rotZ']) {
+      for (const key of ['scale', 'posX', 'posY', 'posZ', 'rotX', 'rotY', 'rotZ']) {
         if (state.beard[key] !== undefined) this.beardParams[key] = state.beard[key];
       }
       if (state.beard.color) this.beardColor = state.beard.color;
