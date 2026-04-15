@@ -155,6 +155,7 @@ class UIController {
       const onInput = (e) => {
         const value = parseInt(e.target.value);
         if (valueDisplay) valueDisplay.textContent = value;
+        this.updateSliderFill(e.target);
 
         if (param) {
           this.morpher.setMorphValue(param, value);
@@ -192,6 +193,7 @@ class UIController {
         slider.value = 50;
         const valueDisplay = slider.closest('.slider-control')?.querySelector('.slider-value');
         if (valueDisplay) valueDisplay.textContent = '50';
+        this.updateSliderFill(slider);
       });
       this.addHistory('Reset all facial features');
       this.updatePropertyPanel();
@@ -213,6 +215,7 @@ class UIController {
             slider.value = 50;
             const valueDisplay = slider.closest('.slider-control')?.querySelector('.slider-value');
             if (valueDisplay) valueDisplay.textContent = '50';
+            this.updateSliderFill(slider);
           });
         }
 
@@ -220,6 +223,19 @@ class UIController {
         this.updatePropertyPanel();
       });
     });
+
+    // Initialize fill position for all range sliders on load
+    document.querySelectorAll('input[type="range"]').forEach(s => this.updateSliderFill(s));
+  }
+
+  // ─── Slider Fill Helper ──────────────────────────────────────────────────
+
+  updateSliderFill(slider) {
+    const min = parseFloat(slider.min) || 0;
+    const max = parseFloat(slider.max) || 100;
+    const val = parseFloat(slider.value);
+    const pct = ((val - min) / (max - min)) * 100;
+    slider.style.setProperty('--fill-pct', pct.toFixed(1) + '%');
   }
 
   // ─── Hair Controls ───────────────────────────────────────────────────────

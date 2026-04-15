@@ -444,6 +444,32 @@
     window.electronAPI.onImportModel((filePath) => ui?.importModelFromPath(filePath));
   }
 
+  // ─── Screen Router ────────────────────────────────────────────────────
+  // Initialize and show the hero landing screen.
+  // The 3D editor is fully initialized in the background while hero is visible.
+  window.rfRouter = new ScreenRouter();
+  window.rfRouter.bindNavigation();
+
+  // ─── Panel scroll fade-in (IntersectionObserver) ─────────────────────────
+  // Adds .rf-panel-fade class to control-groups and fades them in as they
+  // scroll into view in the left panel.
+  if (typeof IntersectionObserver !== 'undefined') {
+    const panelObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('rf-panel-visible');
+          panelObserver.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.05, rootMargin: '0px 0px -20px 0px' });
+
+    // Observe all control-groups inside the left panel scroll area
+    document.querySelectorAll('#left-panel .control-group').forEach(el => {
+      el.classList.add('rf-panel-fade');
+      panelObserver.observe(el);
+    });
+  }
+
   console.log('REface ID initialized — loading head.glb + region data...');
 
 })();
