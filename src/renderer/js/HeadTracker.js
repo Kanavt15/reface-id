@@ -85,7 +85,7 @@ class HeadTracker {
     this.previewContainer.id = 'head-tracker-preview';
     this.previewContainer.style.cssText = `
       position: fixed;
-      bottom: 16px;
+      bottom: 100px;
       right: 16px;
       width: 160px;
       height: 120px;
