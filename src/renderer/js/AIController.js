@@ -198,7 +198,7 @@ class AIController {
     const currentState = this._getCurrentState();
 
     try {
-      const selected = this.providerSelect?.value || 'anthropic:claude-opus-4-6';
+      const selected = this.providerSelect?.value || 'anthropic:claude-sonnet-4-6';
       const [provider, model] = selected.split(':');
       const response = await fetch(`${this.api.baseUrl}/api/ai/generate`, {
         method: 'POST',
@@ -649,10 +649,13 @@ class AIController {
             opt.textContent = `${opt.textContent} (no key)`;
           }
         });
-        // Auto-select the first available option
-        const firstAvailable = Array.from(this.providerSelect.options).find(opt => !opt.disabled);
-        if (firstAvailable) {
-          this.providerSelect.value = firstAvailable.value;
+        // Auto-select the first available option only if current selection is unavailable
+        const currentOpt = Array.from(this.providerSelect.options).find(opt => opt.value === this.providerSelect.value);
+        if (!currentOpt || currentOpt.disabled) {
+          const firstAvailable = Array.from(this.providerSelect.options).find(opt => !opt.disabled);
+          if (firstAvailable) {
+            this.providerSelect.value = firstAvailable.value;
+          }
         }
         const available = Object.values(data.providers).filter(p => p.available);
         if (available.length === 0) {

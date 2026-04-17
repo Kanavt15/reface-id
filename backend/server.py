@@ -732,7 +732,7 @@ def ai_generate_face():
             else:
                 messages.append({"role": "user", "content": user_content})
 
-            anthropic_model = model if model else "claude-haiku-4-5-20251001"
+            anthropic_model = model if model else "claude-sonnet-4-6"
             response = anthropic_client.messages.create(
                 model=anthropic_model,
                 max_tokens=1024,
