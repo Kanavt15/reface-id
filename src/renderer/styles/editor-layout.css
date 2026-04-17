@@ -1061,6 +1061,18 @@
 
 #rf-screen-editor .control-group-body {
   padding: 10px 12px;
+  max-height: 2000px;
+  overflow: hidden;
+  transition: max-height 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+              padding 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#rf-screen-editor .control-group-body.collapsed {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-top: 0;
+  overflow: hidden;
 }
 
 #rf-screen-editor .feature-sub-group {
@@ -1094,4 +1106,21 @@
 
 #rf-screen-editor .sub-group-body {
   padding: 8px 10px;
+  max-height: 1500px;
+  overflow: hidden;
+  transition: max-height 0.24s cubic-bezier(0.4, 0, 0.2, 1),
+              padding 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#rf-screen-editor .sub-group-body.collapsed {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-top: 0;
+  overflow: hidden;
+}
+
+/* Hide sub-group bottom border when collapsed to avoid a residual line */
+#rf-screen-editor .feature-sub-group:has(> .sub-group-body.collapsed) .sub-group-header {
+  border-bottom: 0;
 }
