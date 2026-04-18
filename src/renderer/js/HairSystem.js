@@ -132,21 +132,21 @@ class HairSystem {
     this.beardModels = {
       none: { file: null, defaults: null },
       beard1: { file: '../../assets/models/facial/Beard1.glb', meshName: null,
-                defaults: { scale: 70, posX: 103, posY: 44, posZ: 74, rotX: 100, rotY: 98, rotZ: 107 } },
+                defaults: { scale: 165, posX: 103, posY: 44, posZ: 71, rotX: 100, rotY: 98, rotZ: 107 } },
       beard2: { file: '../../assets/models/facial/Beard2.glb', meshName: null,
-                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotX: 100, rotY: 100, rotZ: 100 } },
+                defaults: { scale: 155, posX: 100, posY: 37, posZ: 71, rotX: 144, rotY: 104, rotZ: 100 } },
       beard3: { file: '../../assets/models/facial/Beard3.glb', meshName: null,
-                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotX: 100, rotY: 100, rotZ: 100 } },
+                defaults: { scale: 102, posX: 102, posY: 14, posZ: 91, rotX: 149, rotY: 100, rotZ: 100 } },
       beard4: { file: '../../assets/models/facial/Beard4.glb', meshName: null,
-                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotX: 100, rotY: 100, rotZ: 100 } },
+                defaults: { scale: 81, posX: 100, posY: 10, posZ: 88, rotX: 146, rotY: 100, rotZ: 100 } },
       beard5: { file: '../../assets/models/facial/Beard5.glb', meshName: null,
-                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotX: 100, rotY: 100, rotZ: 100 } },
+                defaults: { scale: 156, posX: 100, posY: 42, posZ: 67, rotX: 142, rotY: 105, rotZ: 100 } },
       beard6: { file: '../../assets/models/facial/Beard6.glb', meshName: null,
-                defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotX: 100, rotY: 100, rotZ: 100 } },
+                defaults: { scale: 157, posX: 96, posY: 43, posZ: 58, rotX: 147, rotY: 100, rotZ: 100 } },
       beard7: { file: '../../assets/models/facial/Beard7.glb', meshName: null,
                 defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotX: 100, rotY: 100, rotZ: 100 } },
       moustache1: { file: '../../assets/models/facial/Moustache1.glb', meshName: null,
-                    defaults: { scale: 100, posX: 100, posY: 100, posZ: 100, rotX: 100, rotY: 100, rotZ: 100 } },
+                    defaults: { scale: 84, posX: 100, posY: 44, posZ: 113, rotX: 140, rotY: 100, rotZ: 100 } },
     };
 
     // Override defaults from localStorage (user-set in-app defaults)
