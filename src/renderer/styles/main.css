@@ -804,21 +804,21 @@ body {
   box-shadow: 0 0 8px rgba(46, 204, 113, 0.8), 0 0 18px rgba(46, 204, 113, 0.35);
 }
 
-/* macOS-style window control circles */
+/* Windows-style window controls */
 .rf-wc-group {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 10px;
+  gap: 0;
+  padding: 0;
   -webkit-app-region: no-drag;
 }
 
 .rf-wc-btn {
-  width: 13px !important;
-  height: 13px !important;
-  min-width: 13px;
-  min-height: 13px;
-  border-radius: 50% !important;
+  width: 46px !important;
+  height: 30px !important;
+  min-width: 46px;
+  min-height: 30px;
+  border-radius: 0 !important;
   border: none !important;
   background: transparent;
   cursor: pointer;
@@ -827,28 +827,44 @@ body {
   justify-content: center;
   margin: 0 !important;
   padding: 0 !important;
-  transition: filter var(--rf-dur-fast) var(--rf-ease-out),
-              opacity var(--rf-dur-fast) var(--rf-ease-out);
+  transition: background var(--rf-dur-fast) var(--rf-ease-out),
+              color var(--rf-dur-fast) var(--rf-ease-out);
 }
 
 .rf-wc-icon {
-  font-size: 7px;
+  font-size: 11px;
   line-height: 1;
-  opacity: 0;
-  transition: opacity var(--rf-dur-fast) var(--rf-ease-out);
+  opacity: 0.92;
+  color: rgba(236, 241, 248, 0.96);
+  transition: color var(--rf-dur-fast) var(--rf-ease-out);
 }
 
-.rf-wc-group:hover .rf-wc-icon {
-  opacity: 0.75;
+.rf-wc-min,
+.rf-wc-max,
+.rf-wc-close {
+  background: transparent !important;
+  border-color: transparent !important;
 }
 
-.rf-wc-close { background: #ff5f57 !important; color: #660000; }
-.rf-wc-min   { background: #febc2e !important; color: #5a3500; }
-.rf-wc-max   { background: #28c840 !important; color: #004d10; }
+.rf-wc-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
 
-.rf-wc-close:hover { filter: brightness(1.08); background: #ff5f57 !important; }
-.rf-wc-min:hover   { filter: brightness(1.08); background: #febc2e !important; }
-.rf-wc-max:hover   { filter: brightness(1.08); background: #28c840 !important; }
+.rf-wc-btn:active {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.rf-wc-close:hover {
+  background: #e81123 !important;
+}
+
+.rf-wc-close:active {
+  background: #c50f1f !important;
+}
+
+.rf-wc-close:hover .rf-wc-icon {
+  color: #ffffff;
+}
 
 /* Hide the old-style titlebar buttons that are NOT wrapped in rf-wc-group */
 .titlebar-btn:not(.rf-wc-btn) {
