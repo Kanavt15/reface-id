@@ -1,0 +1,74 @@
+{
+  "beard1": {
+    "scale": 165,
+    "posX": 103,
+    "posY": 44,
+    "posZ": 71,
+    "rotX": 100,
+    "rotY": 98,
+    "rotZ": 107
+  },
+  "beard2": {
+    "scale": 155,
+    "posX": 100,
+    "posY": 37,
+    "posZ": 71,
+    "rotX": 144,
+    "rotY": 104,
+    "rotZ": 100
+  },
+  "beard3": {
+    "scale": 102,
+    "posX": 102,
+    "posY": 14,
+    "posZ": 91,
+    "rotX": 149,
+    "rotY": 100,
+    "rotZ": 100
+  },
+  "beard4": {
+    "scale": 81,
+    "posX": 100,
+    "posY": 10,
+    "posZ": 88,
+    "rotX": 146,
+    "rotY": 100,
+    "rotZ": 100
+  },
+  "beard5": {
+    "scale": 156,
+    "posX": 100,
+    "posY": 42,
+    "posZ": 67,
+    "rotX": 142,
+    "rotY": 105,
+    "rotZ": 100
+  },
+  "beard6": {
+    "scale": 157,
+    "posX": 96,
+    "posY": 43,
+    "posZ": 58,
+    "rotX": 147,
+    "rotY": 100,
+    "rotZ": 100
+  },
+  "beard7": {
+    "scale": 100,
+    "posX": 100,
+    "posY": 100,
+    "posZ": 100,
+    "rotX": 100,
+    "rotY": 100,
+    "rotZ": 100
+  },
+  "moustache1": {
+    "scale": 84,
+    "posX": 100,
+    "posY": 44,
+    "posZ": 113,
+    "rotX": 140,
+    "rotY": 100,
+    "rotZ": 100
+  }
+}

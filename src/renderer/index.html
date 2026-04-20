@@ -63,9 +63,9 @@
 
           <div class="rf-hero-header-right">
             <div class="rf-hero-wctrl" aria-label="Window controls">
-              <button id="rf-wc-close" class="rf-wc rf-wc-close" title="Close"></button>
               <button id="rf-wc-min"   class="rf-wc rf-wc-min"   title="Minimize"></button>
               <button id="rf-wc-max"   class="rf-wc rf-wc-max"   title="Maximize"></button>
+              <button id="rf-wc-close" class="rf-wc rf-wc-close" title="Close"></button>
             </div>
           </div>
         </div>
@@ -576,9 +576,9 @@
       </div>
       <div class="rf-topbar-sep"></div>
       <div class="rf-topbar-wctrl">
-        <button class="rf-wc-btn rf-wc-close" id="rf-tb-close" title="Close"><i class="fas fa-times rf-wc-icon"></i></button>
         <button class="rf-wc-btn rf-wc-min"   id="rf-tb-min"   title="Minimize"><i class="fas fa-minus rf-wc-icon"></i></button>
         <button class="rf-wc-btn rf-wc-max"   id="rf-tb-max"   title="Maximize"><i class="far fa-square rf-wc-icon"></i></button>
+        <button class="rf-wc-btn rf-wc-close" id="rf-tb-close" title="Close"><i class="fas fa-times rf-wc-icon"></i></button>
       </div>
     </div>
   </div><!-- /rf-editor-topbar -->
@@ -610,14 +610,14 @@
       </div>
       <!-- macOS-style window controls -->
       <div class="rf-wc-group">
-        <button class="titlebar-btn rf-wc-btn rf-wc-close" id="btnClose" title="Close">
-          <i class="fas fa-times rf-wc-icon"></i>
-        </button>
         <button class="titlebar-btn rf-wc-btn rf-wc-min" id="btnMinimize" title="Minimize">
           <i class="fas fa-minus rf-wc-icon"></i>
         </button>
         <button class="titlebar-btn rf-wc-btn rf-wc-max" id="btnMaximize" title="Maximize">
           <i class="far fa-square rf-wc-icon"></i>
+        </button>
+        <button class="titlebar-btn rf-wc-btn rf-wc-close" id="btnClose" title="Close">
+          <i class="fas fa-times rf-wc-icon"></i>
         </button>
       </div>
     </div>
@@ -1805,7 +1805,7 @@
                       <option value="beard4">Beard 4</option>
                       <option value="beard5">Beard 5</option>
                       <option value="beard6">Beard 6</option>
-                      <option value="beard7">Beard 7</option>
+                      
                       <option value="moustache1">Moustache 1</option>
                     </select>
                   </div>
@@ -3072,7 +3072,8 @@
               <div class="ai-chat-actions">
                 <select id="aiProviderSelect" class="ai-provider-select" title="Select AI model">
                   <option value="anthropic:claude-haiku-4-5-20251001">Claude Haiku</option>
-                  <option value="anthropic:claude-opus-4-20250514">Claude Opus</option>
+                  <option value="anthropic:claude-sonnet-4-6" selected>Claude Sonnet 4.6</option>
+                  <option value="anthropic:claude-opus-4-7">Claude Opus 4.7</option>
                   <option value="gemini:gemini-1.5-flash">Gemini Flash</option>
                 </select>
                 <button class="ai-action-btn" id="aiUndoBtn" title="Undo last AI change">
