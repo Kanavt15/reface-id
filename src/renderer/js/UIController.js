@@ -1663,7 +1663,9 @@ class UIController {
         if (!isDragging) return;
         persistGlassesState();
         this.caseManager.endAction();
-        isDragging = false;
+        // Delay reset so the 'change' event (which fires synchronously after mouseup)
+        // still sees isDragging=true and skips its redundant pushState call.
+        setTimeout(() => { isDragging = false; }, 0);
         document.removeEventListener('mouseup', onMouseUp);
       };
 

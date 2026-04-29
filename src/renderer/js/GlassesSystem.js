@@ -1009,6 +1009,10 @@ class GlassesSystem {
     if (state.rotation !== undefined && state.rotZ === undefined) {
       this.params.rotZ = state.rotation;
     }
+    // Force a clean rebuild so style/param changes from undo/redo are always
+    // reflected — setEnabled skips generate() when a container already exists.
+    this._container = null;
+    this._bboxCache = null;
     this.setEnabled(state.enabled === true);
   }
 
