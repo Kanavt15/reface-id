@@ -735,6 +735,7 @@
         <button class="rf-sidebar-tab active" data-rf-tab="face" title="Face Morphs"><i class="fas fa-head-side"></i><span>Face</span></button>
         <button class="rf-sidebar-tab" data-rf-tab="hair" title="Hair &amp; Beard"><i class="fas fa-cut"></i><span>Hair</span></button>
         <button class="rf-sidebar-tab" data-rf-tab="appearance" title="Eyes &amp; Skin"><i class="fas fa-palette"></i><span>Look</span></button>
+        <button class="rf-sidebar-tab" data-rf-tab="accessories" title="Accessories (Glasses)"><i class="fas fa-glasses"></i><span>Accs</span></button>
         <button class="rf-sidebar-tab" data-rf-tab="ai" title="AI Chat"><i class="fas fa-robot"></i><span>AI</span></button>
         <button class="rf-sidebar-tab" data-rf-tab="snapshots" title="Snapshots"><i class="fas fa-camera-retro"></i><span>Snaps</span></button>
         <button class="rf-sidebar-tab" data-rf-tab="case" title="Case Info"><i class="fas fa-folder-open"></i><span>Case</span></button>
@@ -749,6 +750,9 @@
         </button>
         <button class="panel-tab" data-panel="appearance">
           <i class="fas fa-palette"></i> Look
+        </button>
+        <button class="panel-tab" data-panel="accessories">
+          <i class="fas fa-glasses"></i> Accs
         </button>
         <button class="panel-tab" data-panel="ai">
           <i class="fas fa-robot"></i> AI
@@ -3060,6 +3064,170 @@
         </div>
       </div>
 
+      <!-- Accessories Panel -->
+      <div class="panel-content" id="panel-accessories">
+        <div class="panel-scroll">
+
+          <!-- Glasses -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-glasses"></i>
+              <span>Glasses</span>
+              <button class="btn-reset-group" id="btnResetGlasses" title="Reset glasses to defaults">
+                <i class="fas fa-undo-alt"></i>
+              </button>
+            </div>
+            <div class="control-group-body">
+
+              <!-- Style + Visibility Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-eye"></i>
+                  <span>Style</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="hair-style-grid" id="glassesStyleGrid">
+                    <div class="hair-style-card active" data-glasses-style="none">
+                      <div class="hair-icon"><i class="fas fa-ban"></i></div>
+                      <span>None</span>
+                    </div>
+                    <div class="hair-style-card" data-glasses-style="glasses1">
+                      <div class="hair-icon"><i class="fas fa-glasses"></i></div>
+                      <span>Style 1</span>
+                    </div>
+                    <div class="hair-style-card" data-glasses-style="glasses2">
+                      <div class="hair-icon"><i class="fas fa-glasses"></i></div>
+                      <span>Style 2</span>
+                    </div>
+                    <div class="hair-style-card" data-glasses-style="glasses3">
+                      <div class="hair-icon"><i class="fas fa-glasses"></i></div>
+                      <span>Style 3</span>
+                    </div>
+                    <div class="hair-style-card" data-glasses-style="glasses4">
+                      <div class="hair-icon"><i class="fas fa-glasses"></i></div>
+                      <span>Style 4</span>
+                    </div>
+                  </div>
+                  <div class="input-control" style="margin-top:10px;">
+                    <label class="checkbox-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                      <input type="checkbox" id="glassesVisibleToggle" />
+                      <span>Show glasses</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Color Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-palette"></i>
+                  <span>Color</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="input-control">
+                    <label>Frame Color</label>
+                    <input type="color" id="glassesFrameColorPicker" value="#1a1a1a" class="color-input" />
+                  </div>
+                  <div class="input-control">
+                    <label>Lens Tint</label>
+                    <input type="color" id="glassesLensColorPicker" value="#88ccff" class="color-input" />
+                  </div>
+                  <div class="slider-control" data-param="glassesLensOpacity">
+                    <label>Lens Opacity</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="20" class="glasses-slider" id="glassesLensOpacitySlider" />
+                      <span class="slider-value">20</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Fit Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-arrows-alt"></i>
+                  <span>Fit</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="glassesScale">
+                    <label>Scale</label>
+                    <div class="slider-row">
+                      <input type="range" min="50" max="200" value="100" class="glasses-slider" id="glassesScaleSlider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="glassesLensScale">
+                    <label>Lens Scale</label>
+                    <div class="slider-row">
+                      <input type="range" min="50" max="150" value="100" class="glasses-slider" id="glassesLensScaleSlider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="glassesArmSplay">
+                    <label>Arm Splay</label>
+                    <div class="slider-row">
+                      <input type="range" min="-45" max="45" value="0" class="glasses-slider" id="glassesArmSplaySlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="glassesArmLength">
+                    <label>Arm Length</label>
+                    <div class="slider-row">
+                      <input type="range" min="50" max="200" value="100" class="glasses-slider" id="glassesArmLengthSlider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="glassesPosX">
+                    <label>Horizontal (PosX)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-100" max="100" value="0" class="glasses-slider" id="glassesPosXSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="glassesPosY">
+                    <label>Vertical (PosY)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-100" max="100" value="0" class="glasses-slider" id="glassesPosYSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="glassesPosZ">
+                    <label>Depth (PosZ)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-100" max="100" value="0" class="glasses-slider" id="glassesPosZSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="glassesRotX">
+                    <label>Pitch (RotX — nod up/down)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-180" max="180" value="0" class="glasses-slider" id="glassesRotXSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="glassesRotY">
+                    <label>Yaw (RotY — turn L/R)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-180" max="180" value="0" class="glasses-slider" id="glassesRotYSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="glassesRotZ">
+                    <label>Roll (RotZ — tilt)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-180" max="180" value="0" class="glasses-slider" id="glassesRotZSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+
       <!-- AI Face Builder Panel -->
       <div class="panel-content" id="panel-ai">
         <div class="panel-scroll">
@@ -3622,6 +3790,7 @@
   <script src="js/OBJMorpher.js"></script>
   <script src="js/HairSystem.js"></script>
   <script src="js/EyeSystem.js"></script>
+  <script src="js/GlassesSystem.js"></script>
   <script src="js/SceneManager.js"></script>
   <script src="js/FacePointEditor.js"></script>
   <script src="js/SkinMarkSystem.js"></script>
