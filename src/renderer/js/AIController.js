@@ -198,7 +198,7 @@ class AIController {
     const currentState = this._getCurrentState();
 
     try {
-      const selected = this.providerSelect?.value || 'anthropic:claude-sonnet-4-6';
+      const selected = this.providerSelect?.value || 'anthropic:claude-opus-4-7';
       const [provider, model] = selected.split(':');
       const response = await fetch(`${this.api.baseUrl}/api/ai/generate`, {
         method: 'POST',
