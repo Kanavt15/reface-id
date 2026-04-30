@@ -26,6 +26,9 @@
   // Eye system
   const eyeSystem = new EyeSystem(sceneManager.scene);
 
+  // Glasses system
+  const glassesSystem = new GlassesSystem(sceneManager.scene);
+
   // Backend API + Case Manager
   const api = new BackendAPI('http://127.0.0.1:5001');
   const caseManager = new CaseManager(api);
@@ -83,9 +86,10 @@
         objMorpher.setRegionData(regionData);
         hairSystem.setHeadMesh(group, regionData, objMorpher);
         eyeSystem.setHeadMesh(group, regionData, objMorpher);
+        glassesSystem.setHeadMesh(group, regionData, objMorpher);
       } else {
-        // No region data — hair/eye system won't place properly
-        console.warn('Region data missing — hair/eye placement disabled');
+        // No region data — hair/eye/glasses system won't place properly
+        console.warn('Region data missing — hair/eye/glasses placement disabled');
       }
 
       activeMorpher = objMorpher;
@@ -96,13 +100,14 @@
         `Vertices: ${vertexCount.toLocaleString()}`;
       console.log(`OBJ loaded: ${vertexCount} vertices, region data: ${!!regionData}`);
 
-      // ── Auto-refresh hair and eyes when morphs change (debounced) ──
+      // ── Auto-refresh hair, eyes, and glasses when morphs change (debounced) ──
       let _morphTimer = null;
       objMorpher.onMorphApplied = () => {
         if (_morphTimer) clearTimeout(_morphTimer);
         _morphTimer = setTimeout(() => {
           hairSystem.refreshFromMesh(objMorpher.morphValues);
           eyeSystem.refreshFromMesh();
+          glassesSystem.refreshFromMesh(objMorpher.morphValues);
         }, 120);
       };
 
@@ -196,6 +201,7 @@
     ui.skinMarkSystem = skinMarkSystem;     // expose for skin marks UI
     ui.decalSystem = decalSystem;           // expose for decal/tattoo UI
     ui.eyeSystem = eyeSystem;               // expose eye system for UI control
+    ui.glassesSystem = glassesSystem;        // expose glasses system for UI control
     ui.skinTextureSystem = skinTextureSystem; // expose for skin texture UI
     ui.wrinklePainter = wrinklePainter;       // expose for wrinkle painting UI
     ui.lipPainter = lipPainter;               // expose for lip painting UI
@@ -216,6 +222,9 @@
       caseManager.updateAppearance('eyeColor', eyeSystem.eyeColor);
       caseManager.updateAppearance('eyelashParams', eyeSystem.getEyelashParams());
     }
+    if (glassesSystem) {
+      caseManager.updateAppearance('glasses', glassesSystem.exportState());
+    }
     console.log('[App] Initial state synced to case manager');
 
     // ── Initialize Snapshot Manager ──
@@ -230,6 +239,7 @@
     console.log('[App] Initializing AI Controller...');
     const aiController = new AIController(api, activeMorpher, hairSystem, caseManager, ui);
     aiController.eyes = eyeSystem;  // set eye system reference
+    aiController.glasses = glassesSystem;  // set glasses system reference
     aiController.scene = sceneManager;  // set scene reference for lip color
     aiController.skinMarkSystem = skinMarkSystem;  // set skin mark system reference
     aiController.markPositionMapper = new MarkPositionMapper(activeMorpher);  // set mark position mapper
@@ -256,7 +266,7 @@
 
     // ── Initialize Head Tracker ──
     console.log('[App] Initializing Head Tracker...');
-    const headTracker = new HeadTracker(sceneManager, hairSystem, eyeSystem, decalSystem);
+    const headTracker = new HeadTracker(sceneManager, hairSystem, eyeSystem, decalSystem, glassesSystem);
     headTracker.init().then(() => {
       console.log('[App] Head Tracker initialized');
     }).catch(err => {

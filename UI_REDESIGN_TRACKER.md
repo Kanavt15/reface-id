@@ -1207,3 +1207,52 @@ Before marking any phase complete, manually verify:
 | Slider track fill via CSS custom property | No DOM rewrite needed, just set `--fill-pct` via JS | Phase 0 |
 | Panel width increase: 360px → 380px | More breathing room for premium feel | Phase 0 |
 | Toolbar height: 48px → 52px | Slightly more spacious without taking layout space | Phase 0 |
+
+---
+
+## SESSION LOG: Glasses / Spectacles Feature (2026-04-29)
+
+### What Was Done
+Added a full glasses/spectacles accessory system to the ReFace application, following the same patterns as EyeSystem.js and HairSystem.js.
+
+### Files Created
+| File | Description |
+|------|-------------|
+| `src/renderer/js/GlassesSystem.js` (459 lines) | GLB-based glasses module — loads glasses model, aligns to nose bridge/temples using landmark positions, tracks morph changes in real time via delta-based approach |
+
+### Files Modified
+| File | Changes |
+|------|---------|
+| `src/renderer/js/app.js` | Added GlassesSystem instantiation, `setHeadMesh()` binding, `onMorphApplied` callback integration, `refreshFromMesh()` wiring, initial state sync to CaseManager, AIController reference |
+| `src/renderer/js/UIController.js` | Added `bindGlassesControls()` method (style cards, visibility toggle, frame/lens color pickers, 5 sliders with undo/redo), `_syncGlassesUI()` helper, glasses state restore in undo/redo, reset/newCase glasses handling |
+| `src/renderer/js/CaseManager.js` | Extended `newCaseTemplate()` with `appearance.glasses` default block (enabled, style, frameColor, lensColor, lensOpacity, scale, posY, posZ, rotation) |
+| `src/renderer/js/AIController.js` | Added glasses handling in `_applyParams()`, `_getCurrentState()`, `_summarizeChanges()` — calls `glassesSystem.applyFromAI()` and syncs UI via `_syncGlassesUI()` |
+| `src/renderer/js/HeadTracker.js` | Extended constructor and `_setupPivotGroup()` to accept and reparent `glassesSystem.glassesGroup` into the head tracking pivot group |
+| `src/renderer/index.html` | Added `<script>` tag for GlassesSystem.js, Accessories sidebar tab, Accessories panel tab, full `#panel-accessories` panel with glasses style grid, visibility toggle, color pickers, and 5 adjustment sliders |
+| `backend/server.py` | Extended `AI_SYSTEM_PROMPT` with GLASSES/SPECTACLES section (schema, color hints, usage rules) and added glasses block to the output JSON format |
+
+### New HTML Element IDs (Protected — Never Rename)
+| ID | Element | JS References |
+|----|---------|---------------|
+| `panel-accessories` | div | UIController.js — panel tab switching |
+| `glassesStyleGrid` | div | UIController.js — style card container |
+| `glassesVisibleToggle` | input[checkbox] | UIController.js → GlassesSystem.setEnabled() |
+| `glassesFrameColorPicker` | input[color] | UIController.js → GlassesSystem.setFrameColor() |
+| `glassesLensColorPicker` | input[color] | UIController.js → GlassesSystem.setLensColor() |
+| `glassesLensOpacitySlider` | input[range] | UIController.js → GlassesSystem.setLensOpacity() |
+| `glassesScaleSlider` | input[range] | UIController.js → GlassesSystem.setParam('scale') |
+| `glassesPosYSlider` | input[range] | UIController.js → GlassesSystem.setParam('posY') |
+| `glassesPosZSlider` | input[range] | UIController.js → GlassesSystem.setParam('posZ') |
+| `glassesRotationSlider` | input[range] | UIController.js → GlassesSystem.setParam('rotation') |
+| `btnResetGlasses` | button | UIController.js → reset glasses to defaults |
+
+### Data Attributes
+| Selector | Attribute | JS References |
+|----------|-----------|---------------|
+| `.hair-style-card[data-glasses-style]` | `data-glasses-style` | UIController.js — glasses style selection ("none", "glasses1") |
+
+### GLB Asset
+| Path | Description |
+|------|-------------|
+| `assets/Glasses/Glasses_1.glb` (377KB) | Default glasses model |
+

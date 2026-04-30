@@ -27,6 +27,7 @@ class UIController {
     this.bindAgeProgressionControls();
     this.bindEyeControls();
     this.bindEyelashControls();
+    this.bindGlassesControls();
     this.bindSkinMarkControls();
     this.bindDecalControls();
     this.bindWrinklePainterControls();
@@ -278,12 +279,12 @@ class UIController {
     };
 
     // Set initial active video
-    const initActiveHair = document.querySelector('.hair-style-card.active');
+    const initActiveHair = document.querySelector('#hairStyleGrid .hair-style-card.active');
     if (initActiveHair) {
       updatePreviewVideo(initActiveHair.dataset.style);
     }
 
-    document.querySelectorAll('.hair-style-card').forEach(card => {
+    document.querySelectorAll('#hairStyleGrid .hair-style-card').forEach(card => {
       // Hover preview video
       card.addEventListener('mouseenter', (e) => {
         updatePreviewVideo(card.dataset.style);
@@ -292,7 +293,7 @@ class UIController {
 
       card.addEventListener('mouseleave', () => {
         if (previewContainer) previewContainer.style.display = 'none';
-        const activeCard = document.querySelector('.hair-style-card.active');
+        const activeCard = document.querySelector('#hairStyleGrid .hair-style-card.active');
         if (activeCard) {
           updatePreviewVideo(activeCard.dataset.style);
         } else {
@@ -303,7 +304,7 @@ class UIController {
       // Click handler
       card.addEventListener('click', (e) => {
         this.caseManager.pushState(`Hair style: ${card.dataset.style}`);
-        document.querySelectorAll('.hair-style-card').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('#hairStyleGrid .hair-style-card').forEach(c => c.classList.remove('active'));
         card.classList.add('active');
 
         const style = card.dataset.style;
@@ -1519,6 +1520,239 @@ class UIController {
       });
 
       this.addHistory('Reset eyelashes');
+    });
+  }
+
+  // ─── Glasses Controls ────────────────────────────────────────────────────
+
+  bindGlassesControls() {
+    const glasses = this.glassesSystem;
+    if (!glasses) return;
+
+    const visibleToggle = document.getElementById('glassesVisibleToggle');
+    const frameColorPicker = document.getElementById('glassesFrameColorPicker');
+    const lensColorPicker = document.getElementById('glassesLensColorPicker');
+    const lensOpacitySlider = document.getElementById('glassesLensOpacitySlider');
+    const scaleSlider = document.getElementById('glassesScaleSlider');
+    const lensScaleSlider = document.getElementById('glassesLensScaleSlider');
+    const armSplaySlider = document.getElementById('glassesArmSplaySlider');
+    const armLengthSlider = document.getElementById('glassesArmLengthSlider');
+    const posXSlider = document.getElementById('glassesPosXSlider');
+    const posYSlider = document.getElementById('glassesPosYSlider');
+    const posZSlider = document.getElementById('glassesPosZSlider');
+    const rotXSlider = document.getElementById('glassesRotXSlider');
+    const rotYSlider = document.getElementById('glassesRotYSlider');
+    const rotZSlider = document.getElementById('glassesRotZSlider');
+
+    const persistGlassesState = () => {
+      this.caseManager.updateAppearance('glasses', glasses.exportState());
+    };
+
+    // Style cards: "none" disables, any other style enables and loads that GLB.
+    document.querySelectorAll('#glassesStyleGrid .hair-style-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const style = card.dataset.glassesStyle;
+        this.caseManager.beginAction(`Glasses style: ${style}`);
+
+        document.querySelectorAll('#glassesStyleGrid .hair-style-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+
+        if (style === 'none') {
+          glasses.setEnabled(false);
+        } else {
+          glasses.setStyle(style);
+          glasses.setEnabled(true);
+          // setStyle may have applied per-style default params — push them
+          // back onto the sliders so the UI reflects the new pose.
+          this._syncGlassesUI(glasses.exportState());
+        }
+        if (visibleToggle) visibleToggle.checked = glasses.enabled;
+
+        persistGlassesState();
+        this.caseManager.endAction();
+        this.addHistory(`Glasses: ${style}`);
+      });
+    });
+
+    // Visibility checkbox
+    visibleToggle?.addEventListener('change', (e) => {
+      this.caseManager.beginAction('Toggle glasses visibility');
+      glasses.setEnabled(!!e.target.checked);
+
+      // Sync style cards: "none" wins when disabled, otherwise current style
+      document.querySelectorAll('#glassesStyleGrid .hair-style-card').forEach(c => {
+        const cardStyle = c.dataset.glassesStyle;
+        const isActive = glasses.enabled
+          ? cardStyle === glasses.currentStyle
+          : cardStyle === 'none';
+        c.classList.toggle('active', isActive);
+      });
+
+      persistGlassesState();
+      this.caseManager.endAction();
+      this.addHistory(glasses.enabled ? 'Glasses on' : 'Glasses off');
+    });
+
+    // Frame color picker (live drag preview, commit on change)
+    {
+      let capturing = false;
+      frameColorPicker?.addEventListener('input', (e) => {
+        if (!capturing) {
+          this.caseManager.beginAction('Changed glasses frame color');
+          capturing = true;
+        }
+        glasses.setFrameColor(e.target.value);
+      });
+      frameColorPicker?.addEventListener('change', () => {
+        persistGlassesState();
+        this.caseManager.endAction();
+        capturing = false;
+        this.addHistory('Changed glasses frame color');
+      });
+    }
+
+    // Lens color picker
+    {
+      let capturing = false;
+      lensColorPicker?.addEventListener('input', (e) => {
+        if (!capturing) {
+          this.caseManager.beginAction('Changed glasses lens color');
+          capturing = true;
+        }
+        glasses.setLensColor(e.target.value);
+      });
+      lensColorPicker?.addEventListener('change', () => {
+        persistGlassesState();
+        this.caseManager.endAction();
+        capturing = false;
+        this.addHistory('Changed glasses lens color');
+      });
+    }
+
+    // Generic slider wiring for glasses (lens opacity, scale, pos XYZ, rot XYZ)
+    const sliderMap = [
+      { el: lensOpacitySlider, paramKey: 'lensOpacity', label: 'lens opacity', setter: (v) => glasses.setLensOpacity(v) },
+      { el: scaleSlider,       paramKey: 'scale',       label: 'scale',        setter: (v) => glasses.setParam('scale', v) },
+      { el: lensScaleSlider,   paramKey: 'lensScale',   label: 'lens scale',   setter: (v) => glasses.setParam('lensScale', v) },
+      { el: armSplaySlider,    paramKey: 'armSplay',    label: 'arm splay',    setter: (v) => glasses.setParam('armSplay', v) },
+      { el: armLengthSlider,   paramKey: 'armLength',   label: 'arm length',   setter: (v) => glasses.setParam('armLength', v) },
+      { el: posXSlider,        paramKey: 'posX',        label: 'horizontal',   setter: (v) => glasses.setParam('posX', v) },
+      { el: posYSlider,        paramKey: 'posY',        label: 'vertical',     setter: (v) => glasses.setParam('posY', v) },
+      { el: posZSlider,        paramKey: 'posZ',        label: 'depth',        setter: (v) => glasses.setParam('posZ', v) },
+      { el: rotXSlider,        paramKey: 'rotX',        label: 'pitch',        setter: (v) => glasses.setParam('rotX', v) },
+      { el: rotYSlider,        paramKey: 'rotY',        label: 'yaw',          setter: (v) => glasses.setParam('rotY', v) },
+      { el: rotZSlider,        paramKey: 'rotZ',        label: 'roll',         setter: (v) => glasses.setParam('rotZ', v) },
+    ];
+
+    sliderMap.forEach(({ el, paramKey, label, setter }) => {
+      if (!el) return;
+      const valueDisplay = el.closest('.slider-control')?.querySelector('.slider-value');
+      let isDragging = false;
+
+      const onMouseDown = () => {
+        isDragging = true;
+        this.caseManager.beginAction(`Modified glasses ${paramKey}`);
+      };
+      const onInput = (e) => {
+        const value = parseFloat(e.target.value);
+        if (valueDisplay) valueDisplay.textContent = String(value);
+        setter(value);
+        this.updateSliderFill(e.target);
+      };
+      const onMouseUp = () => {
+        if (!isDragging) return;
+        persistGlassesState();
+        this.caseManager.endAction();
+        // Delay reset so the 'change' event (which fires synchronously after mouseup)
+        // still sees isDragging=true and skips its redundant pushState call.
+        setTimeout(() => { isDragging = false; }, 0);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+
+      el.addEventListener('mousedown', () => {
+        onMouseDown();
+        document.addEventListener('mouseup', onMouseUp);
+      });
+      el.addEventListener('input', onInput);
+      el.addEventListener('mouseup', onMouseUp);
+
+      // For non-mouse interactions (keyboard arrows, etc.)
+      el.addEventListener('change', () => {
+        if (!isDragging) {
+          this.caseManager.pushState(`Changed glasses ${label}`);
+          persistGlassesState();
+          this.addHistory(`Changed glasses ${label}`);
+        }
+      });
+    });
+
+    // Reset button
+    document.getElementById('btnResetGlasses')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.caseManager.pushState('Reset glasses');
+
+      const defaults = {
+        enabled: false,
+        style: 'glasses1',
+        frameColor: '#1a1a1a',
+        lensColor: '#88ccff',
+        lensOpacity: 20,
+        scale: 100,
+        lensScale: 100,
+        armSplay: 0,
+        armLength: 100,
+        posX: 0,
+        posY: 0,
+        posZ: 0,
+        rotX: 0,
+        rotY: 0,
+        rotZ: 0,
+      };
+      glasses.loadState(defaults);
+      this._syncGlassesUI(defaults);
+      persistGlassesState();
+      this.addHistory('Reset glasses');
+    });
+  }
+
+  /**
+   * Push glasses state into the DOM controls. Used after reset and when
+   * restoring from snapshots / loaded cases.
+   */
+  _syncGlassesUI(state) {
+    if (!state) return;
+    const visibleToggle = document.getElementById('glassesVisibleToggle');
+    const frameColorPicker = document.getElementById('glassesFrameColorPicker');
+    const lensColorPicker = document.getElementById('glassesLensColorPicker');
+
+    if (visibleToggle) visibleToggle.checked = !!state.enabled;
+    if (frameColorPicker && state.frameColor) frameColorPicker.value = state.frameColor;
+    if (lensColorPicker && state.lensColor) lensColorPicker.value = state.lensColor;
+
+    const setSlider = (id, value) => {
+      const el = document.getElementById(id);
+      if (!el || value === undefined) return;
+      el.value = value;
+      const vd = el.closest('.slider-control')?.querySelector('.slider-value');
+      if (vd) vd.textContent = String(value);
+      this.updateSliderFill(el);
+    };
+    setSlider('glassesLensOpacitySlider', state.lensOpacity);
+    setSlider('glassesScaleSlider', state.scale);
+    setSlider('glassesLensScaleSlider', state.lensScale);
+    setSlider('glassesArmSplaySlider', state.armSplay);
+    setSlider('glassesArmLengthSlider', state.armLength);
+    setSlider('glassesPosXSlider', state.posX);
+    setSlider('glassesPosYSlider', state.posY);
+    setSlider('glassesPosZSlider', state.posZ);
+    setSlider('glassesRotXSlider', state.rotX);
+    setSlider('glassesRotYSlider', state.rotY);
+    setSlider('glassesRotZSlider', state.rotZ ?? state.rotation);
+
+    // Update style cards
+    const activeStyle = state.enabled ? (state.style || 'glasses1') : 'none';
+    document.querySelectorAll('#glassesStyleGrid .hair-style-card').forEach(c => {
+      c.classList.toggle('active', c.dataset.glassesStyle === activeStyle);
     });
   }
 
@@ -2870,6 +3104,9 @@ class UIController {
     if (this.skinMarkSystem) {
       this.caseManager.updateSkinMarks(this.skinMarkSystem.exportState());
     }
+    if (this.glassesSystem) {
+      this.caseManager.updateAppearance('glasses', this.glassesSystem.exportState());
+    }
     this.caseManager.currentCase.cameraState = this.scene.getCameraState();
   }
 
@@ -3104,6 +3341,19 @@ class UIController {
     // Clear decals
     if (this.decalSystem) this.decalSystem.clearAll();
 
+    // Reset glasses
+    if (this.glassesSystem) {
+      const glassesDefaults = {
+        enabled: false, style: 'glasses1',
+        frameColor: '#1a1a1a', lensColor: '#88ccff', lensOpacity: 20,
+        scale: 100, lensScale: 100, armSplay: 0, armLength: 100,
+        posX: 0, posY: 0, posZ: 0, rotX: 0, rotY: 0, rotZ: 0,
+      };
+      this.glassesSystem.loadState(glassesDefaults);
+      this._syncGlassesUI(glassesDefaults);
+      this.caseManager.updateAppearance('glasses', this.glassesSystem.exportState());
+    }
+
     // Reset skin texture
     if (this.skinTextureSystem) {
       this.skinTextureSystem.params = {
@@ -3135,6 +3385,18 @@ class UIController {
     document.querySelectorAll('#lipColorPresets .color-swatch').forEach(s => s.classList.remove('active'));
     if (this.skinMarkSystem) this.skinMarkSystem.clearAll();
     if (this.decalSystem) this.decalSystem.clearAll();
+
+    // Reset glasses for the new case
+    if (this.glassesSystem) {
+      const glassesDefaults = {
+        enabled: false, style: 'glasses1',
+        frameColor: '#1a1a1a', lensColor: '#88ccff', lensOpacity: 20,
+        scale: 100, lensScale: 100, armSplay: 0, armLength: 100,
+        posX: 0, posY: 0, posZ: 0, rotX: 0, rotY: 0, rotZ: 0,
+      };
+      this.glassesSystem.loadState(glassesDefaults);
+      this._syncGlassesUI(glassesDefaults);
+    }
 
     // Reset UI
     document.querySelectorAll('.morph-slider').forEach(s => {
@@ -3238,6 +3500,11 @@ class UIController {
       if (data.appearance?.pigmentPaintData && this.pigmentationPainter) {
         this.pigmentationPainter.loadState(data.appearance.pigmentPaintData);
       }
+      // Restore glasses
+      if (data.appearance?.glasses && this.glassesSystem) {
+        this.glassesSystem.loadState(data.appearance.glasses);
+        this._syncGlassesUI(data.appearance.glasses);
+      }
       // Restore camera
       if (data.cameraState) {
         this.scene.loadCameraState(data.cameraState);
@@ -3312,7 +3579,7 @@ class UIController {
       });
       // Update active hair style card
       if (state.hairParams.style) {
-        document.querySelectorAll('.hair-style-card').forEach(c => {
+        document.querySelectorAll('#hairStyleGrid .hair-style-card').forEach(c => {
           c.classList.toggle('active', c.dataset.style === state.hairParams.style);
         });
       }
@@ -3587,6 +3854,12 @@ class UIController {
           if (vd) vd.textContent = lp[lashKey];
         }
       });
+    }
+
+    // Restore glasses state
+    if (state.appearance?.glasses && this.glassesSystem) {
+      this.glassesSystem.loadState(state.appearance.glasses);
+      this._syncGlassesUI(state.appearance.glasses);
     }
 
     // Restore camera state

@@ -198,7 +198,7 @@ class AIController {
     const currentState = this._getCurrentState();
 
     try {
-      const selected = this.providerSelect?.value || 'anthropic:claude-sonnet-4-6';
+      const selected = this.providerSelect?.value || 'anthropic:claude-opus-4-7';
       const [provider, model] = selected.split(':');
       const response = await fetch(`${this.api.baseUrl}/api/ai/generate`, {
         method: 'POST',
@@ -271,7 +271,7 @@ class AIController {
    * Returns an object summarizing what changed.
    */
   _applyParams(params) {
-    const changes = { morphs: 0, hair: false, eyebrows: false, beard: false, appearance: false, marks: false };
+    const changes = { morphs: 0, hair: false, eyebrows: false, beard: false, appearance: false, marks: false, glasses: false };
 
     // Apply morph targets (set values directly, then apply once for performance)
     if (params.morphTargets) {
@@ -369,6 +369,17 @@ class AIController {
     if (params.facialMarks && this.skinMarkSystem && this.markPositionMapper) {
       this._applyFacialMarks(params.facialMarks);
       changes.marks = true;
+    }
+
+    // Apply glasses if provided
+    if (params.glasses && this.glasses) {
+      this.glasses.applyFromAI(params.glasses);
+      this.caseManager.updateAppearance('glasses', this.glasses.exportState());
+      // Sync UI controls so the panel reflects what the AI did
+      if (this.ui && typeof this.ui._syncGlassesUI === 'function') {
+        this.ui._syncGlassesUI(this.glasses.exportState());
+      }
+      changes.glasses = true;
     }
 
     // Sync all sliders to new values
@@ -546,6 +557,11 @@ class AIController {
       appearance: { ...this.caseManager.currentCase.appearance },
     };
 
+    // Include current glasses state so the AI can apply relative changes
+    if (this.glasses) {
+      state.glasses = this.glasses.exportState();
+    }
+
     // Include skin marks if available
     if (this.skinMarkSystem) {
       const marks = this.skinMarkSystem.exportState();
@@ -568,6 +584,7 @@ class AIController {
     if (changes.beard) parts.push('beard');
     if (changes.appearance) parts.push('appearance');
     if (changes.marks) parts.push('marks/scars');
+    if (changes.glasses) parts.push('glasses');
 
     if (parts.length === 0) return 'No changes were needed.';
     return `Updated ${parts.join(', ')}. You can refine further or adjust individual sliders manually.`;

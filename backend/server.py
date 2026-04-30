@@ -126,6 +126,32 @@ Example facial marks:
 ]
 ```
 
+## GLASSES / SPECTACLES — OPTIONAL
+Include this block only when the face description mentions glasses, spectacles, reading glasses, sunglasses, eyewear, or similar.
+- enabled: true to show glasses on the face, false or omit for no glasses
+- frameColor: hex color for the frame (e.g., "#1a1a1a" black, "#8b4513" tortoiseshell, "#c0c0c0" silver)
+- lensColor: hex color for the lens tint (e.g., "#88ccff" light blue, "#333333" dark sunglasses, "#ffffff" clear)
+- lensOpacity: 0–100 (0 = fully clear/no tint, 20 = light tint, 60 = medium sunglasses, 100 = fully opaque)
+
+Example glasses:
+```json
+"glasses": {
+  "enabled": true,
+  "frameColor": "#1a1a1a",
+  "lensColor": "#88ccff",
+  "lensOpacity": 20
+}
+```
+
+Color hints:
+- Reading glasses / clear lenses: lensOpacity 0–10, lensColor "#ffffff"
+- Light-tinted prescription: lensOpacity 10–25, lensColor "#88ccff" or "#e8d4a2"
+- Aviator sunglasses: lensOpacity 50–70, lensColor "#333333" or "#2c4a1d"
+- Dark sunglasses: lensOpacity 70–100, lensColor "#1a1a1a"
+- Wire frames: frameColor "#c0c0c0" or "#d4af37"
+- Thick plastic frames: frameColor "#1a1a1a" or "#8b4513"
+- If the user says "no glasses" or "remove glasses", set enabled: false
+
 ## RULES
 1. ONLY output a valid JSON object. No explanations, no markdown, no comments.
 2. Only include parameters you want to change. Omit parameters that should stay at default (50) or unchanged.
@@ -134,6 +160,7 @@ Example facial marks:
 5. For "a bit" / "slightly" changes, adjust by 5-10 from current value. For "more" / "much more", adjust by 15-25.
 6. If one or more reference images are attached, infer visible facial traits from them and combine that with user text instructions.
 7. IMPORTANT: Only include "facialMarks" if the user explicitly requests mark generation (e.g., "add scars", "include visible marks from the image") OR if you're analyzing reference images and marks are prominently visible.
+8. Only include "glasses" if the description mentions glasses, spectacles, eyewear, sunglasses, or similar. If the user says "remove glasses", set enabled: false.
 
 ## OUTPUT FORMAT (strict JSON, nothing else):
 {
@@ -144,7 +171,13 @@ Example facial marks:
   "appearance": { "skinColor": "#hex", "lipColor": "#hex", "eyeColor": "#hex", "ageRange": "25-35", "sex": "male" },
   "facialMarks": [
     { "type": "scar", "region": "cheek", "side": "right", "offset_x": 0.2, "offset_y": -0.1, "size": 0.03 }
-  ]
+  ],
+  "glasses": {
+    "enabled": true,
+    "frameColor": "#1a1a1a",
+    "lensColor": "#88ccff",
+    "lensOpacity": 20
+  }
 }"""
 
 # Paths
