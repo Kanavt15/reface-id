@@ -72,8 +72,10 @@ def create_skin_material(skin_color='#d4a574'):
     bsdf = nodes.new('ShaderNodeBsdfPrincipled')
     bsdf.location = (0, 0)
     bsdf.inputs['Base Color'].default_value = (r, g, b, 1.0)
-    bsdf.inputs['Subsurface Weight'].default_value = 0.35
-    bsdf.inputs['Subsurface Radius'].default_value = (1.0, 0.2, 0.1)
+    # Stronger SSS for more lifelike, less plastic skin
+    bsdf.inputs['Subsurface Weight'].default_value = 0.85
+    # Red scatters deepest, then green, then blue
+    bsdf.inputs['Subsurface Radius'].default_value = (1.0, 0.4, 0.2)
     bsdf.inputs['Roughness'].default_value = 0.45
     bsdf.inputs['Specular IOR Level'].default_value = 0.3
 
@@ -142,14 +144,25 @@ def setup_studio_lighting():
     rim_obj.location = (0, 3.0, 2.5)
     rim_obj.rotation_euler = (math.radians(-45), 0, math.radians(180))
 
-    # Environment light (subtle)
+    # Environment light (Realistic HDRI-style Sky)
     world = bpy.data.worlds.new(name="REface_World")
     bpy.context.scene.world = world
     world.use_nodes = True
-    bg = world.node_tree.nodes.get('Background')
+    nodes = world.node_tree.nodes
+    links = world.node_tree.links
+    
+    bg = nodes.get('Background')
     if bg:
-        bg.inputs['Color'].default_value = (0.15, 0.17, 0.2, 1.0)
-        bg.inputs['Strength'].default_value = 0.3
+        sky = nodes.new('ShaderNodeTexSky')
+        sky.sky_type = 'NISHITA'
+        # Afternoon/warm sun setting
+        sky.sun_elevation = math.radians(35)
+        sky.sun_rotation = math.radians(135)
+        sky.sun_intensity = 0.15 # Keep low so studio lights are primary
+        sky.dust = 1.0
+        
+        links.new(sky.outputs['Color'], bg.inputs['Color'])
+        bg.inputs['Strength'].default_value = 0.5
 
 
 def setup_camera():

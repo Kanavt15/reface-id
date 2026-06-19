@@ -430,13 +430,55 @@ class UIController {
       });
     }
 
-    // ── Render with Blender (disabled — re-enable when hair transform pipeline is fixed) ──
-    // To re-enable: uncomment the block below and unhide #renderSection in index.html
-    /*
-    document.getElementById('btnRenderBlender')?.addEventListener('click', async () => {
-      this.showLoading('Preparing morphed mesh for render...');
+    // ── Render with Blender ──
+    const openRenderModal = () => {
+      const modal = document.getElementById('renderModal');
+      if (!modal) return;
+      // Reset state
+      document.getElementById('renderLoading').style.display = 'none';
+      document.getElementById('renderResult').style.display = 'none';
+      document.getElementById('renderError').style.display = 'none';
+      document.querySelector('.rf-render-settings').style.display = 'flex';
+      modal.style.display = 'flex';
+    };
 
-      // ── Upload current morphed mesh to backend so Blender uses it ──
+    document.getElementById('btnRenderBlender')?.addEventListener('click', openRenderModal);
+    document.getElementById('rf-vp-render-btn')?.addEventListener('click', openRenderModal);
+
+    // Close modal
+    document.getElementById('btnRenderClose')?.addEventListener('click', () => {
+      document.getElementById('renderModal').style.display = 'none';
+    });
+    document.querySelector('.rf-render-modal-backdrop')?.addEventListener('click', () => {
+      document.getElementById('renderModal').style.display = 'none';
+    });
+
+    // Re-render (show settings again)
+    document.getElementById('btnRenderAgain')?.addEventListener('click', () => {
+      document.getElementById('renderResult').style.display = 'none';
+      document.getElementById('renderError').style.display = 'none';
+      document.querySelector('.rf-render-settings').style.display = 'flex';
+    });
+
+    // Start render
+    document.getElementById('btnRenderStart')?.addEventListener('click', async () => {
+      const startBtn = document.getElementById('btnRenderStart');
+      const loadingEl = document.getElementById('renderLoading');
+      const loadingText = document.getElementById('renderLoadingText');
+      const resultEl = document.getElementById('renderResult');
+      const errorEl = document.getElementById('renderError');
+      const errorText = document.getElementById('renderErrorText');
+      const settingsRow = document.querySelector('.rf-render-settings');
+
+      // Show loading, hide settings
+      settingsRow.style.display = 'none';
+      resultEl.style.display = 'none';
+      errorEl.style.display = 'none';
+      loadingEl.style.display = 'flex';
+      loadingText.textContent = 'Preparing morphed mesh for render...';
+      startBtn.disabled = true;
+
+      // Upload current morphed mesh to backend
       try {
         if (this.facePointEditor) {
           const objData = this.facePointEditor.exportCurrentMeshAsOBJ();
@@ -453,20 +495,17 @@ class UIController {
         console.warn('Mesh export/upload error, Blender will use base model:', err);
       }
 
-      this.showLoading('Rendering with Blender (this may take a minute)...');
+      loadingText.textContent = 'Rendering with Blender (this may take a minute)...';
 
-      // Gather render settings from UI
+      // Gather render settings from modal
       const engine = document.getElementById('renderEngine')?.value || 'EEVEE';
       const quality = document.getElementById('renderQuality')?.value || 'medium';
 
-      // Gather scene data to send to Blender
+      // Gather scene data
       const hairParams = this.hair.getParams();
       const skinColor = document.getElementById('skinColorPicker')?.value || '#d4a574';
       const hairColor = document.getElementById('hairColorPicker')?.value || '#2c1b0e';
-
-      // Get the precise hair transform from the frontend scene
       const hairTransform = this.hair.getRenderTransform();
-      console.log('Hair transform for render:', JSON.stringify(hairTransform));
 
       const result = await this.api.renderScene({
         hairStyle: hairParams.style || 'hair1',
@@ -477,28 +516,35 @@ class UIController {
         hairTransform: hairTransform,
       });
 
-      this.hideLoading();
+      loadingEl.style.display = 'none';
+      startBtn.disabled = false;
 
       if (result?.error) {
+        errorText.textContent = result.error;
+        errorEl.style.display = 'flex';
         this.addHistory('Blender render failed: ' + result.error);
-        alert('Render failed: ' + result.error);
       } else if (result?.render_url) {
-        // Open rendered image in a new window or download it
         const renderUrl = `http://127.0.0.1:5001${result.render_url}`;
-        const win = window.open(renderUrl, '_blank', 'width=1280,height=720');
-        if (!win) {
-          // Fallback: download
+        const img = document.getElementById('renderResultImage');
+        img.src = renderUrl;
+        resultEl.style.display = 'flex';
+
+        // Wire download button
+        const dlBtn = document.getElementById('btnRenderDownload');
+        dlBtn.onclick = () => {
           const link = document.createElement('a');
           link.href = renderUrl;
           link.download = result.filename || 'render.png';
           link.click();
-        }
+        };
+
         this.addHistory('Blender render complete');
       } else {
+        errorText.textContent = 'Render completed but returned no image.';
+        errorEl.style.display = 'flex';
         this.addHistory('Blender render returned no image');
       }
     });
-    */
   }
 
   // ─── Eyebrow Controls ───────────────────────────────────────────────────

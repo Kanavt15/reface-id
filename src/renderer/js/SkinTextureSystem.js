@@ -14,7 +14,7 @@ class SkinTextureSystem {
   constructor(sceneManager) {
     this.scene = sceneManager;
     this.meshGroup = null;
-    this.RES = 512;
+    this.RES = 1024; // Increased resolution for better procedural skin detail
 
     this._diffuseCanvas = null;
     this._normalCanvas = null;
@@ -334,17 +334,17 @@ class SkinTextureSystem {
           const cheekW = Math.max(
             this._gw3d(px, py, pz, -0.40, -0.15, 0.95, 0.20, 0.18, 0.25),
             this._gw3d(px, py, pz,  0.40, -0.15, 0.95, 0.20, 0.18, 0.25));
-          r += cheekW * 25; g -= cheekW * 4; b -= cheekW * 10;
+          r += cheekW * 35; g -= cheekW * 8; b -= cheekW * 15;
 
           // Nose: redder (0, 0.02, 1.30)
           const noseW = this._gw3d(px, py, pz, 0, 0.02, 1.30, 0.08, 0.12, 0.15);
-          r += noseW * 18; g -= noseW * 3; b -= noseW * 4;
+          r += noseW * 28; g -= noseW * 8; b -= noseW * 12;
 
-          // Ears: redder (x=±0.80, y=0.15, z=-0.05)
+          // Ears: SSS translucency red/orange (x=±0.80, y=0.15, z=-0.05)
           const earW = Math.max(
             this._gw3d(px, py, pz, -0.80, 0.15, -0.05, 0.15, 0.20, 0.20),
             this._gw3d(px, py, pz,  0.80, 0.15, -0.05, 0.15, 0.20, 0.20));
-          r += earW * 15; b -= earW * 5;
+          r += earW * 45; g += earW * 5; b -= earW * 15;
 
           // Under-eye: darker/bluer
           const ueW = Math.max(
@@ -443,10 +443,10 @@ class SkinTextureSystem {
     const hasPos = this._hasPosMap;
 
     // Pore detail
-    const poreN = this._fractalNoise(R, 500, 4, 0.55);
-    const poreFine = this._fractalNoise(R, 501, 3, 0.5);
-    const poreMicro = this._valueNoise(R, 128, 502);
-    const pStr = (poreDetail / 100) * 0.6;
+    const poreN = this._fractalNoise(R, 500, 5, 0.60); // Increased octaves for 1024
+    const poreFine = this._fractalNoise(R, 501, 4, 0.55);
+    const poreMicro = this._valueNoise(R, 256, 502); // Tighter micro noise
+    const pStr = (poreDetail / 100) * 0.8; // Stronger base normal displacement
     for (let i = 0, n = R*R; i < n; i++) {
       hm[i] = (poreN[i]-0.5)*pStr + (poreFine[i]-0.5)*pStr*0.4 + (poreMicro[i]-0.5)*pStr*0.15;
     }
@@ -614,9 +614,17 @@ class SkinTextureSystem {
       mat.normalScale = new THREE.Vector2(1.5, 1.5);
       mat.roughnessMap = this.roughnessTexture;
       mat.roughness = 1.0;
-      mat.metalness = 0.02;
-      mat.envMapIntensity = 0.4;
+      mat.metalness = 0.0;
+      // Match the envMapIntensity set on the material definition —
+      // previously this was 0.65 which overrode the lower material value
+      // and was the secondary source of the "glowing" appearance.
+      mat.envMapIntensity = 0.20;
       mat.vertexColors = false;
+      // MeshPhysicalMaterial: subtle clearcoat pore detail (clearcoat is now 0.05)
+      if (mat.isMeshPhysicalMaterial) {
+        mat.clearcoatNormalMap = this.normalTexture;
+        mat.clearcoatNormalScale = new THREE.Vector2(0.2, 0.2);
+      }
       mat.needsUpdate = true;
     });
   }

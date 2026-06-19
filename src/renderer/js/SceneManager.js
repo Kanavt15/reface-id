@@ -43,8 +43,9 @@ class SceneManager {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.2;
+    this.renderer.toneMappingExposure = 0.85;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.useLegacyLights = false; // Physically correct light attenuation
 
     // Camera — Y-up, looking at model center, front = +Z direction
     this.camera = new THREE.PerspectiveCamera(35, 1, 0.01, 100);
@@ -86,6 +87,7 @@ class SceneManager {
 
     // Lighting
     this.setupStudioLighting();
+    this._buildEnvironmentMap(); // HDR env map required for MeshPhysicalMaterial
 
     // Handle resize
     this.resize();
@@ -106,11 +108,23 @@ class SceneManager {
         if (this.headMesh) this.scene.remove(this.headMesh);
 
         // GLB is already Y-up, no rotation needed
-        const skinMat = new THREE.MeshStandardMaterial({
+        const skinMat = new THREE.MeshPhysicalMaterial({
           color: 0xd4a574,
-          roughness: 0.50,
-          metalness: 0.02,
+          roughness: 0.55,
+          metalness: 0.0,
+          // Clearcoat — very subtle surface micro-gloss only
+          clearcoat: 0.05,
+          clearcoatRoughness: 0.70,
+          // IOR — real skin refractive index (1.38)
+          ior: 1.38,
+          // Specular — near-neutral, low intensity
+          specularIntensity: 0.22,
+          specularColor: new THREE.Color(0xfffaf8),
+          // Sheen — extremely subtle micro-fuzz, stops the face from looking like rubber
+          sheen: 0.04,
+          sheenColor: new THREE.Color(0xccbbaa),
           side: THREE.FrontSide,
+          envMapIntensity: 0.20,
         });
 
         group.traverse((child) => {
@@ -167,12 +181,20 @@ class SceneManager {
         group.rotation.x = -Math.PI / 2;
         group.updateMatrixWorld(true);
 
-        // Apply default skin material with SSS-like properties
-        const skinMat = new THREE.MeshStandardMaterial({
+        // Apply physically-based skin material (MeshPhysicalMaterial)
+        const skinMat = new THREE.MeshPhysicalMaterial({
           color: 0xd4a574,
-          roughness: 0.50,
-          metalness: 0.02,
+          roughness: 0.55,
+          metalness: 0.0,
+          clearcoat: 0.05,
+          clearcoatRoughness: 0.70,
+          ior: 1.38,
+          specularIntensity: 0.22,
+          specularColor: new THREE.Color(0xfffaf8),
+          sheen: 0.04,
+          sheenColor: new THREE.Color(0xccbbaa),
           side: THREE.FrontSide,
+          envMapIntensity: 0.20,
         });
 
         group.traverse((child) => {
@@ -335,11 +357,18 @@ class SceneManager {
     }
 
     if (!material) {
-      material = new THREE.MeshStandardMaterial({
+      material = new THREE.MeshPhysicalMaterial({
         color: 0xd4a574,
         roughness: 0.55,
-        metalness: 0.05,
+        metalness: 0.0,
+        clearcoat: 0.05,
+        clearcoatRoughness: 0.70,
+        ior: 1.38,
+        specularIntensity: 0.22,
+        specularColor: new THREE.Color(0xfffaf8),
+        sheen: 0.0,
         side: THREE.DoubleSide,
+        envMapIntensity: 0.20,
       });
     }
 
@@ -375,6 +404,12 @@ class SceneManager {
       this.headMesh.traverse((child) => {
         if (child.isMesh && child.material) {
           child.material.color.set(color);
+          // Keep sheenColor tinted toward skin tone for MeshPhysicalMaterial
+          if (child.material.isMeshPhysicalMaterial) {
+            const skinC = new THREE.Color(color);
+            child.material.sheenColor.copy(skinC).lerp(new THREE.Color(0xffffff), 0.45);
+            child.material.needsUpdate = true;
+          }
         }
       });
     }
@@ -601,7 +636,9 @@ class SceneManager {
     this.clearLights();
 
     // Key light — upper right front
-    const keyLight = new THREE.DirectionalLight(0xffeedd, 1.8);
+    // NOTE: useLegacyLights=false (physically correct) makes lights ~2× brighter
+    // than legacy mode at the same intensity value — all intensities halved here.
+    const keyLight = new THREE.DirectionalLight(0xfff8f4, 0.90);
     keyLight.position.set(2, 3, 3);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.width = 2048;
@@ -610,25 +647,30 @@ class SceneManager {
     keyLight.shadow.camera.far = 15;
     this.scene.add(keyLight);
 
-    // Fill light — left side
-    const fillLight = new THREE.DirectionalLight(0xccddff, 0.6);
+    // Fill light — left side (cooler, softer)
+    const fillLight = new THREE.DirectionalLight(0xddeeff, 0.40);
     fillLight.position.set(-2, 2, 2);
     this.scene.add(fillLight);
 
     // Rim light — behind
-    const rimLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    const rimLight = new THREE.DirectionalLight(0xeeeeff, 0.30);
     rimLight.position.set(0, 1, -3);
     this.scene.add(rimLight);
 
-    // Ambient
-    const ambientLight = new THREE.AmbientLight(0x404050, 0.4);
+    // Bounce light — warm reflection from below
+    const bounceLight = new THREE.DirectionalLight(0xffeedd, 0.25);
+    bounceLight.position.set(0, -3, 2);
+    this.scene.add(bounceLight);
+
+    // Ambient — very subtle
+    const ambientLight = new THREE.AmbientLight(0x303040, 0.25);
     this.scene.add(ambientLight);
 
-    // Hemisphere light for natural fill
-    const hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x362d20, 0.3);
+    // Hemisphere light — toned down
+    const hemiLight = new THREE.HemisphereLight(0x8ab0c8, 0x2a2015, 0.18);
     this.scene.add(hemiLight);
 
-    this.lights = [keyLight, fillLight, rimLight, ambientLight, hemiLight];
+    this.lights = [keyLight, fillLight, rimLight, bounceLight, ambientLight, hemiLight];
   }
 
   /**
@@ -819,6 +861,81 @@ class SceneManager {
     if (state.position) this.camera.position.fromArray(state.position);
     if (state.target) this.controls.target.fromArray(state.target);
     this.controls.update();
+  }
+
+  /**
+   * Build a procedural studio HDR environment map using PMREMGenerator.
+   *
+   * MeshPhysicalMaterial REQUIRES an envMap to display clearcoat, sheen,
+   * and specular highlights correctly — without it, Physical looks identical
+   * to Standard. This generates a warm studio gradient matching the
+   * 3-point lighting setup: key (warm upper-right), fill (neutral left),
+   * rim (cool behind). Uses only core THREE — no extra imports needed.
+   */
+  _buildEnvironmentMap() {
+    try {
+      const pmremGen = new THREE.PMREMGenerator(this.renderer);
+      pmremGen.compileEquirectangularShader();
+
+      // 128×64 equirectangular HDR texture
+      const W = 128, H = 64;
+      const data = new Float32Array(W * H * 4);
+
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const i   = (y * W + x) * 4;
+          const t   = y / (H - 1);                   // 0 = top, 1 = bottom
+          const az  = (x / (W - 1)) * 2 * Math.PI;  // azimuth 0 → 2π
+          const el  = (0.5 - t) * Math.PI;           // elevation (+ = above horizon)
+
+          // ── Key light: slightly warm, upper-right-front (45°) — dimmed ──
+          const kAz = az - Math.PI * 0.25;
+          const kEl = el - 0.9;
+          const kl  = Math.max(0, Math.exp(-(kAz * kAz * 2.0 + kEl * kEl * 3.0))) * 0.90;
+
+          // ── Fill light: neutral-cool, upper-left — dimmed ──
+          const fAz = az - Math.PI * 1.75;
+          const fEl = el - 0.55;
+          const fl  = Math.max(0, Math.exp(-(fAz * fAz * 3.0 + fEl * fEl * 4.0))) * 0.35;
+
+          // ── Rim light: cool, behind-upper — dimmed ──
+          const rAz = az - Math.PI;
+          const rEl = el - 0.5;
+          const rl  = Math.max(0, Math.exp(-(rAz * rAz * 4.0 + rEl * rEl * 4.0))) * 0.28;
+
+          // Hemisphere blend: cool sky → warm bounce from ground
+          const blend = t < 0.5 ? 0.0 : (t - 0.5) * 2.0;
+          let r = 0.85 + (0.15 - 0.85) * blend; // Cooler sky (0.85) -> warmer ground (0.15)
+          let g = 0.90 + (0.10 - 0.90) * blend; // Neutral-cool sky (0.90) -> ground (0.10)
+          let b = 1.00 + (0.05 - 1.00) * blend; // Cool sky (1.00) -> less cool ground (0.05)
+
+          // Add light blobs: slightly warm key, neutral fill, cool rim (all dimmed)
+          r += kl * 0.55 + fl * 0.18 + rl * 0.22;
+          g += kl * 0.50 + fl * 0.22 + rl * 0.26;
+          b += kl * 0.40 + fl * 0.30 + rl * 0.32;
+
+          data[i]     = Math.max(0, r);
+          data[i + 1] = Math.max(0, g);
+          data[i + 2] = Math.max(0, b);
+          data[i + 3] = 1.0;
+        }
+      }
+
+      const envTex = new THREE.DataTexture(data, W, H, THREE.RGBAFormat, THREE.FloatType);
+      envTex.mapping   = THREE.EquirectangularReflectionMapping;
+      envTex.colorSpace = THREE.LinearSRGBColorSpace;
+      envTex.needsUpdate = true;
+
+      const envRT = pmremGen.fromEquirectangular(envTex);
+      this.scene.environment = envRT.texture;
+      this._envRT = envRT; // hold reference — prevents garbage collection
+
+      envTex.dispose();
+      pmremGen.dispose();
+      console.log('[SceneManager] Studio HDR environment map built for MeshPhysicalMaterial');
+    } catch (err) {
+      console.warn('[SceneManager] Environment map build failed (continuing without):', err);
+    }
   }
 
   /**

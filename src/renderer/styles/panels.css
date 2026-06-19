@@ -3153,3 +3153,291 @@
   border-color: var(--rf-border-neutral-subtle);
   border-radius: 3px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Blender Render Modal
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.rf-render-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rf-render-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+}
+
+.rf-render-modal-content {
+  position: relative;
+  background: linear-gradient(160deg, #1a1a2e 0%, #16162a 50%, #111122 100%);
+  border: 1px solid rgba(120, 100, 240, 0.25);
+  border-radius: 16px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.04);
+  width: min(680px, 90vw);
+  max-height: 85vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.rf-render-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.rf-render-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #eee;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Inter', sans-serif;
+}
+
+.rf-render-modal-title i {
+  color: #f0c040;
+  font-size: 18px;
+}
+
+.rf-render-modal-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  color: #aaa;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.rf-render-modal-close:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+/* Settings row */
+.rf-render-settings {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 18px 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.rf-render-setting {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.rf-render-setting label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #888;
+  font-family: 'Inter', sans-serif;
+}
+
+.rf-render-setting select {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  color: #ddd;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px;
+}
+
+.rf-render-setting select:hover {
+  border-color: rgba(120, 100, 240, 0.4);
+}
+
+.rf-render-setting select:focus {
+  border-color: rgba(120, 100, 240, 0.6);
+  box-shadow: 0 0 0 2px rgba(120, 100, 240, 0.15);
+}
+
+.rf-render-setting select option {
+  background: #1a1a2e;
+  color: #ddd;
+}
+
+.rf-render-start-btn {
+  height: 36px;
+  padding: 0 24px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f0c040 0%, #e0a020 100%);
+  color: #1a1a2e;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(240, 192, 64, 0.3);
+}
+
+.rf-render-start-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(240, 192, 64, 0.45);
+}
+
+.rf-render-start-btn:active {
+  transform: translateY(0);
+}
+
+.rf-render-start-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Loading */
+.rf-render-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 48px 24px;
+}
+
+.rf-render-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255,255,255,0.08);
+  border-top-color: #f0c040;
+  border-radius: 50%;
+  animation: rf-render-spin 0.8s linear infinite;
+}
+
+@keyframes rf-render-spin {
+  to { transform: rotate(360deg); }
+}
+
+.rf-render-loading span {
+  font-size: 13px;
+  color: #aaa;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Result */
+.rf-render-result {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.rf-render-result img {
+  max-width: 100%;
+  max-height: 55vh;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+.rf-render-result-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.rf-render-download-btn {
+  height: 36px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rf-render-download-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.4);
+}
+
+.rf-render-rerender-btn {
+  height: 36px;
+  padding: 0 20px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  color: #ccc;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rf-render-rerender-btn:hover {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+
+/* Error */
+.rf-render-error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  margin: 16px 24px;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #ef4444;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+}
+
+.rf-render-error i {
+  font-size: 18px;
+}
+
+/* Viewport render button accent */
+.rf-vp-render {
+  color: #f0c040 !important;
+}
+

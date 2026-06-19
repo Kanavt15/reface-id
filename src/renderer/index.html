@@ -716,6 +716,9 @@
       <button class="tool-btn accent" id="btnScreenshot" title="Take Screenshot">
         <i class="fas fa-camera"></i>
       </button>
+      <button class="tool-btn" id="btnRenderBlender" title="Render with Blender" style="color:#f0c040;">
+        <i class="fas fa-image"></i>
+      </button>
     </div>
     <div class="toolbar-separator"></div>
     <div class="toolbar-group">
@@ -3567,6 +3570,7 @@
           <button class="rf-vp-action-btn" id="rf-vp-undo" title="Undo (Ctrl+Z)"><i class="fas fa-undo"></i> Undo</button>
           <button class="rf-vp-action-btn" id="rf-vp-redo" title="Redo (Ctrl+Y)"><i class="fas fa-redo"></i> Redo</button>
           <button class="rf-vp-action-btn rf-vp-screenshot" id="rf-vp-screenshot-btn" title="Take Screenshot"><i class="fas fa-camera"></i> Screenshot</button>
+          <button class="rf-vp-action-btn rf-vp-render" id="rf-vp-render-btn" title="Render with Blender"><i class="fas fa-image"></i> Render</button>
           <button class="rf-vp-action-btn" id="rf-vp-reset-all" title="Reset All Features"><i class="fas fa-eraser"></i> Reset All</button>
         </div>
       </div>
@@ -3849,8 +3853,70 @@
       </div>
     </div>
   </div>
-  <!-- Hidden import file input -->
   <input type="file" id="beardDefaultsFileInput" accept=".json" style="display:none;">
+
+  <!-- ═══ Blender Render Modal ═══ -->
+  <div id="renderModal" class="rf-render-modal" style="display:none;">
+    <div class="rf-render-modal-backdrop"></div>
+    <div class="rf-render-modal-content">
+      <!-- Header -->
+      <div class="rf-render-modal-header">
+        <div class="rf-render-modal-title">
+          <i class="fas fa-image"></i> Blender Render
+        </div>
+        <button class="rf-render-modal-close" id="btnRenderClose" title="Close">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <!-- Settings row -->
+      <div class="rf-render-settings">
+        <div class="rf-render-setting">
+          <label for="renderEngine">Engine</label>
+          <select id="renderEngine">
+            <option value="EEVEE" selected>EEVEE (Fast)</option>
+            <option value="CYCLES">Cycles (Photorealistic)</option>
+          </select>
+        </div>
+        <div class="rf-render-setting">
+          <label for="renderQuality">Quality</label>
+          <select id="renderQuality">
+            <option value="preview">Preview (960×540)</option>
+            <option value="medium" selected>Medium (1920×1080)</option>
+            <option value="high">High (2560×1440)</option>
+          </select>
+        </div>
+        <button class="rf-render-start-btn" id="btnRenderStart">
+          <i class="fas fa-play"></i> Start Render
+        </button>
+      </div>
+
+      <!-- Loading state -->
+      <div class="rf-render-loading" id="renderLoading" style="display:none;">
+        <div class="rf-render-spinner"></div>
+        <span id="renderLoadingText">Preparing scene...</span>
+      </div>
+
+      <!-- Result -->
+      <div class="rf-render-result" id="renderResult" style="display:none;">
+        <img id="renderResultImage" src="" alt="Rendered output" />
+        <div class="rf-render-result-actions">
+          <button class="rf-render-download-btn" id="btnRenderDownload">
+            <i class="fas fa-download"></i> Download PNG
+          </button>
+          <button class="rf-render-rerender-btn" id="btnRenderAgain">
+            <i class="fas fa-redo"></i> Render Again
+          </button>
+        </div>
+      </div>
+
+      <!-- Error state -->
+      <div class="rf-render-error" id="renderError" style="display:none;">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span id="renderErrorText">Render failed.</span>
+      </div>
+    </div>
+  </div>
 
 </body>
 </html>
