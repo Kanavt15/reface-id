@@ -41,7 +41,7 @@
   --accent-cyan: #06b6d4;
 
   /* Gradient accents */
-  --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  --gradient-primary: linear-gradient(135deg, var(--rf-accent-gold) 0%, var(--rf-accent-gold-dim) 100%);
   --gradient-success: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
   --gradient-warm: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
   --gradient-surface: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
@@ -539,72 +539,72 @@ body {
 
 :root {
   /* ─── Backgrounds ─────────────────────────────────────────────────── */
-  --rf-bg-base:        #06060a;
-  --rf-bg-surface:     #0b0b10;
-  --rf-bg-raised:      #10101a;
-  --rf-bg-card:        #14141e;
-  --rf-bg-overlay:     #1a1a28;
-  --rf-bg-hover:       #1e1e2e;
-  --rf-bg-active:      #242438;
-  --rf-bg-glass:       rgba(14, 14, 22, 0.82);
+  --rf-bg-base:        #050811;   /* Very deep slate black */
+  --rf-bg-surface:     #0a0e1c;   /* Deep slate surface */
+  --rf-bg-raised:      #0f1426;   /* Raised panels */
+  --rf-bg-card:        #141b30;   /* Cards */
+  --rf-bg-overlay:     #1b2340;   /* Overlay elements */
+  --rf-bg-hover:       #212b4d;   /* Hover states */
+  --rf-bg-active:      #28335b;   /* Active states */
+  --rf-bg-glass:       rgba(10, 14, 28, 0.85);
 
   /* ─── Borders ─────────────────────────────────────────────────────── */
-  --rf-border-faint:   rgba(255, 255, 255, 0.04);
-  --rf-border-subtle:  rgba(255, 255, 255, 0.08);
-  --rf-border-normal:  rgba(255, 255, 255, 0.12);
-  --rf-border-bright:  rgba(255, 255, 255, 0.20);
-  --rf-border-accent:  rgba(79, 142, 247, 0.30);
+  --rf-border-faint:   rgba(56, 189, 248, 0.04);
+  --rf-border-subtle:  rgba(56, 189, 248, 0.08);
+  --rf-border-normal:  rgba(56, 189, 248, 0.12);
+  --rf-border-bright:  rgba(56, 189, 248, 0.20);
+  --rf-border-accent:  rgba(0, 120, 242, 0.30);
 
   /* ─── Text ────────────────────────────────────────────────────────── */
-  --rf-text-primary:   #f0f0f8;
-  --rf-text-secondary: #9898b8;
-  --rf-text-tertiary:  #5a5a7a;
-  --rf-text-accent:    #7eb8ff;
-  --rf-text-gold:      #d4af6e;
+  --rf-text-primary:   #f1f5f9;
+  --rf-text-secondary: #94a3b8;
+  --rf-text-tertiary:  #475569;
+  --rf-text-accent:    #38bdf8;
+  --rf-text-gold:      #38bdf8;
   --rf-text-on-accent: #ffffff;
 
   /* ─── Accent Colors ───────────────────────────────────────────────── */
-  --rf-accent-blue:        #4f8ef7;
-  --rf-accent-blue-dim:    #3a70d4;
-  --rf-accent-blue-bright: #6fa8ff;
-  --rf-accent-blue-glow:   rgba(79, 142, 247, 0.25);
+  --rf-accent-blue:        #0078f2;
+  --rf-accent-blue-dim:    #0050aa;
+  --rf-accent-blue-bright: #38bdf8;
+  --rf-accent-blue-glow:   rgba(0, 120, 242, 0.25);
   --rf-accent-teal:        #14d9b4;
   --rf-accent-teal-glow:   rgba(20, 217, 180, 0.20);
   --rf-accent-purple:      #9b6dff;
   --rf-accent-purple-dim:  #7a52d4;
   --rf-accent-purple-glow: rgba(155, 109, 255, 0.20);
   --rf-accent-amber:       #f0b440;
-  --rf-accent-amber-glow:  rgba(240, 180, 64, 0.20);
+  --rf-accent-amber-glow:  rgba(240, 180, 64, 0.25);
   --rf-accent-red:         #ff4d6a;
   --rf-accent-red-glow:    rgba(255, 77, 106, 0.20);
   --rf-accent-green:       #2ecc71;
   --rf-accent-green-glow:  rgba(46, 204, 113, 0.20);
 
-  /* ─── Gold Accent (Primary Editor Theme) ─────────────────────────── */
-  --rf-accent-gold:        #c9a96e;
-  --rf-accent-gold-bright: #e0be87;
-  --rf-accent-gold-dim:    #a8813e;
-  --rf-accent-gold-glow:   rgba(201, 169, 110, 0.25);
-  --rf-accent-gold-soft:   rgba(201, 169, 110, 0.10);
+  /* ─── Primary Theme (Cobalt Blue replacing Gold) ─────────────────── */
+  --rf-accent-gold:        #0078f2;
+  --rf-accent-gold-bright: #38bdf8;
+  --rf-accent-gold-dim:    #0050aa;
+  --rf-accent-gold-glow:   rgba(0, 120, 242, 0.25);
+  --rf-accent-gold-soft:   rgba(0, 120, 242, 0.10);
 
   /* ─── Neutral borders (UI chrome, no color tint) ─────────────────── */
   --rf-border-neutral-faint:  rgba(255, 255, 255, 0.04);
   --rf-border-neutral-subtle: rgba(255, 255, 255, 0.08);
 
-  /* ─── Gold-tinted borders (panels, highlights) ───────────────────── */
-  --rf-border-gold-faint:  rgba(201, 169, 110, 0.06);
-  --rf-border-gold-subtle: rgba(201, 169, 110, 0.12);
-  --rf-border-gold-normal: rgba(201, 169, 110, 0.22);
-  --rf-border-gold-bright: rgba(201, 169, 110, 0.38);
+  /* ─── Primary Theme-tinted borders ───────────────────────────────── */
+  --rf-border-gold-faint:  rgba(0, 120, 242, 0.05);
+  --rf-border-gold-subtle: rgba(0, 120, 242, 0.10);
+  --rf-border-gold-normal: rgba(0, 120, 242, 0.20);
+  --rf-border-gold-bright: rgba(0, 120, 242, 0.35);
 
   /* ─── Gradients ───────────────────────────────────────────────────── */
-  --rf-gradient-hero:    linear-gradient(135deg, #4f8ef7 0%, #9b6dff 50%, #14d9b4 100%);
-  --rf-gradient-cta:     linear-gradient(135deg, #4f8ef7 0%, #7b5ef0 100%);
-  --rf-gradient-cta-hover: linear-gradient(135deg, #6fa8ff 0%, #9b6dff 100%);
-  --rf-gradient-card:    linear-gradient(145deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
-  --rf-gradient-surface: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 100%);
-  --rf-gradient-teal:    linear-gradient(135deg, #14d9b4 0%, #4f8ef7 100%);
-  --rf-gradient-purple:  linear-gradient(135deg, #9b6dff 0%, #4f8ef7 100%);
+  --rf-gradient-hero:    linear-gradient(135deg, #0078f2 0%, #38bdf8 100%);
+  --rf-gradient-cta:     linear-gradient(135deg, #0078f2 0%, #0050aa 100%);
+  --rf-gradient-cta-hover: linear-gradient(135deg, #38bdf8 0%, #0078f2 100%);
+  --rf-gradient-card:    linear-gradient(145deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.005) 100%);
+  --rf-gradient-surface: linear-gradient(180deg, rgba(56,189,248,0.04) 0%, transparent 100%);
+  --rf-gradient-teal:    linear-gradient(135deg, #14d9b4 0%, #0078f2 100%);
+  --rf-gradient-purple:  linear-gradient(135deg, #9b6dff 0%, #0078f2 100%);
 
   /* ─── Typography ──────────────────────────────────────────────────── */
   --rf-font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -666,6 +666,9 @@ body {
   --rf-glow-blue:     0 0 24px rgba(79, 142, 247, 0.30);
   --rf-glow-blue-lg:  0 0 48px rgba(79, 142, 247, 0.25);
   --rf-glow-blue-xl:  0 0 80px rgba(79, 142, 247, 0.20);
+  --rf-glow-gold:     0 0 24px rgba(0, 120, 242, 0.30);
+  --rf-glow-gold-lg:  0 0 48px rgba(0, 120, 242, 0.20);
+  --rf-glow-gold-sm:  0 0 12px rgba(0, 120, 242, 0.25);
   --rf-glow-purple:   0 0 24px rgba(155, 109, 255, 0.25);
   --rf-glow-teal:     0 0 24px rgba(20, 217, 180, 0.25);
   --rf-glow-amber:    0 0 24px rgba(240, 180, 64, 0.25);

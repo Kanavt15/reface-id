@@ -62,7 +62,7 @@
 .rf-topbar-logo-icon {
   font-size: 13px;
   color: var(--rf-accent-gold);
-  filter: drop-shadow(0 0 6px rgba(201,169,110,0.45));
+  filter: drop-shadow(0 0 6px rgba(0,120,242,0.45));
 }
 
 .rf-topbar-logo-re {
@@ -75,8 +75,8 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   color: var(--rf-accent-gold);
-  background: rgba(201,169,110,0.09);
-  border: 1px solid rgba(201,169,110,0.22);
+  background: rgba(0,120,242,0.09);
+  border: 1px solid rgba(0,120,242,0.22);
   border-radius: 4px;
   padding: 2px 6px;
 }
@@ -185,8 +185,8 @@
   gap: 6px;
   padding: 4px 10px;
   border-radius: var(--rf-radius-full);
-  background: rgba(201,169,110,0.05);
-  border: 1px solid rgba(201,169,110,0.12);
+  background: rgba(0,120,242,0.05);
+  border: 1px solid rgba(0,120,242,0.12);
   font-family: 'JetBrains Mono', monospace;
   font-size: 9.5px;
   font-weight: 500;
@@ -300,13 +300,17 @@
 
 /* ─── Sidebar Tab Navigation ──────────────────────────────────────────── */
 .rf-sidebar-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 6px;
   background: var(--rf-bg-raised);
-  border-bottom: 1px solid var(--rf-border-neutral-subtle);
+  border-right: 1px solid var(--rf-border-neutral-subtle);
+  border-bottom: none;
   flex-shrink: 0;
+  width: 64px;
+  height: 100%;
+  align-items: center;
 }
 
 .rf-sidebar-tab {
@@ -314,27 +318,29 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  padding: 11px 6px 10px;
+  gap: 4px;
+  padding: 8px 0;
   border: 1px solid transparent;
-  border-radius: var(--rf-radius-sm);
+  border-radius: var(--rf-radius-md);
   background: transparent;
   color: var(--rf-text-tertiary);
   font-family: 'Inter', sans-serif;
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 500;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   cursor: pointer;
   transition: color var(--rf-dur-fast) var(--rf-ease-out),
               border-color var(--rf-dur-fast) var(--rf-ease-out),
               background var(--rf-dur-fast) var(--rf-ease-out);
   white-space: nowrap;
   position: relative;
-  min-height: 58px;
+  width: 52px;
+  height: 52px;
+  min-height: auto;
 }
 
 .rf-sidebar-tab i {
-  font-size: 15px;
+  font-size: 16px;
   transition: color var(--rf-dur-fast) var(--rf-ease-out),
               filter var(--rf-dur-fast) var(--rf-ease-out);
 }
@@ -347,15 +353,27 @@
 
 .rf-sidebar-tab.active {
   color: var(--rf-accent-gold);
-  background: rgba(201,169,110,0.10);
-  border-color: rgba(201,169,110,0.24);
-  box-shadow: inset 0 1px 0 rgba(201,169,110,0.08),
-              0 2px 8px rgba(201,169,110,0.08);
+  background: rgba(0, 120, 242, 0.08);
+  border-color: rgba(0, 120, 242, 0.20);
+  box-shadow: inset 0 1px 0 rgba(0, 120, 242, 0.05),
+              0 2px 8px rgba(0, 120, 242, 0.05);
 }
 
 .rf-sidebar-tab.active i {
   color: var(--rf-accent-gold);
-  filter: drop-shadow(0 0 5px rgba(201,169,110,0.45));
+  filter: drop-shadow(0 0 5px rgba(0, 120, 242, 0.45));
+}
+
+.rf-sidebar-tab.active::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 14px;
+  bottom: 14px;
+  width: 3px;
+  background: var(--rf-accent-gold);
+  border-radius: var(--rf-radius-full);
+  box-shadow: var(--rf-glow-blue);
 }
 
 /* Sidebar tab content — replaces old panel-content */
@@ -485,8 +503,8 @@
 }
 
 .rf-vp-btn.active {
-  background: rgba(201,169,110,0.12);
-  border-color: rgba(201,169,110,0.25);
+  background: rgba(0,120,242,0.12);
+  border-color: rgba(0,120,242,0.25);
   color: var(--rf-accent-gold);
 }
 
@@ -521,8 +539,8 @@
 }
 
 .rf-vp-toggle.active {
-  background: rgba(201,169,110,0.10);
-  border-color: rgba(201,169,110,0.22);
+  background: rgba(0,120,242,0.10);
+  border-color: rgba(0,120,242,0.22);
   color: var(--rf-accent-gold);
 }
 
@@ -543,7 +561,7 @@
 
 .rf-vp-select:hover,
 .rf-vp-select:focus {
-  border-color: rgba(201,169,110,0.25);
+  border-color: rgba(0,120,242,0.25);
   color: var(--rf-text-primary);
 }
 
@@ -555,8 +573,8 @@
   z-index: 50;
   padding: 4px 12px;
   border-radius: var(--rf-radius-full);
-  background: rgba(201,169,110,0.12);
-  border: 1px solid rgba(201,169,110,0.28);
+  background: rgba(0,120,242,0.12);
+  border: 1px solid rgba(0,120,242,0.28);
   color: var(--rf-accent-gold);
   font-family: 'JetBrains Mono', monospace;
   font-size: 9px;
@@ -625,7 +643,7 @@
 }
 
 .rf-vp-action-btn.rf-vp-screenshot:hover {
-  border-color: rgba(201,169,110,0.3);
+  border-color: rgba(0,120,242,0.3);
   color: var(--rf-accent-gold);
 }
 
@@ -732,7 +750,7 @@
 
 .rf-toast.rf-toast-success { border-color: rgba(46,204,113,0.3); }
 .rf-toast.rf-toast-error   { border-color: rgba(255,77,106,0.3); }
-.rf-toast.rf-toast-info    { border-color: rgba(201,169,110,0.22); }
+.rf-toast.rf-toast-info    { border-color: rgba(0,120,242,0.22); }
 
 .rf-toast i { flex-shrink: 0; }
 .rf-toast.rf-toast-success i { color: var(--rf-accent-green); }
@@ -808,8 +826,8 @@
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  background: rgba(201,169,110,0.06);
-  border: 1px solid rgba(201,169,110,0.15);
+  background: rgba(0,120,242,0.06);
+  border: 1px solid rgba(0,120,242,0.15);
   border-radius: var(--rf-radius-md);
   margin: 8px 12px;
   font-family: 'Inter', sans-serif;
@@ -890,7 +908,7 @@
 
 .rf-ai-example-chip:hover {
   background: var(--rf-bg-hover);
-  border-color: rgba(201,169,110,0.2);
+  border-color: rgba(0,120,242,0.2);
   color: var(--rf-text-primary);
 }
 
@@ -925,8 +943,8 @@
 }
 
 .rf-mode-btn.active {
-  background: rgba(201,169,110,0.12);
-  border-color: rgba(201,169,110,0.3);
+  background: rgba(0,120,242,0.12);
+  border-color: rgba(0,120,242,0.3);
   color: var(--rf-accent-gold);
 }
 
@@ -944,16 +962,14 @@
 }
 
 #rf-screen-editor #left-panel {
-  width: 300px;
-  min-width: 300px;
-  max-width: 300px;
+  width: 440px;
+  min-width: 440px;
+  max-width: 440px;
   background: var(--rf-bg-surface);
   border-right: 1px solid var(--rf-border-neutral-subtle);
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   overflow: hidden;
-  transition: width var(--rf-dur-slow) var(--rf-ease-decel),
-              min-width var(--rf-dur-slow) var(--rf-ease-decel);
 }
 
 #rf-screen-editor #right-panel {

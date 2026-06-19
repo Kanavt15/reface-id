@@ -5,7 +5,7 @@ hairTransform={"matrix": [0.11148644342084978, 0, 0, 0, 0, 0.11148644342084978, 
 Hair style requested: 'hair1'
 Hair transform from frontend: {"matrix": [0.11148644342084978, 0, 0, 0, 0, 0.11148644342084978, 0, 0, 0, 0, 0.11148644342084978, 0, 13.368056321095512, -17.838372478820673, -11.078826063472883, 1], "rawParams": {"length": 50, "density": 50, "volume": 50, "curl": 0, "posx": 49, "posy": 38, "posz": 41, "roty": 50, "scale": 48, "headWidth": 1.9132360219955444, "headTop": 1.3854320049285889, "modelCenterX": 0, "modelCenterY": -0.17590200901031494, "modelCenterZ": 0.1823984980583191, "modelHeight": 3.1226680278778076, "opacity": 0.75}, "opacity": 0.75}
 Hair path: E:/Kanav/Projects/REface id/assets/models\hair\Hair1.glb, exists: True
-Hair import returned 31 objects: ['Eyebrow4(EMPTY)', 'hair08(EMPTY)', 'hair12cap(EMPTY)', 'RootNode(EMPTY)', 'Eyebrow1(EMPTY)', 'Eyebrow3(EMPTY)', 'hair02(EMPTY)', 'hair09_hair09_0(MESH)', 'hair4(EMPTY)', 'hair9cap(EMPTY)', 'Eyebrow9(EMPTY)', 'hair03(EMPTY)', 'Eyebrow5(EMPTY)', 'hair05(EMPTY)', 'hair10(EMPTY)', 'Eyebrow8(EMPTY)', 'Eyebrow10(EMPTY)', 'hair01(EMPTY)', 'hair09(EMPTY)', 'hair10cap(EMPTY)', 'Eyebrow11(EMPTY)', 'Eyebrow2(EMPTY)', 'Eyebrow7(EMPTY)', 'hair07(EMPTY)', 'hair11(EMPTY)', 'Sketchfab_model(EMPTY)', 'hair06(EMPTY)', '89aa60f377fa4c6db97f009dccaef75e.fbx(EMPTY)', 'Eyebrow12(EMPTY)', 'Eyebrow6(EMPTY)', 'hair12(EMPTY)']
+Hair import returned 31 objects: ['Eyebrow4(EMPTY)', 'hair08(EMPTY)', 'hair12cap(EMPTY)', 'RootNode(EMPTY)', 'Eyebrow1(EMPTY)', 'Eyebrow3(EMPTY)', 'hair02(EMPTY)', 'hair09_hair09_0(MESH)', 'hair4(EMPTY)', 'hair9cap(EMPTY)', 'Eyebrow9(EMPTY)', 'hair03(EMPTY)', 'Eyebrow5(EMPTY)', 'hair05(EMPTY)', 'hair10(EMPTY)', 'Eyebrow8(EMPTY)', 'Eyebrow10(EMPTY)', 'hair01(EMPTY)', 'hair09(EMPTY)', 'hair10cap(EMPTY)', 'Eyebrow11(EMPTY)', 'Eyebrow2(EMPTY)', 'Eyebrow7(EMPTY)', 'hair07(EMPTY)', 'hair11(EMPTY)', 'Sketchfab_model(EMPTY)', '89aa60f377fa4c6db97f009dccaef75e.fbx(EMPTY)', 'Eyebrow12(EMPTY)', 'Eyebrow6(EMPTY)', 'hair06(EMPTY)', 'hair12(EMPTY)']
   GLB empty: Eyebrow4
   GLB empty: hair08
   GLB empty: hair12cap
@@ -32,10 +32,10 @@ Hair import returned 31 objects: ['Eyebrow4(EMPTY)', 'hair08(EMPTY)', 'hair12cap
   GLB empty: hair07
   GLB empty: hair11
   GLB empty: Sketchfab_model
-  GLB empty: hair06
   GLB empty: 89aa60f377fa4c6db97f009dccaef75e.fbx
   GLB empty: Eyebrow12
   GLB empty: Eyebrow6
+  GLB empty: hair06
   GLB empty: hair12
   Clearing parent of hair09_hair09_0 (was hair09)
   Using matrix from frontend
