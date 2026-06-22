@@ -878,37 +878,35 @@ class UIController {
       const vals = allDefaults[style] || {};
 
       const card = document.createElement('div');
-      card.style.cssText = 'background:#111128; border:1px solid #2e2e4e; border-radius:10px; margin-bottom:12px; overflow:hidden;';
+      card.className = 'bd-style-card';
 
       // Style header with Copy button
       const header = document.createElement('div');
-      header.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:9px 14px; background:#1c1c3a; cursor:pointer; user-select:none;';
+      header.className = 'bd-style-header';
       header.innerHTML = `
-        <span style="font-weight:700; font-size:13px; color:#a09be8;">${styleName}</span>
-        <div style="display:flex; gap:6px;">
-          <button class="btn-copy-current" data-style="${style}" title="Copy current slider values here" style="background:#2a2a4a; border:1px solid #555; color:#bbb; border-radius:6px; padding:3px 10px; cursor:pointer; font-size:11px;"><i class="fas fa-arrow-down"></i> Use Current</button>
-          <button class="btn-reset-style" data-style="${style}" title="Reset to neutral 100" style="background:#2a2a4a; border:1px solid #555; color:#bbb; border-radius:6px; padding:3px 10px; cursor:pointer; font-size:11px;"><i class="fas fa-undo"></i> Reset</button>
-          <i class="fas fa-chevron-down" style="color:#666; transition:transform 0.2s;"></i>
+        <span class="bd-style-title">${styleName}</span>
+        <div class="bd-style-actions">
+          <button class="btn-copy-current bd-style-btn" data-style="${style}" title="Copy current slider values here"><i class="fas fa-arrow-down"></i> Use Current</button>
+          <button class="btn-reset-style bd-style-btn" data-style="${style}" title="Reset to neutral 100"><i class="fas fa-undo"></i> Reset</button>
+          <i class="fas fa-chevron-down bd-style-chevron"></i>
         </div>`;
 
       const body2 = document.createElement('div');
-      body2.style.cssText = 'padding:10px 14px 14px; display:grid; grid-template-columns:1fr 1fr; gap:8px 16px;';
+      body2.className = 'bd-style-body';
 
       for (const p of PARAMS) {
         const val = vals[p.key] ?? p.neutral;
         const row = document.createElement('div');
-        row.style.cssText = 'display:flex; flex-direction:column; gap:3px;';
+        row.className = 'bd-param-row';
         row.innerHTML = `
-          <label style="font-size:11px; color:#999; margin-bottom:2px;">${p.label}</label>
-          <div style="display:flex; gap:6px; align-items:center;">
+          <label>${p.label}</label>
+          <div class="bd-param-controls">
             <input type="range" min="${p.range[0]}" max="${p.range[1]}" value="${val}"
                    data-style="${style}" data-param="${p.key}"
-                   class="bd-range-input"
-                   style="flex:1; accent-color:#7c6af7; height:4px; cursor:pointer;">
+                   class="bd-range-input">
             <input type="number" min="${p.range[0]}" max="${p.range[1]}" value="${val}"
                    data-style="${style}" data-param="${p.key}"
-                   class="bd-num-input"
-                   style="width:52px; background:#0e0e22; border:1px solid #444; color:#e0e0e0; border-radius:5px; padding:3px 6px; font-size:12px; text-align:center;">
+                   class="bd-num-input">
           </div>`;
         body2.appendChild(row);
       }

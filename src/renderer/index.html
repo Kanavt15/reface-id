@@ -3821,32 +3821,32 @@
   </div>
 
   <!-- â”€â”€ Facial Hair Defaults Editor Modal â”€â”€ -->
-  <div id="beardDefaultsModal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px); align-items:center; justify-content:center;">
-    <div style="background:#1a1a2e; border:1px solid #444; border-radius:14px; width:min(94vw,700px); max-height:88vh; display:flex; flex-direction:column; box-shadow:0 24px 60px rgba(0,0,0,0.7); font-family:inherit; color:#e0e0e0;">
+  <div id="beardDefaultsModal" class="rf-beard-defaults-modal" style="display:none;">
+    <div class="rf-beard-defaults-dialog">
       <!-- Header -->
-      <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px 14px; border-bottom:1px solid #333;">
-        <div style="display:flex; align-items:center; gap:10px;">
-          <i class="fas fa-sliders-h" style="color:#7c6af7; font-size:18px;"></i>
-          <span style="font-size:16px; font-weight:700; letter-spacing:0.5px;">Facial Hair Defaults Editor</span>
+      <div class="rf-beard-defaults-header">
+        <div class="rf-beard-defaults-title">
+          <i class="fas fa-sliders-h" aria-hidden="true"></i>
+          <span>Facial Hair Defaults Editor</span>
         </div>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <button id="btnBeardDefaultsImport" title="Import from JSON" style="background:#2a2a3e; border:1px solid #555; color:#ccc; border-radius:7px; padding:5px 12px; cursor:pointer; font-size:12px;"><i class="fas fa-file-import"></i> Import</button>
-          <button id="btnBeardDefaultsExport" title="Export as JSON" style="background:#2a2a3e; border:1px solid #555; color:#ccc; border-radius:7px; padding:5px 12px; cursor:pointer; font-size:12px;"><i class="fas fa-file-export"></i> Export</button>
-          <button id="btnBeardDefaultsClearStorage" title="Clear all localStorage defaults (revert to code defaults)" style="background:#3a1a1a; border:1px solid #c44; color:#f88; border-radius:7px; padding:5px 12px; cursor:pointer; font-size:12px;"><i class="fas fa-trash"></i> Clear Saved</button>
-          <button id="btnBeardDefaultsClose" style="background:none; border:none; color:#aaa; font-size:20px; cursor:pointer; line-height:1; padding:2px 6px;">&times;</button>
+        <div class="rf-beard-defaults-header-actions">
+          <button id="btnBeardDefaultsImport" class="rf-beard-defaults-btn" title="Import from JSON"><i class="fas fa-file-import"></i> Import</button>
+          <button id="btnBeardDefaultsExport" class="rf-beard-defaults-btn" title="Export as JSON"><i class="fas fa-file-export"></i> Export</button>
+          <button id="btnBeardDefaultsClearStorage" class="rf-beard-defaults-btn rf-beard-defaults-btn-danger" title="Clear all localStorage defaults (revert to code defaults)"><i class="fas fa-trash"></i> Clear Saved</button>
+          <button id="btnBeardDefaultsClose" class="rf-beard-defaults-close" title="Close" aria-label="Close">&times;</button>
         </div>
       </div>
       <!-- Info bar -->
-      <div style="background:#12122a; padding:8px 22px; font-size:11px; color:#888; border-bottom:1px solid #2a2a3a;">
-        <i class="fas fa-info-circle" style="color:#7c6af7;"></i>
-        &nbsp;Values are 0â€“200 (100 = neutral/center). <b style="color:#aaa;">rotX</b> = Forward/Back tilt (fixes upward models). Saved to browser storage â€” survive page refresh.
+      <div class="rf-beard-defaults-info">
+        <i class="fas fa-info-circle" aria-hidden="true"></i>
+        <span>Values are 0-200 (100 = neutral/center). <b>rotX</b> = Forward/Back tilt (fixes upward models). Saved values persist after page refresh.</span>
       </div>
       <!-- Scrollable content -->
-      <div style="overflow-y:auto; flex:1; padding:16px 22px 20px;" id="beardDefaultsBody"></div>
+      <div class="rf-beard-defaults-body" id="beardDefaultsBody"></div>
       <!-- Footer -->
-      <div style="display:flex; gap:10px; padding:14px 22px; border-top:1px solid #333; justify-content:flex-end;">
-        <button id="btnBeardDefaultsCancel" style="background:#2a2a3e; border:1px solid #555; color:#ccc; border-radius:8px; padding:8px 20px; cursor:pointer; font-size:13px;">Cancel</button>
-        <button id="btnBeardDefaultsSaveAll" style="background:linear-gradient(135deg,#7c6af7,#5a4fcf); border:none; color:#fff; border-radius:8px; padding:8px 22px; cursor:pointer; font-size:13px; font-weight:600; box-shadow:0 4px 14px rgba(124,106,247,0.4);"><i class="fas fa-save"></i> Save All Defaults</button>
+      <div class="rf-beard-defaults-footer">
+        <button id="btnBeardDefaultsCancel" class="rf-beard-defaults-btn rf-beard-defaults-cancel">Cancel</button>
+        <button id="btnBeardDefaultsSaveAll" class="rf-beard-defaults-save"><i class="fas fa-save"></i> Save All Defaults</button>
       </div>
     </div>
   </div>
