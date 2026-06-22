@@ -1,0 +1,267 @@
+/* ReFace palette supplied by the product team.
+   Loaded last to theme every routed screen without changing markup or behavior. */
+
+:root {
+  --reface-peach: #e59f71;
+  --reface-burnt: #ba5a31;
+  --reface-black: #0c0c0c;
+  --reface-mint: #69dc9e;
+
+  /* Legacy application tokens */
+  --bg-primary: var(--reface-black);
+  --bg-secondary: #141414;
+  --bg-tertiary: #1a1a1a;
+  --bg-elevated: #202020;
+  --bg-hover: #2d2d2d;
+  --bg-active: #363636;
+  --bg-card: #1c1c1c;
+  --bg-glass: rgba(12, 12, 12, 0.9);
+  --border-primary: rgba(105, 220, 158, 0.14);
+  --border-secondary: rgba(105, 220, 158, 0.08);
+  --border-accent: rgba(105, 220, 158, 0.26);
+  --border-highlight: rgba(105, 220, 158, 0.4);
+  --border-glow: rgba(105, 220, 158, 0.34);
+  --text-primary: #f7f4f1;
+  --text-secondary: #d7c6ba;
+  --text-muted: #9d9188;
+  --text-accent: var(--reface-mint);
+  --accent-primary: var(--reface-burnt);
+  --accent-primary-dim: #974625;
+  --accent-primary-bright: var(--reface-peach);
+  --accent-secondary: var(--reface-mint);
+  --accent-warning: var(--reface-peach);
+  --accent-danger: var(--reface-burnt);
+  --accent-success: var(--reface-mint);
+  --accent-purple: var(--reface-peach);
+  --accent-pink: var(--reface-burnt);
+  --accent-cyan: var(--reface-mint);
+  --gradient-primary: linear-gradient(135deg, var(--reface-burnt), var(--reface-peach));
+  --gradient-success: linear-gradient(135deg, var(--reface-mint), #379b69);
+  --gradient-warm: linear-gradient(135deg, var(--reface-peach), var(--reface-burnt));
+  --shadow-glow: 0 0 24px rgba(186, 90, 49, 0.24);
+  --shadow-glow-lg: 0 0 40px rgba(186, 90, 49, 0.32);
+
+  /* Current rf design-system tokens */
+  --rf-bg-base: var(--reface-black);
+  --rf-bg-surface: #141414;
+  --rf-bg-raised: #1a1a1a;
+  --rf-bg-card: #202020;
+  --rf-bg-overlay: #262626;
+  --rf-bg-hover: #2d2d2d;
+  --rf-bg-active: #363636;
+  --rf-bg-glass: rgba(12, 12, 12, 0.88);
+  --rf-border-faint: rgba(105, 220, 158, 0.07);
+  --rf-border-subtle: rgba(105, 220, 158, 0.14);
+  --rf-border-normal: rgba(105, 220, 158, 0.24);
+  --rf-border-bright: rgba(105, 220, 158, 0.4);
+  --rf-border-accent: rgba(186, 90, 49, 0.44);
+  --rf-text-primary: #f7f4f1;
+  --rf-text-secondary: #d7c6ba;
+  --rf-text-tertiary: #9d9188;
+  --rf-text-accent: var(--reface-mint);
+  --rf-text-gold: var(--reface-peach);
+  --rf-text-on-accent: #ffffff;
+  --rf-accent-blue: var(--reface-mint);
+  --rf-accent-blue-dim: #379b69;
+  --rf-accent-blue-bright: #92e9ba;
+  --rf-accent-blue-glow: rgba(105, 220, 158, 0.25);
+  --rf-accent-teal: var(--reface-mint);
+  --rf-accent-teal-glow: rgba(105, 220, 158, 0.22);
+  --rf-accent-purple: var(--reface-peach);
+  --rf-accent-purple-dim: var(--reface-burnt);
+  --rf-accent-purple-glow: rgba(229, 159, 113, 0.22);
+  --rf-accent-amber: var(--reface-peach);
+  --rf-accent-amber-glow: rgba(229, 159, 113, 0.22);
+  --rf-accent-red: var(--reface-burnt);
+  --rf-accent-red-glow: rgba(186, 90, 49, 0.22);
+  --rf-accent-green: var(--reface-mint);
+  --rf-accent-green-glow: rgba(105, 220, 158, 0.22);
+  --rf-accent-gold: var(--reface-peach);
+  --rf-accent-gold-bright: #f0b68f;
+  --rf-accent-gold-dim: var(--reface-burnt);
+  --rf-accent-gold-glow: rgba(229, 159, 113, 0.25);
+  --rf-accent-gold-soft: rgba(229, 159, 113, 0.1);
+  --rf-border-neutral-faint: rgba(255, 255, 255, 0.05);
+  --rf-border-neutral-subtle: rgba(255, 255, 255, 0.1);
+  --rf-border-gold-faint: rgba(229, 159, 113, 0.07);
+  --rf-border-gold-subtle: rgba(229, 159, 113, 0.14);
+  --rf-border-gold-normal: rgba(229, 159, 113, 0.26);
+  --rf-border-gold-bright: rgba(229, 159, 113, 0.44);
+  --rf-gradient-hero: linear-gradient(135deg, var(--reface-peach), var(--reface-mint));
+  --rf-gradient-cta: linear-gradient(135deg, var(--reface-burnt), var(--reface-peach));
+  --rf-gradient-cta-hover: linear-gradient(135deg, var(--reface-peach), var(--reface-burnt));
+  --rf-gradient-teal: linear-gradient(135deg, var(--reface-mint), #379b69);
+  --rf-gradient-purple: linear-gradient(135deg, var(--reface-peach), var(--reface-burnt));
+  --rf-glow-blue: 0 0 24px rgba(105, 220, 158, 0.3);
+  --rf-glow-blue-lg: 0 0 48px rgba(105, 220, 158, 0.25);
+  --rf-glow-blue-xl: 0 0 80px rgba(105, 220, 158, 0.2);
+  --rf-glow-purple: 0 0 24px rgba(229, 159, 113, 0.25);
+  --rf-glow-teal: 0 0 24px rgba(105, 220, 158, 0.28);
+  --rf-glow-amber: 0 0 24px rgba(186, 90, 49, 0.3);
+}
+
+/* Startup screens */
+#rf-screen-hero,
+#rf-screen-case-setup,
+#rf-screen-input-method,
+#rf-screen-editor {
+  background: var(--reface-black);
+}
+
+.rf-hero-gradient-mesh {
+  background:
+    radial-gradient(ellipse 55% 55% at 68% 48%, rgba(105, 220, 158, 0.14), transparent 58%),
+    radial-gradient(ellipse 40% 55% at 22% 70%, rgba(186, 90, 49, 0.16), transparent 50%),
+    radial-gradient(ellipse 75% 38% at 50% 0%, rgba(229, 159, 113, 0.09), transparent 52%),
+    radial-gradient(ellipse 45% 40% at 82% 82%, rgba(229, 159, 113, 0.07), transparent 52%);
+}
+
+.rf-hero-grid-pattern {
+  background-image:
+    linear-gradient(rgba(105, 220, 158, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(105, 220, 158, 0.05) 1px, transparent 1px);
+}
+
+.rf-hero-dot-field {
+  background-image: radial-gradient(circle, rgba(105, 220, 158, 0.09) 1px, transparent 1px);
+}
+
+.rf-hero-vignette {
+  background: radial-gradient(ellipse 75% 65% at 55% 50%, transparent 18%, var(--reface-black) 100%);
+}
+
+.rf-orb-1 { background: rgba(105, 220, 158, 0.12); }
+.rf-orb-2 { background: rgba(229, 159, 113, 0.1); }
+
+.rf-logo-re,
+.rf-logo-badge,
+.rf-eyebrow-text,
+.rf-title-serif,
+.rf-stat-val,
+.rf-feat-num,
+.rf-form-screen-title,
+.rf-step-badge,
+.rf-required-mark,
+.rf-method-row.rf-method-selected .rf-method-num,
+.rf-method-row.rf-method-selected .rf-method-row-icon {
+  color: var(--reface-peach);
+}
+
+.rf-logo-diamond,
+.rf-title-accent-dot,
+.rf-footer-progress-fill,
+.rf-method-row::before,
+.rf-method-row.rf-method-selected .rf-method-row-check {
+  background: var(--reface-burnt);
+}
+
+.rf-logo-icon,
+.rf-logo-badge,
+.rf-nav-outline-btn,
+.rf-step-badge,
+.rf-method-row.rf-method-selected .rf-method-row-icon,
+.rf-method-row.rf-method-selected .rf-method-row-check {
+  border-color: rgba(229, 159, 113, 0.48);
+}
+
+.rf-nav-outline-btn:hover,
+.rf-back-btn:hover {
+  color: var(--reface-peach);
+  border-color: var(--reface-peach);
+  background: rgba(229, 159, 113, 0.1);
+}
+
+.rf-eyebrow-line,
+.rf-desc-rule {
+  background: linear-gradient(90deg, var(--reface-peach), rgba(229, 159, 113, 0.08));
+}
+
+.rf-hero-btn-primary,
+.rf-cta-fill {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--reface-burnt), var(--reface-peach));
+  box-shadow: 0 3px 24px rgba(186, 90, 49, 0.38);
+}
+
+.rf-hero-btn-primary:hover,
+.rf-cta-fill:not(.rf-cta-disabled):hover {
+  background: linear-gradient(135deg, var(--reface-peach), var(--reface-burnt));
+  box-shadow: 0 6px 40px rgba(186, 90, 49, 0.5);
+}
+
+.rf-flat-input:focus,
+.rf-flat-textarea:focus {
+  background: rgba(105, 220, 158, 0.07);
+  border-color: var(--reface-mint);
+  box-shadow: inset 0 0 0 1px rgba(105, 220, 158, 0.2);
+}
+
+.rf-method-row.rf-method-selected {
+  background: rgba(186, 90, 49, 0.1);
+}
+
+.rf-method-row.rf-method-selected .rf-method-row-check {
+  color: #ffffff;
+}
+
+/* Mint carries the technical scanner/readout layer. */
+.rf-ring,
+.rf-glass-border,
+.rf-visual-glass,
+.rf-data-tag {
+  border-color: rgba(105, 220, 158, 0.3);
+}
+
+.rf-crosshair { background: rgba(105, 220, 158, 0.32); }
+.rf-wire-path { stroke: rgba(105, 220, 158, 0.82); }
+.rf-wire-eye { stroke: var(--reface-mint); }
+.rf-wire-contour { stroke: rgba(105, 220, 158, 0.5); }
+.rf-wire-grid { stroke: rgba(105, 220, 158, 0.3); }
+.rf-wire-connect { stroke: rgba(105, 220, 158, 0.22); }
+.rf-wire-pupil { fill: var(--reface-mint); }
+.rf-map-point { fill: var(--reface-peach); }
+.rf-dtag-dot { background: var(--reface-burnt); }
+.rf-dtag-label,
+.rf-vr-val { color: var(--reface-mint); }
+
+/* Editor chrome and controls with warm active states. */
+.rf-topbar-logo-icon,
+.rf-topbar-logo-re,
+.rf-topbar-logo-badge,
+.slider-value {
+  color: var(--reface-peach);
+}
+
+.rf-topbar-logo-badge,
+.slider-value {
+  background: rgba(229, 159, 113, 0.1);
+  border-color: rgba(229, 159, 113, 0.28);
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    var(--reface-burnt) 0%,
+    var(--reface-burnt) var(--slider-fill, 50%),
+    transparent var(--slider-fill, 50%)
+  );
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  border-color: var(--reface-peach);
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: linear-gradient(135deg, var(--reface-peach), var(--reface-burnt));
+  border-color: var(--reface-peach);
+}
+
+.morph-slider::-webkit-slider-runnable-track,
+.appearance-slider::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, var(--reface-burnt), var(--reface-peach));
+}
+
+.hair-slider::-webkit-slider-runnable-track,
+.skin-texture-slider::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, #379b69, var(--reface-mint));
+}
