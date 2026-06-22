@@ -528,10 +528,12 @@
 
 /* Lighting dropdown */
 .rf-vp-select {
-  background: transparent;
+  min-width: 78px;
+  background: var(--rf-bg-overlay);
   border: 1px solid var(--rf-border-neutral-subtle);
   border-radius: var(--rf-radius-full);
-  color: var(--rf-text-secondary);
+  color: var(--rf-text-primary);
+  color-scheme: dark;
   font-family: 'JetBrains Mono', monospace;
   font-size: 9px;
   font-weight: 500;
@@ -539,6 +541,16 @@
   cursor: pointer;
   outline: none;
   transition: var(--rf-transition-base);
+}
+
+.rf-vp-select option {
+  background-color: var(--rf-bg-overlay);
+  color: var(--rf-text-primary);
+}
+
+.rf-vp-select option:checked {
+  background-color: var(--rf-bg-active);
+  color: var(--rf-accent-gold-bright);
 }
 
 .rf-vp-select:hover,
