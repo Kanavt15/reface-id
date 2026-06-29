@@ -349,6 +349,8 @@ class OBJMorpher {
       }
     }
 
+    // Removed incorrect femaleOffsets. The user wanted to adjust the EYEBALL positions, not morph the entire face mesh around the eyes.
+
     if (Object.keys(active).length === 0) {
       this._finalizeGeometry();
       return;
@@ -454,72 +456,7 @@ class OBJMorpher {
       for (let i = 0; i < N; i++) offsets[i*3] += directions[i] * weights[i] * disp * 0.3;
     }
 
-    // ─── EYES ──────────────────────────────────────────────────────────
 
-    if (active.eyeSpacing !== undefined) {
-      const t = active.eyeSpacing;
-      const { weights, directions } = this._getDirectionalWeights(
-        ['eye_left_center', 'eye_right_center',
-         'eye_left_inner', 'eye_right_inner',
-         'eye_left_outer', 'eye_right_outer'], 0.08);
-      const disp = t * scale;
-      for (let i = 0; i < N; i++) offsets[i*3] += directions[i] * weights[i] * disp;
-    }
-
-    if (active.eyeHeight !== undefined) {
-      const t = active.eyeHeight;
-      const weights = this._getRegionWeights(['eye_left_center', 'eye_right_center'], 0.08);
-      const disp = t * scale;
-      for (let i = 0; i < N; i++) offsets[i*3+1] += weights[i] * disp;
-    }
-
-    if (active.eyeDepth !== undefined) {
-      const t = active.eyeDepth;
-      const weights = this._getRegionWeights(['eye_left_center', 'eye_right_center'], 0.06);
-      const disp = t * scale;
-      for (let i = 0; i < N; i++) offsets[i*3+2] -= zDir * weights[i] * disp;
-    }
-
-    if (active.eyeSize !== undefined) {
-      const t = active.eyeSize;
-      const disp = t * 0.15;
-      for (const side of ['left', 'right']) {
-        const cp = this._landmarkPositions[`eye_${side}_center`];
-        if (!cp) continue;
-        const landmarks = [
-          `eye_${side}_center`, `eye_${side}_inner`,
-          `eye_${side}_outer`, `eye_${side}_upper`, `eye_${side}_lower`];
-        const weights = this._getRegionWeights(landmarks, 0.05);
-        for (let i = 0; i < N; i++) {
-          if (weights[i] < 0.001) continue;
-          offsets[i*3]   += (this._allVerts[i*3]   - cp[0]) * weights[i] * disp;
-          offsets[i*3+1] += (this._allVerts[i*3+1] - cp[1]) * weights[i] * disp;
-          offsets[i*3+2] += (this._allVerts[i*3+2] - cp[2]) * weights[i] * disp;
-        }
-      }
-    }
-
-    if (active.eyeTilt !== undefined) {
-      const t = active.eyeTilt;
-      const disp = t * scale * 0.5;
-      const wO = this._getRegionWeights(['eye_left_outer', 'eye_right_outer'], 0.04);
-      const wI = this._getRegionWeights(['eye_left_inner', 'eye_right_inner'], 0.04);
-      for (let i = 0; i < N; i++) {
-        offsets[i*3+1] += wO[i] * disp;
-        offsets[i*3+1] -= wI[i] * disp * 0.5;
-      }
-    }
-
-    if (active.eyeOpenness !== undefined) {
-      const t = active.eyeOpenness;
-      const disp = t * scale * 0.3;
-      const wU = this._getRegionWeights(['eye_left_upper', 'eye_right_upper'], 0.03);
-      const wL = this._getRegionWeights(['eye_left_lower', 'eye_right_lower'], 0.03);
-      for (let i = 0; i < N; i++) {
-        offsets[i*3+1] += wU[i] * disp;
-        offsets[i*3+1] -= wL[i] * disp;
-      }
-    }
 
     // ─── BROWS ─────────────────────────────────────────────────────────
 
@@ -608,6 +545,92 @@ class OBJMorpher {
       const weights = this._getRegionWeights(['forehead_center'], 0.10);
       const disp = t * scale;
       for (let i = 0; i < N; i++) offsets[i*3+2] += zDir * weights[i] * disp;
+    }
+
+    // ─── EYES ──────────────────────────────────────────────────────────
+
+    if (active.eyeSpacing !== undefined) {
+      const t = active.eyeSpacing;
+      const weightsL = this._getRegionWeights(['eye_left_center', 'eye_left_inner', 'eye_left_outer', 'eye_left_upper', 'eye_left_lower'], 0.08);
+      const weightsR = this._getRegionWeights(['eye_right_center', 'eye_right_inner', 'eye_right_outer', 'eye_right_upper', 'eye_right_lower'], 0.08);
+      const disp = t * scale;
+      for (let i = 0; i < N; i++) {
+        offsets[i*3] -= weightsL[i] * disp; // left eye moves left
+        offsets[i*3] += weightsR[i] * disp; // right eye moves right
+      }
+    }
+
+    if (active.eyeHeight !== undefined) {
+      const t = active.eyeHeight;
+      const weights = this._getRegionWeights([
+        'eye_left_center', 'eye_left_inner', 'eye_left_outer', 'eye_left_upper', 'eye_left_lower',
+        'eye_right_center', 'eye_right_inner', 'eye_right_outer', 'eye_right_upper', 'eye_right_lower'
+      ], 0.08);
+      const disp = t * scale;
+      for (let i = 0; i < N; i++) offsets[i*3+1] += weights[i] * disp;
+    }
+
+    if (active.eyeDepth !== undefined) {
+      const t = active.eyeDepth;
+      const weights = this._getRegionWeights([
+        'eye_left_center', 'eye_left_inner', 'eye_left_outer', 'eye_left_upper', 'eye_left_lower',
+        'eye_right_center', 'eye_right_inner', 'eye_right_outer', 'eye_right_upper', 'eye_right_lower'
+      ], 0.08);
+      const disp = t * scale;
+      for (let i = 0; i < N; i++) offsets[i*3+2] += zDir * weights[i] * disp;
+    }
+
+    if (active.eyeSize !== undefined) {
+      const t = active.eyeSize;
+      const weightsL = this._getRegionWeights(['eye_left_center'], 0.06);
+      const weightsR = this._getRegionWeights(['eye_right_center'], 0.06);
+      const disp = t * scale;
+      const lp = this._landmarkPositions['eye_left_center'];
+      const rp = this._landmarkPositions['eye_right_center'];
+      for (let i = 0; i < N; i++) {
+        if (lp && weightsL[i] > 0) {
+          const dx = this._allVerts[i*3] - lp[0];
+          const dy = this._allVerts[i*3+1] - lp[1];
+          offsets[i*3] += dx * weightsL[i] * disp * 20;
+          offsets[i*3+1] += dy * weightsL[i] * disp * 20;
+        }
+        if (rp && weightsR[i] > 0) {
+          const dx = this._allVerts[i*3] - rp[0];
+          const dy = this._allVerts[i*3+1] - rp[1];
+          offsets[i*3] += dx * weightsR[i] * disp * 20;
+          offsets[i*3+1] += dy * weightsR[i] * disp * 20;
+        }
+      }
+    }
+
+    if (active.eyeTilt !== undefined) {
+      const t = active.eyeTilt;
+      const weightsL_in = this._getRegionWeights(['eye_left_inner'], 0.04);
+      const weightsL_out = this._getRegionWeights(['eye_left_outer'], 0.04);
+      const weightsR_in = this._getRegionWeights(['eye_right_inner'], 0.04);
+      const weightsR_out = this._getRegionWeights(['eye_right_outer'], 0.04);
+      const disp = t * scale;
+      for (let i = 0; i < N; i++) {
+        offsets[i*3+1] -= weightsL_in[i] * disp;
+        offsets[i*3+1] += weightsL_out[i] * disp;
+        offsets[i*3+1] -= weightsR_in[i] * disp;
+        offsets[i*3+1] += weightsR_out[i] * disp;
+      }
+    }
+
+    if (active.eyeOpenness !== undefined) {
+      const t = active.eyeOpenness;
+      const weightsL_up = this._getRegionWeights(['eye_left_upper'], 0.04);
+      const weightsL_dn = this._getRegionWeights(['eye_left_lower'], 0.04);
+      const weightsR_up = this._getRegionWeights(['eye_right_upper'], 0.04);
+      const weightsR_dn = this._getRegionWeights(['eye_right_lower'], 0.04);
+      const disp = t * scale;
+      for (let i = 0; i < N; i++) {
+        offsets[i*3+1] += weightsL_up[i] * disp;
+        offsets[i*3+1] -= weightsL_dn[i] * disp;
+        offsets[i*3+1] += weightsR_up[i] * disp;
+        offsets[i*3+1] -= weightsR_dn[i] * disp;
+      }
     }
 
     // ─── CHEEKS ────────────────────────────────────────────────────────

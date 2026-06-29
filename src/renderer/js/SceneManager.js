@@ -14,6 +14,7 @@ class SceneManager {
     this.headMesh = null;
     this.wireframeMode = false;
     this.lightingMode = 0; // 0 = studio, 1 = outdoor, 2 = dramatic
+    this.currentGender = 'male'; // track which model is loaded
 
     // Model bounding info (set after loading)
     this.modelCenter = new THREE.Vector3(0, 0.18, 0);
@@ -103,9 +104,29 @@ class SceneManager {
     loader.load(
       url,
       (group) => {
-        if (this.headMesh) this.scene.remove(this.headMesh);
+        // Remove old mesh only when new one is ready
+        if (this.headMesh) {
+          this.scene.remove(this.headMesh);
+        }
 
-        // GLB is already Y-up, no rotation needed
+        // GLB is already Y-up, but the female model was exported facing down.
+        // We apply a -90 degree rotation on X to make it face forward if it's the female model.
+        if (url.includes('female')) {
+          const matrix = new THREE.Matrix4();
+          matrix.makeRotationX(-Math.PI / 2);
+          const translation = new THREE.Matrix4();
+          translation.makeTranslation(0, 0.8, 0);
+          matrix.premultiply(translation);
+          
+          group.traverse((child) => {
+            if (child.isMesh) {
+              child.geometry.applyMatrix4(matrix);
+              child.geometry.computeVertexNormals();
+              if (child.geometry.boundingBox) child.geometry.computeBoundingBox();
+              if (child.geometry.boundingSphere) child.geometry.computeBoundingSphere();
+            }
+          });
+        }
         const skinMat = new THREE.MeshStandardMaterial({
           color: 0xd4a574,
           roughness: 0.50,
@@ -147,6 +168,58 @@ class SceneManager {
         if (onLoaded) onLoaded(null);
       }
     );
+  }
+
+  /**
+   * Load (or reload) the male base head model.
+   * Path: ../../assets/models/base/head.glb
+   */
+  loadMaleModel(onLoaded) {
+    this.currentGender = 'male';
+    const url = '../../assets/models/base/head.glb';
+    this.loadGLB(url, (group) => {
+      console.log('[GenderManager] Male model loaded');
+      if (onLoaded) onLoaded(group);
+    });
+  }
+
+  /**
+   * Load the female base head model.
+   * Path: ../../assets/models/base/head_female.glb
+   *
+   * If the file does not exist yet (404), gracefully falls back to the
+   * male model and shows a toast notification.
+   */
+  loadFemaleModel(onLoaded) {
+    this.currentGender = 'female';
+    const url = '../../assets/models/base/head_female.glb';
+
+    this.loadGLB(url, (group) => {
+      if (group) {
+        console.log('[GenderManager] Female model loaded');
+        this._femaleModelMissing = false;
+        if (onLoaded) onLoaded(group);
+      } else {
+        console.warn('[GenderManager] Female head model not found — using male model as placeholder.');
+        this._femaleModelMissing = true;
+        // Show toast if available
+        if (typeof window.rfToast === 'function') {
+          window.rfToast('Female 3D model not yet available — using placeholder', 'warning');
+        } else {
+          const container = document.getElementById('rf-toast-container');
+          if (container) {
+            const t = document.createElement('div');
+            t.className = 'rf-toast rf-toast-warning';
+            t.textContent = 'Female 3D model not yet available — using male as placeholder';
+            container.appendChild(t);
+            requestAnimationFrame(() => t.classList.add('rf-toast-visible'));
+            setTimeout(() => { t.classList.remove('rf-toast-visible'); setTimeout(() => t.remove(), 400); }, 3500);
+          }
+        }
+        // Keep the existing model visible; don't reload
+        if (onLoaded) onLoaded(this.headMesh);
+      }
+    });
   }
 
   /**

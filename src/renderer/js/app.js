@@ -11,6 +11,7 @@
   // ─── Initialize Core Systems ───────────────────────────────────────────
 
   const sceneManager = new SceneManager('viewport-canvas');
+  window.cachedSceneManager = sceneManager; // Exposed for Dev Alignment Panel
 
   // Procedural fallback (only used if OBJ fails to load)
   const baseFace = new BaseFaceGeometry();
@@ -73,34 +74,75 @@
   Promise.all([regionPromise, objPromise]).then(([regionData, group]) => {
     console.log('[App] Region data and model loaded, initializing...');
     if (group) {
-      // ── OBJ loaded successfully ──
-      console.log('[App] GLB model group loaded successfully');
-      let vertexCount = 0;
-      group.traverse(c => {
-        if (c.isMesh && c.geometry) vertexCount += c.geometry.attributes.position.count;
-      });
+      // Cache region data globally so it can be reused on model swap
+      window.cachedRegionData = regionData;
+      window.cachedFacePointEditor = null; // Will set after initialization
 
-      // Wire OBJMorpher
-      objMorpher.setMeshGroup(group);
-      if (regionData) {
-        objMorpher.setRegionData(regionData);
-        hairSystem.setHeadMesh(group, regionData, objMorpher);
-        eyeSystem.setHeadMesh(group, regionData, objMorpher);
-        glassesSystem.setHeadMesh(group, regionData, objMorpher);
-      } else {
-        // No region data — hair/eye/glasses system won't place properly
-        console.warn('Region data missing — hair/eye/glasses placement disabled');
-      }
+      // Define global wiring function for model swapping
+      window.wireModelToSystems = (newGroup) => {
+        if (!newGroup) return;
+        console.log('[App] Wiring new model to systems...');
+        
+        let vertexCount = 0;
+        newGroup.traverse(c => {
+          if (c.isMesh && c.geometry) vertexCount += c.geometry.attributes.position.count;
+        });
 
-      activeMorpher = objMorpher;
+        // 1. Wire OBJMorpher
+        objMorpher.setMeshGroup(newGroup);
+        if (window.cachedRegionData) {
+          objMorpher.setRegionData(window.cachedRegionData);
+          hairSystem.setHeadMesh(newGroup, window.cachedRegionData, objMorpher);
+          eyeSystem.setHeadMesh(newGroup, window.cachedRegionData, objMorpher);
+          glassesSystem.setHeadMesh(newGroup, window.cachedRegionData, objMorpher);
+        } else {
+          console.warn('Region data missing — hair/eye/glasses placement disabled');
+        }
 
-      document.getElementById('statusMeshInfo').textContent =
-        `head.glb — ${vertexCount.toLocaleString()} vertices`;
-      document.getElementById('polyCount').textContent =
-        `Vertices: ${vertexCount.toLocaleString()}`;
-      console.log(`OBJ loaded: ${vertexCount} vertices, region data: ${!!regionData}`);
+        activeMorpher = objMorpher;
+        if (ui) ui.morpher = objMorpher;
 
-      // ── Auto-refresh hair, eyes, and glasses when morphs change (debounced) ──
+        // Update UI counters
+        const infoEl = document.getElementById('statusMeshInfo');
+        if (infoEl) infoEl.textContent = `head.glb — ${vertexCount.toLocaleString()} vertices`;
+        const polyEl = document.getElementById('polyCount');
+        if (polyEl) polyEl.textContent = `Vertices: ${vertexCount.toLocaleString()}`;
+
+        // 2. Regenerate hair and eyes based on new mesh
+        console.log('[App] Regenerating hair and eyes for new mesh...');
+        hairSystem.setStyle(hairSystem.currentStyle);
+        hairSystem.generateEyebrows();
+        eyeSystem.generateEyes();
+        eyeSystem.generateEyelashes();
+
+        // 3. Update Point Editor, Skin Marks, and Skin Textures
+        if (window.cachedFacePointEditor) {
+           window.cachedFacePointEditor.refreshPoints();
+        }
+        if (skinMarkSystem) {
+          skinMarkSystem.ensureAttachedToHead();
+          skinMarkSystem.refreshMarksAfterMorph();
+        }
+        if (decalSystem) decalSystem.rebuildAll();
+
+        // RE-WIRE SKIN TEXTURE SYSTEM to new mesh
+        if (sceneManager.skinTextureSystem) {
+          sceneManager.skinTextureSystem.init(newGroup);
+        }
+        if (lipPainter) {
+          lipPainter.meshGroup = newGroup; // Update reference for raycasting
+        }
+
+        // 4. Force UI reset so sliders match the neutral state of the new mesh
+        if (ui) {
+          ui.resetAllFeatures();
+        }
+      };
+
+      // ── OBJ loaded successfully (Initial Load) ──
+      console.log('[App] GLB model group loaded successfully (Initial)');
+      
+      // Wire auto-refresh for morphs (only need to do this once)
       let _morphTimer = null;
       objMorpher.onMorphApplied = () => {
         if (_morphTimer) clearTimeout(_morphTimer);
@@ -111,35 +153,21 @@
         }, 120);
       };
 
-      // Generate initial hair (use setStyle to apply calibrated defaults)
-      console.log('[App] Generating initial hair...');
-      hairSystem.setStyle(hairSystem.currentStyle);
-      console.log('[App] Generating eyebrows...');
-      hairSystem.generateEyebrows();
-      console.log('[App] Generating eyes...');
-      eyeSystem.generateEyes();
-      console.log('[App] Generating eyelashes...');
-      eyeSystem.generateEyelashes();
-      console.log('[App] Hair, eyebrows, eyes, and eyelashes generation initiated');
-      // Note: Beard starts as 'none' by default
-
       // ── Initialize Face Point Editor ──
       facePointEditor = new FacePointEditor(sceneManager, objMorpher);
+      window.cachedFacePointEditor = facePointEditor;
 
       // ── Initialize Skin Mark System ──
       skinMarkSystem = new SkinMarkSystem(sceneManager, objMorpher);
-
-      // Ensure marks are attached to head mesh (should be loaded by now)
-      skinMarkSystem.ensureAttachedToHead();
-
-      // Wire up reference in OBJMorpher for automatic mark refresh
       objMorpher.skinMarkSystem = skinMarkSystem;
+      window.cachedSkinMarkSystem = skinMarkSystem;
+      window.cachedEyeSystem = eyeSystem;
+      window.cachedHairSystem = hairSystem;
 
       // ── Initialize Decal System ──
       decalSystem = new DecalSystem(sceneManager, objMorpher);
-      console.log('[App] Decal System initialized');
-
-      // Refresh editor points, skin marks, and decals when morphs change
+      
+      // Refresh editors when morphs change
       const origOnMorph = objMorpher.onMorphApplied;
       objMorpher.onMorphApplied = () => {
         if (origOnMorph) origOnMorph();
@@ -149,6 +177,10 @@
         skinMarkSystem.refreshMarksAfterMorph();
         if (decalSystem) decalSystem.rebuildAll();
       };
+
+      // Now run the initial wiring!
+      window.wireModelToSystems(group);
+
 
       facePointEditor.onPointEdited = (name) => {
         if (ui) {
@@ -459,6 +491,11 @@
   // The 3D editor is fully initialized in the background while hero is visible.
   window.rfRouter = new ScreenRouter();
   window.rfRouter.bindNavigation();
+
+  // ─── Gender Manager ───────────────────────────────────────────────────
+  // Must be initialized after DOM is ready and SceneManager exists.
+  window.rfGender = new GenderManager(sceneManager);
+
 
   // ─── Panel scroll fade-in (IntersectionObserver) ─────────────────────────
   // Adds .rf-panel-fade class to control-groups and fades them in as they

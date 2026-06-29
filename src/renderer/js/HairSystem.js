@@ -564,8 +564,15 @@ class HairSystem {
       console.warn('[HairSystem] _alignAndAdjustEyebrows early return - offsetGroup missing');
       return;
     }
-    
-    const ep = this.eyebrowParams;
+    const ep = { ...this.eyebrowParams };
+
+    if (window.cachedSceneManager?.currentGender === 'female') {
+      ep.scale += (83 - 50);
+      ep.tiltX += (73 - 50);
+      ep.posX += (53 - 50);
+      ep.posY += (104 - 50);
+      ep.posZ += (29 - 50);
+    }
 
     // Compute bbox only once and cache it
     if (!this._eyebrowBboxCache) {

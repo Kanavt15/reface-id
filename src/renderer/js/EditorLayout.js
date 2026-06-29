@@ -98,6 +98,22 @@
         const oldTab = document.querySelector(`.panel-tab[data-panel="${panelName}"]`);
         if (oldTab) {
           oldTab.click();
+        } else {
+          // Female-specific tabs — no old panel-tab exists.
+          // Handle panel activation manually using the .active class
+          const panelId = `panel-${panelName}`;
+          
+          // Deactivate all panels
+          document.querySelectorAll('.panel-content').forEach(p => {
+            p.classList.remove('active');
+            p.style.display = ''; // Clear inline styles just in case
+          });
+          
+          // Activate the target panel
+          const targetPanel = document.getElementById(panelId);
+          if (targetPanel) {
+            targetPanel.classList.add('active');
+          }
         }
       });
     });
@@ -113,6 +129,7 @@
       });
     });
   }
+
 
   // ─── Viewport Floating Toolbar ─────────────────────────────────────────
   function bindViewportToolbar() {

@@ -191,9 +191,10 @@ class UIController {
       this.caseManager.updateMorphTargets(this.morpher.exportState());
       // Reset all slider UI
       document.querySelectorAll('.morph-slider').forEach(slider => {
-        slider.value = 50;
+        const defaultVal = slider.dataset.default || 50;
+        slider.value = defaultVal;
         const valueDisplay = slider.closest('.slider-control')?.querySelector('.slider-value');
-        if (valueDisplay) valueDisplay.textContent = '50';
+        if (valueDisplay) valueDisplay.textContent = defaultVal;
         this.updateSliderFill(slider);
       });
       this.addHistory('Reset all facial features');
@@ -213,9 +214,10 @@ class UIController {
         const groupBody = btn.closest('.control-group')?.querySelector('.control-group-body');
         if (groupBody) {
           groupBody.querySelectorAll('.morph-slider').forEach(slider => {
-            slider.value = 50;
+            const defaultVal = slider.dataset.default || 50;
+            slider.value = defaultVal;
             const valueDisplay = slider.closest('.slider-control')?.querySelector('.slider-value');
-            if (valueDisplay) valueDisplay.textContent = '50';
+            if (valueDisplay) valueDisplay.textContent = defaultVal;
             this.updateSliderFill(slider);
           });
         }
@@ -284,7 +286,7 @@ class UIController {
       updatePreviewVideo(initActiveHair.dataset.style);
     }
 
-    document.querySelectorAll('#hairStyleGrid .hair-style-card').forEach(card => {
+    document.querySelectorAll('.hair-style-grid .hair-style-card').forEach(card => {
       // Hover preview video
       card.addEventListener('mouseenter', (e) => {
         updatePreviewVideo(card.dataset.style);
@@ -293,7 +295,8 @@ class UIController {
 
       card.addEventListener('mouseleave', () => {
         if (previewContainer) previewContainer.style.display = 'none';
-        const activeCard = document.querySelector('#hairStyleGrid .hair-style-card.active');
+        const grid = card.closest('.hair-style-grid');
+        const activeCard = grid.querySelector('.hair-style-card.active');
         if (activeCard) {
           updatePreviewVideo(activeCard.dataset.style);
         } else {
@@ -304,7 +307,8 @@ class UIController {
       // Click handler
       card.addEventListener('click', (e) => {
         this.caseManager.pushState(`Hair style: ${card.dataset.style}`);
-        document.querySelectorAll('#hairStyleGrid .hair-style-card').forEach(c => c.classList.remove('active'));
+        const grid = card.closest('.hair-style-grid');
+        grid.querySelectorAll('.hair-style-card').forEach(c => c.classList.remove('active'));
         card.classList.add('active');
 
         const style = card.dataset.style;
@@ -3220,10 +3224,26 @@ class UIController {
 
     // Reset facial morphs
     this.morpher.resetAll();
+    
+    // Determine the active panel context
+    const gender = window.cachedSceneManager?.currentGender || 'male';
+    
+    // First, sync ALL morph sliders to their defaults to keep UI in sync
     document.querySelectorAll('.morph-slider').forEach(s => {
-      s.value = 50;
+      const defaultVal = s.dataset.default || 50;
+      s.value = defaultVal;
       const v = s.closest('.slider-control')?.querySelector('.slider-value');
-      if (v) v.textContent = '50';
+      if (v) v.textContent = defaultVal;
+      this.updateSliderFill(s);
+    });
+
+    // Second, ONLY apply the defaults for the active gender to the morpher
+    const activePanelQuery = gender === 'female' ? '.panel-content[data-gender="female"] .morph-slider' : '.panel-content:not([data-gender="female"]) .morph-slider';
+    document.querySelectorAll(activePanelQuery).forEach(s => {
+      const param = s.closest('.slider-control')?.dataset.param;
+      if (param) {
+        this.morpher.setMorphValue(param, parseInt(s.value));
+      }
     });
 
     // Reset hair

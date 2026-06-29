@@ -122,6 +122,7 @@ class EyeSystem {
       thickness: 65,
       length: 50,
       opacity: 95,
+      spacing: 50,
     };
 
     this.eyelashColor = '#0a0a0a';
@@ -439,6 +440,9 @@ class EyeSystem {
     const targetDiameter = this.headWidth * 0.11;
     if (modelDiameter > 0.0001) {
       this._eyeBaseScale = targetDiameter / modelDiameter;
+      if (window.cachedSceneManager?.currentGender === 'female') {
+        this._eyeBaseScale *= 0.90; // Reduce by 10% for female
+      }
     }
 
     // Add to scene
@@ -610,12 +614,26 @@ class EyeSystem {
   _applyAdjustments() {
     if (!this._leftEyeContainer || !this._rightEyeContainer) return;
 
+    let sVal = this.params.scale;
+    let spVal = this.params.spacing;
+    let pxVal = this.params.posX;
+    let pyVal = this.params.posY;
+    let pzVal = this.params.posZ;
+
+    if (window.cachedSceneManager?.currentGender === 'female') {
+      sVal += (28 - 50);
+      spVal += (-2 - 50);
+      pxVal += (50 - 50);
+      pyVal += (0 - 50);
+      pzVal += (81 - 50);
+    }
+
     // Normalize params (0-100 scale)
-    const scaleNorm = (this.params.scale - 50) / 50; // -1 to 1
-    const spacingNorm = (this.params.spacing - 50) / 50;
-    const posXNorm = (this.params.posX - 50) / 50;
-    const posYNorm = (this.params.posY - 50) / 50;
-    const posZNorm = (this.params.posZ - 50) / 50;
+    const scaleNorm = (sVal - 50) / 50; // -1 to 1
+    const spacingNorm = (spVal - 50) / 50;
+    const posXNorm = (pxVal - 50) / 50;
+    const posYNorm = (pyVal - 50) / 50;
+    const posZNorm = (pzVal - 50) / 50;
     const rotXNorm = (this.params.rotX - 50) / 50;
     const rotYNorm = (this.params.rotY - 50) / 50;
     const rotZNorm = (this.params.rotZ - 50) / 50;
@@ -702,7 +720,7 @@ class EyeSystem {
 
   setEyelashParam(param, value) {
     if (this.eyelashParams[param] === undefined) return;
-    this.eyelashParams[param] = Math.max(0, Math.min(100, value));
+    this.eyelashParams[param] = value;
     if (this._leftLashContainer || this._rightLashContainer) {
       this._applyEyelashAdjustments();
     }
@@ -848,8 +866,16 @@ class EyeSystem {
   _applyEyelashAdjustments() {
     if (!this._leftLashContainer || !this._eyelashBboxCache) return;
 
-    const ep = this.eyelashParams;
+    const ep = { ...this.eyelashParams };
     const cache = this._eyelashBboxCache;
+
+    if (window.cachedSceneManager?.currentGender === 'female') {
+      ep.scale += (73 - 50);
+      ep.spacing += (50 - 50);
+      ep.posX += (50 - 50);
+      ep.posY += (102 - 50);
+      ep.posZ += (-12 - 50);
+    }
 
     // Normalize params (-1 to 1 range)
     const posXNorm = (ep.posX - 50) / 50;
@@ -926,7 +952,8 @@ class EyeSystem {
       // Single-eye model cloned for each side
       const lashRegionY = 0.34;
       const lashRegionZ = 1.04;
-      const halfSpacing = 0.22;
+      const spacingNorm = ((ep.spacing ?? 50) - 50) / 50;
+      const halfSpacing = 0.22 + spacingNorm * 0.15;
 
       const baseScale = 0.45 / Math.max(cache.size.x, 0.001);
       const scaleF = 0.5 + (ep.scale / 100) * 1.0;

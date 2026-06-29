@@ -551,6 +551,15 @@
         <span><span class="rf-topbar-logo-re">Re</span>Face</span>
         <span class="rf-topbar-logo-badge">PRO</span>
       </div>
+      <!-- ── Gender Toggle ── -->
+      <div class="rf-gender-toggle" id="rf-gender-toggle" title="Switch between Male and Female base model">
+        <button class="rf-gender-btn active" id="rf-gender-male" data-gender="male">
+          <i class="fas fa-mars"></i><span>Male</span>
+        </button>
+        <button class="rf-gender-btn" id="rf-gender-female" data-gender="female">
+          <i class="fas fa-venus"></i><span>Female</span>
+        </button>
+      </div>
     </div>
     <div class="rf-topbar-sep"></div>
     <div class="rf-topbar-center">
@@ -733,9 +742,17 @@
     <div id="left-panel" class="panel">
       <!-- NEW: rf-sidebar-tabs (proxies old panel-tabs for JS via EditorLayout.js) -->
       <div class="rf-sidebar-tabs" id="rf-sidebar-tabs">
-        <button class="rf-sidebar-tab active" data-rf-tab="face" title="Face Morphs"><i class="fas fa-face-smile" aria-hidden="true"></i><span>Face</span></button>
-        <button class="rf-sidebar-tab" data-rf-tab="hair" title="Hair &amp; Beard"><i class="fas fa-cut"></i><span>Hair</span></button>
-        <button class="rf-sidebar-tab" data-rf-tab="appearance" title="Eyes &amp; Skin"><i class="fas fa-palette"></i><span>Look</span></button>
+        <!-- Male tabs (visible by default) -->
+        <button class="rf-sidebar-tab active" id="rf-tab-face-male" data-rf-tab="face" data-gender="male" title="Face Morphs"><i class="fas fa-face-smile" aria-hidden="true"></i><span>Face</span></button>
+        <button class="rf-sidebar-tab" data-rf-tab="hair" data-gender="male" title="Hair &amp; Beard"><i class="fas fa-cut"></i><span>Hair</span></button>
+        <button class="rf-sidebar-tab" data-rf-tab="appearance" data-gender="male" title="Eyes &amp; Skin"><i class="fas fa-palette"></i><span>Look</span></button>
+        <!-- Female tabs (hidden by default; shown when gender = female) -->
+        <button class="rf-sidebar-tab" id="rf-tab-face-female" data-rf-tab="face-female" data-gender="female" title="Face Morphs (Female)" style="display:none"><i class="fas fa-face-smile" aria-hidden="true"></i><span>Face</span></button>
+        <button class="rf-sidebar-tab" data-rf-tab="hair-female" data-gender="female" title="Hair (Female)" style="display:none"><i class="fas fa-cut"></i><span>Hair</span></button>
+        <button class="rf-sidebar-tab" data-rf-tab="makeup" data-gender="female" title="Makeup" style="display:none"><i class="fas fa-paint-brush"></i><span>Makeup</span></button>
+        <button class="rf-sidebar-tab" data-rf-tab="appearance-female" data-gender="female" title="Eyes &amp; Skin (Female)" style="display:none"><i class="fas fa-palette"></i><span>Look</span></button>
+        
+        <!-- Generic tabs (Accessories, AI, Snaps, Case) -->
         <button class="rf-sidebar-tab" data-rf-tab="accessories" title="Accessories (Glasses)"><i class="fas fa-glasses"></i><span>Accs</span></button>
         <button class="rf-sidebar-tab" data-rf-tab="ai" title="AI Chat"><i class="fas fa-robot"></i><span>AI</span></button>
         <button class="rf-sidebar-tab" data-rf-tab="snapshots" title="Snapshots"><i class="fas fa-camera-retro"></i><span>Snaps</span></button>
@@ -2390,7 +2407,784 @@
         </div>
       </div>
 
-      <!-- Appearance Panel -->
+      <!-- ╔══════════════════════════════════════════════════════════════╗ -->
+      <!-- ║  FEMALE PANELS — hidden when gender = male                  ║ -->
+      <!-- ╚══════════════════════════════════════════════════════════════╝ -->
+
+      <!-- Female: Face Morphs Panel -->
+      <div class="panel-content" id="panel-face-female" data-gender="female" style="display:none">
+        <!-- Pinned Reset All bar -->
+        <div class="rf-panel-pinned-bar">
+          <span class="rf-pinned-title">Face Morphs — Female</span>
+          <button class="rf-panel-reset-all" id="rf-face-reset-all-female" title="Reset all face morphs to neutral">
+            <i class="fas fa-undo"></i> Reset All
+          </button>
+        </div>
+        <div class="panel-scroll">
+
+          <!-- Head / Face Structure -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-brain"></i>
+              <span>Head / Face Structure</span>
+              <button class="btn-reset-group" data-group="skull-f" title="Reset">
+                <i class="fas fa-undo-alt"></i>
+              </button>
+            </div>
+            <div class="control-group-body">
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-expand-alt"></i><span>Face Dimensions</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="faceWidth"><label>Width</label><div class="slider-row"><input type="range" min="0" max="100" value="50" class="morph-slider female-morph-slider"/><span class="slider-value">50</span></div></div>
+                  <div class="slider-control" data-param="faceLength"><label>Length</label><div class="slider-row"><input type="range" min="0" max="100" value="50" class="morph-slider female-morph-slider"/><span class="slider-value">50</span></div></div>
+                  <div class="slider-control" data-param="faceTaper"><label>Taper</label><div class="slider-row"><input type="range" min="0" max="100" value="55" class="morph-slider female-morph-slider"/><span class="slider-value">55</span></div></div>
+                </div>
+              </div>
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-circle"></i><span>Head Dimensions</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="headWidth"><label>Width</label><div class="slider-row"><input type="range" min="0" max="100" value="48" class="morph-slider female-morph-slider"/><span class="slider-value">48</span></div></div>
+                  <div class="slider-control" data-param="headLength"><label>Length</label><div class="slider-row"><input type="range" min="0" max="100" value="50" class="morph-slider female-morph-slider"/><span class="slider-value">50</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Forehead -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-chevron-up"></i><span>Forehead</span>
+              <button class="btn-reset-group" data-group="forehead-f" title="Reset"><i class="fas fa-undo-alt"></i></button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-arrows-alt-v"></i><span>Size</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="foreheadHeight"><label>Height</label><div class="slider-row"><input type="range" min="0" max="100" value="45" class="morph-slider female-morph-slider"/><span class="slider-value">45</span></div></div>
+                  <div class="slider-control" data-param="foreheadWidth"><label>Width</label><div class="slider-row"><input type="range" min="0" max="100" value="48" class="morph-slider female-morph-slider"/><span class="slider-value">48</span></div></div>
+                  <div class="slider-control" data-param="templeWidth"><label>Temple Width</label><div class="slider-row"><input type="range" min="0" max="100" value="47" class="morph-slider female-morph-slider"/><span class="slider-value">47</span></div></div>
+                </div>
+              </div>
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-wave-square"></i><span>Shape</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="foreheadSlope"><label>Slope</label><div class="slider-row"><input type="range" min="0" max="100" value="52" class="morph-slider female-morph-slider"/><span class="slider-value">52</span></div></div>
+                  <div class="slider-control" data-param="foreheadBulge"><label>Bulge</label><div class="slider-row"><input type="range" min="0" max="100" value="42" class="morph-slider female-morph-slider"/><span class="slider-value">42</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Brows -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-minus"></i><span>Brows</span>
+              <button class="btn-reset-group" data-group="brows-f" title="Reset"><i class="fas fa-undo-alt"></i></button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-arrows-alt"></i><span>Position</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="browHeight"><label>Height</label><div class="slider-row"><input type="range" min="0" max="100" value="52" class="morph-slider female-morph-slider"/><span class="slider-value">52</span></div></div>
+                  <div class="slider-control" data-param="browSpacing"><label>Spacing</label><div class="slider-row"><input type="range" min="0" max="100" value="48" class="morph-slider female-morph-slider"/><span class="slider-value">48</span></div></div>
+                </div>
+              </div>
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-bezier-curve"></i><span>Shape</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="browProminence"><label>Prominence</label><div class="slider-row"><input type="range" min="0" max="100" value="38" class="morph-slider female-morph-slider"/><span class="slider-value">38</span></div></div>
+                  <div class="slider-control" data-param="browArch"><label>Arch</label><div class="slider-row"><input type="range" min="0" max="100" value="58" class="morph-slider female-morph-slider"/><span class="slider-value">58</span></div></div>
+                  <div class="slider-control" data-param="browThickness"><label>Thickness</label><div class="slider-row"><input type="range" min="0" max="100" value="42" class="morph-slider female-morph-slider"/><span class="slider-value">42</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Eyes -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-eye"></i><span>Eyes</span>
+              <button class="btn-reset-group" data-group="eyes-f" title="Reset"><i class="fas fa-undo-alt"></i></button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-arrows-alt"></i><span>Position</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="eyeSpacing"><label>Spacing</label><div class="slider-row"><input type="range" min="0" max="100" value="50" class="morph-slider female-morph-slider"/><span class="slider-value">50</span></div></div>
+                  <div class="slider-control" data-param="eyeHeight"><label>Height</label><div class="slider-row"><input type="range" min="0" max="100" value="50" class="morph-slider female-morph-slider"/><span class="slider-value">50</span></div></div>
+                  <div class="slider-control" data-param="eyeDepth"><label>Depth</label><div class="slider-row"><input type="range" min="0" max="100" value="50" class="morph-slider female-morph-slider"/><span class="slider-value">50</span></div></div>
+                </div>
+              </div>
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-expand"></i><span>Size &amp; Shape</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="eyeSize"><label>Size</label><div class="slider-row"><input type="range" min="0" max="100" value="50" class="morph-slider female-morph-slider"/><span class="slider-value">50</span></div></div>
+                  <div class="slider-control" data-param="eyeTilt"><label>Tilt</label><div class="slider-row"><input type="range" min="0" max="100" value="52" class="morph-slider female-morph-slider"/><span class="slider-value">52</span></div></div>
+                  <div class="slider-control" data-param="eyeOpenness"><label>Openness</label><div class="slider-row"><input type="range" min="0" max="100" value="55" class="morph-slider female-morph-slider"/><span class="slider-value">55</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Nose -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-nose"></i><span>Nose</span>
+              <button class="btn-reset-group" data-group="nose-f" title="Reset"><i class="fas fa-undo-alt"></i></button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-ruler-combined"></i><span>Overall</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="noseLength"><label>Length</label><div class="slider-row"><input type="range" min="0" max="100" value="44" class="morph-slider female-morph-slider"/><span class="slider-value">44</span></div></div>
+                  <div class="slider-control" data-param="noseWidth"><label>Width</label><div class="slider-row"><input type="range" min="0" max="100" value="44" class="morph-slider female-morph-slider"/><span class="slider-value">44</span></div></div>
+                </div>
+              </div>
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-bridge"></i><span>Bridge</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="noseBridgeWidth"><label>Width</label><div class="slider-row"><input type="range" min="0" max="100" value="43" class="morph-slider female-morph-slider"/><span class="slider-value">43</span></div></div>
+                  <div class="slider-control" data-param="noseBridgeHeight"><label>Height</label><div class="slider-row"><input type="range" min="0" max="100" value="50" class="morph-slider female-morph-slider"/><span class="slider-value">50</span></div></div>
+                </div>
+              </div>
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-caret-down"></i><span>Tip</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="noseTipHeight"><label>Height</label><div class="slider-row"><input type="range" min="0" max="100" value="50" class="morph-slider female-morph-slider"/><span class="slider-value">50</span></div></div>
+                  <div class="slider-control" data-param="noseTipWidth"><label>Width</label><div class="slider-row"><input type="range" min="0" max="100" value="44" class="morph-slider female-morph-slider"/><span class="slider-value">44</span></div></div>
+                </div>
+              </div>
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-wind"></i><span>Nostrils</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="nostrilFlare"><label>Flare</label><div class="slider-row"><input type="range" min="0" max="100" value="44" class="morph-slider female-morph-slider"/><span class="slider-value">44</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cheeks -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-face-smile"></i><span>Cheeks</span>
+              <button class="btn-reset-group" data-group="cheeks-f" title="Reset"><i class="fas fa-undo-alt"></i></button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-gem"></i><span>Cheekbones</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="cheekboneProminence"><label>Prominence</label><div class="slider-row"><input type="range" min="0" max="100" value="55" class="morph-slider female-morph-slider"/><span class="slider-value">55</span></div></div>
+                  <div class="slider-control" data-param="cheekHeight"><label>Height</label><div class="slider-row"><input type="range" min="0" max="100" value="52" class="morph-slider female-morph-slider"/><span class="slider-value">52</span></div></div>
+                </div>
+              </div>
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-cloud"></i><span>Flesh</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="cheekFullness"><label>Fullness</label><div class="slider-row"><input type="range" min="0" max="100" value="52" class="morph-slider female-morph-slider"/><span class="slider-value">52</span></div></div>
+                  <div class="slider-control" data-param="nasolabialDepth"><label>Nasolabial Depth</label><div class="slider-row"><input type="range" min="0" max="100" value="42" class="morph-slider female-morph-slider"/><span class="slider-value">42</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mouth -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-comment-dots" aria-hidden="true"></i><span>Mouth</span>
+              <button class="btn-reset-group" data-group="mouth-f" title="Reset"><i class="fas fa-undo-alt"></i></button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-expand-arrows-alt"></i><span>Size</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="mouthWidth"><label>Width</label><div class="slider-row"><input type="range" min="0" max="100" value="48" class="morph-slider female-morph-slider"/><span class="slider-value">48</span></div></div>
+                  <div class="slider-control" data-param="mouthHeight"><label>Height</label><div class="slider-row"><input type="range" min="0" max="100" value="50" class="morph-slider female-morph-slider"/><span class="slider-value">50</span></div></div>
+                </div>
+              </div>
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-kiss"></i><span>Lips</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="upperLipThickness"><label>Upper Lip</label><div class="slider-row"><input type="range" min="0" max="100" value="54" class="morph-slider female-morph-slider"/><span class="slider-value">54</span></div></div>
+                  <div class="slider-control" data-param="lowerLipThickness"><label>Lower Lip</label><div class="slider-row"><input type="range" min="0" max="100" value="52" class="morph-slider female-morph-slider"/><span class="slider-value">52</span></div></div>
+                  <div class="slider-control" data-param="lipProtrusion"><label>Protrusion</label><div class="slider-row"><input type="range" min="0" max="100" value="52" class="morph-slider female-morph-slider"/><span class="slider-value">52</span></div></div>
+                  <div class="slider-control" data-param="cupidBow"><label>Cupid's Bow</label><div class="slider-row"><input type="range" min="0" max="100" value="55" class="morph-slider female-morph-slider"/><span class="slider-value">55</span></div></div>
+                </div>
+              </div>
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-grip-lines-vertical"></i><span>Philtrum</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="philtrumDepth"><label>Depth</label><div class="slider-row"><input type="range" min="0" max="100" value="48" class="morph-slider female-morph-slider"/><span class="slider-value">48</span></div></div>
+                  <div class="slider-control" data-param="philtrumWidth"><label>Width</label><div class="slider-row"><input type="range" min="0" max="100" value="46" class="morph-slider female-morph-slider"/><span class="slider-value">46</span></div></div>
+                </div>
+              </div>
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-angle-double-right"></i><span>Corners</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="lipCornerAngle"><label>Corner Angle</label><div class="slider-row"><input type="range" min="0" max="100" value="52" class="morph-slider female-morph-slider"/><span class="slider-value">52</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Jaw & Chin -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-teeth"></i><span>Jaw &amp; Chin</span>
+              <button class="btn-reset-group" data-group="jaw-f" title="Reset"><i class="fas fa-undo-alt"></i></button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-angle-down"></i><span>Jaw</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="jawWidth"><label>Width</label><div class="slider-row"><input type="range" min="0" max="100" value="42" class="morph-slider female-morph-slider"/><span class="slider-value">42</span></div></div>
+                  <div class="slider-control" data-param="jawDefinition"><label>Definition</label><div class="slider-row"><input type="range" min="0" max="100" value="42" class="morph-slider female-morph-slider"/><span class="slider-value">42</span></div></div>
+                </div>
+              </div>
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-sort-down"></i><span>Chin</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="chinHeight"><label>Height</label><div class="slider-row"><input type="range" min="0" max="100" value="46" class="morph-slider female-morph-slider"/><span class="slider-value">46</span></div></div>
+                  <div class="slider-control" data-param="chinWidth"><label>Width</label><div class="slider-row"><input type="range" min="0" max="100" value="44" class="morph-slider female-morph-slider"/><span class="slider-value">44</span></div></div>
+                  <div class="slider-control" data-param="chinProtrusion"><label>Protrusion</label><div class="slider-row"><input type="range" min="0" max="100" value="48" class="morph-slider female-morph-slider"/><span class="slider-value">48</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ears -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-ear-listen"></i><span>Ears</span>
+              <button class="btn-reset-group" data-group="ears-f" title="Reset"><i class="fas fa-undo-alt"></i></button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-arrows-alt"></i><span>Size &amp; Position</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="earSize"><label>Size</label><div class="slider-row"><input type="range" min="0" max="100" value="46" class="morph-slider female-morph-slider"/><span class="slider-value">46</span></div></div>
+                  <div class="slider-control" data-param="earHeight"><label>Height</label><div class="slider-row"><input type="range" min="0" max="100" value="50" class="morph-slider female-morph-slider"/><span class="slider-value">50</span></div></div>
+                  <div class="slider-control" data-param="earProtrusion"><label>Protrusion</label><div class="slider-row"><input type="range" min="0" max="100" value="44" class="morph-slider female-morph-slider"/><span class="slider-value">44</span></div></div>
+                </div>
+              </div>
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-dot-circle"></i><span>Earlobe</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="earlobeSize"><label>Size</label><div class="slider-row"><input type="range" min="0" max="100" value="50" class="morph-slider female-morph-slider"/><span class="slider-value">50</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Reset All -->
+          <div class="panel-actions">
+            <button class="btn btn-secondary" id="btnResetAllMorphsFemale">
+              <i class="fas fa-undo"></i> Reset All Features
+            </button>
+          </div>
+
+        </div>
+      </div><!-- /panel-face-female -->
+
+      <!-- ─────────────────────────────────────────────────────────────── -->
+
+      <!-- Female: Hair Panel (same as male, no beard section) -->
+      <div class="panel-content" id="panel-hair-female" data-gender="female" style="display:none">
+        <div class="panel-scroll">
+
+          <!-- Hair Style -->
+          <div class="control-group">
+            <div class="control-group-header"><i class="fas fa-cut"></i><span>Hair Style</span></div>
+            <div class="control-group-body">
+              <div class="hair-style-grid" id="hairStyleGridFemale">
+                <div class="hair-style-card active" data-style="hair1" data-for-gender="female"><div class="hair-icon"><i class="fas fa-user"></i></div><span>Style 1</span></div>
+                <div class="hair-style-card" data-style="hair2" data-for-gender="female"><div class="hair-icon"><i class="fas fa-user-tie"></i></div><span>Style 2</span></div>
+                <div class="hair-style-card" data-style="hair3" data-for-gender="female"><div class="hair-icon"><i class="fas fa-user-doctor"></i></div><span>Style 3</span></div>
+                <div class="hair-style-card" data-style="hair4" data-for-gender="female"><div class="hair-icon"><i class="fas fa-user-ninja"></i></div><span>Style 4</span></div>
+                <div class="hair-style-card" data-style="hair5" data-for-gender="female"><div class="hair-icon"><i class="fas fa-user"></i></div><span>Style 5</span></div>
+                <div class="hair-style-card" data-style="hair6" data-for-gender="female"><div class="hair-icon"><i class="fas fa-user-tie"></i></div><span>Style 6</span></div>
+                <div class="hair-style-card" data-style="hair7" data-for-gender="female"><div class="hair-icon"><i class="fas fa-user-secret"></i></div><span>Style 7</span></div>
+                <div class="hair-style-card" data-style="hair8" data-for-gender="female"><div class="hair-icon"><i class="fas fa-user-graduate"></i></div><span>Style 8</span></div>
+                <div class="hair-style-card" data-style="hair9" data-for-gender="female"><div class="hair-icon"><i class="fas fa-user"></i></div><span>Style 9</span></div>
+                <div class="hair-style-card" data-style="hair10" data-for-gender="female"><div class="hair-icon"><i class="fas fa-user-tie"></i></div><span>Style 10</span></div>
+                <div class="hair-style-card" data-style="hair11" data-for-gender="female"><div class="hair-icon"><i class="fas fa-user-shield"></i></div><span>Style 11</span></div>
+                <div class="hair-style-card" data-style="hair12" data-for-gender="female"><div class="hair-icon"><i class="fas fa-user-astronaut"></i></div><span>Style 12</span></div>
+                <div class="hair-style-card" data-style="hair13" data-for-gender="female"><div class="hair-icon"><i class="fas fa-user-plus"></i></div><span>Style 13</span></div>
+                <div class="hair-style-card" data-style="hair14" data-for-gender="female"><div class="hair-icon"><i class="fas fa-user"></i></div><span>Style 14</span></div>
+                <div class="hair-style-card" data-style="bald" data-for-gender="female"><div class="hair-icon"><i class="fas fa-ban"></i></div><span>None</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hair Properties -->
+          <div class="control-group">
+            <div class="control-group-header"><i class="fas fa-sliders-h"></i><span>Hair Properties</span></div>
+            <div class="control-group-body">
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-ruler-vertical"></i><span>Dimensions</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="hairLengthF"><label>Length</label><div class="slider-row"><input type="range" min="0" max="100" value="60" class="hair-slider"/><span class="slider-value">60</span></div></div>
+                  <div class="slider-control" data-param="hairVolumeF"><label>Volume</label><div class="slider-row"><input type="range" min="0" max="100" value="55" class="hair-slider"/><span class="slider-value">55</span></div></div>
+                </div>
+              </div>
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-wave-square"></i><span>Texture</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="hairDensityF"><label>Density</label><div class="slider-row"><input type="range" min="0" max="100" value="70" class="hair-slider"/><span class="slider-value">70</span></div></div>
+                  <div class="slider-control" data-param="hairCurlF"><label>Curl / Wave</label><div class="slider-row"><input type="range" min="0" max="100" value="0" class="hair-slider"/><span class="slider-value">0</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hair Color -->
+          <div class="control-group">
+            <div class="control-group-header"><i class="fas fa-fill-drip"></i><span>Hair Color</span></div>
+            <div class="control-group-body">
+              <div class="color-picker-row">
+                <label>Base Color</label>
+                <div class="color-presets" id="hairColorPresetsFemale">
+                  <button class="color-swatch active" data-color="#0a0a0a" style="background: #0a0a0a" title="Black"></button>
+                  <button class="color-swatch" data-color="#2c1b0e" style="background: #2c1b0e" title="Dark Brown"></button>
+                  <button class="color-swatch" data-color="#6b3a2a" style="background: #6b3a2a" title="Brown"></button>
+                  <button class="color-swatch" data-color="#b5651d" style="background: #b5651d" title="Light Brown"></button>
+                  <button class="color-swatch" data-color="#d4a23f" style="background: #d4a23f" title="Blonde"></button>
+                  <button class="color-swatch" data-color="#e8c87a" style="background: #e8c87a" title="Light Blonde"></button>
+                  <button class="color-swatch" data-color="#8b2500" style="background: #8b2500" title="Red"></button>
+                  <button class="color-swatch" data-color="#c4c4c4" style="background: #c4c4c4" title="Grey"></button>
+                  <button class="color-swatch" data-color="#f5f5f5" style="background: #f5f5f5" title="White"></button>
+                </div>
+                <input type="color" id="hairColorPickerFemale" value="#2c1b0e" class="color-input"/>
+              </div>
+            </div>
+          </div>
+
+          <!-- Eyebrows (Female) -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-minus"></i><span>Eyebrows</span>
+              <button class="btn-reset-group" id="btnResetEyebrowsFemale" title="Reset Eyebrows"><i class="fas fa-undo-alt"></i></button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-palette"></i><span>Color</span></div>
+                <div class="sub-group-body">
+                  <div class="color-picker-row">
+                    <label>Eyebrow Color</label>
+                    <div class="color-presets" id="eyebrowColorPresetsFemale">
+                      <button class="color-swatch active" data-color="#0a0a0a" style="background: #0a0a0a" title="Black"></button>
+                      <button class="color-swatch" data-color="#2c1b0e" style="background: #2c1b0e" title="Dark Brown"></button>
+                      <button class="color-swatch" data-color="#6b3a2a" style="background: #6b3a2a" title="Brown"></button>
+                      <button class="color-swatch" data-color="#b5651d" style="background: #b5651d" title="Light Brown"></button>
+                      <button class="color-swatch" data-color="#d4a23f" style="background: #d4a23f" title="Blonde"></button>
+                      <button class="color-swatch" data-color="#8b2500" style="background: #8b2500" title="Red"></button>
+                      <button class="color-swatch" data-color="#c4c4c4" style="background: #c4c4c4" title="Grey"></button>
+                    </div>
+                    <input type="color" id="eyebrowColorPickerFemale" value="#2c1b0e" class="color-input"/>
+                  </div>
+                  <div class="slider-control" data-param="eyebrowOpacityF"><label>Opacity</label><div class="slider-row"><input type="range" min="0" max="100" value="85" class="eyebrow-slider"/><span class="slider-value">85</span></div></div>
+                </div>
+              </div>
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-bezier-curve"></i><span>Shape</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="eyebrowThicknessF"><label>Thickness</label><div class="slider-row"><input type="range" min="0" max="100" value="80" class="eyebrow-slider"/><span class="slider-value">80</span></div></div>
+                  <div class="slider-control" data-param="eyebrowArchF"><label>Arch</label><div class="slider-row"><input type="range" min="0" max="100" value="30" class="eyebrow-slider"/><span class="slider-value">30</span></div></div>
+                  <div class="slider-control" data-param="eyebrowLengthF"><label>Length</label><div class="slider-row"><input type="range" min="0" max="100" value="50" class="eyebrow-slider"/><span class="slider-value">50</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Eyelashes (Female) -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-eye"></i><span>Eyelashes</span>
+              <button class="btn-reset-group" id="btnResetEyelashesFemale" title="Reset Eyelashes"><i class="fas fa-undo-alt"></i></button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-palette"></i><span>Color</span></div>
+                <div class="sub-group-body">
+                  <div class="color-picker-row">
+                    <label>Eyelash Color</label>
+                    <div class="color-presets" id="eyelashColorPresetsFemale">
+                      <button class="color-swatch active" data-color="#0a0a0a" style="background: #0a0a0a" title="Black"></button>
+                      <button class="color-swatch" data-color="#2c1b0e" style="background: #2c1b0e" title="Dark Brown"></button>
+                      <button class="color-swatch" data-color="#4a3728" style="background: #4a3728" title="Medium Brown"></button>
+                      <button class="color-swatch" data-color="#8b7355" style="background: #8b7355" title="Light Brown"></button>
+                    </div>
+                    <input type="color" id="eyelashColorPickerFemale" value="#0a0a0a" class="color-input"/>
+                  </div>
+                  <div class="slider-control" data-param="eyelashOpacityF"><label>Opacity</label><div class="slider-row"><input type="range" min="0" max="100" value="95" class="eyelash-slider"/><span class="slider-value">95</span></div></div>
+                </div>
+              </div>
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-bezier-curve"></i><span>Shape</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="eyelashThicknessF"><label>Thickness</label><div class="slider-row"><input type="range" min="0" max="100" value="75" class="eyelash-slider"/><span class="slider-value">75</span></div></div>
+                  <div class="slider-control" data-param="eyelashCurlF"><label>Curl</label><div class="slider-row"><input type="range" min="0" max="100" value="60" class="eyelash-slider"/><span class="slider-value">60</span></div></div>
+                  <div class="slider-control" data-param="eyelashLengthF"><label>Length</label><div class="slider-row"><input type="range" min="0" max="100" value="60" class="eyelash-slider"/><span class="slider-value">60</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- /panel-hair-female -->
+
+      <!-- ─────────────────────────────────────────────────────────────── -->
+
+      <!-- Female: Makeup Panel -->
+      <div class="panel-content" id="panel-makeup" data-gender="female" style="display:none">
+        <!-- Pinned header -->
+        <div class="rf-panel-pinned-bar">
+          <span class="rf-pinned-title"><i class="fas fa-paint-brush" style="margin-right:6px;color:var(--accent-gold)"></i>Makeup</span>
+          <button class="rf-panel-reset-all" id="rf-makeup-reset-all" title="Reset all makeup">
+            <i class="fas fa-undo"></i> Reset All
+          </button>
+        </div>
+        <div class="panel-scroll">
+
+          <!-- Foundation & Contour -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-layer-group"></i><span>Foundation &amp; Contour</span>
+              <button class="btn-reset-group" id="btnResetFoundation" title="Reset"><i class="fas fa-undo-alt"></i></button>
+            </div>
+            <div class="control-group-body">
+              <!-- Foundation Coverage -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-fill"></i><span>Coverage</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="foundationCoverage">
+                    <label>Coverage</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="0" id="foundationCoverage" class="makeup-slider"/>
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="color-picker-row">
+                    <label>Foundation Shade</label>
+                    <div class="color-presets" id="foundationColorPresets">
+                      <button class="color-swatch active" data-color="#f5deb3" style="background:#f5deb3" title="Porcelain"></button>
+                      <button class="color-swatch" data-color="#f0c8a0" style="background:#f0c8a0" title="Fair"></button>
+                      <button class="color-swatch" data-color="#d4a574" style="background:#d4a574" title="Light Medium"></button>
+                      <button class="color-swatch" data-color="#c68642" style="background:#c68642" title="Medium"></button>
+                      <button class="color-swatch" data-color="#a0522d" style="background:#a0522d" title="Tan"></button>
+                      <button class="color-swatch" data-color="#704214" style="background:#704214" title="Dark"></button>
+                      <button class="color-swatch" data-color="#3b2010" style="background:#3b2010" title="Deep"></button>
+                    </div>
+                    <input type="color" id="foundationColorPicker" value="#d4a574" class="color-input"/>
+                  </div>
+                </div>
+              </div>
+              <!-- Contour -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-adjust"></i><span>Contour</span></div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="contourIntensity">
+                    <label>Intensity</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="0" id="contourIntensity" class="makeup-slider"/>
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="highlightIntensity">
+                    <label>Highlight</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="0" id="highlightIntensity" class="makeup-slider"/>
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Blush -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-circle" style="color:#e07090"></i><span>Blush</span>
+              <button class="btn-reset-group" id="btnResetBlush" title="Reset"><i class="fas fa-undo-alt"></i></button>
+            </div>
+            <div class="control-group-body">
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-palette"></i><span>Color &amp; Intensity</span></div>
+                <div class="sub-group-body">
+                  <div class="color-picker-row">
+                    <label>Blush Color</label>
+                    <div class="color-presets" id="blushColorPresets">
+                      <button class="color-swatch active" data-color="#e07090" style="background:#e07090" title="Rose Pink"></button>
+                      <button class="color-swatch" data-color="#f4a0a0" style="background:#f4a0a0" title="Light Pink"></button>
+                      <button class="color-swatch" data-color="#e06060" style="background:#e06060" title="Coral Red"></button>
+                      <button class="color-swatch" data-color="#d4574e" style="background:#d4574e" title="Coral"></button>
+                      <button class="color-swatch" data-color="#c87f5a" style="background:#c87f5a" title="Peach"></button>
+                      <button class="color-swatch" data-color="#9b4f6a" style="background:#9b4f6a" title="Berry"></button>
+                      <button class="color-swatch" data-color="#d4a0c0" style="background:#d4a0c0" title="Mauve"></button>
+                      <button class="color-swatch" data-color="#b56e70" style="background:#b56e70" title="Dusty Rose"></button>
+                    </div>
+                    <input type="color" id="blushColorPicker" value="#e07090" class="color-input"/>
+                  </div>
+                  <div class="slider-control" data-param="blushIntensity">
+                    <label>Intensity</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="0" id="blushIntensity" class="makeup-slider"/>
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="blushSoftness">
+                    <label>Softness</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="70" id="blushSoftness" class="makeup-slider"/>
+                      <span class="slider-value">70</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Eyeshadow -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-eye" style="color:#9b59b6"></i><span>Eyeshadow</span>
+              <button class="btn-reset-group" id="btnResetEyeshadow" title="Reset"><i class="fas fa-undo-alt"></i></button>
+            </div>
+            <div class="control-group-body">
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-palette"></i><span>Color Palette</span></div>
+                <div class="sub-group-body">
+                  <div class="rf-makeup-palette" id="eyeshadowPalette">
+                    <!-- Neutral / Everyday -->
+                    <div class="rf-makeup-palette-label">Neutral</div>
+                    <div class="rf-makeup-palette-row">
+                      <button class="makeup-color-swatch active" data-color="#c4956a" style="background:#c4956a" title="Warm Beige"></button>
+                      <button class="makeup-color-swatch" data-color="#a07850" style="background:#a07850" title="Taupe"></button>
+                      <button class="makeup-color-swatch" data-color="#8b6350" style="background:#8b6350" title="Mauve Nude"></button>
+                      <button class="makeup-color-swatch" data-color="#d4c4a8" style="background:#d4c4a8" title="Champagne"></button>
+                      <button class="makeup-color-swatch" data-color="#e8d8b8" style="background:#e8d8b8" title="Ivory"></button>
+                    </div>
+                    <!-- Smoky -->
+                    <div class="rf-makeup-palette-label">Smoky</div>
+                    <div class="rf-makeup-palette-row">
+                      <button class="makeup-color-swatch" data-color="#1a1a2e" style="background:#1a1a2e" title="Deep Navy"></button>
+                      <button class="makeup-color-swatch" data-color="#2c2c3e" style="background:#2c2c3e" title="Charcoal"></button>
+                      <button class="makeup-color-swatch" data-color="#4a3a5e" style="background:#4a3a5e" title="Dark Plum"></button>
+                      <button class="makeup-color-swatch" data-color="#6b5a7e" style="background:#6b5a7e" title="Dusty Purple"></button>
+                      <button class="makeup-color-swatch" data-color="#8e8e8e" style="background:#8e8e8e" title="Ash Grey"></button>
+                    </div>
+                    <!-- Bold / Pop -->
+                    <div class="rf-makeup-palette-label">Bold</div>
+                    <div class="rf-makeup-palette-row">
+                      <button class="makeup-color-swatch" data-color="#9b59b6" style="background:#9b59b6" title="Amethyst"></button>
+                      <button class="makeup-color-swatch" data-color="#3498db" style="background:#3498db" title="Electric Blue"></button>
+                      <button class="makeup-color-swatch" data-color="#27ae60" style="background:#27ae60" title="Forest Green"></button>
+                      <button class="makeup-color-swatch" data-color="#e74c3c" style="background:#e74c3c" title="Ruby Red"></button>
+                      <button class="makeup-color-swatch" data-color="#e67e22" style="background:#e67e22" title="Burnt Orange"></button>
+                    </div>
+                    <input type="color" id="eyeshadowColorPicker" value="#c4956a" class="color-input" style="margin-top:6px"/>
+                  </div>
+                  <div class="slider-control" data-param="eyeshadowIntensity">
+                    <label>Intensity</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="0" id="eyeshadowIntensity" class="makeup-slider"/>
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyeshadowBlend">
+                    <label>Blend</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="60" id="eyeshadowBlend" class="makeup-slider"/>
+                      <span class="slider-value">60</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyeshadowGlitter">
+                    <label>Shimmer / Glitter</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="0" id="eyeshadowGlitter" class="makeup-slider"/>
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Eyeliner -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-pen-nib"></i><span>Eyeliner</span>
+              <button class="btn-reset-group" id="btnResetEyeliner" title="Reset"><i class="fas fa-undo-alt"></i></button>
+            </div>
+            <div class="control-group-body collapsed">
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-palette"></i><span>Color &amp; Style</span></div>
+                <div class="sub-group-body">
+                  <div class="color-picker-row">
+                    <label>Liner Color</label>
+                    <div class="color-presets" id="eyelinerColorPresets">
+                      <button class="color-swatch active" data-color="#0a0a0a" style="background:#0a0a0a" title="Black"></button>
+                      <button class="color-swatch" data-color="#2c1b0e" style="background:#2c1b0e" title="Dark Brown"></button>
+                      <button class="color-swatch" data-color="#003366" style="background:#003366" title="Navy Blue"></button>
+                      <button class="color-swatch" data-color="#4a0080" style="background:#4a0080" title="Deep Purple"></button>
+                      <button class="color-swatch" data-color="#2d6a4f" style="background:#2d6a4f" title="Forest Green"></button>
+                    </div>
+                    <input type="color" id="eyelinerColorPicker" value="#0a0a0a" class="color-input"/>
+                  </div>
+                  <div class="slider-control" data-param="eyelinerThickness">
+                    <label>Thickness</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="0" id="eyelinerThickness" class="makeup-slider"/>
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="eyelinerWing">
+                    <label>Wing Length</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="0" id="eyelinerWing" class="makeup-slider"/>
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lip Color (female-specific, richer presets) -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-kiss"></i><span>Lip Color &amp; Finish</span>
+              <button class="btn-reset-group" id="btnResetLipColorFemale" title="Reset"><i class="fas fa-undo-alt"></i></button>
+            </div>
+            <div class="control-group-body">
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-palette"></i><span>Color</span></div>
+                <div class="sub-group-body">
+                  <div class="color-presets" id="lipColorPresetsFemale">
+                    <button class="color-swatch" data-color="#c44569" style="background:#c44569" title="Rose"></button>
+                    <button class="color-swatch" data-color="#b33939" style="background:#b33939" title="Classic Red"></button>
+                    <button class="color-swatch" data-color="#e08283" style="background:#e08283" title="Baby Pink"></button>
+                    <button class="color-swatch" data-color="#a55b5b" style="background:#a55b5b" title="Mauve"></button>
+                    <button class="color-swatch" data-color="#cc8e7a" style="background:#cc8e7a" title="Nude Light"></button>
+                    <button class="color-swatch" data-color="#8b5e5e" style="background:#8b5e5e" title="Nude Dark"></button>
+                    <button class="color-swatch" data-color="#6b2d5b" style="background:#6b2d5b" title="Plum"></button>
+                    <button class="color-swatch" data-color="#d4574e" style="background:#d4574e" title="Coral"></button>
+                    <button class="color-swatch" data-color="#8b0000" style="background:#8b0000" title="Burgundy"></button>
+                    <button class="color-swatch" data-color="#4a0030" style="background:#4a0030" title="Dark Plum"></button>
+                  </div>
+                  <input type="color" id="lipColorPickerFemale" value="#c44569" class="color-input"/>
+                </div>
+              </div>
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-magic"></i><span>Finish</span></div>
+                <div class="sub-group-body">
+                  <div class="rf-finish-toggle" id="lipFinishToggle">
+                    <button class="rf-finish-btn active" data-finish="matte">Matte</button>
+                    <button class="rf-finish-btn" data-finish="satin">Satin</button>
+                    <button class="rf-finish-btn" data-finish="gloss">Gloss</button>
+                    <button class="rf-finish-btn" data-finish="metallic">Metallic</button>
+                  </div>
+                  <div class="slider-control" data-param="lipColorIntensityF">
+                    <label>Intensity</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="0" id="lipColorIntensityFemale" class="makeup-slider"/>
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Reset All Makeup -->
+          <div class="panel-actions">
+            <button class="btn btn-secondary" id="btnResetAllMakeup">
+              <i class="fas fa-undo"></i> Reset All Makeup
+            </button>
+          </div>
+
+        </div>
+      </div><!-- /panel-makeup -->
+
+      <!-- ─────────────────────────────────────────────────────────────── -->
+
+      <!-- Female: Appearance Panel (Skin, Lip, Wrinkles — mirrors male) -->
+      <div class="panel-content" id="panel-appearance-female" data-gender="female" style="display:none">
+        <div class="panel-scroll">
+
+          <!-- Skin Tone -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-face-smile" aria-hidden="true"></i><span>Skin Tone</span>
+            </div>
+            <div class="control-group-body">
+              <div class="skin-tone-grid" id="skinToneGridFemale">
+                <button class="skin-swatch" data-color="#f5deb3" style="background: #f5deb3" title="Very Light"></button>
+                <button class="skin-swatch" data-color="#f0c8a0" style="background: #f0c8a0" title="Light"></button>
+                <button class="skin-swatch active" data-color="#d4a574" style="background: #d4a574" title="Medium Light"></button>
+                <button class="skin-swatch" data-color="#c68642" style="background: #c68642" title="Medium"></button>
+                <button class="skin-swatch" data-color="#a0522d" style="background: #a0522d" title="Medium Dark"></button>
+                <button class="skin-swatch" data-color="#8b6914" style="background: #8b6914" title="Olive"></button>
+                <button class="skin-swatch" data-color="#704214" style="background: #704214" title="Dark"></button>
+                <button class="skin-swatch" data-color="#3b2010" style="background: #3b2010" title="Very Dark"></button>
+              </div>
+              <div class="color-picker-row">
+                <label>Custom Color</label>
+                <input type="color" id="skinColorPickerFemale" value="#d4a574" class="color-input"/>
+              </div>
+            </div>
+          </div>
+
+          <!-- Skin Texture & Aging -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-adjust"></i><span>Skin Texture &amp; Aging</span>
+              <button class="btn-reset-group" id="btnResetSkinTextureFemale" title="Reset Skin Texture"><i class="fas fa-undo"></i></button>
+            </div>
+            <div class="control-group-body">
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-paint-brush"></i><span>Manual Wrinkle Painting</span></div>
+                <div class="sub-group-body">
+                  <button class="btn-small" id="btnToggleWrinklePaintFemale">
+                    <i class="fas fa-paint-brush"></i> Enable Wrinkle Painting
+                  </button>
+                  <div class="slider-control">
+                    <label>Brush Size</label>
+                    <div class="slider-row">
+                      <span class="slider-label-left">Fine</span>
+                      <input type="range" min="3" max="40" value="8" id="wrinkleBrushSizeFemale"/>
+                      <span class="slider-label-right">Wide</span>
+                    </div>
+                    <div style="text-align:center;"><span class="slider-value" id="wrinkleBrushSizeValueFemale">8</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pigmentation / Skin Marks -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-tint"></i><span>Pigmentation &amp; Marks</span>
+            </div>
+            <div class="control-group-body">
+              <div class="feature-sub-group">
+                <div class="sub-group-header"><i class="fas fa-paint-brush"></i><span>Manual Painting</span></div>
+                <div class="sub-group-body">
+                  <button class="btn-small" id="btnTogglePigmentPaintFemale">
+                    <i class="fas fa-tint"></i> Enable Pigmentation Pen
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- /panel-appearance-female -->
+
+      <!-- ╚═ End of Female Panels ═╝ -->
+
+      <!-- Appearance Panel (Male) -->
       <div class="panel-content" id="panel-appearance">
         <div class="panel-scroll">
           
@@ -3532,6 +4326,139 @@
     <div id="viewport">
       <canvas id="viewport-canvas"></canvas>
 
+      <!-- TEMPORARY DEV ALIGNMENT PANEL -->
+      <div id="dev-alignment-panel" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.85); border: 1px solid #d4a574; padding: 15px; border-radius: 8px; z-index: 9999; color: white; font-family: monospace; font-size: 11px; width: 280px; max-height: 80vh; overflow-y: auto;">
+        <h3 style="margin-top:0; color:#d4a574; font-size:14px; margin-bottom: 5px;">Alignment Tools</h3>
+        
+        <b style="color:#aaa;">Eyeballs (Base Mesh)</b>
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+          <label>Scale:</label>
+          <input type="range" id="dev-eye-scale" min="-200" max="500" value="50" style="width:100px;">
+          <span id="dev-eye-scale-val" style="width:25px;text-align:right;">50</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+          <label>Spacing:</label>
+          <input type="range" id="dev-eye-spacing" min="-200" max="500" value="50" style="width:100px;">
+          <span id="dev-eye-spacing-val" style="width:25px;text-align:right;">50</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+          <label>Pos X:</label>
+          <input type="range" id="dev-eye-posx" min="-200" max="500" value="50" style="width:100px;">
+          <span id="dev-eye-posx-val" style="width:25px;text-align:right;">50</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+          <label>Pos Y:</label>
+          <input type="range" id="dev-eye-posy" min="-200" max="500" value="50" style="width:100px;">
+          <span id="dev-eye-posy-val" style="width:25px;text-align:right;">50</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+          <label>Pos Z:</label>
+          <input type="range" id="dev-eye-posz" min="-200" max="500" value="50" style="width:100px;">
+          <span id="dev-eye-posz-val" style="width:25px;text-align:right;">50</span>
+        </div>
+        <hr style="border-color:#333;">
+
+        <b style="color:#aaa;">Physical Eyelashes (-200 to 500)</b>
+        <div><label>Scale:</label> <input type="range" id="devLashScale" min="-200" max="500" step="1" value="50"> <span id="valLashScale">50</span></div>
+        <div><label>Spacing:</label> <input type="range" id="devLashSpacing" min="-200" max="500" step="1" value="50"> <span id="valLashSpacing">50</span></div>
+        <div><label>Pos X:</label> <input type="range" id="devLashPosX" min="-200" max="500" step="1" value="50"> <span id="valLashPosX">50</span></div>
+        <div><label>Pos Y:</label> <input type="range" id="devLashPosY" min="-200" max="500" step="1" value="50"> <span id="valLashPosY">50</span></div>
+        <div><label>Pos Z:</label> <input type="range" id="devLashPosZ" min="-200" max="500" step="1" value="50"> <span id="valLashPosZ">50</span></div>
+        <hr style="border-color:#444; margin: 5px 0;">
+
+        <b style="color:#aaa;">Physical Eyebrows (-200 to 500)</b>
+        <div><label>Scale:</label> <input type="range" id="devBrowScale" min="-200" max="500" step="1" value="50"> <span id="valBrowScale">50</span></div>
+        <div><label>Tilt:</label> <input type="range" id="devBrowTilt" min="-200" max="500" step="1" value="50"> <span id="valBrowTilt">50</span></div>
+        <div><label>Pos X:</label> <input type="range" id="devBrowPosX" min="-200" max="500" step="1" value="50"> <span id="valBrowPosX">50</span></div>
+        <div><label>Pos Y:</label> <input type="range" id="devBrowPosY" min="-200" max="500" step="1" value="50"> <span id="valBrowPosY">50</span></div>
+        <div><label>Pos Z:</label> <input type="range" id="devBrowPosZ" min="-200" max="500" step="1" value="50"> <span id="valBrowPosZ">50</span></div>
+        <hr style="border-color:#444; margin: 5px 0;">
+      </div>
+
+      <script>
+        setTimeout(() => {
+          const u = (id) => document.getElementById(id);
+          
+          const updateLashes = () => {
+            if (!window.cachedEyeSystem) return;
+            const eye = window.cachedEyeSystem;
+            const scale = parseInt(u('devLashScale').value);
+            const spacing = parseInt(u('devLashSpacing').value);
+            const px = parseInt(u('devLashPosX').value);
+            const py = parseInt(u('devLashPosY').value);
+            const pz = parseInt(u('devLashPosZ').value);
+            
+            u('valLashScale').innerText = scale;
+            u('valLashSpacing').innerText = spacing;
+            u('valLashPosX').innerText = px;
+            u('valLashPosY').innerText = py;
+            u('valLashPosZ').innerText = pz;
+
+            eye.setEyelashParam('scale', scale);
+            eye.setEyelashParam('spacing', spacing);
+            eye.setEyelashParam('posX', px);
+            eye.setEyelashParam('posY', py);
+            eye.setEyelashParam('posZ', pz);
+          };
+
+          const updateBrows = () => {
+            if (!window.cachedHairSystem) return;
+            const hair = window.cachedHairSystem;
+            const scale = parseInt(u('devBrowScale').value);
+            const tilt = parseInt(u('devBrowTilt').value);
+            const px = parseInt(u('devBrowPosX').value);
+            const py = parseInt(u('devBrowPosY').value);
+            const pz = parseInt(u('devBrowPosZ').value);
+            
+            u('valBrowScale').innerText = scale;
+            u('valBrowTilt').innerText = tilt;
+            u('valBrowPosX').innerText = px;
+            u('valBrowPosY').innerText = py;
+            u('valBrowPosZ').innerText = pz;
+
+            hair.setEyebrowParam('scale', scale);
+            hair.setEyebrowParam('tiltX', tilt);
+            hair.setEyebrowParam('posX', px);
+            hair.setEyebrowParam('posY', py);
+            hair.setEyebrowParam('posZ', pz);
+          };
+
+          const updateEyes = () => {
+            if (!window.cachedEyeSystem) return;
+            const eye = window.cachedEyeSystem;
+            const scale = parseInt(u('dev-eye-scale').value);
+            const spacing = parseInt(u('dev-eye-spacing').value);
+            const px = parseInt(u('dev-eye-posx').value);
+            const py = parseInt(u('dev-eye-posy').value);
+            const pz = parseInt(u('dev-eye-posz').value);
+
+            u('dev-eye-scale-val').innerText = scale;
+            u('dev-eye-spacing-val').innerText = spacing;
+            u('dev-eye-posx-val').innerText = px;
+            u('dev-eye-posy-val').innerText = py;
+            u('dev-eye-posz-val').innerText = pz;
+
+            eye.setParam('scale', scale);
+            eye.setParam('spacing', spacing);
+            eye.setParam('posX', px);
+            eye.setParam('posY', py);
+            eye.setParam('posZ', pz);
+          };
+
+          ['devLashScale', 'devLashSpacing', 'devLashPosX', 'devLashPosY', 'devLashPosZ'].forEach(id => {
+            u(id).addEventListener('input', updateLashes);
+          });
+
+          ['devBrowScale', 'devBrowTilt', 'devBrowPosX', 'devBrowPosY', 'devBrowPosZ'].forEach(id => {
+            u(id).addEventListener('input', updateBrows);
+          });
+
+          ['dev-eye-scale', 'dev-eye-spacing', 'dev-eye-posx', 'dev-eye-posy', 'dev-eye-posz'].forEach(id => {
+            u(id).addEventListener('input', updateEyes);
+          });
+        }, 3000);
+      </script>
+
       <!-- Subtle edge vignette -->
       <div class="rf-viewport-vignette" aria-hidden="true"></div>
 
@@ -3816,6 +4743,7 @@
   <script src="js/HeadTracker.js"></script>
   <script src="js/FaceCaptureSystem.js"></script>
   <script src="js/ScreenRouter.js"></script>
+  <script src="js/GenderManager.js"></script>
   <script src="js/app.js"></script>
   <script src="js/EditorLayout.js"></script>
 

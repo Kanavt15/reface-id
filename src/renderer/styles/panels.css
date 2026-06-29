@@ -3153,3 +3153,196 @@
   border-color: var(--rf-border-neutral-subtle);
   border-radius: 3px;
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   Gender Toggle — pill buttons in topbar
+   ══════════════════════════════════════════════════════════════════════ */
+
+.rf-gender-toggle {
+  display: flex;
+  align-items: center;
+  background: var(--bg-primary, #0f0f18);
+  border: 1px solid var(--border-primary, #2a2a3a);
+  border-radius: 20px;
+  padding: 2px;
+  gap: 0;
+  margin-left: 10px;
+  flex-shrink: 0;
+}
+
+.rf-gender-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border: none;
+  border-radius: 18px;
+  background: transparent;
+  color: var(--text-secondary, #888);
+  font-size: 11px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.rf-gender-btn i {
+  font-size: 11px;
+}
+
+.rf-gender-btn:hover:not(.active) {
+  color: var(--text-primary, #e8e8f0);
+  background: var(--bg-tertiary, #1a1a2a);
+}
+
+/* Male active — blue-steel accent */
+#rf-gender-male.active {
+  background: linear-gradient(135deg, #1a3a5c 0%, #0d2540 100%);
+  color: #6ab4f5;
+  box-shadow: 0 0 8px rgba(100, 160, 240, 0.25);
+}
+
+/* Female active — rose-gold accent */
+#rf-gender-female.active {
+  background: linear-gradient(135deg, #5c1a3a 0%, #40102a 100%);
+  color: #f5a0c8;
+  box-shadow: 0 0 8px rgba(240, 140, 180, 0.25);
+}
+
+.rf-gender-btn span {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Makeup Panel — Eyeshadow palette, blush swatches, finish toggle
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Larger square swatches for makeup color pickers */
+.makeup-color-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  flex-shrink: 0;
+}
+
+.makeup-color-swatch:hover {
+  transform: scale(1.15);
+  border-color: rgba(255,255,255,0.35);
+}
+
+.makeup-color-swatch.active {
+  border-color: var(--accent-gold, #c8a84b);
+  box-shadow: 0 0 6px rgba(200, 168, 75, 0.5);
+  transform: scale(1.08);
+}
+
+/* Palette container */
+.rf-makeup-palette {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rf-makeup-palette-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted, #666);
+  margin-top: 4px;
+}
+
+.rf-makeup-palette-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+/* Makeup sliders — slightly narrower track, rose accent */
+.makeup-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border-primary, #2a2a3a);
+  outline: none;
+  cursor: pointer;
+}
+
+.makeup-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #f5a0c8;
+  border: 2px solid #fff;
+  box-shadow: 0 0 4px rgba(240, 140, 180, 0.6);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.makeup-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+/* Lip finish toggle (Matte / Satin / Gloss / Metallic) */
+.rf-finish-toggle {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  margin: 6px 0;
+}
+
+.rf-finish-btn {
+  flex: 1;
+  min-width: 50px;
+  padding: 5px 4px;
+  border: 1px solid var(--border-primary, #2a2a3a);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary, #888);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.rf-finish-btn:hover:not(.active) {
+  border-color: var(--border-accent, #3a3a5a);
+  color: var(--text-primary, #e8e8f0);
+}
+
+.rf-finish-btn.active {
+  background: linear-gradient(135deg, #5c1a3a 0%, #40102a 100%);
+  border-color: #f5a0c8;
+  color: #f5a0c8;
+  box-shadow: 0 0 6px rgba(240, 140, 180, 0.2);
+}
+
+/* Female-mode badge on pinned panel bar (optional visual indicator) */
+.rf-pinned-title .rf-female-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  background: linear-gradient(135deg, #5c1a3a, #40102a);
+  color: #f5a0c8;
+  padding: 1px 6px;
+  border-radius: 10px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
