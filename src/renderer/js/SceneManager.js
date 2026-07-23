@@ -117,7 +117,7 @@ class SceneManager {
           const translation = new THREE.Matrix4();
           translation.makeTranslation(0, 0.8, 0);
           matrix.premultiply(translation);
-          
+
           group.traverse((child) => {
             if (child.isMesh) {
               child.geometry.applyMatrix4(matrix);
@@ -176,9 +176,21 @@ class SceneManager {
    */
   loadMaleModel(onLoaded) {
     this.currentGender = 'male';
-    const url = '../../assets/models/base/head.glb';
-    this.loadGLB(url, (group) => {
-      console.log('[GenderManager] Male model loaded');
+
+    // -- OLD CODE (kept aside just in case it doesn't work out) --
+    // const url = '../../assets/models/base/head.glb';
+    // this.loadGLB(url, (group) => {
+    //   console.log('[GenderManager] Male model loaded');
+    //   if (onLoaded) onLoaded(group);
+    // });
+    // -----------------------------------------------------------
+
+    const url = '../../assets/models/base/male_face_new.obj';
+    this.loadOBJ(url, (group) => {
+      // Fix alignment: the new OBJ faces sideways (-X axis).
+      group.rotateOnWorldAxis(new THREE.Vector3(-1, 0, 0), -Math.PI / 2);
+
+      console.log('[GenderManager] Male model loaded (OBJ)');
       if (onLoaded) onLoaded(group);
     });
   }
@@ -502,45 +514,45 @@ class SceneManager {
       [-0.07, -0.25, 1.14],
       [-0.04, -0.245, 1.145],
       [-0.02, -0.25, 1.15],   // Cupid's bow left dip
-      [ 0.00, -0.255, 1.15],  // upper lip center
-      [ 0.02, -0.25, 1.15],   // Cupid's bow right dip
-      [ 0.04, -0.245, 1.145],
-      [ 0.07, -0.25, 1.14],
-      [ 0.10, -0.255, 1.135],
-      [ 0.13, -0.26, 1.13],
-      [ 0.16, -0.27, 1.12],
-      [ 0.19, -0.29, 1.10],   // mouth_right corner
+      [0.00, -0.255, 1.15],  // upper lip center
+      [0.02, -0.25, 1.15],   // Cupid's bow right dip
+      [0.04, -0.245, 1.145],
+      [0.07, -0.25, 1.14],
+      [0.10, -0.255, 1.135],
+      [0.13, -0.26, 1.13],
+      [0.16, -0.27, 1.12],
+      [0.19, -0.29, 1.10],   // mouth_right corner
 
       // ── Upper lip body (between outer edge and mouth opening) ──
       [-0.15, -0.285, 1.12],
       [-0.10, -0.275, 1.135],
       [-0.05, -0.27, 1.145],
-      [ 0.00, -0.275, 1.15],
-      [ 0.05, -0.27, 1.145],
-      [ 0.10, -0.275, 1.135],
-      [ 0.15, -0.285, 1.12],
+      [0.00, -0.275, 1.15],
+      [0.05, -0.27, 1.145],
+      [0.10, -0.275, 1.135],
+      [0.15, -0.285, 1.12],
 
       // ── Mouth seam line (where lips meet) ──
       [-0.17, -0.30, 1.11],
       [-0.13, -0.295, 1.13],
       [-0.09, -0.29, 1.14],
       [-0.05, -0.29, 1.145],
-      [ 0.00, -0.29, 1.15],
-      [ 0.05, -0.29, 1.145],
-      [ 0.09, -0.29, 1.14],
-      [ 0.13, -0.295, 1.13],
-      [ 0.17, -0.30, 1.11],
+      [0.00, -0.29, 1.15],
+      [0.05, -0.29, 1.145],
+      [0.09, -0.29, 1.14],
+      [0.13, -0.295, 1.13],
+      [0.17, -0.30, 1.11],
 
       // ── Lower lip body (between mouth opening and bottom edge) ──
       [-0.15, -0.315, 1.115],
       [-0.11, -0.325, 1.125],
       [-0.07, -0.33, 1.13],
       [-0.03, -0.335, 1.135],
-      [ 0.00, -0.335, 1.135],
-      [ 0.03, -0.335, 1.135],
-      [ 0.07, -0.33, 1.13],
-      [ 0.11, -0.325, 1.125],
-      [ 0.15, -0.315, 1.115],
+      [0.00, -0.335, 1.135],
+      [0.03, -0.335, 1.135],
+      [0.07, -0.33, 1.13],
+      [0.11, -0.325, 1.125],
+      [0.15, -0.315, 1.115],
 
       // ── Lower lip outer edge (bottom boundary) ──
       [-0.17, -0.31, 1.11],
@@ -548,19 +560,19 @@ class SceneManager {
       [-0.10, -0.345, 1.12],
       [-0.06, -0.355, 1.125],
       [-0.03, -0.36, 1.13],
-      [ 0.00, -0.36, 1.13],   // lower lip center bottom
-      [ 0.03, -0.36, 1.13],
-      [ 0.06, -0.355, 1.125],
-      [ 0.10, -0.345, 1.12],
-      [ 0.14, -0.33, 1.115],
-      [ 0.17, -0.31, 1.11],
+      [0.00, -0.36, 1.13],   // lower lip center bottom
+      [0.03, -0.36, 1.13],
+      [0.06, -0.355, 1.125],
+      [0.10, -0.345, 1.12],
+      [0.14, -0.33, 1.115],
+      [0.17, -0.31, 1.11],
 
       // ── Extra lower lip fill (denser coverage for fuller lower lip) ──
       [-0.08, -0.34, 1.125],
       [-0.04, -0.35, 1.13],
-      [ 0.00, -0.35, 1.13],
-      [ 0.04, -0.35, 1.13],
-      [ 0.08, -0.34, 1.125],
+      [0.00, -0.35, 1.13],
+      [0.04, -0.35, 1.13],
+      [0.08, -0.34, 1.125],
     ];
 
     const radius = 0.07;
@@ -630,7 +642,7 @@ class SceneManager {
       const arr = colorAttr.array;
       for (let i = 0; i < N; i++) {
         const w = weights[i];
-        arr[i * 3]     = skinC.r + (lipC.r - skinC.r) * w;
+        arr[i * 3] = skinC.r + (lipC.r - skinC.r) * w;
         arr[i * 3 + 1] = skinC.g + (lipC.g - skinC.g) * w;
         arr[i * 3 + 2] = skinC.b + (lipC.b - skinC.b) * w;
       }
