@@ -2048,3 +2048,358 @@
   opacity: 1;
   transform: translateY(0);
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   GENDER SELECTION SCREEN
+   Two large interactive face cards: Male and Female.
+   Consistent with the dark editorial theme of hero/case-setup screens.
+   ════════════════════════════════════════════════════════════════════════ */
+
+#rf-screen-gender-select {
+  display: flex;
+  flex-direction: column;
+  font-family: 'Inter', sans-serif;
+  overflow: hidden;
+  background: #07070b;
+}
+
+/* ─── Screen Body ─────────────────────────────────────────────────────── */
+
+.rf-gender-screen-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 32px 40px;
+  gap: 36px;
+  position: relative;
+  z-index: 10;
+}
+
+/* ─── Heading ─────────────────────────────────────────────────────────── */
+
+.rf-gender-heading {
+  text-align: center;
+}
+
+.rf-gender-title-text {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: clamp(22px, 3vw, 32px);
+  font-weight: 700;
+  color: #f0ece4;
+  margin: 0 0 10px;
+  letter-spacing: -0.02em;
+}
+
+.rf-gender-subtitle {
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(240, 236, 228, 0.45);
+  margin: 0;
+  letter-spacing: 0.01em;
+  max-width: 480px;
+}
+
+/* ─── Cards Container ─────────────────────────────────────────────────── */
+
+.rf-gender-cards {
+  display: flex;
+  gap: 28px;
+  align-items: stretch;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ─── Individual Gender Card ──────────────────────────────────────────── */
+
+.rf-gender-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 32px 28px 28px;
+  width: min(260px, 42vw);
+  min-height: 380px;
+  background: transparent;
+  border: 1px solid rgba(240, 236, 228, 0.08);
+  border-radius: 16px;
+  cursor: pointer;
+  transition:
+    border-color 250ms ease,
+    transform 200ms ease,
+    box-shadow 250ms ease;
+  overflow: hidden;
+  text-align: center;
+  /* Reset button styles */
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: inherit;
+}
+
+/* Card background layer */
+.rf-gcard-bg {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: inherit;
+  transition: background 250ms ease;
+  z-index: 0;
+}
+
+/* Animated selection ring */
+.rf-gcard-selected-ring {
+  position: absolute;
+  inset: -1px;
+  border-radius: 17px;
+  border: 2px solid transparent;
+  transition: border-color 250ms ease, box-shadow 250ms ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Hover state */
+.rf-gender-card:hover {
+  border-color: rgba(201, 169, 110, 0.25);
+  transform: translateY(-3px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4),
+              0 0 0 1px rgba(201, 169, 110, 0.08);
+}
+
+.rf-gender-card:hover .rf-gcard-bg {
+  background: rgba(201, 169, 110, 0.04);
+}
+
+/* Selected state */
+.rf-gender-card.rf-gcard-selected {
+  border-color: rgba(201, 169, 110, 0.5);
+  transform: translateY(-4px);
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(201, 169, 110, 0.2),
+    0 0 32px rgba(201, 169, 110, 0.08);
+}
+
+.rf-gender-card.rf-gcard-selected .rf-gcard-bg {
+  background: linear-gradient(
+    145deg,
+    rgba(201, 169, 110, 0.06) 0%,
+    rgba(201, 169, 110, 0.02) 100%
+  );
+}
+
+.rf-gender-card.rf-gcard-selected .rf-gcard-selected-ring {
+  border-color: rgba(201, 169, 110, 0.55);
+  box-shadow: 0 0 20px rgba(201, 169, 110, 0.15) inset;
+}
+
+/* ─── Face SVG Wireframe Area ─────────────────────────────────────────── */
+
+.rf-gcard-icon-wrap {
+  position: relative;
+  z-index: 2;
+  width: 130px;
+  height: 173px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rf-gcard-face-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 0 8px rgba(201, 169, 110, 0));
+  transition: filter 300ms ease;
+}
+
+.rf-gender-card.rf-gcard-selected .rf-gcard-face-svg {
+  filter: drop-shadow(0 0 12px rgba(201, 169, 110, 0.3));
+}
+
+.rf-gender-card:hover .rf-gcard-face-svg {
+  filter: drop-shadow(0 0 8px rgba(201, 169, 110, 0.15));
+}
+
+/* Reuse the hero screen's SVG path classes */
+.rf-gcard-face-svg .rf-wire-path {
+  stroke: rgba(201, 169, 110, 0.55);
+  stroke-width: 1.2;
+  fill: none;
+  transition: stroke 250ms ease;
+}
+
+.rf-gcard-face-svg .rf-wire-head {
+  stroke-width: 1.5;
+  stroke: rgba(201, 169, 110, 0.7);
+}
+
+.rf-gcard-face-svg .rf-wire-eye {
+  stroke: rgba(201, 169, 110, 0.5);
+}
+
+.rf-gcard-face-svg .rf-wire-brow {
+  stroke: rgba(201, 169, 110, 0.45);
+}
+
+.rf-gcard-face-svg .rf-wire-nose {
+  stroke: rgba(201, 169, 110, 0.4);
+}
+
+.rf-gcard-face-svg .rf-wire-mouth,
+.rf-gcard-face-svg .rf-wire-mouth-lower {
+  stroke: rgba(201, 169, 110, 0.45);
+}
+
+.rf-gcard-face-svg .rf-wire-pupil {
+  fill: rgba(201, 169, 110, 0.55);
+  stroke: none;
+}
+
+.rf-gcard-face-svg .rf-wire-grid {
+  stroke: rgba(201, 169, 110, 0.15);
+  stroke-width: 0.6;
+}
+
+/* Selected: brighter wires */
+.rf-gender-card.rf-gcard-selected .rf-gcard-face-svg .rf-wire-path {
+  stroke: rgba(201, 169, 110, 0.9);
+}
+
+.rf-gender-card.rf-gcard-selected .rf-gcard-face-svg .rf-wire-head {
+  stroke: rgba(201, 169, 110, 1.0);
+}
+
+.rf-gender-card.rf-gcard-selected .rf-gcard-face-svg .rf-wire-pupil {
+  fill: rgba(201, 169, 110, 1.0);
+}
+
+/* ─── Card Label ──────────────────────────────────────────────────────── */
+
+.rf-gcard-label {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rf-gcard-gender-icon {
+  font-size: 14px;
+  color: rgba(201, 169, 110, 0.65);
+  transition: color 250ms ease;
+}
+
+.rf-gender-card.rf-gcard-selected .rf-gcard-gender-icon {
+  color: #c9a96e;
+}
+
+.rf-gcard-name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: rgba(240, 236, 228, 0.85);
+  letter-spacing: -0.01em;
+  transition: color 250ms ease;
+}
+
+.rf-gender-card.rf-gcard-selected .rf-gcard-name {
+  color: #f0ece4;
+}
+
+/* ─── Card Description ────────────────────────────────────────────────── */
+
+.rf-gcard-desc {
+  position: relative;
+  z-index: 2;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: rgba(240, 236, 228, 0.35);
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  max-width: 180px;
+  transition: color 250ms ease;
+}
+
+.rf-gender-card.rf-gcard-selected .rf-gcard-desc {
+  color: rgba(240, 236, 228, 0.5);
+}
+
+/* ─── Check badge ─────────────────────────────────────────────────────── */
+
+.rf-gcard-check {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 3;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(201, 169, 110, 0.12);
+  border: 1.5px solid rgba(201, 169, 110, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 250ms ease, transform 250ms var(--rf-ease-decel, cubic-bezier(0.22, 1, 0.36, 1)), background 250ms ease;
+}
+
+.rf-gcard-check i {
+  font-size: 9px;
+  color: #c9a96e;
+}
+
+.rf-gender-card.rf-gcard-selected .rf-gcard-check {
+  opacity: 1;
+  transform: scale(1);
+  background: rgba(201, 169, 110, 0.2);
+  border-color: rgba(201, 169, 110, 0.6);
+}
+
+/* ─── Press microinteraction ──────────────────────────────────────────── */
+
+.rf-gender-card:active {
+  transform: translateY(-1px) scale(0.98);
+  transition: transform 80ms ease;
+}
+
+/* ─── Action Bar ──────────────────────────────────────────────────────── */
+
+.rf-gender-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.rf-gender-actions .rf-cta-fill {
+  min-width: 220px;
+}
+
+/* ─── Entrance animations ─────────────────────────────────────────────── */
+
+#rf-screen-gender-select.rf-screen-active .rf-gender-heading {
+  animation: rf-slide-up-in 340ms var(--rf-ease-decel, cubic-bezier(0.22, 1, 0.36, 1)) both;
+  animation-delay: 60ms;
+}
+
+#rf-screen-gender-select.rf-screen-active .rf-gender-cards {
+  animation: rf-slide-up-in 360ms var(--rf-ease-decel, cubic-bezier(0.22, 1, 0.36, 1)) both;
+  animation-delay: 110ms;
+}
+
+#rf-screen-gender-select.rf-screen-active .rf-gender-card:nth-child(1) {
+  animation: rf-slide-up-in 360ms var(--rf-ease-decel, cubic-bezier(0.22, 1, 0.36, 1)) both;
+  animation-delay: 140ms;
+}
+
+#rf-screen-gender-select.rf-screen-active .rf-gender-card:nth-child(2) {
+  animation: rf-slide-up-in 360ms var(--rf-ease-decel, cubic-bezier(0.22, 1, 0.36, 1)) both;
+  animation-delay: 185ms;
+}
+
+#rf-screen-gender-select.rf-screen-active .rf-gender-actions {
+  animation: rf-slide-up-in 360ms var(--rf-ease-decel, cubic-bezier(0.22, 1, 0.36, 1)) both;
+  animation-delay: 230ms;
+}

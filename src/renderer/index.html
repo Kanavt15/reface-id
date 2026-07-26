@@ -321,7 +321,7 @@
           <span class="rf-form-screen-title">New Case File</span>
         </div>
         <div class="rf-form-nav-right">
-          <span class="rf-step-badge">01 / 02</span>
+          <span class="rf-step-badge">01 / 03</span>
         </div>
       </nav>
 
@@ -426,7 +426,129 @@
 
     </div><!-- /rf-screen-case-setup -->
 
-    <!-- Screen 3: Input Method Selection â€” Numbered list rows -->
+    <!-- Screen 2b: Gender Selection -->
+    <div id="rf-screen-gender-select" class="rf-screen rf-screen-hidden">
+
+      <!-- Background layers (matches hero) -->
+      <div class="rf-hero-bg">
+        <div class="rf-hero-gradient-mesh"></div>
+        <div class="rf-hero-grid-pattern"></div>
+        <div class="rf-hero-dot-field"></div>
+        <div class="rf-hero-vignette"></div>
+        <div class="rf-hero-noise"></div>
+        <div class="rf-hero-glow-orb rf-orb-1"></div>
+        <div class="rf-hero-glow-orb rf-orb-2"></div>
+      </div>
+
+      <!-- Corner brackets -->
+      <div class="rf-hero-bracket rf-bracket-tl" aria-hidden="true"></div>
+      <div class="rf-hero-bracket rf-bracket-tr" aria-hidden="true"></div>
+      <div class="rf-hero-bracket rf-bracket-bl" aria-hidden="true"></div>
+      <div class="rf-hero-bracket rf-bracket-br" aria-hidden="true"></div>
+
+      <!-- Nav bar -->
+      <nav class="rf-form-screen-nav">
+        <div class="rf-form-nav-left">
+          <button class="rf-back-btn" id="rf-gender-select-back">
+            <i class="fas fa-arrow-left"></i> Back
+          </button>
+        </div>
+        <div class="rf-form-nav-center">
+          <span class="rf-form-screen-title">Select Base Model</span>
+        </div>
+        <div class="rf-form-nav-right">
+          <span class="rf-step-badge">02 / 03</span>
+        </div>
+      </nav>
+
+      <!-- Body -->
+      <div class="rf-gender-screen-body">
+        <div class="rf-gender-heading">
+          <h2 class="rf-gender-title-text">Choose a Base Face</h2>
+          <p class="rf-gender-subtitle">Select the biological sex of the subject to use the appropriate anatomical template</p>
+        </div>
+
+        <div class="rf-gender-cards">
+
+          <!-- Male card (default selected) -->
+          <button class="rf-gender-card rf-gcard-selected" id="rf-gcard-male" data-gender="male" aria-pressed="true">
+            <div class="rf-gcard-bg"></div>
+            <div class="rf-gcard-selected-ring"></div>
+            <div class="rf-gcard-icon-wrap">
+              <svg class="rf-gcard-face-svg" viewBox="0 0 120 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Male: squarer jaw, prominent brow -->
+                <path d="M60 8 C32 8 16 34 16 62 C16 80 19 96 28 113 C36 128 46 142 54 152 C56 155 58 157 60 158 C62 157 64 155 66 152 C74 142 84 128 92 113 C101 96 104 80 104 62 C104 34 88 8 60 8Z" class="rf-wire-path rf-wire-head"/>
+                <path d="M29 56 C37 50 46 49 52 51 M91 56 C83 50 74 49 68 51" class="rf-wire-path rf-wire-brow"/>
+                <ellipse cx="45" cy="63" rx="10" ry="6.5" class="rf-wire-path rf-wire-eye"/>
+                <ellipse cx="75" cy="63" rx="10" ry="6.5" class="rf-wire-path rf-wire-eye"/>
+                <circle cx="45" cy="63" r="2.5" class="rf-wire-pupil"/>
+                <circle cx="75" cy="63" r="2.5" class="rf-wire-pupil"/>
+                <path d="M60 57 L60 82 M53 85 C56 88 58 89 60 89 C62 89 64 88 67 85" class="rf-wire-path rf-wire-nose"/>
+                <path d="M47 103 C52 100 56 99 60 99 C64 99 68 100 73 103" class="rf-wire-path rf-wire-mouth"/>
+                <path d="M49 103 C55 109 57 111 60 111 C63 111 65 109 71 103" class="rf-wire-path rf-wire-mouth-lower"/>
+                <path d="M16 75 C15 100 22 128 60 145" class="rf-wire-path" stroke-opacity="0.35" stroke-width="1"/>
+                <path d="M104 75 C105 100 98 128 60 145" class="rf-wire-path" stroke-opacity="0.35" stroke-width="1"/>
+                <path d="M29 52 C40 47 53 46 60 46 C67 46 80 47 91 52" class="rf-wire-path" stroke-opacity="0.3" stroke-width="0.8"/>
+                <line x1="16" y1="62" x2="104" y2="62" class="rf-wire-grid" opacity="0.1"/>
+                <line x1="16" y1="90" x2="104" y2="90" class="rf-wire-grid" opacity="0.08"/>
+                <line x1="60" y1="8" x2="60" y2="158" class="rf-wire-grid" opacity="0.1"/>
+              </svg>
+            </div>
+            <div class="rf-gcard-label">
+              <i class="fas fa-mars rf-gcard-gender-icon"></i>
+              <span class="rf-gcard-name">Male</span>
+            </div>
+            <div class="rf-gcard-desc">Strong jaw, prominent brow ridge, angular features</div>
+            <div class="rf-gcard-check"><i class="fas fa-check"></i></div>
+          </button>
+
+          <!-- Female card -->
+          <button class="rf-gender-card" id="rf-gcard-female" data-gender="female" aria-pressed="false">
+            <div class="rf-gcard-bg"></div>
+            <div class="rf-gcard-selected-ring"></div>
+            <div class="rf-gcard-icon-wrap">
+              <svg class="rf-gcard-face-svg" viewBox="0 0 120 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Female: oval face, softer jaw, higher brow -->
+                <path d="M60 8 C35 8 19 32 19 60 C19 79 22 97 31 115 C40 132 51 146 58 154 C59 156 60 157 60 158 C61 157 61 156 62 154 C69 146 80 132 89 115 C98 97 101 79 101 60 C101 32 85 8 60 8Z" class="rf-wire-path rf-wire-head"/>
+                <path d="M32 55 C40 50 49 49 55 51 M88 55 C80 50 71 49 65 51" class="rf-wire-path rf-wire-brow"/>
+                <ellipse cx="45" cy="64" rx="9.5" ry="6" class="rf-wire-path rf-wire-eye"/>
+                <ellipse cx="75" cy="64" rx="9.5" ry="6" class="rf-wire-path rf-wire-eye"/>
+                <circle cx="45" cy="64" r="2.5" class="rf-wire-pupil"/>
+                <circle cx="75" cy="64" r="2.5" class="rf-wire-pupil"/>
+                <path d="M60 58 L60 83 M54 86 C57 89 58 90 60 90 C62 90 63 89 66 86" class="rf-wire-path rf-wire-nose"/>
+                <!-- Fuller lips -->
+                <path d="M48 104 C53 100 57 99 60 99 C63 99 67 100 72 104" class="rf-wire-path rf-wire-mouth"/>
+                <path d="M49 104 C55 112 58 114 60 114 C62 114 65 112 71 104" class="rf-wire-path rf-wire-mouth-lower"/>
+                <!-- Softer oval jaw -->
+                <path d="M19 74 C18 100 26 132 60 148" class="rf-wire-path" stroke-opacity="0.3" stroke-width="0.8"/>
+                <path d="M101 74 C102 100 94 132 60 148" class="rf-wire-path" stroke-opacity="0.3" stroke-width="0.8"/>
+                <path d="M32 51 C42 47 55 46 60 46 C65 46 78 47 88 51" class="rf-wire-path" stroke-opacity="0.25" stroke-width="0.8"/>
+                <line x1="19" y1="64" x2="101" y2="64" class="rf-wire-grid" opacity="0.1"/>
+                <line x1="19" y1="90" x2="101" y2="90" class="rf-wire-grid" opacity="0.08"/>
+                <line x1="60" y1="8" x2="60" y2="158" class="rf-wire-grid" opacity="0.1"/>
+              </svg>
+            </div>
+            <div class="rf-gcard-label">
+              <i class="fas fa-venus rf-gcard-gender-icon"></i>
+              <span class="rf-gcard-name">Female</span>
+            </div>
+            <div class="rf-gcard-desc">Softer jaw, higher cheekbones, delicate features</div>
+            <div class="rf-gcard-check"><i class="fas fa-check"></i></div>
+          </button>
+
+        </div><!-- /rf-gender-cards -->
+
+        <!-- Action bar -->
+        <div class="rf-gender-actions">
+          <button class="rf-cta-fill" id="rf-gender-select-continue">
+            Continue <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
+
+      </div><!-- /rf-gender-screen-body -->
+    </div><!-- /rf-screen-gender-select -->
+
+    <!-- Screen 3: Input Method Selection — Numbered list rows -->
     <div id="rf-screen-input-method" class="rf-screen rf-screen-hidden">
 
       <!-- Background layers (matches hero) -->
@@ -457,7 +579,7 @@
           <span class="rf-form-screen-title">Reconstruction Method</span>
         </div>
         <div class="rf-form-nav-right">
-          <span class="rf-step-badge">02 / 02</span>
+          <span class="rf-step-badge">03 / 03</span>
         </div>
       </nav>
 

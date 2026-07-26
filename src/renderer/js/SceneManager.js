@@ -29,6 +29,10 @@ class SceneManager {
     // Skin texture system reference (set externally)
     this.skinTextureSystem = null;
 
+    // Model cache: store loaded groups by gender so re-switching never re-downloads.
+    // Format: Map<'male'|'female', THREE.Group>
+    this._modelCache = new Map();
+
     this.init();
   }
 
@@ -39,8 +43,10 @@ class SceneManager {
       antialias: true,
       alpha: true,
       preserveDrawingBuffer: true, // For screenshots
+      powerPreference: 'high-performance',
     });
-    this.renderer.setPixelRatio(window.devicePixelRatio);
+    // Cap pixel ratio at 1.5 to avoid 4× overdraw on HiDPI screens
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -62,6 +68,15 @@ class SceneManager {
     this.controls.target.set(0, 0.2, 0);
     this.controls.minDistance = 1.5;
     this.controls.maxDistance = 15;
+
+    // Demand-driven rendering: only render when something changes.
+    // Listen to canvas pointer/wheel events instead of controls.addEventListener
+    // (controls.addEventListener is not available in this version of OrbitControls).
+    this._needsRender = true;
+    this._continuousRender = false; // set true during animations
+    ['pointerdown', 'pointermove', 'wheel', 'touchstart', 'touchmove'].forEach(evt => {
+      this.canvas.addEventListener(evt, () => { this._needsRender = true; }, { passive: true });
+    });
 
     // Background
     this.scene.background = new THREE.Color(0x1a1a24);
@@ -90,10 +105,18 @@ class SceneManager {
 
     // Handle resize
     this.resize();
-    window.addEventListener('resize', () => this.resize());
+    window.addEventListener('resize', () => { this.resize(); this._needsRender = true; });
 
     // Start render loop
     this.animate();
+  }
+
+  /**
+   * Mark the scene as dirty — call this any time the scene content changes
+   * (mesh update, morph applied, color changed, etc.).
+   */
+  requestRender() {
+    this._needsRender = true;
   }
 
   /**
@@ -155,6 +178,7 @@ class SceneManager {
         this.controls.target.set(0, cY, 0);
         this.camera.position.set(0, cY, 4.5);
         this.controls.update();
+        this._needsRender = true;
 
         console.log(`GLB loaded: ${url}`);
         console.log(`  Center: (${this.modelCenter.x.toFixed(3)}, ${this.modelCenter.y.toFixed(3)}, ${this.modelCenter.z.toFixed(3)})`);
@@ -171,50 +195,81 @@ class SceneManager {
   }
 
   /**
-   * Load (or reload) the male base head model.
-   * Path: ../../assets/models/base/head.glb
+   * Load (or restore from cache) the male base head model.
    */
   loadMaleModel(onLoaded) {
     this.currentGender = 'male';
 
-    // -- OLD CODE (kept aside just in case it doesn't work out) --
-    // const url = '../../assets/models/base/head.glb';
-    // this.loadGLB(url, (group) => {
-    //   console.log('[GenderManager] Male model loaded');
-    //   if (onLoaded) onLoaded(group);
-    // });
-    // -----------------------------------------------------------
+    // Serve from cache if already loaded — instant, no network
+    if (this._modelCache.has('male')) {
+      console.log('[SceneManager] Male model served from cache (instant)');
+      const cached = this._modelCache.get('male');
+      if (this.headMesh && this.headMesh !== cached) {
+        this.scene.remove(this.headMesh);
+      }
+      this.headMesh = cached;
+      this.scene.add(this.headMesh);
+      this._updateCameraForMesh();
+      this._needsRender = true;
+      if (onLoaded) onLoaded(cached);
+      return;
+    }
 
-    const url = '../../assets/models/base/male_face_new.obj';
-    this.loadOBJ(url, (group) => {
-      // Fix alignment: the new OBJ faces sideways (-X axis).
-      group.rotateOnWorldAxis(new THREE.Vector3(-1, 0, 0), -Math.PI / 2);
-
-      console.log('[GenderManager] Male model loaded (OBJ)');
+    // First load: use the compact GLB (800 KB)
+    const url = '../../assets/models/base/head.glb';
+    this.loadGLB(url, (group) => {
+      if (group) this._modelCache.set('male', group);
+      console.log('[SceneManager] Male model loaded and cached (GLB)');
       if (onLoaded) onLoaded(group);
     });
+
+    // -- High-res OBJ alternative (75 MB — only enable when needed) --
+    // const url = '../../assets/models/base/male_face_new.obj';
+    // this.loadOBJ(url, (group) => {
+    //   group.rotateOnWorldAxis(new THREE.Vector3(-1, 0, 0), -Math.PI / 2);
+    //   if (group) this._modelCache.set('male', group);
+    //   console.log('[SceneManager] Male model loaded (OBJ high-res)');
+    //   if (onLoaded) onLoaded(group);
+    // });
   }
 
   /**
-   * Load the female base head model.
-   * Path: ../../assets/models/base/head_female.glb
-   *
-   * If the file does not exist yet (404), gracefully falls back to the
-   * male model and shows a toast notification.
+   * Load (or restore from cache) the female base head model (head_female.glb ≈ 17 MB).
+   * After the first load the processed group is cached; subsequent switches are instant.
    */
   loadFemaleModel(onLoaded) {
     this.currentGender = 'female';
-    const url = '../../assets/models/base/head_female.glb';
 
+    // Serve from cache if already loaded
+    if (this._modelCache.has('female')) {
+      console.log('[SceneManager] Female model served from cache (instant)');
+      const cached = this._modelCache.get('female');
+      if (this.headMesh && this.headMesh !== cached) {
+        this.scene.remove(this.headMesh);
+      }
+      this.headMesh = cached;
+      this.scene.add(this.headMesh);
+      this._updateCameraForMesh();
+      this._needsRender = true;
+      if (onLoaded) onLoaded(cached);
+      return;
+    }
+
+    // First load: show a loading overlay because the file is large (~17 MB)
+    this._showLoadingOverlay('Loading female model…');
+
+    const url = '../../assets/models/base/head_female.glb';
     this.loadGLB(url, (group) => {
+      this._hideLoadingOverlay();
+
       if (group) {
-        console.log('[GenderManager] Female model loaded');
+        console.log('[SceneManager] Female model loaded and cached');
         this._femaleModelMissing = false;
+        this._modelCache.set('female', group);
         if (onLoaded) onLoaded(group);
       } else {
-        console.warn('[GenderManager] Female head model not found — using male model as placeholder.');
+        console.warn('[SceneManager] Female head model not found — using male model as placeholder.');
         this._femaleModelMissing = true;
-        // Show toast if available
         if (typeof window.rfToast === 'function') {
           window.rfToast('Female 3D model not yet available — using placeholder', 'warning');
         } else {
@@ -228,10 +283,78 @@ class SceneManager {
             setTimeout(() => { t.classList.remove('rf-toast-visible'); setTimeout(() => t.remove(), 400); }, 3500);
           }
         }
-        // Keep the existing model visible; don't reload
         if (onLoaded) onLoaded(this.headMesh);
       }
     });
+  }
+
+  /**
+   * Recentre camera on the currently loaded headMesh (after cache swap).
+   * @private
+   */
+  _updateCameraForMesh() {
+    if (!this.headMesh) return;
+    const box = new THREE.Box3().setFromObject(this.headMesh);
+    this.modelCenter = new THREE.Vector3();
+    box.getCenter(this.modelCenter);
+    this.modelHeight = box.max.y - box.min.y;
+    const cY = this.modelCenter.y;
+    this.controls.target.set(0, cY, 0);
+    this.camera.position.set(0, cY, 4.5);
+    this.controls.update();
+  }
+
+  /**
+   * Show/hide a simple loading overlay in the viewport.
+   * @private
+   */
+  _showLoadingOverlay(msg = 'Loading…') {
+    let overlay = document.getElementById('rf-model-loading-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'rf-model-loading-overlay';
+      overlay.style.cssText = [
+        'position:absolute', 'inset:0', 'z-index:200',
+        'display:flex', 'flex-direction:column',
+        'align-items:center', 'justify-content:center',
+        'background:rgba(9,9,11,0.78)',
+        'backdrop-filter:blur(4px)',
+        '-webkit-backdrop-filter:blur(4px)',
+        'color:rgba(240,236,228,0.75)',
+        'font-family:Inter,sans-serif',
+        'font-size:13px', 'letter-spacing:0.04em',
+        'gap:14px', 'pointer-events:none',
+      ].join(';');
+      overlay.innerHTML = `
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none"
+             style="animation:rf-spin 1s linear infinite">
+          <circle cx="16" cy="16" r="12" stroke="rgba(201,169,110,0.18)" stroke-width="3"/>
+          <path d="M16 4 A12 12 0 0 1 28 16" stroke="#c9a96e" stroke-width="3"
+                stroke-linecap="round"/>
+        </svg>
+        <span id="rf-model-loading-msg">${msg}</span>`;
+
+      // Inject keyframe if not already present
+      if (!document.getElementById('rf-spin-style')) {
+        const s = document.createElement('style');
+        s.id = 'rf-spin-style';
+        s.textContent = '@keyframes rf-spin{to{transform:rotate(360deg)}}';
+        document.head.appendChild(s);
+      }
+      // Attach to the viewport container
+      const viewport = document.getElementById('viewport') || this.canvas.parentElement;
+      if (viewport) viewport.style.position = 'relative';
+      (viewport || document.body).appendChild(overlay);
+    } else {
+      const msgEl = overlay.querySelector('#rf-model-loading-msg');
+      if (msgEl) msgEl.textContent = msg;
+      overlay.style.display = 'flex';
+    }
+  }
+
+  _hideLoadingOverlay() {
+    const overlay = document.getElementById('rf-model-loading-overlay');
+    if (overlay) overlay.style.display = 'none';
   }
 
   /**
@@ -288,6 +411,7 @@ class SceneManager {
         this.controls.target.set(0, cY, 0);
         this.camera.position.set(0, cY, 4.5);
         this.controls.update();
+        this._needsRender = true;
 
         console.log(`OBJ loaded: ${url}`);
         console.log(`  Model center: (${this.modelCenter.x.toFixed(3)}, ${this.modelCenter.y.toFixed(3)}, ${this.modelCenter.z.toFixed(3)})`);
@@ -451,6 +575,7 @@ class SceneManager {
       if (this._lipColor) {
         this._updateVertexColors();
       }
+      this._needsRender = true;
       return;
     }
 
@@ -463,6 +588,7 @@ class SceneManager {
         }
       });
     }
+    this._needsRender = true;
   }
 
   /**
@@ -496,6 +622,7 @@ class SceneManager {
         }
       });
     }
+    this._needsRender = true;
   }
 
   /**
@@ -689,11 +816,12 @@ class SceneManager {
     const keyLight = new THREE.DirectionalLight(0xffeedd, 1.8);
     keyLight.position.set(2, 3, 3);
     keyLight.castShadow = true;
-    keyLight.shadow.mapSize.width = 2048;
-    keyLight.shadow.mapSize.height = 2048;
+    keyLight.shadow.mapSize.width = 1024;  // Reduced from 2048 for performance
+    keyLight.shadow.mapSize.height = 1024;
     keyLight.shadow.camera.near = 0.1;
     keyLight.shadow.camera.far = 15;
     this.scene.add(keyLight);
+    this._needsRender = true;
 
     // Fill light — left side
     const fillLight = new THREE.DirectionalLight(0xccddff, 0.6);
@@ -789,6 +917,7 @@ class SceneManager {
         }
       });
     }
+    this._needsRender = true;
     return this.wireframeMode;
   }
 
@@ -832,6 +961,8 @@ class SceneManager {
     const startTarget = this.controls.target.clone();
     let t = 0;
 
+    this._continuousRender = true; // Keep rendering during animation
+
     const animate = () => {
       t += 0.04;
       if (t > 1) t = 1;
@@ -844,6 +975,9 @@ class SceneManager {
 
       if (t < 1) {
         requestAnimationFrame(animate);
+      } else {
+        this._continuousRender = false; // Stop continuous once done
+        this._needsRender = true;
       }
     };
 
@@ -907,12 +1041,20 @@ class SceneManager {
   }
 
   /**
-   * Animation loop
+   * Animation loop — demand-driven: only renders when _needsRender is true
+   * or when damping is still animating (_continuousRender).
+   * Call requestRender() to force a frame after any scene change.
    */
   animate() {
     requestAnimationFrame(() => this.animate());
-    this.controls.update();
-    this.renderer.render(this.scene, this.camera);
+
+    // Always update controls (handles damping inertia)
+    const dampingActive = this.controls.update();
+
+    if (this._needsRender || dampingActive || this._continuousRender) {
+      this.renderer.render(this.scene, this.camera);
+      this._needsRender = false;
+    }
   }
 }
 

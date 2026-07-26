@@ -15,10 +15,11 @@
 class ScreenRouter {
   constructor() {
     this.screens = {
-      'hero':         document.getElementById('rf-screen-hero'),
-      'case-setup':   document.getElementById('rf-screen-case-setup'),
-      'input-method': document.getElementById('rf-screen-input-method'),
-      'editor':       document.getElementById('rf-screen-editor'),
+      'hero':           document.getElementById('rf-screen-hero'),
+      'case-setup':     document.getElementById('rf-screen-case-setup'),
+      'gender-select':  document.getElementById('rf-screen-gender-select'),
+      'input-method':   document.getElementById('rf-screen-input-method'),
+      'editor':         document.getElementById('rf-screen-editor'),
     };
 
     // Data passed between screens (case form values, selected methods, etc.)
@@ -28,8 +29,10 @@ class ScreenRouter {
       investigator: '',
       description: '',
       notes:       '',
+      gender:      'male', // default: male
     };
     this.selectedMethods = new Set();
+    this._selectedGender = 'male'; // track gender card selection
 
     // Which screen is currently visible
     this.current = 'hero';
@@ -149,6 +152,7 @@ class ScreenRouter {
    * Called when transitioning INTO the editor screen.
    * Populates the Case Panel fields with data from the setup form,
    * then dispatches method-specific actions (open AI, start capture, etc.)
+   * Also applies the selected gender to GenderManager.
    */
   _onEnterEditor(_fromScreen) {
     // Populate Case Panel fields from gathered caseData
@@ -175,6 +179,11 @@ class ScreenRouter {
     if (caseTitle && this.caseData.caseName) {
       const num = this.caseData.caseNumber ? `${this.caseData.caseNumber} — ` : '';
       caseTitle.textContent = `${num}${this.caseData.caseName}`;
+    }
+
+    // Apply the selected gender to GenderManager (silent — no toast)
+    if (this.caseData.gender && window.rfGender) {
+      window.rfGender.setGender(this.caseData.gender, true);
     }
 
     // After a short delay (let editor finish rendering), dispatch method actions
@@ -299,12 +308,38 @@ class ScreenRouter {
     this._on('rf-case-setup-continue', 'click', () => {
       if (!this._validateCaseSetup()) return;
       this.collectCaseSetupData();
+      this.navigateTo('gender-select');
+    });
+
+    // Gender Select screen
+    this._on('rf-gender-select-back', 'click', () => {
+      this.navigateTo('case-setup');
+    });
+
+    this._on('rf-gender-select-continue', 'click', () => {
+      this.caseData.gender = this._selectedGender;
       this.navigateTo('input-method');
     });
 
-    // Input Method screen
+    // Gender card selection
+    const genderCards = document.querySelectorAll('.rf-gender-card');
+    genderCards.forEach(card => {
+      card.addEventListener('click', () => {
+        const gender = card.getAttribute('data-gender');
+        this._selectedGender = gender;
+        this.caseData.gender = gender;
+        genderCards.forEach(c => {
+          c.classList.remove('rf-gcard-selected');
+          c.setAttribute('aria-pressed', 'false');
+        });
+        card.classList.add('rf-gcard-selected');
+        card.setAttribute('aria-pressed', 'true');
+      });
+    });
+
+    // Input Method screen — back goes to gender select now
     this._on('rf-input-method-back', 'click', () => {
-      this.navigateTo('case-setup');
+      this.navigateTo('gender-select');
     });
 
     this._on('rf-input-method-begin', 'click', () => {

@@ -67,7 +67,11 @@
 
   // Load GLB model (wrap callback in a Promise)
   const objPromise = new Promise((resolve) => {
-    sceneManager.loadGLB(MODEL_PATH, (group) => resolve(group));
+    sceneManager.loadGLB(MODEL_PATH, (group) => {
+      // Pre-populate the model cache so gender switches are instant
+      if (group) sceneManager._modelCache.set('male', group);
+      resolve(group);
+    });
   });
 
   // When both are ready, wire everything
@@ -137,6 +141,9 @@
         if (ui) {
           ui.resetAllFeatures();
         }
+
+        // 5. Force a render frame to show the new model immediately
+        sceneManager.requestRender();
       };
 
       // ── OBJ loaded successfully (Initial Load) ──
@@ -145,6 +152,9 @@
       // Wire auto-refresh for morphs (only need to do this once)
       let _morphTimer = null;
       objMorpher.onMorphApplied = () => {
+        // Signal the render loop that the scene changed
+        sceneManager.requestRender();
+
         if (_morphTimer) clearTimeout(_morphTimer);
         _morphTimer = setTimeout(() => {
           hairSystem.refreshFromMesh(objMorpher.morphValues);
