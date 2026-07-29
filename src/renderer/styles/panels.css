@@ -273,6 +273,24 @@
   overflow: hidden;
 }
 
+/* Divider caption inside a sub-group, e.g. the Left/Right ear loop blocks */
+.sub-group-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 4px 0 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle, var(--bg-elevated));
+}
+
+.sub-group-label:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
 .sub-group-body .slider-control {
   margin-bottom: 8px;
 }

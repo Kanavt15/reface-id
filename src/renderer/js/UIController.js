@@ -28,6 +28,7 @@ class UIController {
     this.bindEyeControls();
     this.bindEyelashControls();
     this.bindGlassesControls();
+    this.bindFaceMaskControls();
     this.bindSkinMarkControls();
     this.bindDecalControls();
     this.bindWrinklePainterControls();
@@ -1754,6 +1755,245 @@ class UIController {
     });
   }
 
+  // ─── Face Mask Controls ──────────────────────────────────────────────────
+
+  bindFaceMaskControls() {
+    const mask = this.faceMaskSystem;
+    if (!mask) return;
+
+    const visibleToggle = document.getElementById('faceMaskVisibleToggle');
+    const maskColorPicker = document.getElementById('faceMaskColorPicker');
+    const strapColorPicker = document.getElementById('faceMaskStrapColorPicker');
+    const opacitySlider = document.getElementById('faceMaskOpacitySlider');
+    const scaleSlider = document.getElementById('faceMaskScaleSlider');
+    const widthSlider = document.getElementById('faceMaskWidthSlider');
+    const coverageSlider = document.getElementById('faceMaskCoverageSlider');
+    // Ear loops are tuned per side. "L"/"R" are the subject's left and right.
+    const strapScaleLSlider = document.getElementById('faceMaskStrapScaleLSlider');
+    const strapAngleLSlider = document.getElementById('faceMaskStrapAngleLSlider');
+    const strapSplayLSlider = document.getElementById('faceMaskStrapSplayLSlider');
+    const strapScaleRSlider = document.getElementById('faceMaskStrapScaleRSlider');
+    const strapAngleRSlider = document.getElementById('faceMaskStrapAngleRSlider');
+    const strapSplayRSlider = document.getElementById('faceMaskStrapSplayRSlider');
+    const posXSlider = document.getElementById('faceMaskPosXSlider');
+    const posYSlider = document.getElementById('faceMaskPosYSlider');
+    const posZSlider = document.getElementById('faceMaskPosZSlider');
+    const rotXSlider = document.getElementById('faceMaskRotXSlider');
+    const rotYSlider = document.getElementById('faceMaskRotYSlider');
+    const rotZSlider = document.getElementById('faceMaskRotZSlider');
+
+    const persistFaceMaskState = () => {
+      this.caseManager.updateAppearance('faceMask', mask.exportState());
+    };
+
+    // Style cards: "none" disables, any other style enables and loads that OBJ.
+    document.querySelectorAll('#faceMaskStyleGrid .hair-style-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const style = card.dataset.facemaskStyle;
+        this.caseManager.beginAction(`Face mask style: ${style}`);
+
+        document.querySelectorAll('#faceMaskStyleGrid .hair-style-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+
+        if (style === 'none') {
+          mask.setEnabled(false);
+        } else {
+          mask.setStyle(style);
+          mask.setEnabled(true);
+          // setStyle may have applied per-style default params — push them
+          // back onto the sliders so the UI reflects the new pose.
+          this._syncFaceMaskUI(mask.exportState());
+        }
+        if (visibleToggle) visibleToggle.checked = mask.enabled;
+
+        persistFaceMaskState();
+        this.caseManager.endAction();
+        this.addHistory(`Face mask: ${style}`);
+      });
+    });
+
+    // Visibility checkbox
+    visibleToggle?.addEventListener('change', (e) => {
+      this.caseManager.beginAction('Toggle face mask visibility');
+      mask.setEnabled(!!e.target.checked);
+
+      document.querySelectorAll('#faceMaskStyleGrid .hair-style-card').forEach(c => {
+        const cardStyle = c.dataset.facemaskStyle;
+        const isActive = mask.enabled
+          ? cardStyle === mask.currentStyle
+          : cardStyle === 'none';
+        c.classList.toggle('active', isActive);
+      });
+
+      persistFaceMaskState();
+      this.caseManager.endAction();
+      this.addHistory(mask.enabled ? 'Face mask on' : 'Face mask off');
+    });
+
+    // Mask color picker (live drag preview, commit on change)
+    {
+      let capturing = false;
+      maskColorPicker?.addEventListener('input', (e) => {
+        if (!capturing) {
+          this.caseManager.beginAction('Changed face mask color');
+          capturing = true;
+        }
+        mask.setMaskColor(e.target.value);
+      });
+      maskColorPicker?.addEventListener('change', () => {
+        persistFaceMaskState();
+        this.caseManager.endAction();
+        capturing = false;
+        this.addHistory('Changed face mask color');
+      });
+    }
+
+    // Strap color picker
+    {
+      let capturing = false;
+      strapColorPicker?.addEventListener('input', (e) => {
+        if (!capturing) {
+          this.caseManager.beginAction('Changed face mask strap color');
+          capturing = true;
+        }
+        mask.setStrapColor(e.target.value);
+      });
+      strapColorPicker?.addEventListener('change', () => {
+        persistFaceMaskState();
+        this.caseManager.endAction();
+        capturing = false;
+        this.addHistory('Changed face mask strap color');
+      });
+    }
+
+    // Generic slider wiring for the face mask
+    const sliderMap = [
+      { el: opacitySlider,    paramKey: 'opacity',    label: 'opacity',      setter: (v) => mask.setOpacity(v) },
+      { el: scaleSlider,      paramKey: 'scale',      label: 'scale',        setter: (v) => mask.setParam('scale', v) },
+      { el: widthSlider,      paramKey: 'width',      label: 'width',        setter: (v) => mask.setParam('width', v) },
+      { el: coverageSlider,   paramKey: 'coverage',   label: 'coverage',     setter: (v) => mask.setParam('coverage', v) },
+      { el: strapScaleLSlider, paramKey: 'strapScaleL', label: 'left strap length',  setter: (v) => mask.setParam('strapScaleL', v) },
+      { el: strapAngleLSlider, paramKey: 'strapAngleL', label: 'left strap angle',   setter: (v) => mask.setParam('strapAngleL', v) },
+      { el: strapSplayLSlider, paramKey: 'strapSplayL', label: 'left strap splay',   setter: (v) => mask.setParam('strapSplayL', v) },
+      { el: strapScaleRSlider, paramKey: 'strapScaleR', label: 'right strap length', setter: (v) => mask.setParam('strapScaleR', v) },
+      { el: strapAngleRSlider, paramKey: 'strapAngleR', label: 'right strap angle',  setter: (v) => mask.setParam('strapAngleR', v) },
+      { el: strapSplayRSlider, paramKey: 'strapSplayR', label: 'right strap splay',  setter: (v) => mask.setParam('strapSplayR', v) },
+      { el: posXSlider,       paramKey: 'posX',       label: 'horizontal',   setter: (v) => mask.setParam('posX', v) },
+      { el: posYSlider,       paramKey: 'posY',       label: 'vertical',     setter: (v) => mask.setParam('posY', v) },
+      { el: posZSlider,       paramKey: 'posZ',       label: 'depth',        setter: (v) => mask.setParam('posZ', v) },
+      { el: rotXSlider,       paramKey: 'rotX',       label: 'pitch',        setter: (v) => mask.setParam('rotX', v) },
+      { el: rotYSlider,       paramKey: 'rotY',       label: 'yaw',          setter: (v) => mask.setParam('rotY', v) },
+      { el: rotZSlider,       paramKey: 'rotZ',       label: 'roll',         setter: (v) => mask.setParam('rotZ', v) },
+    ];
+
+    sliderMap.forEach(({ el, paramKey, label, setter }) => {
+      if (!el) return;
+      const valueDisplay = el.closest('.slider-control')?.querySelector('.slider-value');
+      let isDragging = false;
+
+      const onMouseDown = () => {
+        isDragging = true;
+        this.caseManager.beginAction(`Modified face mask ${paramKey}`);
+      };
+      const onInput = (e) => {
+        const value = parseFloat(e.target.value);
+        if (valueDisplay) valueDisplay.textContent = String(value);
+        setter(value);
+        this.updateSliderFill(e.target);
+      };
+      const onMouseUp = () => {
+        if (!isDragging) return;
+        persistFaceMaskState();
+        this.caseManager.endAction();
+        // Delay reset so the 'change' event (which fires synchronously after mouseup)
+        // still sees isDragging=true and skips its redundant pushState call.
+        setTimeout(() => { isDragging = false; }, 0);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+
+      el.addEventListener('mousedown', () => {
+        onMouseDown();
+        document.addEventListener('mouseup', onMouseUp);
+      });
+      el.addEventListener('input', onInput);
+      el.addEventListener('mouseup', onMouseUp);
+
+      // For non-mouse interactions (keyboard arrows, etc.)
+      el.addEventListener('change', () => {
+        if (!isDragging) {
+          this.caseManager.pushState(`Changed face mask ${label}`);
+          persistFaceMaskState();
+          this.addHistory(`Changed face mask ${label}`);
+        }
+      });
+    });
+
+    // Reset button
+    document.getElementById('btnResetFaceMask')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.caseManager.pushState('Reset face mask');
+
+      // Reset to the active style's tuned fit, not a flat neutral pose.
+      const defaults = mask.getStyleDefaults(mask.currentStyle);
+      mask.loadState(defaults);
+      this._syncFaceMaskUI(defaults);
+      persistFaceMaskState();
+      this.addHistory('Reset face mask');
+    });
+
+    // Push the seeded per-style defaults onto the controls so the panel agrees
+    // with what enabling the mask will actually render. Without this the
+    // sliders keep the static values written in index.html.
+    this._syncFaceMaskUI(mask.exportState());
+  }
+
+  /**
+   * Push face mask state into the DOM controls. Used after reset and when
+   * restoring from snapshots / loaded cases.
+   */
+  _syncFaceMaskUI(state) {
+    if (!state) return;
+    const visibleToggle = document.getElementById('faceMaskVisibleToggle');
+    const maskColorPicker = document.getElementById('faceMaskColorPicker');
+    const strapColorPicker = document.getElementById('faceMaskStrapColorPicker');
+
+    if (visibleToggle) visibleToggle.checked = !!state.enabled;
+    if (maskColorPicker && state.maskColor) maskColorPicker.value = state.maskColor;
+    if (strapColorPicker && state.strapColor) strapColorPicker.value = state.strapColor;
+
+    const setSlider = (id, value) => {
+      const el = document.getElementById(id);
+      if (!el || value === undefined) return;
+      el.value = value;
+      const vd = el.closest('.slider-control')?.querySelector('.slider-value');
+      if (vd) vd.textContent = String(value);
+      this.updateSliderFill(el);
+    };
+    setSlider('faceMaskOpacitySlider', state.opacity);
+    setSlider('faceMaskScaleSlider', state.scale);
+    setSlider('faceMaskWidthSlider', state.width);
+    setSlider('faceMaskCoverageSlider', state.coverage);
+    // `?? state.strapX` keeps cases saved before the per-side split in sync.
+    setSlider('faceMaskStrapScaleLSlider', state.strapScaleL ?? state.strapScale);
+    setSlider('faceMaskStrapAngleLSlider', state.strapAngleL ?? state.strapAngle);
+    setSlider('faceMaskStrapSplayLSlider', state.strapSplayL ?? state.strapSplay);
+    setSlider('faceMaskStrapScaleRSlider', state.strapScaleR ?? state.strapScale);
+    setSlider('faceMaskStrapAngleRSlider', state.strapAngleR ?? state.strapAngle);
+    setSlider('faceMaskStrapSplayRSlider', state.strapSplayR ?? state.strapSplay);
+    setSlider('faceMaskPosXSlider', state.posX);
+    setSlider('faceMaskPosYSlider', state.posY);
+    setSlider('faceMaskPosZSlider', state.posZ);
+    setSlider('faceMaskRotXSlider', state.rotX);
+    setSlider('faceMaskRotYSlider', state.rotY);
+    setSlider('faceMaskRotZSlider', state.rotZ);
+
+    // Update style cards
+    const activeStyle = state.enabled ? (state.style || 'mask1') : 'none';
+    document.querySelectorAll('#faceMaskStyleGrid .hair-style-card').forEach(c => {
+      c.classList.toggle('active', c.dataset.facemaskStyle === activeStyle);
+    });
+  }
+
   // ─── Skin Mark Controls ──────────────────────────────────────────────────
 
   bindSkinMarkControls() {
@@ -3105,6 +3345,9 @@ class UIController {
     if (this.glassesSystem) {
       this.caseManager.updateAppearance('glasses', this.glassesSystem.exportState());
     }
+    if (this.faceMaskSystem) {
+      this.caseManager.updateAppearance('faceMask', this.faceMaskSystem.exportState());
+    }
     this.caseManager.currentCase.cameraState = this.scene.getCameraState();
   }
 
@@ -3352,6 +3595,14 @@ class UIController {
       this.caseManager.updateAppearance('glasses', this.glassesSystem.exportState());
     }
 
+    // Reset face mask
+    if (this.faceMaskSystem) {
+      const maskDefaults = this.faceMaskSystem.getStyleDefaults('mask1');
+      this.faceMaskSystem.loadState(maskDefaults);
+      this._syncFaceMaskUI(maskDefaults);
+      this.caseManager.updateAppearance('faceMask', this.faceMaskSystem.exportState());
+    }
+
     // Reset skin texture
     if (this.skinTextureSystem) {
       this.skinTextureSystem.params = {
@@ -3394,6 +3645,13 @@ class UIController {
       };
       this.glassesSystem.loadState(glassesDefaults);
       this._syncGlassesUI(glassesDefaults);
+    }
+
+    // Reset face mask for the new case
+    if (this.faceMaskSystem) {
+      const maskDefaults = this.faceMaskSystem.getStyleDefaults('mask1');
+      this.faceMaskSystem.loadState(maskDefaults);
+      this._syncFaceMaskUI(maskDefaults);
     }
 
     // Reset UI
@@ -3502,6 +3760,11 @@ class UIController {
       if (data.appearance?.glasses && this.glassesSystem) {
         this.glassesSystem.loadState(data.appearance.glasses);
         this._syncGlassesUI(data.appearance.glasses);
+      }
+      // Restore face mask
+      if (data.appearance?.faceMask && this.faceMaskSystem) {
+        this.faceMaskSystem.loadState(data.appearance.faceMask);
+        this._syncFaceMaskUI(data.appearance.faceMask);
       }
       // Restore camera
       if (data.cameraState) {
@@ -3858,6 +4121,12 @@ class UIController {
     if (state.appearance?.glasses && this.glassesSystem) {
       this.glassesSystem.loadState(state.appearance.glasses);
       this._syncGlassesUI(state.appearance.glasses);
+    }
+
+    // Restore face mask state
+    if (state.appearance?.faceMask && this.faceMaskSystem) {
+      this.faceMaskSystem.loadState(state.appearance.faceMask);
+      this._syncFaceMaskUI(state.appearance.faceMask);
     }
 
     // Restore camera state

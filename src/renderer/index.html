@@ -736,7 +736,7 @@
         <button class="rf-sidebar-tab active" data-rf-tab="face" title="Face Morphs"><i class="fas fa-face-smile" aria-hidden="true"></i><span>Face</span></button>
         <button class="rf-sidebar-tab" data-rf-tab="hair" title="Hair &amp; Beard"><i class="fas fa-cut"></i><span>Hair</span></button>
         <button class="rf-sidebar-tab" data-rf-tab="appearance" title="Eyes &amp; Skin"><i class="fas fa-palette"></i><span>Look</span></button>
-        <button class="rf-sidebar-tab" data-rf-tab="accessories" title="Accessories (Glasses)"><i class="fas fa-glasses"></i><span>Accs</span></button>
+        <button class="rf-sidebar-tab" data-rf-tab="accessories" title="Accessories (Glasses, Face Mask)"><i class="fas fa-glasses"></i><span>Accs</span></button>
         <button class="rf-sidebar-tab" data-rf-tab="ai" title="AI Chat"><i class="fas fa-robot"></i><span>AI</span></button>
         <button class="rf-sidebar-tab" data-rf-tab="snapshots" title="Snapshots"><i class="fas fa-camera-retro"></i><span>Snaps</span></button>
         <button class="rf-sidebar-tab" data-rf-tab="case" title="Case Info"><i class="fas fa-folder-open"></i><span>Case</span></button>
@@ -3230,6 +3230,203 @@
             </div>
           </div>
 
+          <!-- Face Mask -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-head-side-mask"></i>
+              <span>Face Mask</span>
+              <button class="btn-reset-group" id="btnResetFaceMask" title="Reset face mask to defaults">
+                <i class="fas fa-undo-alt"></i>
+              </button>
+            </div>
+            <div class="control-group-body">
+
+              <!-- Style + Visibility Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-eye"></i>
+                  <span>Style</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="hair-style-grid" id="faceMaskStyleGrid">
+                    <div class="hair-style-card active" data-facemask-style="none">
+                      <div class="hair-icon"><i class="fas fa-ban"></i></div>
+                      <span>None</span>
+                    </div>
+                    <div class="hair-style-card" data-facemask-style="mask1">
+                      <div class="hair-icon"><i class="fas fa-head-side-mask"></i></div>
+                      <span>Cloth</span>
+                    </div>
+                    <div class="hair-style-card" data-facemask-style="mask2">
+                      <div class="hair-icon"><i class="fas fa-head-side-mask"></i></div>
+                      <span>Medical</span>
+                    </div>
+                  </div>
+                  <div class="input-control" style="margin-top:10px;">
+                    <label class="checkbox-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                      <input type="checkbox" id="faceMaskVisibleToggle" />
+                      <span>Show face mask</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Color Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-palette"></i>
+                  <span>Color</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="input-control">
+                    <label>Mask Color</label>
+                    <input type="color" id="faceMaskColorPicker" value="#1c1c1e" class="color-input" />
+                  </div>
+                  <div class="input-control">
+                    <label>Strap Color</label>
+                    <input type="color" id="faceMaskStrapColorPicker" value="#e6e6e6" class="color-input" />
+                  </div>
+                  <div class="slider-control" data-param="faceMaskOpacity">
+                    <label>Opacity</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="100" class="facemask-slider" id="faceMaskOpacitySlider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Fit Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-arrows-alt"></i>
+                  <span>Fit</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="faceMaskScale">
+                    <label>Scale</label>
+                    <div class="slider-row">
+                      <input type="range" min="50" max="200" value="100" class="facemask-slider" id="faceMaskScaleSlider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="faceMaskWidth">
+                    <label>Width (cheek wrap)</label>
+                    <div class="slider-row">
+                      <input type="range" min="50" max="150" value="100" class="facemask-slider" id="faceMaskWidthSlider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="faceMaskCoverage">
+                    <label>Coverage (nose height)</label>
+                    <div class="slider-row">
+                      <input type="range" min="50" max="150" value="100" class="facemask-slider" id="faceMaskCoverageSlider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="faceMaskPosX">
+                    <label>Horizontal (PosX)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-100" max="100" value="0" class="facemask-slider" id="faceMaskPosXSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="faceMaskPosY">
+                    <label>Vertical (PosY)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-100" max="100" value="0" class="facemask-slider" id="faceMaskPosYSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="faceMaskPosZ">
+                    <label>Depth (PosZ)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-100" max="100" value="0" class="facemask-slider" id="faceMaskPosZSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="faceMaskRotX">
+                    <label>Pitch (RotX — nod up/down)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-180" max="180" value="0" class="facemask-slider" id="faceMaskRotXSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="faceMaskRotY">
+                    <label>Yaw (RotY — turn L/R)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-180" max="180" value="0" class="facemask-slider" id="faceMaskRotYSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="faceMaskRotZ">
+                    <label>Roll (RotZ — tilt)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-180" max="180" value="0" class="facemask-slider" id="faceMaskRotZSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Ear Loops Sub-group (per side) -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-link"></i>
+                  <span>Ear Loops</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="sub-group-label">Left strap (subject's left)</div>
+                  <div class="slider-control" data-param="faceMaskStrapScaleL">
+                    <label>Left Length</label>
+                    <div class="slider-row">
+                      <input type="range" min="50" max="200" value="100" class="facemask-slider" id="faceMaskStrapScaleLSlider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="faceMaskStrapAngleL">
+                    <label>Left Angle (up/down)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-60" max="60" value="0" class="facemask-slider" id="faceMaskStrapAngleLSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="faceMaskStrapSplayL">
+                    <label>Left Splay (out/in)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-45" max="45" value="0" class="facemask-slider" id="faceMaskStrapSplayLSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+
+                  <div class="sub-group-label">Right strap (subject's right)</div>
+                  <div class="slider-control" data-param="faceMaskStrapScaleR">
+                    <label>Right Length</label>
+                    <div class="slider-row">
+                      <input type="range" min="50" max="200" value="100" class="facemask-slider" id="faceMaskStrapScaleRSlider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="faceMaskStrapAngleR">
+                    <label>Right Angle (up/down)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-60" max="60" value="0" class="facemask-slider" id="faceMaskStrapAngleRSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="faceMaskStrapSplayR">
+                    <label>Right Splay (out/in)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-45" max="45" value="0" class="facemask-slider" id="faceMaskStrapSplayRSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -3796,6 +3993,7 @@
   <script src="js/HairSystem.js"></script>
   <script src="js/EyeSystem.js"></script>
   <script src="js/GlassesSystem.js"></script>
+  <script src="js/FaceMaskSystem.js"></script>
   <script src="js/SceneManager.js"></script>
   <script src="js/FacePointEditor.js"></script>
   <script src="js/SkinMarkSystem.js"></script>
