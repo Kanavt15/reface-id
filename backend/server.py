@@ -52,6 +52,18 @@ if gemini_key:
 # Default AI provider (can be overridden per request)
 DEFAULT_AI_PROVIDER = os.getenv('AI_PROVIDER', 'anthropic')  # 'anthropic' or 'gemini'
 
+# Claude model used when the request doesn't specify one
+DEFAULT_ANTHROPIC_MODEL = os.getenv('ANTHROPIC_MODEL', 'claude-opus-5')
+
+# Models that take adaptive thinking plus output_config.effort.
+# Older models (Haiku 4.5) reject both parameters.
+ADAPTIVE_THINKING_MODELS = {
+    'claude-opus-5',
+    'claude-sonnet-5',
+    'claude-opus-4-7',
+    'claude-sonnet-4-6',
+}
+
 AI_SYSTEM_PROMPT = """You are the AI face builder for REface ID, a forensic 3D facial reconstruction tool.
 Your job is to translate natural language face descriptions into precise parameter values.
 
@@ -765,20 +777,46 @@ def ai_generate_face():
             else:
                 messages.append({"role": "user", "content": user_content})
 
-            anthropic_model = model if model else "claude-sonnet-4-6"
-            response = anthropic_client.messages.create(
-                model=anthropic_model,
-                max_tokens=1024,
-                system=[
+            anthropic_model = model if model else DEFAULT_ANTHROPIC_MODEL
+            request_kwargs = {
+                "model": anthropic_model,
+                # Room for thinking tokens plus the JSON payload on 5-series models.
+                "max_tokens": 8192 if anthropic_model in ADAPTIVE_THINKING_MODELS else 1024,
+                "system": [
                     {
                         "type": "text",
                         "text": AI_SYSTEM_PROMPT,
                         "cache_control": {"type": "ephemeral"}
                     }
                 ],
-                messages=messages,
-            )
-            ai_text = response.content[0].text.strip()
+                "messages": messages,
+            }
+
+            # Opus 5 / Sonnet 5 / Opus 4.7 use adaptive thinking with an effort hint.
+            # Low effort keeps latency and cost down for this structured task.
+            if anthropic_model in ADAPTIVE_THINKING_MODELS:
+                request_kwargs["thinking"] = {"type": "adaptive"}
+                request_kwargs["output_config"] = {"effort": "low"}
+
+            response = anthropic_client.messages.create(**request_kwargs)
+
+            if getattr(response, 'stop_reason', None) == 'refusal':
+                return jsonify({
+                    "error": "The model declined this request. Try rephrasing the description.",
+                    "provider": provider,
+                }), 400
+
+            # Thinking blocks come first, so pick the text block instead of content[0].
+            ai_text = ''
+            for block in response.content:
+                if getattr(block, 'type', None) == 'text':
+                    ai_text = block.text.strip()
+                    break
+            if not ai_text:
+                return jsonify({
+                    "error": "The model returned no text output. Try again.",
+                    "provider": provider,
+                }), 500
 
         elif provider == 'gemini':
             # Use Google Gemini
