@@ -1,139 +1,259 @@
-# REface ID — 3D Forensic Facial Reconstruction
+<div align="center">
 
-A desktop application for **3D facial reconstruction** used in forensic and law enforcement investigations. Upgrades the traditional 2D composite sketch workflow into an interactive 3D system powered by **Blender Engine** and **Three.js**.
+<a href="https://youtu.be/Kt6TKoFV9VM">
+  <img src="screenshots/01-hero-landing.png" alt="ReFace — intelligent 3D facial reconstruction for forensics" width="900" />
+</a>
+
+# ReFace
+
+### Intelligent 3D Facial Reconstruction for Forensics
+
+**Describe a face in plain words, or sculpt it by hand. Watch it take shape in 3D.**
+
+A desktop workbench for forensic facial reconstruction. Drive a human head with
+natural language, fine-tune it across 60+ anatomical controls in a full manual
+editor, and render it in Blender.
+
+<br/>
+
+[![Watch the demo](https://img.shields.io/badge/▶_Watch_the_demo-FF0000?logo=youtube&logoColor=white&style=for-the-badge)](https://youtu.be/Kt6TKoFV9VM)
+
+[![Electron](https://img.shields.io/badge/Electron-28-2B2E3A?logo=electron&logoColor=9FEAF9)](https://www.electronjs.org/)
+[![Three.js](https://img.shields.io/badge/Three.js-r160-000000?logo=three.js&logoColor=white)](https://threejs.org/)
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-API-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+[![Blender](https://img.shields.io/badge/Blender-Engine-E87D0D?logo=blender&logoColor=white)](https://www.blender.org/)
+[![License](https://img.shields.io/badge/License-ISC-4C6EF5)](#license)
+
+</div>
+
+---
+
+## What it is
+
+ReFace turns a witness statement into a 3D face. An investigator types or speaks a
+description. An AI model maps that language onto precise morph values. The
+parametric head reshapes live. Blender renders the final portrait and exports a
+mesh for downstream use.
+
+But ReFace is more than a prompt box. Under the hood sits a **complete manual
+editor** — every skull, feature, hair, skin, and accessory control is yours to
+tune by hand. The AI gives you a strong first draft in seconds. The editor lets
+you refine it until it matches the witness exactly.
+
+Built as a single Electron app: a Three.js viewport up front, a Flask + Blender
+engine behind it.
+
+> 💡 **Tip** — **[▶ Watch the 2-minute demo](https://youtu.be/Kt6TKoFV9VM)** to see
+> the full flow, from description to rendered face.
+
+---
+
+## Two ways to build. Best results from both.
+
+<table>
+<tr>
+<td width="33%" valign="top">
+
+### 🤖 AI-first
+
+Describe the face in plain language or feed reference photos. Claude or Gemini
+resolves it into 60+ validated parameters and builds the head in seconds.
+
+</td>
+<td width="33%" valign="top">
+
+### 🎚️ Manual editor
+
+A full control surface. Sculpt the skull, features, hair, skin, marks, and
+accessories by hand with live feedback in the 3D viewport.
+
+</td>
+<td width="33%" valign="top">
+
+### 🔀 The combination
+
+Let AI lay the foundation, then refine every detail by hand. In practice, the
+hybrid workflow produces the most accurate reconstructions.
+
+</td>
+</tr>
+</table>
+
+---
+
+## The workspace
+
+<div align="center">
+
+<img src="screenshots/03-editor-glasses.png" alt="Editor with tinted glasses and full beard" width="900" />
+
+<sub>The editor — live Three.js viewport, tool rail, and snapshot history</sub>
+
+</div>
+
+<br/>
+
+<div align="center">
+<table>
+<tr>
+<td width="50%"><img src="screenshots/02-editor-eyes-wrinkles.png" alt="Eyes, wrinkles and skin detail" width="100%"/></td>
+<td width="50%"><img src="screenshots/04-editor-snapshots.png" alt="Sunglasses accessory and saved snapshots" width="100%"/></td>
+</tr>
+<tr>
+<td align="center"><sub>Skin, wrinkles, and iris color dialed in</sub></td>
+<td align="center"><sub>Accessories on, snapshots saved per case</sub></td>
+</tr>
+</table>
+</div>
 
 ---
 
 ## Features
 
-- **3D Face Morphing** — 30+ parametric controls for skull structure, facial features, jaw, chin, ears, and neck
-- **Hair System** — 12 hair style presets, adjustable length/density/volume/curl, facial hair, and custom colors
-- **Appearance Controls** — Skin tones, eye colors, age ranges, accessories, and demographic metadata
-- **Case Management** — Save/load investigation cases (.rfc format) with full reconstruction state
-- **Blender Integration** — High-quality mesh operations, particle hair, and multi-format export (OBJ/FBX/GLB)
-- **Undo/Redo** — Full state history with keyboard shortcuts
-- **Screenshots** — Capture viewport for reports and documentation
-- **Dark Forensic UI** — Purpose-built interface for professional forensic use
+| | Capability | Detail |
+|---|---|---|
+| 🗣️ | **Natural-language sculpting** | Type or speak a description. Claude or Gemini translates it to parameters. |
+| 🎚️ | **60+ morph controls** | Skull, forehead, brows, eyes, nose, cheeks, mouth, jaw, chin, ears. |
+| 🖼️ | **Reference images** | Feed photos alongside the text prompt to guide the build. |
+| 💇 | **Hair & facial hair** | 12 hairstyles plus bald, beards and moustache, with length, density, curl, tint. |
+| 👁️ | **Eyes, brows, glasses** | Iris color, brow shape, multiple glasses frames with tint and opacity. |
+| 🩹 | **Skin & marks** | Tone, pigmentation, wrinkles, lip color, plus scars, moles, birthmarks, wounds. |
+| 📸 | **Snapshots** | Save any face state per case and jump back to it later. |
+| 🎨 | **Blender rendering** | High-fidelity portraits rendered headless through the Blender engine. |
+| 📦 | **Export** | OBJ, FBX, and GLB out. Case files save and reload as `.rfc`. |
 
-## Tech Stack
+---
 
-| Layer | Technology |
-|-------|-----------|
-| Desktop Shell | Electron |
-| 3D Rendering | Three.js |
-| UI | HTML/CSS/JavaScript |
-| Backend | Python + Flask |
-| 3D Engine | Blender (bpy, background mode) |
+## How it works
 
-## Setup
+```text
+  Investigator            Frontend                        Backend
+  text / voice            Electron + Three.js             Flask · server.py
+ ┌──────────────┐         ┌────────────────────┐          ┌──────────────────┐
+ │ "narrow jaw, │ ──────▶ │  Renderer          │  ─POST─▶ │  API router      │
+ │  thin nose"  │         │  live 3D viewport  │          │                  │
+ │  (describe)  │         │  + manual editor   │          └─────────┬────────┘
+ └──────────────┘         └────────────────────┘                    │
+                                                          ┌─────────┴────────┐
+                                                          ▼                  ▼
+                                                  ┌───────────────┐  ┌───────────────┐
+                                                  │ AI providers  │  │ Blender engine│
+                                                  │ Claude·Gemini │  │ render·export │
+                                                  └───────────────┘  └───────────────┘
+
+  results  (morph params · render · export)  flow back into the live viewport  ◀──
+```
+
+1. The renderer captures a description and posts it to the backend.
+2. Claude or Gemini returns a validated set of morph, hair, and skin values.
+3. Three.js applies them to the parametric head in real time.
+4. Blender bakes the final render and export on demand.
+
+---
+
+## Getting started
 
 ### Prerequisites
 
-- **Node.js** 18+ (https://nodejs.org)
-- **Python** 3.9+ (https://python.org)
-- **Blender** 3.6+ (https://blender.org) — install normally, the app auto-detects the path
+- **Node.js** 18 or newer
+- **Python** 3.10 or newer
+- **Blender** installed and on your PATH (rendering + export engine)
+- A **Conda env** named `reface` is auto-detected if present, else system `python` is used
 
-### Installation
+### Install
 
 ```bash
-# 1. Install Node dependencies
+# frontend + electron
 npm install
 
-# 2. Install Python dependencies
+# backend
 pip install -r backend/requirements.txt
-
-# 3. Run the application
-npm start
 ```
 
-### Quick Start (Development)
+### Configure
+
+Copy the example env and add your keys.
 
 ```bash
-# Start backend + Electron together
-npm run dev
+cp .env.example .env
 ```
 
-## Project Structure
+```ini
+ANTHROPIC_API_KEY=sk-ant-...
+GEMINI_API_KEY=...
+AI_PROVIDER=anthropic   # or: gemini
+```
+
+> 📝 **Note** — Only the provider you set in `AI_PROVIDER` needs a key. The app
+> runs without AI too. Every control is editable by hand in the manual editor.
+
+### Run
+
+```bash
+npm run dev          # backend + electron together
+```
+
+Or start each side on its own:
+
+```bash
+npm run start:backend    # Flask server only
+npm start                # Electron shell only
+```
+
+---
+
+## Project structure
 
 ```
-REface ID/
+reface/
 ├── src/
-│   ├── main/
-│   │   ├── main.js              # Electron main process
-│   │   └── preload.js           # Context bridge
+│   ├── main/                 Electron main process + preload bridge
 │   └── renderer/
-│       ├── index.html           # Main UI layout
-│       ├── js/
-│       │   ├── app.js           # App entry point
-│       │   ├── SceneManager.js  # Three.js scene, camera, lighting
-│       │   ├── BaseFaceGeometry.js  # Procedural head mesh
-│       │   ├── FaceMorpher.js   # Real-time facial morphing
-│       │   ├── HairSystem.js    # Procedural hair preview
-│       │   ├── UIController.js  # DOM event handling
-│       │   ├── BackendAPI.js    # Python backend communication
-│       │   ├── CaseManager.js   # Case save/load/undo
-│       │   └── vendor/          # OrbitControls, OBJLoader
-│       └── styles/
-│           ├── main.css         # Core layout & theme
-│           ├── panels.css       # Panel & control group styles
-│           └── controls.css     # Sliders, inputs, buttons
+│       ├── index.html        App shell (hero → case → editor screens)
+│       ├── js/               30 modules: morphing, hair, eyes, skin, AI, cases
+│       ├── js/vendor/        Three.js loaders + OrbitControls
+│       └── styles/           Palette, panels, editor layout
 ├── backend/
-│   ├── server.py                # Flask REST API
-│   ├── requirements.txt
-│   └── blender_scripts/
-│       ├── apply_morphs.py      # Blender morph operations
-│       ├── generate_hair.py     # Blender particle hair
-│       └── export_model.py      # Multi-format export
+│   ├── server.py             Flask API — AI, morph, render, export, cases
+│   ├── analyze_mesh.py       Mesh inspection utilities
+│   └── blender_scripts/      Headless Blender jobs (render, morph, export, hair)
 ├── assets/
-│   └── models/                  # Place base_face.obj here
-├── package.json
-└── README.md
+│   ├── models/               Base head, hair, facial-feature meshes
+│   ├── Glasses/              Glasses frame models
+│   └── Hair_Previews/        Hairstyle preview clips
+└── screenshots/              README imagery
 ```
 
-## Usage Guide
+---
 
-### Face Reconstruction Workflow
+## Tech stack
 
-1. **Start a new case** — Enter case number, investigator name, and witness description
-2. **Sculpt the face** — Use the Face tab sliders to adjust skull structure, eyes, nose, mouth, jaw, etc.
-3. **Add hair** — Select a hairstyle preset, adjust properties, choose color
-4. **Set appearance** — Pick skin tone, eye color, age range, and accessories
-5. **Export** — Save as OBJ/FBX/GLB for 3D printing or sharing, or take screenshots for reports
-6. **Save case** — Preserves full state for later editing or courtroom presentation
+| Layer | Tools |
+|---|---|
+| Shell | Electron 28, frameless custom titlebar |
+| 3D viewport | Three.js r160, OrbitControls, GLB / OBJ loaders |
+| Backend | Python, Flask, Flask-CORS |
+| AI | Anthropic Claude, Google Gemini |
+| Voice | SpeechRecognition |
+| Rendering | Blender (headless) |
+| Packaging | electron-builder |
 
-### Keyboard Shortcuts
+---
 
-| Key | Action |
-|-----|--------|
-| `Ctrl+N` | New Case |
-| `Ctrl+O` | Open Case |
-| `Ctrl+S` | Save Case |
-| `Ctrl+Z` | Undo |
-| `Ctrl+Y` | Redo |
-| `1` | Front View |
-| `3` | Side View |
-| `5` | 3/4 View |
-| `7` | Top View |
+## Ethical use
 
-### Loading a Custom Base Face
+ReFace is a tool for **authorized forensic and investigative work**. Faces it
+produces are approximations built from descriptions, not identifications. Treat
+every output as an investigative aid, subject to human review, not as proof.
 
-Place your OBJ head model as `assets/models/base_face.obj`. The app will load it automatically at startup. For best results, the model should:
-
-- Be oriented with Y-forward, Z-up
-- Have proper UV coordinates
-- Include shape keys (blend shapes) for precise morphing
-
-## Blender Integration
-
-When Blender is installed and detected, additional capabilities unlock:
-
-- **High-quality hair** via Blender's particle system
-- **Subsurface scattering** skin materials
-- **Production-quality exports** with proper materials
-- **Advanced mesh operations**
-
-The app works without Blender in preview mode using Three.js for real-time manipulation.
+---
 
 ## License
 
-ISC — For authorized forensic and law enforcement use.
+Released under the **ISC License**. See the `license` field in
+[package.json](package.json).
+
+<div align="center">
+<sub>Built by the ReFace team · powered by Blender</sub>
+</div>
