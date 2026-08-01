@@ -29,6 +29,7 @@ class UIController {
     this.bindEyelashControls();
     this.bindGlassesControls();
     this.bindFaceMaskControls();
+    this.bindEarringControls();
     this.bindSkinMarkControls();
     this.bindDecalControls();
     this.bindWrinklePainterControls();
@@ -1994,6 +1995,249 @@ class UIController {
     });
   }
 
+  // ─── Earring Controls ────────────────────────────────────────────────────
+
+  bindEarringControls() {
+    const earrings = this.earringSystem;
+    if (!earrings) return;
+
+    const visibleToggle = document.getElementById('earringVisibleToggle');
+    const colorPicker = document.getElementById('earringColorPicker');
+
+    const persistEarringState = () => {
+      this.caseManager.updateAppearance('earrings', earrings.exportState());
+    };
+
+    // Style cards: "none" disables, any other style enables that piece.
+    document.querySelectorAll('#earringStyleGrid .hair-style-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const style = card.dataset.earringStyle;
+        this.caseManager.beginAction(`Earring style: ${style}`);
+
+        document.querySelectorAll('#earringStyleGrid .hair-style-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+
+        if (style === 'none') {
+          earrings.setEnabled(false);
+        } else {
+          earrings.setStyle(style);
+          earrings.setEnabled(true);
+          // setStyle may have applied per-style default params — push them back
+          // onto the sliders so the UI reflects the new pose.
+          this._syncEarringUI(earrings.exportState());
+        }
+        if (visibleToggle) visibleToggle.checked = earrings.enabled;
+
+        persistEarringState();
+        this.caseManager.endAction();
+        this.addHistory(`Earrings: ${style}`);
+      });
+    });
+
+    // Side cards: both / left only / right only.
+    document.querySelectorAll('#earringSideGrid .hair-style-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const side = card.dataset.earringSide;
+        this.caseManager.beginAction(`Earring side: ${side}`);
+
+        document.querySelectorAll('#earringSideGrid .hair-style-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+
+        earrings.setSideMode(side);
+        persistEarringState();
+        this.caseManager.endAction();
+        this.addHistory(`Earrings worn on: ${side}`);
+      });
+    });
+
+    // Metal preset swatches — write through the picker so both stay in sync.
+    document.querySelectorAll('#earringMetalPresets .hair-style-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const hex = card.dataset.earringMetal;
+        if (!hex) return;
+        this.caseManager.beginAction('Changed earring metal');
+
+        document.querySelectorAll('#earringMetalPresets .hair-style-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+
+        earrings.setMetalColor(hex);
+        if (colorPicker) colorPicker.value = hex;
+
+        persistEarringState();
+        this.caseManager.endAction();
+        this.addHistory('Changed earring metal');
+      });
+    });
+
+    // Visibility checkbox
+    visibleToggle?.addEventListener('change', (e) => {
+      this.caseManager.beginAction('Toggle earring visibility');
+      earrings.setEnabled(!!e.target.checked);
+
+      document.querySelectorAll('#earringStyleGrid .hair-style-card').forEach(c => {
+        const cardStyle = c.dataset.earringStyle;
+        const isActive = earrings.enabled
+          ? cardStyle === earrings.currentStyle
+          : cardStyle === 'none';
+        c.classList.toggle('active', isActive);
+      });
+
+      persistEarringState();
+      this.caseManager.endAction();
+      this.addHistory(earrings.enabled ? 'Earrings on' : 'Earrings off');
+    });
+
+    // Metal color picker (live drag preview, commit on change)
+    {
+      let capturing = false;
+      colorPicker?.addEventListener('input', (e) => {
+        if (!capturing) {
+          this.caseManager.beginAction('Changed earring metal color');
+          capturing = true;
+        }
+        earrings.setMetalColor(e.target.value);
+      });
+      colorPicker?.addEventListener('change', () => {
+        // A custom colour no longer matches any preset swatch.
+        document.querySelectorAll('#earringMetalPresets .hair-style-card').forEach(c => {
+          c.classList.toggle('active', c.dataset.earringMetal === earrings.metalColor);
+        });
+        persistEarringState();
+        this.caseManager.endAction();
+        capturing = false;
+        this.addHistory('Changed earring metal color');
+      });
+    }
+
+    // Generic slider wiring for the earrings
+    const sliderMap = [
+      { id: 'earringPolishSlider', paramKey: 'polish', label: 'polish',      setter: (v) => earrings.setPolish(v) },
+      { id: 'earringSizeSlider',   paramKey: 'size',   label: 'size',        setter: (v) => earrings.setParam('size', v) },
+      { id: 'earringPosXSlider',   paramKey: 'posX',   label: 'out/in',      setter: (v) => earrings.setParam('posX', v) },
+      { id: 'earringPosYSlider',   paramKey: 'posY',   label: 'height',      setter: (v) => earrings.setParam('posY', v) },
+      { id: 'earringPosZSlider',   paramKey: 'posZ',   label: 'depth',       setter: (v) => earrings.setParam('posZ', v) },
+      { id: 'earringTiltLSlider',  paramKey: 'tiltL',  label: 'left tilt',   setter: (v) => earrings.setParam('tiltL', v) },
+      { id: 'earringSplayLSlider', paramKey: 'splayL', label: 'left splay',  setter: (v) => earrings.setParam('splayL', v) },
+      { id: 'earringDropLSlider',  paramKey: 'dropL',  label: 'left hang',   setter: (v) => earrings.setParam('dropL', v) },
+      { id: 'earringTiltRSlider',  paramKey: 'tiltR',  label: 'right tilt',  setter: (v) => earrings.setParam('tiltR', v) },
+      { id: 'earringSplayRSlider', paramKey: 'splayR', label: 'right splay', setter: (v) => earrings.setParam('splayR', v) },
+      { id: 'earringDropRSlider',  paramKey: 'dropR',  label: 'right hang',  setter: (v) => earrings.setParam('dropR', v) },
+      { id: 'earringSpinLSlider',  paramKey: 'spinL',  label: 'left spin',   setter: (v) => earrings.setParam('spinL', v) },
+      { id: 'earringSpinRSlider',  paramKey: 'spinR',  label: 'right spin',  setter: (v) => earrings.setParam('spinR', v) },
+    ];
+
+    sliderMap.forEach(({ id, paramKey, label, setter }) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const valueDisplay = el.closest('.slider-control')?.querySelector('.slider-value');
+      let isDragging = false;
+
+      const onMouseDown = () => {
+        isDragging = true;
+        this.caseManager.beginAction(`Modified earring ${paramKey}`);
+      };
+      const onInput = (e) => {
+        const value = parseFloat(e.target.value);
+        if (valueDisplay) valueDisplay.textContent = String(value);
+        setter(value);
+        this.updateSliderFill(e.target);
+      };
+      const onMouseUp = () => {
+        if (!isDragging) return;
+        persistEarringState();
+        this.caseManager.endAction();
+        // Delay reset so the 'change' event (which fires synchronously after mouseup)
+        // still sees isDragging=true and skips its redundant pushState call.
+        setTimeout(() => { isDragging = false; }, 0);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+
+      el.addEventListener('mousedown', () => {
+        onMouseDown();
+        document.addEventListener('mouseup', onMouseUp);
+      });
+      el.addEventListener('input', onInput);
+      el.addEventListener('mouseup', onMouseUp);
+
+      // For non-mouse interactions (keyboard arrows, etc.)
+      el.addEventListener('change', () => {
+        if (!isDragging) {
+          this.caseManager.pushState(`Changed earring ${label}`);
+          persistEarringState();
+          this.addHistory(`Changed earring ${label}`);
+        }
+      });
+    });
+
+    // Reset button
+    document.getElementById('btnResetEarrings')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.caseManager.pushState('Reset earrings');
+
+      const defaults = earrings.getStyleDefaults(earrings.currentStyle);
+      earrings.loadState(defaults);
+      this._syncEarringUI(defaults);
+      persistEarringState();
+      this.addHistory('Reset earrings');
+    });
+
+    // Push the seeded per-style defaults onto the controls so the panel agrees
+    // with what enabling the earrings will actually render.
+    this._syncEarringUI(earrings.exportState());
+  }
+
+  /**
+   * Push earring state into the DOM controls. Used after reset and when
+   * restoring from snapshots / loaded cases.
+   */
+  _syncEarringUI(state) {
+    if (!state) return;
+    const visibleToggle = document.getElementById('earringVisibleToggle');
+    const colorPicker = document.getElementById('earringColorPicker');
+
+    if (visibleToggle) visibleToggle.checked = !!state.enabled;
+    if (colorPicker && state.metalColor) colorPicker.value = state.metalColor;
+
+    const setSlider = (id, value) => {
+      const el = document.getElementById(id);
+      if (!el || value === undefined) return;
+      el.value = value;
+      const vd = el.closest('.slider-control')?.querySelector('.slider-value');
+      if (vd) vd.textContent = String(value);
+      this.updateSliderFill(el);
+    };
+    setSlider('earringPolishSlider', state.polish);
+    setSlider('earringSizeSlider', state.size);
+    setSlider('earringPosXSlider', state.posX);
+    setSlider('earringPosYSlider', state.posY);
+    setSlider('earringPosZSlider', state.posZ);
+    setSlider('earringTiltLSlider', state.tiltL);
+    setSlider('earringSplayLSlider', state.splayL);
+    setSlider('earringDropLSlider', state.dropL);
+    setSlider('earringTiltRSlider', state.tiltR);
+    setSlider('earringSplayRSlider', state.splayR);
+    setSlider('earringDropRSlider', state.dropR);
+    setSlider('earringSpinLSlider', state.spinL);
+    setSlider('earringSpinRSlider', state.spinR);
+
+    // Update style cards
+    const activeStyle = state.enabled ? (state.style || 'hoop') : 'none';
+    document.querySelectorAll('#earringStyleGrid .hair-style-card').forEach(c => {
+      c.classList.toggle('active', c.dataset.earringStyle === activeStyle);
+    });
+
+    // Update side cards
+    const activeSide = state.sideMode || 'both';
+    document.querySelectorAll('#earringSideGrid .hair-style-card').forEach(c => {
+      c.classList.toggle('active', c.dataset.earringSide === activeSide);
+    });
+
+    // Update metal preset swatches
+    document.querySelectorAll('#earringMetalPresets .hair-style-card').forEach(c => {
+      c.classList.toggle('active', c.dataset.earringMetal === state.metalColor);
+    });
+  }
+
   // ─── Skin Mark Controls ──────────────────────────────────────────────────
 
   bindSkinMarkControls() {
@@ -3348,6 +3592,9 @@ class UIController {
     if (this.faceMaskSystem) {
       this.caseManager.updateAppearance('faceMask', this.faceMaskSystem.exportState());
     }
+    if (this.earringSystem) {
+      this.caseManager.updateAppearance('earrings', this.earringSystem.exportState());
+    }
     this.caseManager.currentCase.cameraState = this.scene.getCameraState();
   }
 
@@ -3603,6 +3850,14 @@ class UIController {
       this.caseManager.updateAppearance('faceMask', this.faceMaskSystem.exportState());
     }
 
+    // Reset earrings
+    if (this.earringSystem) {
+      const earringDefaults = this.earringSystem.getStyleDefaults('hoop');
+      this.earringSystem.loadState(earringDefaults);
+      this._syncEarringUI(earringDefaults);
+      this.caseManager.updateAppearance('earrings', this.earringSystem.exportState());
+    }
+
     // Reset skin texture
     if (this.skinTextureSystem) {
       this.skinTextureSystem.params = {
@@ -3652,6 +3907,13 @@ class UIController {
       const maskDefaults = this.faceMaskSystem.getStyleDefaults('mask1');
       this.faceMaskSystem.loadState(maskDefaults);
       this._syncFaceMaskUI(maskDefaults);
+    }
+
+    // Reset earrings for the new case
+    if (this.earringSystem) {
+      const earringDefaults = this.earringSystem.getStyleDefaults('hoop');
+      this.earringSystem.loadState(earringDefaults);
+      this._syncEarringUI(earringDefaults);
     }
 
     // Reset UI
@@ -3765,6 +4027,11 @@ class UIController {
       if (data.appearance?.faceMask && this.faceMaskSystem) {
         this.faceMaskSystem.loadState(data.appearance.faceMask);
         this._syncFaceMaskUI(data.appearance.faceMask);
+      }
+      // Restore earrings
+      if (data.appearance?.earrings && this.earringSystem) {
+        this.earringSystem.loadState(data.appearance.earrings);
+        this._syncEarringUI(data.appearance.earrings);
       }
       // Restore camera
       if (data.cameraState) {
@@ -4127,6 +4394,12 @@ class UIController {
     if (state.appearance?.faceMask && this.faceMaskSystem) {
       this.faceMaskSystem.loadState(state.appearance.faceMask);
       this._syncFaceMaskUI(state.appearance.faceMask);
+    }
+
+    // Restore earring state
+    if (state.appearance?.earrings && this.earringSystem) {
+      this.earringSystem.loadState(state.appearance.earrings);
+      this._syncEarringUI(state.appearance.earrings);
     }
 
     // Restore camera state

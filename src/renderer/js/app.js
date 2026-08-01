@@ -32,6 +32,10 @@
   // Face mask system
   const faceMaskSystem = new FaceMaskSystem(sceneManager.scene);
 
+  // Earring system — takes the SceneManager, not the bare scene: it needs the
+  // renderer to build the PMREM environment map its metal shading depends on.
+  const earringSystem = new EarringSystem(sceneManager);
+
   // Backend API + Case Manager
   const api = new BackendAPI('http://127.0.0.1:5001');
   const caseManager = new CaseManager(api);
@@ -91,9 +95,10 @@
         eyeSystem.setHeadMesh(group, regionData, objMorpher);
         glassesSystem.setHeadMesh(group, regionData, objMorpher);
         faceMaskSystem.setHeadMesh(group, regionData, objMorpher);
+        earringSystem.setHeadMesh(group, regionData, objMorpher);
       } else {
-        // No region data — hair/eye/glasses/mask system won't place properly
-        console.warn('Region data missing — hair/eye/glasses/mask placement disabled');
+        // No region data — hair/eye/glasses/mask/earring system won't place properly
+        console.warn('Region data missing — hair/eye/glasses/mask/earring placement disabled');
       }
 
       activeMorpher = objMorpher;
@@ -104,7 +109,7 @@
         `Vertices: ${vertexCount.toLocaleString()}`;
       console.log(`OBJ loaded: ${vertexCount} vertices, region data: ${!!regionData}`);
 
-      // ── Auto-refresh hair, eyes, glasses, mask when morphs change (debounced) ──
+      // ── Auto-refresh hair, eyes, glasses, mask, earrings when morphs change (debounced) ──
       let _morphTimer = null;
       objMorpher.onMorphApplied = () => {
         if (_morphTimer) clearTimeout(_morphTimer);
@@ -113,6 +118,7 @@
           eyeSystem.refreshFromMesh();
           glassesSystem.refreshFromMesh(objMorpher.morphValues);
           faceMaskSystem.refreshFromMesh(objMorpher.morphValues);
+          earringSystem.refreshFromMesh(objMorpher.morphValues);
         }, 120);
       };
 
@@ -208,6 +214,7 @@
     ui.eyeSystem = eyeSystem;               // expose eye system for UI control
     ui.glassesSystem = glassesSystem;        // expose glasses system for UI control
     ui.faceMaskSystem = faceMaskSystem;      // expose face mask system for UI control
+    ui.earringSystem = earringSystem;        // expose earring system for UI control
     ui.skinTextureSystem = skinTextureSystem; // expose for skin texture UI
     ui.wrinklePainter = wrinklePainter;       // expose for wrinkle painting UI
     ui.lipPainter = lipPainter;               // expose for lip painting UI
@@ -234,6 +241,9 @@
     if (faceMaskSystem) {
       caseManager.updateAppearance('faceMask', faceMaskSystem.exportState());
     }
+    if (earringSystem) {
+      caseManager.updateAppearance('earrings', earringSystem.exportState());
+    }
     console.log('[App] Initial state synced to case manager');
 
     // ── Initialize Snapshot Manager ──
@@ -250,6 +260,7 @@
     aiController.eyes = eyeSystem;  // set eye system reference
     aiController.glasses = glassesSystem;  // set glasses system reference
     aiController.faceMask = faceMaskSystem;  // set face mask system reference
+    aiController.earrings = earringSystem;  // set earring system reference
     aiController.scene = sceneManager;  // set scene reference for lip color
     aiController.skinMarkSystem = skinMarkSystem;  // set skin mark system reference
     aiController.markPositionMapper = new MarkPositionMapper(activeMorpher);  // set mark position mapper
@@ -276,7 +287,7 @@
 
     // ── Initialize Head Tracker ──
     console.log('[App] Initializing Head Tracker...');
-    const headTracker = new HeadTracker(sceneManager, hairSystem, eyeSystem, decalSystem, glassesSystem, faceMaskSystem);
+    const headTracker = new HeadTracker(sceneManager, hairSystem, eyeSystem, decalSystem, glassesSystem, faceMaskSystem, earringSystem);
     headTracker.init().then(() => {
       console.log('[App] Head Tracker initialized');
     }).catch(err => {

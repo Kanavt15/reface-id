@@ -736,7 +736,7 @@
         <button class="rf-sidebar-tab active" data-rf-tab="face" title="Face Morphs"><i class="fas fa-face-smile" aria-hidden="true"></i><span>Face</span></button>
         <button class="rf-sidebar-tab" data-rf-tab="hair" title="Hair &amp; Beard"><i class="fas fa-cut"></i><span>Hair</span></button>
         <button class="rf-sidebar-tab" data-rf-tab="appearance" title="Eyes &amp; Skin"><i class="fas fa-palette"></i><span>Look</span></button>
-        <button class="rf-sidebar-tab" data-rf-tab="accessories" title="Accessories (Glasses, Face Mask)"><i class="fas fa-glasses"></i><span>Accs</span></button>
+        <button class="rf-sidebar-tab" data-rf-tab="accessories" title="Accessories (Glasses, Face Mask, Earrings)"><i class="fas fa-glasses"></i><span>Accs</span></button>
         <button class="rf-sidebar-tab" data-rf-tab="ai" title="AI Chat"><i class="fas fa-robot"></i><span>AI</span></button>
         <button class="rf-sidebar-tab" data-rf-tab="snapshots" title="Snapshots"><i class="fas fa-camera-retro"></i><span>Snaps</span></button>
         <button class="rf-sidebar-tab" data-rf-tab="case" title="Case Info"><i class="fas fa-folder-open"></i><span>Case</span></button>
@@ -3427,6 +3427,225 @@
             </div>
           </div>
 
+          <!-- Earrings -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-gem"></i>
+              <span>Earrings</span>
+              <button class="btn-reset-group" id="btnResetEarrings" title="Reset earrings to defaults">
+                <i class="fas fa-undo-alt"></i>
+              </button>
+            </div>
+            <div class="control-group-body">
+
+              <!-- Style + Visibility Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-eye"></i>
+                  <span>Style</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="hair-style-grid" id="earringStyleGrid">
+                    <div class="hair-style-card active" data-earring-style="none">
+                      <div class="hair-icon"><i class="fas fa-ban"></i></div>
+                      <span>None</span>
+                    </div>
+                    <div class="hair-style-card" data-earring-style="hoop">
+                      <div class="hair-icon"><i class="fas fa-circle-notch"></i></div>
+                      <span>Hoop</span>
+                    </div>
+                    <div class="hair-style-card" data-earring-style="stud">
+                      <div class="hair-icon"><i class="fas fa-circle"></i></div>
+                      <span>Stud</span>
+                    </div>
+                    <div class="hair-style-card" data-earring-style="drop">
+                      <div class="hair-icon"><i class="fas fa-gem"></i></div>
+                      <span>Drop</span>
+                    </div>
+                  </div>
+                  <div class="input-control" style="margin-top:10px;">
+                    <label class="checkbox-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                      <input type="checkbox" id="earringVisibleToggle" />
+                      <span>Show earrings</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Worn On Sub-group — single-side piercings are common -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-arrows-left-right"></i>
+                  <span>Worn On</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="hair-style-grid" id="earringSideGrid">
+                    <div class="hair-style-card active" data-earring-side="both">
+                      <div class="hair-icon"><i class="fas fa-arrows-left-right"></i></div>
+                      <span>Both</span>
+                    </div>
+                    <div class="hair-style-card" data-earring-side="left">
+                      <div class="hair-icon"><i class="fas fa-arrow-left"></i></div>
+                      <span>Left</span>
+                    </div>
+                    <div class="hair-style-card" data-earring-side="right">
+                      <div class="hair-icon"><i class="fas fa-arrow-right"></i></div>
+                      <span>Right</span>
+                    </div>
+                  </div>
+                  <div class="sub-group-label">Left / right are the subject's own sides</div>
+                </div>
+              </div>
+
+              <!-- Metal Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-palette"></i>
+                  <span>Metal</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="input-control">
+                    <label>Metal Color</label>
+                    <input type="color" id="earringColorPicker" value="#d4af37" class="color-input" />
+                  </div>
+                  <div class="hair-style-grid" id="earringMetalPresets">
+                    <div class="hair-style-card" data-earring-metal="#d4af37">
+                      <div class="hair-icon"><i class="fas fa-circle" style="color:#d4af37"></i></div>
+                      <span>Gold</span>
+                    </div>
+                    <div class="hair-style-card" data-earring-metal="#c8cdd2">
+                      <div class="hair-icon"><i class="fas fa-circle" style="color:#c8cdd2"></i></div>
+                      <span>Silver</span>
+                    </div>
+                    <div class="hair-style-card" data-earring-metal="#b76e79">
+                      <div class="hair-icon"><i class="fas fa-circle" style="color:#b76e79"></i></div>
+                      <span>Rose</span>
+                    </div>
+                    <div class="hair-style-card" data-earring-metal="#3a3d42">
+                      <div class="hair-icon"><i class="fas fa-circle" style="color:#3a3d42"></i></div>
+                      <span>Black</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="earringPolish">
+                    <label>Polish (matte to mirror)</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="82" class="earring-slider" id="earringPolishSlider" />
+                      <span class="slider-value">82</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Fit Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-arrows-up-down-left-right"></i>
+                  <span>Fit</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="earringSize">
+                    <label>Size</label>
+                    <div class="slider-row">
+                      <input type="range" min="40" max="200" value="100" class="earring-slider" id="earringSizeSlider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="earringPosX">
+                    <label>Out / In</label>
+                    <div class="slider-row">
+                      <input type="range" min="-100" max="100" value="0" class="earring-slider" id="earringPosXSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="earringPosY">
+                    <label>Up / Down</label>
+                    <div class="slider-row">
+                      <input type="range" min="-100" max="100" value="0" class="earring-slider" id="earringPosYSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="earringPosZ">
+                    <label>Forward / Back</label>
+                    <div class="slider-row">
+                      <input type="range" min="-100" max="100" value="0" class="earring-slider" id="earringPosZSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Per-side Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-sliders"></i>
+                  <span>Per Side</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="sub-group-label">Left ear (subject's left)</div>
+                  <div class="slider-control" data-param="earringTiltL">
+                    <label>Left Tilt (fore/aft)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-45" max="45" value="0" class="earring-slider" id="earringTiltLSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="earringSplayL">
+                    <label>Left Splay (out/in)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-45" max="45" value="0" class="earring-slider" id="earringSplayLSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="earringDropL">
+                    <label>Left Hang</label>
+                    <div class="slider-row">
+                      <input type="range" min="-50" max="50" value="0" class="earring-slider" id="earringDropLSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="earringSpinL">
+                    <label>Left Spin (opening)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-180" max="180" value="0" class="earring-slider" id="earringSpinLSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+
+                  <div class="sub-group-label">Right ear (subject's right)</div>
+                  <div class="slider-control" data-param="earringTiltR">
+                    <label>Right Tilt (fore/aft)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-45" max="45" value="0" class="earring-slider" id="earringTiltRSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="earringSplayR">
+                    <label>Right Splay (out/in)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-45" max="45" value="0" class="earring-slider" id="earringSplayRSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="earringDropR">
+                    <label>Right Hang</label>
+                    <div class="slider-row">
+                      <input type="range" min="-50" max="50" value="0" class="earring-slider" id="earringDropRSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="earringSpinR">
+                    <label>Right Spin (opening)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-180" max="180" value="0" class="earring-slider" id="earringSpinRSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -3996,6 +4215,7 @@
   <script src="js/EyeSystem.js"></script>
   <script src="js/GlassesSystem.js"></script>
   <script src="js/FaceMaskSystem.js"></script>
+  <script src="js/EarringSystem.js"></script>
   <script src="js/SceneManager.js"></script>
   <script src="js/FacePointEditor.js"></script>
   <script src="js/SkinMarkSystem.js"></script>
