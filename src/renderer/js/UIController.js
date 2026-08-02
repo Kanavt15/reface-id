@@ -34,6 +34,7 @@ class UIController {
     this.bindBrowRingControls();
     this.bindReferenceControls();
     this.bindVariantPickerControls();
+    this.bindTurntableControls();
     this.bindSkinMarkControls();
     this.bindDecalControls();
     this.bindWrinklePainterControls();
@@ -2789,6 +2790,110 @@ class UIController {
 
     const toolbarBtn = document.getElementById('rf-vp-reference');
     if (toolbarBtn) toolbarBtn.classList.toggle('active', state.enabled);
+  }
+
+  // ─── Turntable Clip ──────────────────────────────────────────────────────
+
+  bindTurntableControls() {
+    const rec = this.turntableRecorder;
+    if (!rec) return;
+
+    const btn = document.getElementById('btnRecordTurntable');
+    const status = document.getElementById('turntableStatus');
+
+    const readOptions = () => ({
+      duration: +(document.getElementById('turntableDurationSlider')?.value || 6),
+      degrees: +(document.getElementById('turntableDegreesSlider')?.value || 360),
+      elevation: +(document.getElementById('turntableElevationSlider')?.value || 0),
+      fps: +(document.getElementById('turntableFpsSlider')?.value || 30),
+    });
+
+    const setStatus = (text, kind) => {
+      if (!status) return;
+      status.style.display = text ? '' : 'none';
+      status.textContent = text || '';
+      status.className = 'rf-turntable-status' + (kind ? ' ' + kind : '');
+    };
+
+    // Plain live sliders — these are export settings, not part of the
+    // reconstruction, so they stay out of undo/redo and the case history.
+    for (const id of ['turntableDurationSlider', 'turntableDegreesSlider',
+                      'turntableElevationSlider', 'turntableFpsSlider']) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      const valueDisplay = el.closest('.slider-control')?.querySelector('.slider-value');
+      el.addEventListener('input', (e) => {
+        if (valueDisplay) valueDisplay.textContent = String(e.target.value);
+        this.updateSliderFill(e.target);
+      });
+      this.updateSliderFill(el);
+    }
+
+    btn?.addEventListener('click', async () => {
+      if (rec.recording) return;
+      if (!TurntableRecorder.isSupported()) {
+        setStatus('Video capture is not available in this build', 'error');
+        return;
+      }
+
+      const opts = readOptions();
+      btn.disabled = true;
+      setStatus('Recording… 0%');
+      rec.onProgress = (t) => setStatus(`Recording… ${Math.round(t * 100)}%`);
+
+      try {
+        const { blob, seconds, fps } = await rec.record(opts);
+        rec.onProgress = null;
+        setStatus('Saving…');
+
+        const buffer = await blob.arrayBuffer();
+        const base64 = this._arrayBufferToBase64(buffer);
+        const sizeMb = (blob.size / (1024 * 1024)).toFixed(1);
+
+        if (window.electronAPI) {
+          const result = await window.electronAPI.saveDialog({
+            title: 'Save Turntable Clip',
+            defaultPath: `reface_turntable_${Date.now()}.webm`,
+            filters: [{ name: 'WebM Video', extensions: ['webm'] }],
+          });
+          if (result.canceled || !result.filePath) {
+            setStatus('');
+            this.addHistory('Turntable cancelled');
+            return;
+          }
+          await window.electronAPI.saveFile(result.filePath, base64);
+        } else {
+          const link = document.createElement('a');
+          link.download = `reface_turntable_${Date.now()}.webm`;
+          link.href = URL.createObjectURL(blob);
+          link.click();
+          URL.revokeObjectURL(link.href);
+        }
+
+        setStatus(`Saved — ${seconds}s at ${fps}fps, ${sizeMb} MB`, 'done');
+        this.addHistory('Turntable clip exported');
+      } catch (err) {
+        rec.onProgress = null;
+        console.error('[Turntable]', err);
+        setStatus(`Recording failed: ${err.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+
+  /**
+   * Chunked so a multi-megabyte clip does not blow the argument limit that
+   * String.fromCharCode(...bytes) hits on large buffers.
+   */
+  _arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    const CHUNK = 0x8000;
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+    }
+    return btoa(binary);
   }
 
   // ─── Witness Variant Picker ──────────────────────────────────────────────

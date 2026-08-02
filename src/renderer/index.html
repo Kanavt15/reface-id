@@ -4141,6 +4141,60 @@
       <div class="panel-content" id="panel-snapshots">
         <div class="panel-scroll">
 
+          <!-- Turntable Clip -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-film"></i>
+              <span>Turntable Clip</span>
+            </div>
+            <div class="control-group-body">
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-video"></i>
+                  <span>Record</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="sub-group-label">
+                    A rotating view carries structure a single frame cannot. Records
+                    straight off the viewport &mdash; overlays and UI are excluded.
+                  </div>
+                  <div class="slider-control" data-param="turntableDuration">
+                    <label>Duration (seconds)</label>
+                    <div class="slider-row">
+                      <input type="range" min="2" max="20" step="1" value="6" class="turntable-slider" id="turntableDurationSlider" />
+                      <span class="slider-value">6</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="turntableDegrees">
+                    <label>Sweep (degrees)</label>
+                    <div class="slider-row">
+                      <input type="range" min="90" max="360" step="10" value="360" class="turntable-slider" id="turntableDegreesSlider" />
+                      <span class="slider-value">360</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="turntableElevation">
+                    <label>Camera Height</label>
+                    <div class="slider-row">
+                      <input type="range" min="-30" max="30" step="1" value="0" class="turntable-slider" id="turntableElevationSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="turntableFps">
+                    <label>Frames per second</label>
+                    <div class="slider-row">
+                      <input type="range" min="15" max="60" step="15" value="30" class="turntable-slider" id="turntableFpsSlider" />
+                      <span class="slider-value">30</span>
+                    </div>
+                  </div>
+                  <button class="btn btn-primary" id="btnRecordTurntable" style="width:100%; margin-top:8px;">
+                    <i class="fas fa-circle"></i> Record Turntable
+                  </button>
+                  <div class="rf-turntable-status" id="turntableStatus" style="display:none;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Capture Snapshot -->
           <div class="control-group">
             <div class="control-group-header">
@@ -4708,6 +4762,7 @@
   <script src="js/BandanaSystem.js"></script>
   <script src="js/EyebrowPiercingSystem.js"></script>
   <script src="js/ReferenceOverlay.js"></script>
+  <script src="js/TurntableRecorder.js"></script>
   <script src="js/VariantPicker.js"></script>
   <script src="js/SceneManager.js"></script>
   <script src="js/FacePointEditor.js"></script>

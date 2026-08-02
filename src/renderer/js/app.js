@@ -232,6 +232,7 @@
     ui.bandanaSystem = bandanaSystem;        // expose bandana system for UI control
     ui.browPiercingSystem = browPiercingSystem; // expose eyebrow piercing for UI control
     ui.referenceOverlay = referenceOverlay;  // expose reference photo overlay for UI control
+    ui.turntableRecorder = new TurntableRecorder(sceneManager); // rotating-clip export
     // Witness variant picker — needs the live morpher and the renderer so it
     // can capture a thumbnail per candidate off the real head.
     ui.variantPicker = new VariantPicker(sceneManager, activeMorpher, api);
