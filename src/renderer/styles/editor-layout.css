@@ -1230,3 +1230,139 @@
   border-radius: 6px;
   margin-top: 8px;
 }
+
+/* ─── Witness Variant Picker ──────────────────────────────────────────────
+   Takes over the screen while it runs: the witness is choosing between faces,
+   and anything else on screen is a distraction from that one judgement. */
+.rf-variant-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: rgba(6,6,10,0.86);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.rf-variant-panel {
+  width: min(1100px, 96vw);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--rf-bg-panel, #14141c);
+  border: 1px solid var(--rf-border-faint, rgba(255,255,255,0.09));
+  border-radius: 14px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+  overflow: hidden;
+}
+
+.rf-variant-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--rf-border-faint, rgba(255,255,255,0.07));
+}
+
+.rf-variant-head h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary, #f0f0f4);
+}
+
+.rf-variant-head p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted, #8b8b96);
+  max-width: 70ch;
+}
+
+.rf-variant-close {
+  background: transparent;
+  border: 1px solid var(--rf-border-faint, rgba(255,255,255,0.1));
+  color: var(--text-muted, #8b8b96);
+  width: 30px; height: 30px;
+  border-radius: 7px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.rf-variant-close:hover { color: #fff; border-color: rgba(255,255,255,0.28); }
+
+.rf-variant-status {
+  padding: 10px 22px;
+  font-size: 12px;
+  color: var(--text-muted, #8b8b96);
+  border-bottom: 1px solid var(--rf-border-faint, rgba(255,255,255,0.05));
+}
+
+/* Fixed 3 columns rather than auto-fit: six candidates want to read as one
+   comparable set, and auto-fit lands on 5+1 at common widths, which makes the
+   orphan look like an afterthought instead of an equal option. */
+.rf-variant-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 18px 22px;
+  overflow-y: auto;
+}
+
+@media (max-width: 720px) {
+  .rf-variant-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.rf-variant-card {
+  position: relative;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  background: rgba(0,0,0,0.35);
+  transition: border-color .12s ease, transform .12s ease;
+}
+.rf-variant-card:hover { border-color: rgba(255,138,58,0.5); transform: translateY(-2px); }
+.rf-variant-card.selected { border-color: #ff8a3a; box-shadow: 0 0 0 3px rgba(255,138,58,0.18); }
+
+.rf-variant-card img { display: block; width: 100%; aspect-ratio: 13 / 16; object-fit: cover; }
+
+.rf-variant-card .rf-variant-label {
+  padding: 7px 9px;
+  font-size: 11px;
+  color: var(--text-secondary, #c8c8d2);
+  border-top: 1px solid var(--rf-border-faint, rgba(255,255,255,0.06));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rf-variant-card .rf-variant-badge {
+  position: absolute;
+  top: 7px; left: 7px;
+  background: rgba(255,138,58,0.9);
+  color: #10101a;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.rf-variant-foot {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--rf-border-faint, rgba(255,255,255,0.07));
+}
+.rf-variant-hint { flex: 1; font-size: 11px; color: var(--text-muted, #8b8b96); }
+
+.rf-variant-launch {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rf-border-faint, rgba(255,255,255,0.07));
+}

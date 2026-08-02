@@ -282,6 +282,52 @@ Tint hints:
   }
 }"""
 
+# Variant mode reuses every parameter definition above and replaces only the
+# task and the output shape, so the shared prefix stays identical between the
+# two prompts and keeps hitting the prompt cache.
+AI_VARIANTS_PROMPT = AI_SYSTEM_PROMPT + """
+
+# ══════════════════════════════════════════════════════════════════════
+# VARIANT MODE — THIS SECTION OVERRIDES THE OUTPUT FORMAT ABOVE
+# ══════════════════════════════════════════════════════════════════════
+
+You are now producing SEVERAL candidate faces in one response, not one face.
+
+A witness will see them side by side and pick whichever is closest to the
+person they remember. People are poor at describing individual features but
+very good at recognising a face, so the job here is to offer a genuine choice
+— not one face plus a handful of near-copies.
+
+## WHAT MAKES A GOOD SET
+- Every candidate must be a plausible reading of the SAME description. Never
+  contradict something the user stated explicitly.
+- Where the description is vague or silent, make a DIFFERENT decision in each
+  candidate. That ambiguity is exactly what the witness is there to resolve.
+- Vary the big structural things: overall head shape, face length and width,
+  jaw, brow, nose bridge and width, eye spacing and set. These drive
+  recognition far more than small surface details.
+- Two candidates differing by a few points on a few sliders are a wasted slot.
+  If you could not tell two of them apart in a lineup, change one of them.
+- Give each a short `label` of 2-4 words naming what makes it distinct, for
+  example "Narrow jaw, deep-set eyes" or "Broad face, heavy brow".
+
+## OUTPUT FORMAT (strict JSON, nothing else) — REPLACES THE FORMAT ABOVE
+{
+  "variants": [
+    { "label": "Short description", "morphTargets": { "paramName": value, ... } }
+  ]
+}
+
+Rules for this mode:
+1. Output ONLY the "variants" array. No hair, eyebrows, beard, appearance,
+   facialMarks, glasses, faceMask, earrings or bandana blocks — those are set
+   separately and would be identical across candidates anyway.
+2. Produce exactly the number of candidates requested.
+3. Each candidate carries its own complete "morphTargets" object. Include every
+   parameter you are varying; omit any that should stay at the neutral 50.
+4. Integer values 0-100 only.
+"""
+
 # Paths
 BASE_DIR = Path(__file__).parent
 ASSETS_DIR = BASE_DIR.parent / 'assets'
@@ -973,6 +1019,185 @@ def ai_generate_face():
         import traceback
         traceback.print_exc()
         return jsonify({"error": error_msg, "provider": provider}), 500
+
+
+@app.route('/api/ai/variants', methods=['POST'])
+def ai_variants():
+    """
+    Generate several distinct candidate faces in a single call.
+
+    Backs the witness variant picker. The picker only calls this twice at most
+    in a normal session — once to open, and again if the witness rejects the
+    whole set — because every round after a pick is generated locally by
+    jittering the chosen face. Producing the candidates in one response rather
+    than one call each is deliberate: asked separately the model tends to
+    converge on the same reading of the description, and seeing all of them
+    together is what lets it deliberately differentiate.
+    """
+    data = request.json or {}
+    prompt = (data.get('prompt') or '').strip()
+    count = max(2, min(8, int(data.get('count', 6))))
+    avoid = data.get('avoid') or []
+    reference_images = data.get('referenceImages') or []
+    provider = data.get('provider', DEFAULT_AI_PROVIDER).lower()
+    model = data.get('model', None)
+
+    if not prompt and not reference_images:
+        return jsonify({"error": "No description provided"}), 400
+
+    try:
+        image_payloads = _parse_reference_images(reference_images)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    if provider == 'anthropic' and not anthropic_client:
+        return jsonify({"error": "Anthropic API key not set in .env file (ANTHROPIC_API_KEY)"}), 500
+    if provider == 'gemini' and not gemini_client:
+        return jsonify({"error": "Gemini API key not set in .env file (GEMINI_API_KEY)"}), 500
+    if provider not in ('anthropic', 'gemini'):
+        return jsonify({"error": f"Invalid provider '{provider}'. Use 'anthropic' or 'gemini'"}), 400
+
+    user_content = (
+        f"Description of the person:\n{prompt or 'See the attached reference images.'}\n\n"
+        f"Produce exactly {count} candidate faces."
+    )
+    if image_payloads:
+        n = len(image_payloads)
+        user_content += f"\n\n{n} reference image{'s are' if n > 1 else ' is'} attached."
+    if avoid:
+        # Without this the model re-derives the same reading of an unchanged
+        # description and the second set looks like the first.
+        user_content += (
+            "\n\nThe witness has already looked at these candidates and said none "
+            "of them resemble the person. Produce a set that is clearly different "
+            "from all of them — change the structural choices, do not just nudge "
+            "the numbers:\n```json\n"
+            + json.dumps(avoid, indent=2)
+            + "\n```"
+        )
+
+    ai_text = ''
+    try:
+        if provider == 'anthropic':
+            if image_payloads:
+                blocks = [
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": p["mime_type"],
+                            "data": p["base64_data"],
+                        },
+                    }
+                    for p in image_payloads
+                ]
+                blocks.append({"type": "text", "text": user_content})
+                messages = [{"role": "user", "content": blocks}]
+            else:
+                messages = [{"role": "user", "content": user_content}]
+
+            anthropic_model = model if model else DEFAULT_ANTHROPIC_MODEL
+            request_kwargs = {
+                "model": anthropic_model,
+                # Several full morph sets in one response needs far more room
+                # than the single-face path.
+                "max_tokens": 16384 if anthropic_model in ADAPTIVE_THINKING_MODELS else 8192,
+                "system": [
+                    {
+                        "type": "text",
+                        "text": AI_VARIANTS_PROMPT,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ],
+                "messages": messages,
+            }
+            if anthropic_model in ADAPTIVE_THINKING_MODELS:
+                request_kwargs["thinking"] = {"type": "adaptive"}
+                request_kwargs["output_config"] = {"effort": "low"}
+
+            response = anthropic_client.messages.create(**request_kwargs)
+
+            if getattr(response, 'stop_reason', None) == 'refusal':
+                return jsonify({
+                    "error": "The model declined this request. Try rephrasing the description.",
+                    "provider": provider,
+                }), 400
+
+            for block in response.content:
+                if getattr(block, 'type', None) == 'text':
+                    ai_text = block.text.strip()
+                    break
+            if not ai_text:
+                return jsonify({"error": "The model returned no text output. Try again.", "provider": provider}), 500
+
+        else:
+            full_prompt = f"{AI_VARIANTS_PROMPT}\n\nUser: {user_content}\n\nAssistant: "
+            gemini_model = genai.GenerativeModel(model) if model else gemini_client
+            if image_payloads:
+                parts = [full_prompt]
+                parts.extend({"mime_type": p["mime_type"], "data": p["raw_bytes"]} for p in image_payloads)
+                response = gemini_model.generate_content(parts)
+            else:
+                response = gemini_model.generate_content(full_prompt)
+            ai_text = response.text.strip()
+
+        if ai_text.startswith('```'):
+            lines = ai_text.split('\n')
+            json_lines, in_block = [], False
+            for line in lines:
+                if line.startswith('```') and not in_block:
+                    in_block = True
+                    continue
+                if line.startswith('```') and in_block:
+                    break
+                if in_block:
+                    json_lines.append(line)
+            ai_text = '\n'.join(json_lines)
+
+        parsed = json.loads(ai_text)
+        variants = parsed.get('variants') if isinstance(parsed, dict) else parsed
+        if not isinstance(variants, list) or not variants:
+            return jsonify({
+                "error": "The model did not return a variants array.",
+                "rawResponse": ai_text,
+                "provider": provider,
+            }), 500
+
+        # Keep only well-formed entries so one malformed candidate cannot break
+        # the whole set.
+        clean = []
+        for v in variants:
+            if not isinstance(v, dict):
+                continue
+            morphs = v.get('morphTargets')
+            if not isinstance(morphs, dict) or not morphs:
+                continue
+            clean.append({
+                "label": str(v.get('label') or f"Variant {len(clean) + 1}")[:60],
+                "morphTargets": {
+                    k: max(0, min(100, int(round(float(val)))))
+                    for k, val in morphs.items()
+                    if isinstance(val, (int, float))
+                },
+            })
+
+        if not clean:
+            return jsonify({
+                "error": "The model returned no usable candidates.",
+                "rawResponse": ai_text,
+                "provider": provider,
+            }), 500
+
+        return jsonify({"success": True, "variants": clean, "provider": provider})
+
+    except json.JSONDecodeError as e:
+        print(f"[AI Variants - JSON] {e}")
+        return jsonify({"error": f"AI returned invalid JSON: {e}", "rawResponse": ai_text, "provider": provider}), 500
+    except Exception as e:
+        print(f"[AI Variants - {provider}] {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"{provider.capitalize()} API error: {e}", "provider": provider}), 500
 
 
 def _parse_reference_images(reference_images):

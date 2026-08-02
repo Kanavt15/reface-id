@@ -70,6 +70,15 @@ class BackendAPI {
   }
 
   /**
+   * Generate several distinct candidate faces in one call, for the variant
+   * picker. `avoid` carries morphTarget sets the witness already rejected so
+   * the next set does not repeat them.
+   */
+  async generateVariants({ prompt, count = 6, avoid = [], referenceImages = [], provider, model }) {
+    return this._post('/api/ai/variants', { prompt, count, avoid, referenceImages, provider, model });
+  }
+
+  /**
    * Save case
    */
   async saveCase(caseData) {

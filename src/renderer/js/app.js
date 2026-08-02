@@ -225,6 +225,9 @@
     ui.earringSystem = earringSystem;        // expose earring system for UI control
     ui.bandanaSystem = bandanaSystem;        // expose bandana system for UI control
     ui.referenceOverlay = referenceOverlay;  // expose reference photo overlay for UI control
+    // Witness variant picker — needs the live morpher and the renderer so it
+    // can capture a thumbnail per candidate off the real head.
+    ui.variantPicker = new VariantPicker(sceneManager, activeMorpher, api);
     ui.skinTextureSystem = skinTextureSystem; // expose for skin texture UI
     ui.wrinklePainter = wrinklePainter;       // expose for wrinkle painting UI
     ui.lipPainter = lipPainter;               // expose for lip painting UI

@@ -371,8 +371,10 @@ class AIController {
 
     // Apply facial marks if provided
     if (params.facialMarks && this.skinMarkSystem && this.markPositionMapper) {
-      this._applyFacialMarks(params.facialMarks);
-      changes.marks = true;
+      // Only report marks as changed if they actually were — under 'preserve'
+      // the AI's marks are dropped, and the chat summary should not claim
+      // otherwise.
+      changes.marks = this._applyFacialMarks(params.facialMarks);
     }
 
     // Apply accessories. Each system validates its own payload in
@@ -417,17 +419,29 @@ class AIController {
    * Apply facial marks from AI-generated data to the face.
    */
   _applyFacialMarks(aiMarks) {
-    if (!Array.isArray(aiMarks) || aiMarks.length === 0) return;
+    if (!Array.isArray(aiMarks) || aiMarks.length === 0) return false;
 
-    // Handle mark preservation mode
+    const existingCount = typeof this.skinMarkSystem.getMarkCount === 'function'
+      ? this.skinMarkSystem.getMarkCount()
+      : 0;
+
+    // Mark handling mode decides what happens to marks the operator placed by
+    // hand when the AI returns its own.
     if (this.markHandlingMode === 'replace') {
-      // Clear all existing marks
+      // AI wins: wipe the existing set first.
       this.skinMarkSystem.clearAll();
-    } else if (this.markHandlingMode === 'merge') {
-      // Keep existing marks, add new ones
-      // No action needed here
+    } else if (this.markHandlingMode === 'preserve' && existingCount > 0) {
+      // Operator wins: their marks stand and the AI's are dropped.
+      //
+      // Gated on there being something to preserve. 'preserve' is the default,
+      // so discarding unconditionally would make "Generate facial marks from
+      // image" appear broken on a fresh case — the operator ticks the box, the
+      // model returns marks, and nothing shows up. With nothing on the face
+      // there is nothing to protect, so the AI's marks land.
+      console.log(`[AIController] Preserving ${existingCount} existing mark(s); dropped ${aiMarks.length} from the AI`);
+      return false;
     }
-    // else 'preserve': don't modify existing marks if AI provides them
+    // 'merge' falls through: existing marks stay and the AI's are added on top.
 
     // Add marks from AI
     for (const markData of aiMarks) {
@@ -470,6 +484,7 @@ class AIController {
 
     // Save marks to case manager
     this.caseManager.updateSkinMarks(this.skinMarkSystem.exportState());
+    return true;
   }
 
   /**
