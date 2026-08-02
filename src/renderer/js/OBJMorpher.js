@@ -22,6 +22,7 @@ class OBJMorpher {
     this._faceMask = null;
     this._landmarkIndices = {};
     this._landmarkPositions = {};
+    this._landmarkSnapDistance = {};   // name -> distance from the authored point
 
     this.onMorphApplied = null;
     this.skinMarkSystem = null; // Reference to SkinMarkSystem for mark repositioning
@@ -218,10 +219,50 @@ class OBJMorpher {
         verts[bestIdx * 3 + 1],
         verts[bestIdx * 3 + 2],
       ];
+      this._landmarkSnapDistance[name] = Math.sqrt(bestDist);
     }
 
+    // Nearest-vertex snapping cannot tell a good target from a bad one — it
+    // returns the closest vertex to whatever coordinate it was given, however
+    // wrong. A landmark authored off the mesh therefore lands on the wrong
+    // feature in silence, which is how `chin` ended up a quarter of a unit up
+    // the jaw and `ear_*_bottom` above the lobe. Anything that snapped further
+    // than a couple of vertex spacings is suspect, both for placing
+    // accessories and for centring the morph falloff weights.
+    const suspect = Object.entries(this._landmarkSnapDistance)
+      .filter(([, d]) => d > OBJMorpher.LANDMARK_SNAP_TOLERANCE)
+      .sort((a, b) => b[1] - a[1]);
+
     console.log(`OBJMorpher: detected ${Object.keys(this._landmarkPositions).length} landmarks`);
+    if (suspect.length) {
+      console.warn(
+        `OBJMorpher: ${suspect.length} landmark(s) snapped further than ` +
+        `${OBJMorpher.LANDMARK_SNAP_TOLERANCE} from their authored position — ` +
+        `these are probably on the wrong feature:`
+      );
+      for (const [name, d] of suspect) {
+        const a = OBJMorpher.LANDMARKS[name];
+        const p = this._landmarkPositions[name];
+        console.warn(
+          `  ${name.padEnd(20)} off by ${d.toFixed(3)}   ` +
+          `authored [${a.map(v => v.toFixed(2)).join(', ')}]  ` +
+          `landed [${p.map(v => v.toFixed(2)).join(', ')}]`
+        );
+      }
+    }
   }
+
+  /**
+   * How far a landmark may snap before it is reported as misplaced.
+   *
+   * On the stock head every landmark lands within 0.082, and those largest
+   * few (eye and brow points authored a little in front of the lid surface)
+   * still snap onto the right feature — so this is deliberately set above
+   * them. It is a guard for a swapped or rescaled head mesh, where landmarks
+   * would start missing their features by a wide margin, not a nit-picker for
+   * the normal case.
+   */
+  static get LANDMARK_SNAP_TOLERANCE() { return 0.12; }
 
   _createFaceMask() {
     const N = this.totalVertices;

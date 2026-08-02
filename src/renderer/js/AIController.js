@@ -271,7 +271,11 @@ class AIController {
    * Returns an object summarizing what changed.
    */
   _applyParams(params) {
-    const changes = { morphs: 0, hair: false, eyebrows: false, beard: false, appearance: false, marks: false, glasses: false };
+    const changes = {
+      morphs: 0, hair: false, eyebrows: false, beard: false,
+      appearance: false, marks: false,
+      glasses: false, faceMask: false, earrings: false, bandana: false,
+    };
 
     // Apply morph targets (set values directly, then apply once for performance)
     if (params.morphTargets) {
@@ -371,15 +375,36 @@ class AIController {
       changes.marks = true;
     }
 
-    // Apply glasses if provided
-    if (params.glasses && this.glasses) {
-      this.glasses.applyFromAI(params.glasses);
-      this.caseManager.updateAppearance('glasses', this.glasses.exportState());
-      // Sync UI controls so the panel reflects what the AI did
-      if (this.ui && typeof this.ui._syncGlassesUI === 'function') {
-        this.ui._syncGlassesUI(this.glasses.exportState());
+    // Apply accessories. Each system validates its own payload in
+    // applyFromAI, so this only has to route the block, persist it, and
+    // refresh the panel so the controls agree with what the AI did.
+    const accessories = [
+      ['glasses',  this.glasses,  'glasses',  '_syncGlassesUI'],
+      ['faceMask', this.faceMask, 'faceMask', '_syncFaceMaskUI'],
+      ['earrings', this.earrings, 'earrings', '_syncEarringUI'],
+      ['bandana',  this.bandana,  'bandana',  '_syncBandanaUI'],
+    ];
+    for (const [key, system, caseKey, syncFn] of accessories) {
+      if (!params[key] || !system) continue;
+      system.applyFromAI(params[key]);
+      this.caseManager.updateAppearance(caseKey, system.exportState());
+      if (this.ui && typeof this.ui[syncFn] === 'function') {
+        this.ui[syncFn](system.exportState());
       }
-      changes.glasses = true;
+      changes[key] = true;
+    }
+
+    // A bandana and a face mask both cover the lower face, so wearing both
+    // renders one through the other. The panel already makes them exclusive;
+    // enforce the same here against live state rather than the payload, so it
+    // also catches the model enabling one while the other was already on.
+    if (this.bandana?.enabled && this.faceMask?.enabled) {
+      this.faceMask.setEnabled(false);
+      this.caseManager.updateAppearance('faceMask', this.faceMask.exportState());
+      if (this.ui && typeof this.ui._syncFaceMaskUI === 'function') {
+        this.ui._syncFaceMaskUI(this.faceMask.exportState());
+      }
+      changes.faceMask = true;
     }
 
     // Sync all sliders to new values
@@ -557,10 +582,13 @@ class AIController {
       appearance: { ...this.caseManager.currentCase.appearance },
     };
 
-    // Include current glasses state so the AI can apply relative changes
-    if (this.glasses) {
-      state.glasses = this.glasses.exportState();
-    }
+    // Include current accessory state so the AI can apply relative changes
+    // ("make the sunglasses darker", "take the bandana off") instead of
+    // rebuilding each block from scratch.
+    if (this.glasses) state.glasses = this.glasses.exportState();
+    if (this.faceMask) state.faceMask = this.faceMask.exportState();
+    if (this.earrings) state.earrings = this.earrings.exportState();
+    if (this.bandana) state.bandana = this.bandana.exportState();
 
     // Include skin marks if available
     if (this.skinMarkSystem) {
@@ -585,6 +613,9 @@ class AIController {
     if (changes.appearance) parts.push('appearance');
     if (changes.marks) parts.push('marks/scars');
     if (changes.glasses) parts.push('glasses');
+    if (changes.faceMask) parts.push('face mask');
+    if (changes.earrings) parts.push('earrings');
+    if (changes.bandana) parts.push('bandana');
 
     if (parts.length === 0) return 'No changes were needed.';
     return `Updated ${parts.join(', ')}. You can refine further or adjust individual sliders manually.`;

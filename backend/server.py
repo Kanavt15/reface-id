@@ -164,6 +164,73 @@ Color hints:
 - Thick plastic frames: frameColor "#1a1a1a" or "#8b4513"
 - If the user says "no glasses" or "remove glasses", set enabled: false
 
+## FACE MASK — OPTIONAL
+Include this block only when the description mentions a face mask, surgical mask, medical mask, cloth mask, or covering the mouth and nose with a mask.
+- enabled: true to show the mask, false to remove it
+- style: "mask1" (cloth mask) or "mask2" (medical / surgical mask)
+- maskColor: hex color of the mask body
+- strapColor: hex color of the ear loops
+- opacity: 0-100 (100 = solid)
+
+Example face mask:
+```json
+"faceMask": {
+  "enabled": true,
+  "style": "mask2",
+  "maskColor": "#7fb5d4",
+  "strapColor": "#e6e6e6",
+  "opacity": 100
+}
+```
+
+Hints:
+- Surgical / medical / disposable mask: style "mask2", maskColor "#7fb5d4" (blue) or "#ffffff"
+- Cloth / fabric / fashion mask: style "mask1", maskColor to match the description
+- Black mask: style "mask1", maskColor "#1c1c1e"
+
+## EARRINGS — OPTIONAL
+Include this block only when the description mentions earrings, studs, hoops, or a pierced ear.
+- enabled: true to show earrings, false to remove them
+- style: "hoop", "stud", or "drop"
+- sideMode: "both", "left", or "right" — which ear. Left and right are the subject's own sides. A single piercing is common, so use "left" or "right" when the description says one ear.
+- metalColor: hex color of the metal
+- polish: 0-100 (0 = matte/brushed, 100 = mirror)
+
+Example earrings:
+```json
+"earrings": {
+  "enabled": true,
+  "style": "hoop",
+  "sideMode": "left",
+  "metalColor": "#d4af37",
+  "polish": 82
+}
+```
+
+Metal hints:
+- Gold: "#d4af37"   Silver: "#c8cdd2"   Rose gold: "#b76e79"   Black / gunmetal: "#3a3d42"
+
+## BANDANA — OPTIONAL
+Include this block only when the description mentions a bandana, kerchief, or a cloth pulled up over the lower face outlaw-style.
+- enabled: true to show the bandana, false to remove it
+- style: "paisley" (the only style available)
+- tint: hex color multiplied over the printed cloth. The print is red by default, so use "#ffffff" to keep it red and a colour only to dye it.
+- opacity: 0-100 (100 = solid)
+
+Example bandana:
+```json
+"bandana": {
+  "enabled": true,
+  "style": "paisley",
+  "tint": "#ffffff",
+  "opacity": 100
+}
+```
+
+Tint hints:
+- Red bandana (the default print): tint "#ffffff"
+- Blue: "#5f7fc4"   Green: "#6fae72"   Black: "#5d5d5d"
+
 ## RULES
 1. ONLY output a valid JSON object. No explanations, no markdown, no comments.
 2. Only include parameters you want to change. Omit parameters that should stay at default (50) or unchanged.
@@ -173,6 +240,9 @@ Color hints:
 6. If one or more reference images are attached, infer visible facial traits from them and combine that with user text instructions.
 7. IMPORTANT: Only include "facialMarks" if the user explicitly requests mark generation (e.g., "add scars", "include visible marks from the image") OR if you're analyzing reference images and marks are prominently visible.
 8. Only include "glasses" if the description mentions glasses, spectacles, eyewear, sunglasses, or similar. If the user says "remove glasses", set enabled: false.
+9. The same applies to "faceMask", "earrings" and "bandana": include each block ONLY when the description mentions that item, and set enabled: false when the user asks to remove it. Omit the block entirely otherwise.
+10. A bandana and a face mask both cover the lower face, so never enable both at once. Pick whichever the description actually calls for.
+11. Accessories are worn items, not facial features. Never invent them — a face described without eyewear or jewellery should return none of these blocks.
 
 ## OUTPUT FORMAT (strict JSON, nothing else):
 {
@@ -189,6 +259,26 @@ Color hints:
     "frameColor": "#1a1a1a",
     "lensColor": "#88ccff",
     "lensOpacity": 20
+  },
+  "faceMask": {
+    "enabled": false,
+    "style": "mask2",
+    "maskColor": "#7fb5d4",
+    "strapColor": "#e6e6e6",
+    "opacity": 100
+  },
+  "earrings": {
+    "enabled": false,
+    "style": "hoop",
+    "sideMode": "both",
+    "metalColor": "#d4af37",
+    "polish": 82
+  },
+  "bandana": {
+    "enabled": false,
+    "style": "paisley",
+    "tint": "#ffffff",
+    "opacity": 100
   }
 }"""
 
