@@ -1136,3 +1136,97 @@
 #rf-screen-editor .feature-sub-group:has(> .sub-group-body.collapsed) .sub-group-header {
   border-bottom: 0;
 }
+
+/* ─── Reference Photo Overlay ─────────────────────────────────────────────
+   Sits above the render (canvas 0, vignette 1) and below every floating
+   control (toolbar/actions/info strip are 50+), so it covers the model and
+   nothing else.
+
+   pointer-events is none and stays none — the photo must never intercept a
+   drag meant for OrbitControls, point edit or mark placement. Alignment is
+   done with sliders instead, which keeps the viewport fully usable while a
+   reference is up. */
+#rf-ref-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+  display: none;
+}
+
+#rf-ref-image {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform-origin: center center;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Divider shown only in wipe mode, marking where photo gives way to model. */
+#rf-ref-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: linear-gradient(to bottom,
+    rgba(255,138,58,0) 0%,
+    rgba(255,138,58,0.9) 12%,
+    rgba(255,138,58,0.9) 88%,
+    rgba(255,138,58,0) 100%);
+  box-shadow: 0 0 8px rgba(255,138,58,0.6);
+  display: none;
+  pointer-events: none;
+}
+
+/* Lives in the bottom-right action row rather than the top toolbar: that
+   toolbar already overflows its viewport by ~98px at this window size, so
+   adding to it would push the Front preset further under the sidebar.
+   Lights up while a reference is on screen. */
+#rf-vp-reference.active {
+  background: rgba(255,138,58,0.18);
+  border-color: rgba(255,138,58,0.55);
+  color: #ffb37a;
+}
+
+/* Thumbnail of the loaded photo in the side panel. */
+.rf-ref-thumb-wrap {
+  position: relative;
+  margin-top: 8px;
+  border: 1px solid var(--rf-border-faint, rgba(255,255,255,0.08));
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(0,0,0,0.25);
+}
+
+.rf-ref-thumb-wrap img {
+  display: block;
+  width: 100%;
+  max-height: 150px;
+  object-fit: contain;
+}
+
+.rf-ref-thumb-name {
+  padding: 4px 8px;
+  font-size: 10px;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-muted, #8b8b96);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rf-ref-empty {
+  padding: 14px 10px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted, #8b8b96);
+  border: 1px dashed var(--rf-border-faint, rgba(255,255,255,0.12));
+  border-radius: 6px;
+  margin-top: 8px;
+}

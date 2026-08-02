@@ -4029,6 +4029,133 @@
       <div class="panel-content" id="panel-case">
         <div class="panel-scroll">
 
+          <!-- Reference Photo -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-image"></i>
+              <span>Reference Photo</span>
+              <button class="btn-reset-group" id="btnResetReference" title="Reset alignment">
+                <i class="fas fa-undo-alt"></i>
+              </button>
+            </div>
+            <div class="control-group-body">
+
+              <!-- Load Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-folder-open"></i>
+                  <span>Photo</span>
+                </div>
+                <div class="sub-group-body">
+                  <input type="file" id="referenceFileInput" accept="image/*" style="display:none;" />
+                  <div style="display:flex; gap:6px;">
+                    <button class="btn btn-secondary" id="btnLoadReference" style="flex:1;">
+                      <i class="fas fa-upload"></i> Load Photo
+                    </button>
+                    <button class="btn btn-secondary" id="btnClearReference" title="Remove the photo" disabled>
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </div>
+
+                  <div class="rf-ref-empty" id="referenceEmpty">
+                    No photo loaded. Compare a mugshot or CCTV still against the reconstruction.
+                  </div>
+                  <div class="rf-ref-thumb-wrap" id="referenceThumbWrap" style="display:none;">
+                    <img id="referenceThumb" alt="Reference preview" />
+                    <div class="rf-ref-thumb-name" id="referenceName"></div>
+                  </div>
+
+                  <div class="input-control" style="margin-top:10px;">
+                    <label class="checkbox-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                      <input type="checkbox" id="referenceVisibleToggle" />
+                      <span>Show over viewport</span>
+                    </label>
+                  </div>
+                  <div class="sub-group-label">Never blocks the viewport — you can still orbit and edit through it</div>
+                </div>
+              </div>
+
+              <!-- Compare Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-adjust"></i>
+                  <span>Compare</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="hair-style-grid" id="referenceModeGrid">
+                    <div class="hair-style-card active" data-reference-mode="blend">
+                      <div class="hair-icon"><i class="fas fa-adjust"></i></div>
+                      <span>Blend</span>
+                    </div>
+                    <div class="hair-style-card" data-reference-mode="wipe">
+                      <div class="hair-icon"><i class="fas fa-columns"></i></div>
+                      <span>Wipe</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="referenceOpacity">
+                    <label>Opacity</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="reference-slider" id="referenceOpacitySlider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="referenceWipe" id="referenceWipeControl" style="display:none;">
+                    <label>Wipe Position</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="50" class="reference-slider" id="referenceWipeSlider" />
+                      <span class="slider-value">50</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Align Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-crosshairs"></i>
+                  <span>Align</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="referenceScale">
+                    <label>Size</label>
+                    <div class="slider-row">
+                      <input type="range" min="25" max="300" value="100" class="reference-slider" id="referenceScaleSlider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="referencePosX">
+                    <label>Horizontal</label>
+                    <div class="slider-row">
+                      <input type="range" min="-100" max="100" value="0" class="reference-slider" id="referencePosXSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="referencePosY">
+                    <label>Vertical</label>
+                    <div class="slider-row">
+                      <input type="range" min="-100" max="100" value="0" class="reference-slider" id="referencePosYSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="referenceRotate">
+                    <label>Rotate</label>
+                    <div class="slider-row">
+                      <input type="range" min="-180" max="180" value="0" class="reference-slider" id="referenceRotateSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="input-control" style="margin-top:6px;">
+                    <label class="checkbox-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                      <input type="checkbox" id="referenceFlipToggle" />
+                      <span>Mirror horizontally</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
           <div class="control-group">
             <div class="control-group-header">
               <i class="fas fa-file-alt"></i>
@@ -4147,6 +4274,7 @@
       <!-- Bottom-right action buttons -->
       <div id="rf-viewport-actions">
         <div class="rf-vp-action-row">
+          <button class="rf-vp-action-btn" id="rf-vp-reference" title="Show / hide the reference photo (load one in the Case tab)"><i class="fas fa-image"></i> Ref</button>
           <button class="rf-vp-action-btn" id="rf-vp-undo" title="Undo (Ctrl+Z)"><i class="fas fa-undo"></i> Undo</button>
           <button class="rf-vp-action-btn" id="rf-vp-redo" title="Redo (Ctrl+Y)"><i class="fas fa-redo"></i> Redo</button>
           <button class="rf-vp-action-btn rf-vp-screenshot" id="rf-vp-screenshot-btn" title="Take Screenshot"><i class="fas fa-camera"></i> Screenshot</button>
@@ -4377,6 +4505,7 @@
   <script src="js/FaceMaskSystem.js"></script>
   <script src="js/EarringSystem.js"></script>
   <script src="js/BandanaSystem.js"></script>
+  <script src="js/ReferenceOverlay.js"></script>
   <script src="js/SceneManager.js"></script>
   <script src="js/FacePointEditor.js"></script>
   <script src="js/SkinMarkSystem.js"></script>

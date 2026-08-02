@@ -31,6 +31,7 @@ class UIController {
     this.bindFaceMaskControls();
     this.bindEarringControls();
     this.bindBandanaControls();
+    this.bindReferenceControls();
     this.bindSkinMarkControls();
     this.bindDecalControls();
     this.bindWrinklePainterControls();
@@ -2469,6 +2470,157 @@ class UIController {
     document.querySelectorAll('#bandanaTintPresets .hair-style-card').forEach(c => {
       c.classList.toggle('active', c.dataset.bandanaTint === state.tint);
     });
+  }
+
+  // ─── Reference Photo Overlay ─────────────────────────────────────────────
+
+  bindReferenceControls() {
+    const ref = this.referenceOverlay;
+    if (!ref) return;
+
+    const fileInput = document.getElementById('referenceFileInput');
+    const visibleToggle = document.getElementById('referenceVisibleToggle');
+    const flipToggle = document.getElementById('referenceFlipToggle');
+    const toolbarBtn = document.getElementById('rf-vp-reference');
+
+    // Load a photo. Read as a data URL so it works the same whether the app is
+    // packaged or running from source, with no temp files to clean up.
+    document.getElementById('btnLoadReference')?.addEventListener('click', () => fileInput?.click());
+    fileInput?.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        ref.setImage(reader.result, file.name);
+        this._syncReferenceUI();
+        this.addHistory(`Reference photo loaded: ${file.name}`);
+      };
+      reader.onerror = () => this.showNotification('Could not read that image', 'error');
+      reader.readAsDataURL(file);
+      // Clear so picking the same file again still fires a change event.
+      e.target.value = '';
+    });
+
+    document.getElementById('btnClearReference')?.addEventListener('click', () => {
+      ref.clear();
+      this._syncReferenceUI();
+      this.addHistory('Reference photo removed');
+    });
+
+    visibleToggle?.addEventListener('change', (e) => {
+      ref.setEnabled(!!e.target.checked);
+      this._syncReferenceUI();
+    });
+
+    // Quick show/hide from the viewport, since that is the action you repeat
+    // constantly while comparing.
+    toolbarBtn?.addEventListener('click', () => {
+      if (!ref.hasImage) {
+        this.showNotification('Load a reference photo in the Case tab first', 'info');
+        return;
+      }
+      ref.toggle();
+      this._syncReferenceUI();
+    });
+
+    document.querySelectorAll('#referenceModeGrid .hair-style-card').forEach(card => {
+      card.addEventListener('click', () => {
+        ref.setMode(card.dataset.referenceMode);
+        this._syncReferenceUI();
+      });
+    });
+
+    flipToggle?.addEventListener('change', (e) => {
+      ref.setFlipped(!!e.target.checked);
+    });
+
+    // Alignment sliders. These are plain live updates — the overlay is a
+    // viewing aid, so it deliberately stays out of undo/redo and the case
+    // history rather than filling them with alignment noise.
+    const sliders = [
+      ['referenceOpacitySlider', 'opacity'],
+      ['referenceWipeSlider', 'wipe'],
+      ['referenceScaleSlider', 'scale'],
+      ['referencePosXSlider', 'posX'],
+      ['referencePosYSlider', 'posY'],
+      ['referenceRotateSlider', 'rotate'],
+    ];
+    for (const [id, key] of sliders) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      const valueDisplay = el.closest('.slider-control')?.querySelector('.slider-value');
+      el.addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        if (valueDisplay) valueDisplay.textContent = String(value);
+        ref.setParam(key, value);
+        this.updateSliderFill(e.target);
+      });
+    }
+
+    document.getElementById('btnResetReference')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      ref.resetTransform();
+      this._syncReferenceUI();
+      this.addHistory('Reference alignment reset');
+    });
+
+    this._syncReferenceUI();
+  }
+
+  /** Push overlay state into the panel and the viewport toggle. */
+  _syncReferenceUI() {
+    const ref = this.referenceOverlay;
+    if (!ref) return;
+    const state = ref.getState();
+
+    const toggle = document.getElementById('referenceVisibleToggle');
+    if (toggle) {
+      toggle.checked = state.enabled;
+      toggle.disabled = !state.hasImage;
+    }
+    const clearBtn = document.getElementById('btnClearReference');
+    if (clearBtn) clearBtn.disabled = !state.hasImage;
+
+    const flip = document.getElementById('referenceFlipToggle');
+    if (flip) flip.checked = state.flipped;
+
+    // Thumbnail / empty placeholder
+    const thumbWrap = document.getElementById('referenceThumbWrap');
+    const empty = document.getElementById('referenceEmpty');
+    const thumb = document.getElementById('referenceThumb');
+    const nameEl = document.getElementById('referenceName');
+    if (thumbWrap && empty) {
+      thumbWrap.style.display = state.hasImage ? 'block' : 'none';
+      empty.style.display = state.hasImage ? 'none' : 'block';
+    }
+    if (thumb && state.hasImage && ref.img?.src) thumb.src = ref.img.src;
+    if (nameEl) nameEl.textContent = state.imageName || '';
+
+    // Wipe position only matters in wipe mode.
+    const wipeControl = document.getElementById('referenceWipeControl');
+    if (wipeControl) wipeControl.style.display = state.mode === 'wipe' ? '' : 'none';
+
+    document.querySelectorAll('#referenceModeGrid .hair-style-card').forEach(c => {
+      c.classList.toggle('active', c.dataset.referenceMode === state.mode);
+    });
+
+    const setSlider = (id, value) => {
+      const el = document.getElementById(id);
+      if (!el || value === undefined) return;
+      el.value = value;
+      const vd = el.closest('.slider-control')?.querySelector('.slider-value');
+      if (vd) vd.textContent = String(value);
+      this.updateSliderFill(el);
+    };
+    setSlider('referenceOpacitySlider', state.opacity);
+    setSlider('referenceWipeSlider', state.wipe);
+    setSlider('referenceScaleSlider', state.scale);
+    setSlider('referencePosXSlider', state.posX);
+    setSlider('referencePosYSlider', state.posY);
+    setSlider('referenceRotateSlider', state.rotate);
+
+    const toolbarBtn = document.getElementById('rf-vp-reference');
+    if (toolbarBtn) toolbarBtn.classList.toggle('active', state.enabled);
   }
 
   // ─── Skin Mark Controls ──────────────────────────────────────────────────

@@ -39,6 +39,9 @@
   // Bandana system
   const bandanaSystem = new BandanaSystem(sceneManager.scene);
 
+  // Reference photo overlay — a DOM layer over the viewport, not a scene object
+  const referenceOverlay = new ReferenceOverlay(document.getElementById('viewport'));
+
   // Backend API + Case Manager
   const api = new BackendAPI('http://127.0.0.1:5001');
   const caseManager = new CaseManager(api);
@@ -221,6 +224,7 @@
     ui.faceMaskSystem = faceMaskSystem;      // expose face mask system for UI control
     ui.earringSystem = earringSystem;        // expose earring system for UI control
     ui.bandanaSystem = bandanaSystem;        // expose bandana system for UI control
+    ui.referenceOverlay = referenceOverlay;  // expose reference photo overlay for UI control
     ui.skinTextureSystem = skinTextureSystem; // expose for skin texture UI
     ui.wrinklePainter = wrinklePainter;       // expose for wrinkle painting UI
     ui.lipPainter = lipPainter;               // expose for lip painting UI
