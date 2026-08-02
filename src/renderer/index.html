@@ -3646,6 +3646,167 @@
             </div>
           </div>
 
+          <!-- Eyebrow Piercing -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-circle-notch"></i>
+              <span>Eyebrow Piercing</span>
+              <button class="btn-reset-group" id="btnResetBrowRing" title="Reset eyebrow piercing to defaults">
+                <i class="fas fa-undo-alt"></i>
+              </button>
+            </div>
+            <div class="control-group-body">
+
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-eye"></i>
+                  <span>Wear</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="input-control">
+                    <label class="checkbox-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                      <input type="checkbox" id="browRingVisibleToggle" />
+                      <span>Show eyebrow ring</span>
+                    </label>
+                  </div>
+                  <div class="hair-style-grid" id="browRingSideGrid">
+                    <div class="hair-style-card active" data-browring-side="both">
+                      <div class="hair-icon"><i class="fas fa-arrows-left-right"></i></div>
+                      <span>Both</span>
+                    </div>
+                    <div class="hair-style-card" data-browring-side="left">
+                      <div class="hair-icon"><i class="fas fa-arrow-left"></i></div>
+                      <span>Left</span>
+                    </div>
+                    <div class="hair-style-card" data-browring-side="right">
+                      <div class="hair-icon"><i class="fas fa-arrow-right"></i></div>
+                      <span>Right</span>
+                    </div>
+                  </div>
+                  <div class="sub-group-label">Left / right are the subject's own brows</div>
+                </div>
+              </div>
+
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-palette"></i>
+                  <span>Metal</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="input-control">
+                    <label>Metal Color</label>
+                    <input type="color" id="browRingColorPicker" value="#c8cdd2" class="color-input" />
+                  </div>
+                  <div class="hair-style-grid" id="browRingMetalPresets">
+                    <div class="hair-style-card active" data-browring-metal="#c8cdd2">
+                      <div class="hair-icon"><i class="fas fa-circle" style="color:#c8cdd2"></i></div>
+                      <span>Steel</span>
+                    </div>
+                    <div class="hair-style-card" data-browring-metal="#d4af37">
+                      <div class="hair-icon"><i class="fas fa-circle" style="color:#d4af37"></i></div>
+                      <span>Gold</span>
+                    </div>
+                    <div class="hair-style-card" data-browring-metal="#3a3d42">
+                      <div class="hair-icon"><i class="fas fa-circle" style="color:#3a3d42"></i></div>
+                      <span>Black</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="browRingPolish">
+                    <label>Polish</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="88" class="browring-slider" id="browRingPolishSlider" />
+                      <span class="slider-value">88</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-arrows-up-down-left-right"></i>
+                  <span>Placement</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="browRingSize">
+                    <label>Size</label>
+                    <div class="slider-row">
+                      <input type="range" min="40" max="200" value="100" class="browring-slider" id="browRingSizeSlider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="browRingAlong">
+                    <label>Along Brow (inner to outer)</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="92" class="browring-slider" id="browRingAlongSlider" />
+                      <span class="slider-value">92</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="browRingPosX">
+                    <label>Out / In</label>
+                    <div class="slider-row">
+                      <input type="range" min="-100" max="100" value="2" class="browring-slider" id="browRingPosXSlider" />
+                      <span class="slider-value">2</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="browRingPosY">
+                    <label>Up / Down</label>
+                    <div class="slider-row">
+                      <input type="range" min="-100" max="100" value="35" class="browring-slider" id="browRingPosYSlider" />
+                      <span class="slider-value">35</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="browRingPosZ">
+                    <label>Forward / Back</label>
+                    <div class="slider-row">
+                      <input type="range" min="-100" max="100" value="0" class="browring-slider" id="browRingPosZSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-sliders"></i>
+                  <span>Per Side</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="sub-group-label">Left brow (subject's left)</div>
+                  <div class="slider-control" data-param="browRingYawL">
+                    <label>Left Angle (flat to side-on)</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="90" value="27" class="browring-slider" id="browRingYawLSlider" />
+                      <span class="slider-value">27</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="browRingSpinL">
+                    <label>Left Spin (opening)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-180" max="180" value="110" class="browring-slider" id="browRingSpinLSlider" />
+                      <span class="slider-value">110</span>
+                    </div>
+                  </div>
+                  <div class="sub-group-label">Right brow (subject's right)</div>
+                  <div class="slider-control" data-param="browRingYawR">
+                    <label>Right Angle (flat to side-on)</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="90" value="27" class="browring-slider" id="browRingYawRSlider" />
+                      <span class="slider-value">27</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="browRingSpinR">
+                    <label>Right Spin (opening)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-180" max="180" value="110" class="browring-slider" id="browRingSpinRSlider" />
+                      <span class="slider-value">110</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
           <!-- Bandana -->
           <div class="control-group">
             <div class="control-group-header">
@@ -4545,6 +4706,7 @@
   <script src="js/FaceMaskSystem.js"></script>
   <script src="js/EarringSystem.js"></script>
   <script src="js/BandanaSystem.js"></script>
+  <script src="js/EyebrowPiercingSystem.js"></script>
   <script src="js/ReferenceOverlay.js"></script>
   <script src="js/VariantPicker.js"></script>
   <script src="js/SceneManager.js"></script>

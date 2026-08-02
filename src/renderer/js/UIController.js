@@ -31,6 +31,7 @@ class UIController {
     this.bindFaceMaskControls();
     this.bindEarringControls();
     this.bindBandanaControls();
+    this.bindBrowRingControls();
     this.bindReferenceControls();
     this.bindVariantPickerControls();
     this.bindSkinMarkControls();
@@ -2473,6 +2474,172 @@ class UIController {
     });
   }
 
+  // ─── Eyebrow Piercing Controls ───────────────────────────────────────────
+
+  bindBrowRingControls() {
+    const brow = this.browPiercingSystem;
+    if (!brow) return;
+
+    const visibleToggle = document.getElementById('browRingVisibleToggle');
+    const colorPicker = document.getElementById('browRingColorPicker');
+
+    const persist = () => {
+      this.caseManager.updateAppearance('browPiercing', brow.exportState());
+    };
+
+    visibleToggle?.addEventListener('change', (e) => {
+      this.caseManager.beginAction('Toggle eyebrow piercing');
+      brow.setEnabled(!!e.target.checked);
+      persist();
+      this.caseManager.endAction();
+      this.addHistory(brow.enabled ? 'Eyebrow piercing on' : 'Eyebrow piercing off');
+    });
+
+    document.querySelectorAll('#browRingSideGrid .hair-style-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const side = card.dataset.browringSide;
+        this.caseManager.beginAction(`Eyebrow piercing side: ${side}`);
+        document.querySelectorAll('#browRingSideGrid .hair-style-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        brow.setSideMode(side);
+        persist();
+        this.caseManager.endAction();
+        this.addHistory(`Eyebrow piercing worn on: ${side}`);
+      });
+    });
+
+    document.querySelectorAll('#browRingMetalPresets .hair-style-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const hex = card.dataset.browringMetal;
+        if (!hex) return;
+        this.caseManager.beginAction('Changed eyebrow piercing metal');
+        document.querySelectorAll('#browRingMetalPresets .hair-style-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        brow.setMetalColor(hex);
+        if (colorPicker) colorPicker.value = hex;
+        persist();
+        this.caseManager.endAction();
+        this.addHistory('Changed eyebrow piercing metal');
+      });
+    });
+
+    {
+      let capturing = false;
+      colorPicker?.addEventListener('input', (e) => {
+        if (!capturing) {
+          this.caseManager.beginAction('Changed eyebrow piercing metal colour');
+          capturing = true;
+        }
+        brow.setMetalColor(e.target.value);
+      });
+      colorPicker?.addEventListener('change', () => {
+        document.querySelectorAll('#browRingMetalPresets .hair-style-card').forEach(c => {
+          c.classList.toggle('active', c.dataset.browringMetal === brow.metalColor);
+        });
+        persist();
+        this.caseManager.endAction();
+        capturing = false;
+        this.addHistory('Changed eyebrow piercing metal colour');
+      });
+    }
+
+    const sliderMap = [
+      { id: 'browRingPolishSlider', paramKey: 'polish',    label: 'polish',      setter: (v) => brow.setPolish(v) },
+      { id: 'browRingSizeSlider',   paramKey: 'size',      label: 'size',        setter: (v) => brow.setParam('size', v) },
+      { id: 'browRingAlongSlider',  paramKey: 'alongBrow', label: 'brow position', setter: (v) => brow.setParam('alongBrow', v) },
+      { id: 'browRingPosXSlider',   paramKey: 'posX',      label: 'out/in',      setter: (v) => brow.setParam('posX', v) },
+      { id: 'browRingPosYSlider',   paramKey: 'posY',      label: 'height',      setter: (v) => brow.setParam('posY', v) },
+      { id: 'browRingPosZSlider',   paramKey: 'posZ',      label: 'depth',       setter: (v) => brow.setParam('posZ', v) },
+      { id: 'browRingYawLSlider',   paramKey: 'yawL',      label: 'left angle',  setter: (v) => brow.setParam('yawL', v) },
+      { id: 'browRingSpinLSlider',  paramKey: 'spinL',     label: 'left spin',   setter: (v) => brow.setParam('spinL', v) },
+      { id: 'browRingYawRSlider',   paramKey: 'yawR',      label: 'right angle', setter: (v) => brow.setParam('yawR', v) },
+      { id: 'browRingSpinRSlider',  paramKey: 'spinR',     label: 'right spin',  setter: (v) => brow.setParam('spinR', v) },
+    ];
+
+    sliderMap.forEach(({ id, paramKey, label, setter }) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const valueDisplay = el.closest('.slider-control')?.querySelector('.slider-value');
+      let isDragging = false;
+
+      const onMouseUp = () => {
+        if (!isDragging) return;
+        persist();
+        this.caseManager.endAction();
+        setTimeout(() => { isDragging = false; }, 0);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+
+      el.addEventListener('mousedown', () => {
+        isDragging = true;
+        this.caseManager.beginAction(`Modified eyebrow piercing ${paramKey}`);
+        document.addEventListener('mouseup', onMouseUp);
+      });
+      el.addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        if (valueDisplay) valueDisplay.textContent = String(value);
+        setter(value);
+        this.updateSliderFill(e.target);
+      });
+      el.addEventListener('mouseup', onMouseUp);
+      el.addEventListener('change', () => {
+        if (!isDragging) {
+          this.caseManager.pushState(`Changed eyebrow piercing ${label}`);
+          persist();
+          this.addHistory(`Changed eyebrow piercing ${label}`);
+        }
+      });
+    });
+
+    document.getElementById('btnResetBrowRing')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.caseManager.pushState('Reset eyebrow piercing');
+      const defaults = brow.getDefaults();
+      brow.loadState(defaults);
+      this._syncBrowRingUI(defaults);
+      persist();
+      this.addHistory('Reset eyebrow piercing');
+    });
+
+    this._syncBrowRingUI(brow.exportState());
+  }
+
+  /** Push eyebrow piercing state into the DOM controls. */
+  _syncBrowRingUI(state) {
+    if (!state) return;
+    const toggle = document.getElementById('browRingVisibleToggle');
+    const colorPicker = document.getElementById('browRingColorPicker');
+    if (toggle) toggle.checked = !!state.enabled;
+    if (colorPicker && state.metalColor) colorPicker.value = state.metalColor;
+
+    const setSlider = (id, value) => {
+      const el = document.getElementById(id);
+      if (!el || value === undefined) return;
+      el.value = value;
+      const vd = el.closest('.slider-control')?.querySelector('.slider-value');
+      if (vd) vd.textContent = String(value);
+      this.updateSliderFill(el);
+    };
+    setSlider('browRingPolishSlider', state.polish);
+    setSlider('browRingSizeSlider', state.size);
+    setSlider('browRingAlongSlider', state.alongBrow);
+    setSlider('browRingPosXSlider', state.posX);
+    setSlider('browRingPosYSlider', state.posY);
+    setSlider('browRingPosZSlider', state.posZ);
+    setSlider('browRingYawLSlider', state.yawL);
+    setSlider('browRingSpinLSlider', state.spinL);
+    setSlider('browRingYawRSlider', state.yawR);
+    setSlider('browRingSpinRSlider', state.spinR);
+
+    const activeSide = state.sideMode || 'both';
+    document.querySelectorAll('#browRingSideGrid .hair-style-card').forEach(c => {
+      c.classList.toggle('active', c.dataset.browringSide === activeSide);
+    });
+    document.querySelectorAll('#browRingMetalPresets .hair-style-card').forEach(c => {
+      c.classList.toggle('active', c.dataset.browringMetal === state.metalColor);
+    });
+  }
+
   // ─── Reference Photo Overlay ─────────────────────────────────────────────
 
   bindReferenceControls() {
@@ -4141,6 +4308,9 @@ class UIController {
     if (this.bandanaSystem) {
       this.caseManager.updateAppearance('bandana', this.bandanaSystem.exportState());
     }
+    if (this.browPiercingSystem) {
+      this.caseManager.updateAppearance('browPiercing', this.browPiercingSystem.exportState());
+    }
     this.caseManager.currentCase.cameraState = this.scene.getCameraState();
   }
 
@@ -4412,6 +4582,14 @@ class UIController {
       this.caseManager.updateAppearance('bandana', this.bandanaSystem.exportState());
     }
 
+    // Reset eyebrow piercing
+    if (this.browPiercingSystem) {
+      const browDefaults = this.browPiercingSystem.getDefaults();
+      this.browPiercingSystem.loadState(browDefaults);
+      this._syncBrowRingUI(browDefaults);
+      this.caseManager.updateAppearance('browPiercing', this.browPiercingSystem.exportState());
+    }
+
     // Reset skin texture
     if (this.skinTextureSystem) {
       this.skinTextureSystem.params = {
@@ -4475,6 +4653,13 @@ class UIController {
       const bandanaDefaults = this.bandanaSystem.getStyleDefaults('paisley');
       this.bandanaSystem.loadState(bandanaDefaults);
       this._syncBandanaUI(bandanaDefaults);
+    }
+
+    // Reset eyebrow piercing for the new case
+    if (this.browPiercingSystem) {
+      const browDefaults = this.browPiercingSystem.getDefaults();
+      this.browPiercingSystem.loadState(browDefaults);
+      this._syncBrowRingUI(browDefaults);
     }
 
     // Reset UI
@@ -4598,6 +4783,11 @@ class UIController {
       if (data.appearance?.bandana && this.bandanaSystem) {
         this.bandanaSystem.loadState(data.appearance.bandana);
         this._syncBandanaUI(data.appearance.bandana);
+      }
+      // Restore eyebrow piercing
+      if (data.appearance?.browPiercing && this.browPiercingSystem) {
+        this.browPiercingSystem.loadState(data.appearance.browPiercing);
+        this._syncBrowRingUI(data.appearance.browPiercing);
       }
       // Restore camera
       if (data.cameraState) {
@@ -4972,6 +5162,12 @@ class UIController {
     if (state.appearance?.bandana && this.bandanaSystem) {
       this.bandanaSystem.loadState(state.appearance.bandana);
       this._syncBandanaUI(state.appearance.bandana);
+    }
+
+    // Restore eyebrow piercing state
+    if (state.appearance?.browPiercing && this.browPiercingSystem) {
+      this.browPiercingSystem.loadState(state.appearance.browPiercing);
+      this._syncBrowRingUI(state.appearance.browPiercing);
     }
 
     // Restore camera state

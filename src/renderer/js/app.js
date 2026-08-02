@@ -39,6 +39,10 @@
   // Bandana system
   const bandanaSystem = new BandanaSystem(sceneManager.scene);
 
+  // Eyebrow piercing — takes the SceneManager for the same reason as the
+  // earrings: it needs the renderer to build its metal environment map.
+  const browPiercingSystem = new EyebrowPiercingSystem(sceneManager);
+
   // Reference photo overlay — a DOM layer over the viewport, not a scene object
   const referenceOverlay = new ReferenceOverlay(document.getElementById('viewport'));
 
@@ -103,6 +107,7 @@
         faceMaskSystem.setHeadMesh(group, regionData, objMorpher);
         earringSystem.setHeadMesh(group, regionData, objMorpher);
         bandanaSystem.setHeadMesh(group, regionData, objMorpher);
+        browPiercingSystem.setHeadMesh(group, regionData, objMorpher);
       } else {
         // No region data — accessory systems won't place properly
         console.warn('Region data missing — hair/eye/glasses/mask/earring/bandana placement disabled');
@@ -127,6 +132,7 @@
           faceMaskSystem.refreshFromMesh(objMorpher.morphValues);
           earringSystem.refreshFromMesh(objMorpher.morphValues);
           bandanaSystem.refreshFromMesh(objMorpher.morphValues);
+          browPiercingSystem.refreshFromMesh(objMorpher.morphValues);
         }, 120);
       };
 
@@ -224,6 +230,7 @@
     ui.faceMaskSystem = faceMaskSystem;      // expose face mask system for UI control
     ui.earringSystem = earringSystem;        // expose earring system for UI control
     ui.bandanaSystem = bandanaSystem;        // expose bandana system for UI control
+    ui.browPiercingSystem = browPiercingSystem; // expose eyebrow piercing for UI control
     ui.referenceOverlay = referenceOverlay;  // expose reference photo overlay for UI control
     // Witness variant picker — needs the live morpher and the renderer so it
     // can capture a thumbnail per candidate off the real head.
@@ -260,6 +267,9 @@
     if (bandanaSystem) {
       caseManager.updateAppearance('bandana', bandanaSystem.exportState());
     }
+    if (browPiercingSystem) {
+      caseManager.updateAppearance('browPiercing', browPiercingSystem.exportState());
+    }
     console.log('[App] Initial state synced to case manager');
 
     // ── Initialize Snapshot Manager ──
@@ -278,6 +288,7 @@
     aiController.faceMask = faceMaskSystem;  // set face mask system reference
     aiController.earrings = earringSystem;  // set earring system reference
     aiController.bandana = bandanaSystem;  // set bandana system reference
+    aiController.browPiercing = browPiercingSystem;  // set eyebrow piercing reference
     aiController.scene = sceneManager;  // set scene reference for lip color
     aiController.skinMarkSystem = skinMarkSystem;  // set skin mark system reference
     aiController.markPositionMapper = new MarkPositionMapper(activeMorpher);  // set mark position mapper
@@ -304,7 +315,7 @@
 
     // ── Initialize Head Tracker ──
     console.log('[App] Initializing Head Tracker...');
-    const headTracker = new HeadTracker(sceneManager, hairSystem, eyeSystem, decalSystem, glassesSystem, faceMaskSystem, earringSystem, bandanaSystem);
+    const headTracker = new HeadTracker(sceneManager, hairSystem, eyeSystem, decalSystem, glassesSystem, faceMaskSystem, earringSystem, bandanaSystem, browPiercingSystem);
     headTracker.init().then(() => {
       console.log('[App] Head Tracker initialized');
     }).catch(err => {
