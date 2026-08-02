@@ -30,6 +30,7 @@ class UIController {
     this.bindGlassesControls();
     this.bindFaceMaskControls();
     this.bindEarringControls();
+    this.bindBandanaControls();
     this.bindSkinMarkControls();
     this.bindDecalControls();
     this.bindWrinklePainterControls();
@@ -1799,6 +1800,7 @@ class UIController {
         if (style === 'none') {
           mask.setEnabled(false);
         } else {
+          this._dropOtherFaceCovering('faceMask');
           mask.setStyle(style);
           mask.setEnabled(true);
           // setStyle may have applied per-style default params — push them
@@ -1816,6 +1818,7 @@ class UIController {
     // Visibility checkbox
     visibleToggle?.addEventListener('change', (e) => {
       this.caseManager.beginAction('Toggle face mask visibility');
+      if (e.target.checked) this._dropOtherFaceCovering('faceMask');
       mask.setEnabled(!!e.target.checked);
 
       document.querySelectorAll('#faceMaskStyleGrid .hair-style-card').forEach(c => {
@@ -2235,6 +2238,236 @@ class UIController {
     // Update metal preset swatches
     document.querySelectorAll('#earringMetalPresets .hair-style-card').forEach(c => {
       c.classList.toggle('active', c.dataset.earringMetal === state.metalColor);
+    });
+  }
+
+  // ─── Bandana Controls ────────────────────────────────────────────────────
+
+  /**
+   * A bandana and a face mask both cover the lower face, so wearing both at
+   * once just renders one through the other. Turning either on drops the
+   * other, and the panel is kept in step.
+   */
+  _dropOtherFaceCovering(keep) {
+    if (keep !== 'bandana' && this.bandanaSystem && this.bandanaSystem.enabled) {
+      this.bandanaSystem.setEnabled(false);
+      this._syncBandanaUI(this.bandanaSystem.exportState());
+      this.caseManager.updateAppearance('bandana', this.bandanaSystem.exportState());
+    }
+    if (keep !== 'faceMask' && this.faceMaskSystem && this.faceMaskSystem.enabled) {
+      this.faceMaskSystem.setEnabled(false);
+      this._syncFaceMaskUI(this.faceMaskSystem.exportState());
+      this.caseManager.updateAppearance('faceMask', this.faceMaskSystem.exportState());
+    }
+  }
+
+  bindBandanaControls() {
+    const bandana = this.bandanaSystem;
+    if (!bandana) return;
+
+    const visibleToggle = document.getElementById('bandanaVisibleToggle');
+    const tintPicker = document.getElementById('bandanaTintPicker');
+
+    const persistBandanaState = () => {
+      this.caseManager.updateAppearance('bandana', bandana.exportState());
+    };
+
+    // Style cards: "none" disables, any other style enables that model.
+    document.querySelectorAll('#bandanaStyleGrid .hair-style-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const style = card.dataset.bandanaStyle;
+        this.caseManager.beginAction(`Bandana style: ${style}`);
+
+        document.querySelectorAll('#bandanaStyleGrid .hair-style-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+
+        if (style === 'none') {
+          bandana.setEnabled(false);
+        } else {
+          this._dropOtherFaceCovering('bandana');
+          bandana.setStyle(style);
+          bandana.setEnabled(true);
+          this._syncBandanaUI(bandana.exportState());
+        }
+        if (visibleToggle) visibleToggle.checked = bandana.enabled;
+
+        persistBandanaState();
+        this.caseManager.endAction();
+        this.addHistory(`Bandana: ${style}`);
+      });
+    });
+
+    // Tint presets — write through the picker so both stay in sync.
+    document.querySelectorAll('#bandanaTintPresets .hair-style-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const hex = card.dataset.bandanaTint;
+        if (!hex) return;
+        this.caseManager.beginAction('Changed bandana colour');
+
+        document.querySelectorAll('#bandanaTintPresets .hair-style-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+
+        bandana.setTint(hex);
+        if (tintPicker) tintPicker.value = hex;
+
+        persistBandanaState();
+        this.caseManager.endAction();
+        this.addHistory('Changed bandana colour');
+      });
+    });
+
+    // Visibility checkbox
+    visibleToggle?.addEventListener('change', (e) => {
+      this.caseManager.beginAction('Toggle bandana visibility');
+      if (e.target.checked) this._dropOtherFaceCovering('bandana');
+      bandana.setEnabled(!!e.target.checked);
+
+      document.querySelectorAll('#bandanaStyleGrid .hair-style-card').forEach(c => {
+        const cardStyle = c.dataset.bandanaStyle;
+        const isActive = bandana.enabled
+          ? cardStyle === bandana.currentStyle
+          : cardStyle === 'none';
+        c.classList.toggle('active', isActive);
+      });
+
+      persistBandanaState();
+      this.caseManager.endAction();
+      this.addHistory(bandana.enabled ? 'Bandana on' : 'Bandana off');
+    });
+
+    // Tint picker (live drag preview, commit on change)
+    {
+      let capturing = false;
+      tintPicker?.addEventListener('input', (e) => {
+        if (!capturing) {
+          this.caseManager.beginAction('Changed bandana colour');
+          capturing = true;
+        }
+        bandana.setTint(e.target.value);
+      });
+      tintPicker?.addEventListener('change', () => {
+        document.querySelectorAll('#bandanaTintPresets .hair-style-card').forEach(c => {
+          c.classList.toggle('active', c.dataset.bandanaTint === bandana.tint);
+        });
+        persistBandanaState();
+        this.caseManager.endAction();
+        capturing = false;
+        this.addHistory('Changed bandana colour');
+      });
+    }
+
+    // Generic slider wiring for the bandana
+    const sliderMap = [
+      { id: 'bandanaOpacitySlider', paramKey: 'opacity', label: 'opacity',    setter: (v) => bandana.setOpacity(v) },
+      { id: 'bandanaScaleSlider',   paramKey: 'scale',   label: 'scale',      setter: (v) => bandana.setParam('scale', v) },
+      { id: 'bandanaWidthSlider',   paramKey: 'width',   label: 'wrap width', setter: (v) => bandana.setParam('width', v) },
+      { id: 'bandanaDepthSlider',   paramKey: 'depth',   label: 'side depth', setter: (v) => bandana.setParam('depth', v) },
+      { id: 'bandanaHemFlareSlider', paramKey: 'hemFlare', label: 'bottom flare', setter: (v) => bandana.setParam('hemFlare', v) },
+      { id: 'bandanaPosXSlider',    paramKey: 'posX',    label: 'horizontal', setter: (v) => bandana.setParam('posX', v) },
+      { id: 'bandanaPosYSlider',    paramKey: 'posY',    label: 'vertical',   setter: (v) => bandana.setParam('posY', v) },
+      { id: 'bandanaPosZSlider',    paramKey: 'posZ',    label: 'depth',      setter: (v) => bandana.setParam('posZ', v) },
+      { id: 'bandanaRotXSlider',    paramKey: 'rotX',    label: 'pitch',      setter: (v) => bandana.setParam('rotX', v) },
+      { id: 'bandanaRotYSlider',    paramKey: 'rotY',    label: 'yaw',        setter: (v) => bandana.setParam('rotY', v) },
+      { id: 'bandanaRotZSlider',    paramKey: 'rotZ',    label: 'roll',       setter: (v) => bandana.setParam('rotZ', v) },
+    ];
+
+    sliderMap.forEach(({ id, paramKey, label, setter }) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const valueDisplay = el.closest('.slider-control')?.querySelector('.slider-value');
+      let isDragging = false;
+
+      const onMouseDown = () => {
+        isDragging = true;
+        this.caseManager.beginAction(`Modified bandana ${paramKey}`);
+      };
+      const onInput = (e) => {
+        const value = parseFloat(e.target.value);
+        if (valueDisplay) valueDisplay.textContent = String(value);
+        setter(value);
+        this.updateSliderFill(e.target);
+      };
+      const onMouseUp = () => {
+        if (!isDragging) return;
+        persistBandanaState();
+        this.caseManager.endAction();
+        // Delay reset so the 'change' event (which fires synchronously after mouseup)
+        // still sees isDragging=true and skips its redundant pushState call.
+        setTimeout(() => { isDragging = false; }, 0);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+
+      el.addEventListener('mousedown', () => {
+        onMouseDown();
+        document.addEventListener('mouseup', onMouseUp);
+      });
+      el.addEventListener('input', onInput);
+      el.addEventListener('mouseup', onMouseUp);
+
+      // For non-mouse interactions (keyboard arrows, etc.)
+      el.addEventListener('change', () => {
+        if (!isDragging) {
+          this.caseManager.pushState(`Changed bandana ${label}`);
+          persistBandanaState();
+          this.addHistory(`Changed bandana ${label}`);
+        }
+      });
+    });
+
+    // Reset button
+    document.getElementById('btnResetBandana')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.caseManager.pushState('Reset bandana');
+
+      const defaults = bandana.getStyleDefaults(bandana.currentStyle);
+      bandana.loadState(defaults);
+      this._syncBandanaUI(defaults);
+      persistBandanaState();
+      this.addHistory('Reset bandana');
+    });
+
+    this._syncBandanaUI(bandana.exportState());
+  }
+
+  /**
+   * Push bandana state into the DOM controls. Used after reset and when
+   * restoring from snapshots / loaded cases.
+   */
+  _syncBandanaUI(state) {
+    if (!state) return;
+    const visibleToggle = document.getElementById('bandanaVisibleToggle');
+    const tintPicker = document.getElementById('bandanaTintPicker');
+
+    if (visibleToggle) visibleToggle.checked = !!state.enabled;
+    if (tintPicker && state.tint) tintPicker.value = state.tint;
+
+    const setSlider = (id, value) => {
+      const el = document.getElementById(id);
+      if (!el || value === undefined) return;
+      el.value = value;
+      const vd = el.closest('.slider-control')?.querySelector('.slider-value');
+      if (vd) vd.textContent = String(value);
+      this.updateSliderFill(el);
+    };
+    setSlider('bandanaOpacitySlider', state.opacity);
+    setSlider('bandanaScaleSlider', state.scale);
+    setSlider('bandanaWidthSlider', state.width);
+    setSlider('bandanaDepthSlider', state.depth);
+    setSlider('bandanaHemFlareSlider', state.hemFlare);
+    setSlider('bandanaPosXSlider', state.posX);
+    setSlider('bandanaPosYSlider', state.posY);
+    setSlider('bandanaPosZSlider', state.posZ);
+    setSlider('bandanaRotXSlider', state.rotX);
+    setSlider('bandanaRotYSlider', state.rotY);
+    setSlider('bandanaRotZSlider', state.rotZ);
+
+    const activeStyle = state.enabled ? (state.style || 'paisley') : 'none';
+    document.querySelectorAll('#bandanaStyleGrid .hair-style-card').forEach(c => {
+      c.classList.toggle('active', c.dataset.bandanaStyle === activeStyle);
+    });
+
+    document.querySelectorAll('#bandanaTintPresets .hair-style-card').forEach(c => {
+      c.classList.toggle('active', c.dataset.bandanaTint === state.tint);
     });
   }
 
@@ -3595,6 +3828,9 @@ class UIController {
     if (this.earringSystem) {
       this.caseManager.updateAppearance('earrings', this.earringSystem.exportState());
     }
+    if (this.bandanaSystem) {
+      this.caseManager.updateAppearance('bandana', this.bandanaSystem.exportState());
+    }
     this.caseManager.currentCase.cameraState = this.scene.getCameraState();
   }
 
@@ -3858,6 +4094,14 @@ class UIController {
       this.caseManager.updateAppearance('earrings', this.earringSystem.exportState());
     }
 
+    // Reset bandana
+    if (this.bandanaSystem) {
+      const bandanaDefaults = this.bandanaSystem.getStyleDefaults('paisley');
+      this.bandanaSystem.loadState(bandanaDefaults);
+      this._syncBandanaUI(bandanaDefaults);
+      this.caseManager.updateAppearance('bandana', this.bandanaSystem.exportState());
+    }
+
     // Reset skin texture
     if (this.skinTextureSystem) {
       this.skinTextureSystem.params = {
@@ -3914,6 +4158,13 @@ class UIController {
       const earringDefaults = this.earringSystem.getStyleDefaults('hoop');
       this.earringSystem.loadState(earringDefaults);
       this._syncEarringUI(earringDefaults);
+    }
+
+    // Reset bandana for the new case
+    if (this.bandanaSystem) {
+      const bandanaDefaults = this.bandanaSystem.getStyleDefaults('paisley');
+      this.bandanaSystem.loadState(bandanaDefaults);
+      this._syncBandanaUI(bandanaDefaults);
     }
 
     // Reset UI
@@ -4032,6 +4283,11 @@ class UIController {
       if (data.appearance?.earrings && this.earringSystem) {
         this.earringSystem.loadState(data.appearance.earrings);
         this._syncEarringUI(data.appearance.earrings);
+      }
+      // Restore bandana
+      if (data.appearance?.bandana && this.bandanaSystem) {
+        this.bandanaSystem.loadState(data.appearance.bandana);
+        this._syncBandanaUI(data.appearance.bandana);
       }
       // Restore camera
       if (data.cameraState) {
@@ -4400,6 +4656,12 @@ class UIController {
     if (state.appearance?.earrings && this.earringSystem) {
       this.earringSystem.loadState(state.appearance.earrings);
       this._syncEarringUI(state.appearance.earrings);
+    }
+
+    // Restore bandana state
+    if (state.appearance?.bandana && this.bandanaSystem) {
+      this.bandanaSystem.loadState(state.appearance.bandana);
+      this._syncBandanaUI(state.appearance.bandana);
     }
 
     // Restore camera state

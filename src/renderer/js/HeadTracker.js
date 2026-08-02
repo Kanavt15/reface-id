@@ -7,7 +7,7 @@
  */
 
 class HeadTracker {
-  constructor(sceneManager, hairSystem, eyeSystem, decalSystem, glassesSystem, faceMaskSystem, earringSystem) {
+  constructor(sceneManager, hairSystem, eyeSystem, decalSystem, glassesSystem, faceMaskSystem, earringSystem, bandanaSystem) {
     this.sceneManager = sceneManager;
     this.hairSystem = hairSystem;
     this.eyeSystem = eyeSystem;
@@ -15,6 +15,7 @@ class HeadTracker {
     this.glassesSystem = glassesSystem;
     this.faceMaskSystem = faceMaskSystem;
     this.earringSystem = earringSystem;
+    this.bandanaSystem = bandanaSystem;
     this.enabled = false;
     this.videoElement = null;
     this.canvasElement = null;
@@ -223,6 +224,10 @@ class HeadTracker {
 
     if (this.earringSystem && this.earringSystem.earringGroup) {
       this.reparentedObjects.push(this.earringSystem.earringGroup);
+    }
+
+    if (this.bandanaSystem && this.bandanaSystem.bandanaGroup) {
+      this.reparentedObjects.push(this.bandanaSystem.bandanaGroup);
     }
 
     // Move all objects into the pivot group (preserves their world position)

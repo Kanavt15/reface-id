@@ -3646,6 +3646,166 @@
             </div>
           </div>
 
+          <!-- Bandana -->
+          <div class="control-group">
+            <div class="control-group-header">
+              <i class="fas fa-mask"></i>
+              <span>Bandana</span>
+              <button class="btn-reset-group" id="btnResetBandana" title="Reset bandana to defaults">
+                <i class="fas fa-undo-alt"></i>
+              </button>
+            </div>
+            <div class="control-group-body">
+
+              <!-- Style + Visibility Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-eye"></i>
+                  <span>Style</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="hair-style-grid" id="bandanaStyleGrid">
+                    <div class="hair-style-card active" data-bandana-style="none">
+                      <div class="hair-icon"><i class="fas fa-ban"></i></div>
+                      <span>None</span>
+                    </div>
+                    <div class="hair-style-card" data-bandana-style="paisley">
+                      <div class="hair-icon"><i class="fas fa-mask"></i></div>
+                      <span>Paisley</span>
+                    </div>
+                  </div>
+                  <div class="input-control" style="margin-top:10px;">
+                    <label class="checkbox-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                      <input type="checkbox" id="bandanaVisibleToggle" />
+                      <span>Show bandana</span>
+                    </label>
+                  </div>
+                  <div class="sub-group-label">Turning this on hides the face mask</div>
+                </div>
+              </div>
+
+              <!-- Colour Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-palette"></i>
+                  <span>Colour</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="input-control">
+                    <label>Dye (white keeps the print)</label>
+                    <input type="color" id="bandanaTintPicker" value="#ffffff" class="color-input" />
+                  </div>
+                  <div class="hair-style-grid" id="bandanaTintPresets">
+                    <div class="hair-style-card active" data-bandana-tint="#ffffff">
+                      <div class="hair-icon"><i class="fas fa-circle" style="color:#c8302b"></i></div>
+                      <span>Red</span>
+                    </div>
+                    <div class="hair-style-card" data-bandana-tint="#5f7fc4">
+                      <div class="hair-icon"><i class="fas fa-circle" style="color:#3f5f9c"></i></div>
+                      <span>Blue</span>
+                    </div>
+                    <div class="hair-style-card" data-bandana-tint="#5d5d5d">
+                      <div class="hair-icon"><i class="fas fa-circle" style="color:#404040"></i></div>
+                      <span>Black</span>
+                    </div>
+                    <div class="hair-style-card" data-bandana-tint="#6fae72">
+                      <div class="hair-icon"><i class="fas fa-circle" style="color:#4f8e52"></i></div>
+                      <span>Green</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="bandanaOpacity">
+                    <label>Opacity</label>
+                    <div class="slider-row">
+                      <input type="range" min="0" max="100" value="100" class="bandana-slider" id="bandanaOpacitySlider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Fit Sub-group -->
+              <div class="feature-sub-group">
+                <div class="sub-group-header">
+                  <i class="fas fa-arrows-up-down-left-right"></i>
+                  <span>Fit</span>
+                </div>
+                <div class="sub-group-body">
+                  <div class="slider-control" data-param="bandanaScale">
+                    <label>Scale</label>
+                    <div class="slider-row">
+                      <input type="range" min="50" max="200" value="105" class="bandana-slider" id="bandanaScaleSlider" />
+                      <span class="slider-value">105</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="bandanaWidth">
+                    <label>Wrap Width</label>
+                    <div class="slider-row">
+                      <input type="range" min="50" max="150" value="84" class="bandana-slider" id="bandanaWidthSlider" />
+                      <span class="slider-value">84</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="bandanaDepth">
+                    <label>Side Depth (front/back)</label>
+                    <div class="slider-row">
+                      <input type="range" min="40" max="150" value="74" class="bandana-slider" id="bandanaDepthSlider" />
+                      <span class="slider-value">74</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="bandanaHemFlare">
+                    <label>Bottom Flare (pull hem out)</label>
+                    <div class="slider-row">
+                      <input type="range" min="-30" max="100" value="100" class="bandana-slider" id="bandanaHemFlareSlider" />
+                      <span class="slider-value">100</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="bandanaPosX">
+                    <label>Horizontal</label>
+                    <div class="slider-row">
+                      <input type="range" min="-100" max="100" value="0" class="bandana-slider" id="bandanaPosXSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="bandanaPosY">
+                    <label>Vertical</label>
+                    <div class="slider-row">
+                      <input type="range" min="-100" max="100" value="0" class="bandana-slider" id="bandanaPosYSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="bandanaPosZ">
+                    <label>Depth</label>
+                    <div class="slider-row">
+                      <input type="range" min="-100" max="100" value="-38" class="bandana-slider" id="bandanaPosZSlider" />
+                      <span class="slider-value">-38</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="bandanaRotX">
+                    <label>Pitch</label>
+                    <div class="slider-row">
+                      <input type="range" min="-180" max="180" value="0" class="bandana-slider" id="bandanaRotXSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="bandanaRotY">
+                    <label>Yaw</label>
+                    <div class="slider-row">
+                      <input type="range" min="-180" max="180" value="0" class="bandana-slider" id="bandanaRotYSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                  <div class="slider-control" data-param="bandanaRotZ">
+                    <label>Roll</label>
+                    <div class="slider-row">
+                      <input type="range" min="-180" max="180" value="0" class="bandana-slider" id="bandanaRotZSlider" />
+                      <span class="slider-value">0</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -4216,6 +4376,7 @@
   <script src="js/GlassesSystem.js"></script>
   <script src="js/FaceMaskSystem.js"></script>
   <script src="js/EarringSystem.js"></script>
+  <script src="js/BandanaSystem.js"></script>
   <script src="js/SceneManager.js"></script>
   <script src="js/FacePointEditor.js"></script>
   <script src="js/SkinMarkSystem.js"></script>

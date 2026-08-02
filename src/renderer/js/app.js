@@ -36,6 +36,9 @@
   // renderer to build the PMREM environment map its metal shading depends on.
   const earringSystem = new EarringSystem(sceneManager);
 
+  // Bandana system
+  const bandanaSystem = new BandanaSystem(sceneManager.scene);
+
   // Backend API + Case Manager
   const api = new BackendAPI('http://127.0.0.1:5001');
   const caseManager = new CaseManager(api);
@@ -96,9 +99,10 @@
         glassesSystem.setHeadMesh(group, regionData, objMorpher);
         faceMaskSystem.setHeadMesh(group, regionData, objMorpher);
         earringSystem.setHeadMesh(group, regionData, objMorpher);
+        bandanaSystem.setHeadMesh(group, regionData, objMorpher);
       } else {
-        // No region data — hair/eye/glasses/mask/earring system won't place properly
-        console.warn('Region data missing — hair/eye/glasses/mask/earring placement disabled');
+        // No region data — accessory systems won't place properly
+        console.warn('Region data missing — hair/eye/glasses/mask/earring/bandana placement disabled');
       }
 
       activeMorpher = objMorpher;
@@ -119,6 +123,7 @@
           glassesSystem.refreshFromMesh(objMorpher.morphValues);
           faceMaskSystem.refreshFromMesh(objMorpher.morphValues);
           earringSystem.refreshFromMesh(objMorpher.morphValues);
+          bandanaSystem.refreshFromMesh(objMorpher.morphValues);
         }, 120);
       };
 
@@ -215,6 +220,7 @@
     ui.glassesSystem = glassesSystem;        // expose glasses system for UI control
     ui.faceMaskSystem = faceMaskSystem;      // expose face mask system for UI control
     ui.earringSystem = earringSystem;        // expose earring system for UI control
+    ui.bandanaSystem = bandanaSystem;        // expose bandana system for UI control
     ui.skinTextureSystem = skinTextureSystem; // expose for skin texture UI
     ui.wrinklePainter = wrinklePainter;       // expose for wrinkle painting UI
     ui.lipPainter = lipPainter;               // expose for lip painting UI
@@ -244,6 +250,9 @@
     if (earringSystem) {
       caseManager.updateAppearance('earrings', earringSystem.exportState());
     }
+    if (bandanaSystem) {
+      caseManager.updateAppearance('bandana', bandanaSystem.exportState());
+    }
     console.log('[App] Initial state synced to case manager');
 
     // ── Initialize Snapshot Manager ──
@@ -261,6 +270,7 @@
     aiController.glasses = glassesSystem;  // set glasses system reference
     aiController.faceMask = faceMaskSystem;  // set face mask system reference
     aiController.earrings = earringSystem;  // set earring system reference
+    aiController.bandana = bandanaSystem;  // set bandana system reference
     aiController.scene = sceneManager;  // set scene reference for lip color
     aiController.skinMarkSystem = skinMarkSystem;  // set skin mark system reference
     aiController.markPositionMapper = new MarkPositionMapper(activeMorpher);  // set mark position mapper
@@ -287,7 +297,7 @@
 
     // ── Initialize Head Tracker ──
     console.log('[App] Initializing Head Tracker...');
-    const headTracker = new HeadTracker(sceneManager, hairSystem, eyeSystem, decalSystem, glassesSystem, faceMaskSystem, earringSystem);
+    const headTracker = new HeadTracker(sceneManager, hairSystem, eyeSystem, decalSystem, glassesSystem, faceMaskSystem, earringSystem, bandanaSystem);
     headTracker.init().then(() => {
       console.log('[App] Head Tracker initialized');
     }).catch(err => {
