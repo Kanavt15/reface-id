@@ -275,6 +275,7 @@ class AIController {
       morphs: 0, hair: false, eyebrows: false, beard: false,
       appearance: false, marks: false,
       glasses: false, faceMask: false, earrings: false, bandana: false,
+      browPiercing: false,
     };
 
     // Apply morph targets (set values directly, then apply once for performance)
@@ -385,6 +386,7 @@ class AIController {
       ['faceMask', this.faceMask, 'faceMask', '_syncFaceMaskUI'],
       ['earrings', this.earrings, 'earrings', '_syncEarringUI'],
       ['bandana',  this.bandana,  'bandana',  '_syncBandanaUI'],
+      ['browPiercing', this.browPiercing, 'browPiercing', '_syncBrowRingUI'],
     ];
     for (const [key, system, caseKey, syncFn] of accessories) {
       if (!params[key] || !system) continue;
@@ -631,6 +633,7 @@ class AIController {
     if (changes.faceMask) parts.push('face mask');
     if (changes.earrings) parts.push('earrings');
     if (changes.bandana) parts.push('bandana');
+    if (changes.browPiercing) parts.push('eyebrow piercing');
 
     if (parts.length === 0) return 'No changes were needed.';
     return `Updated ${parts.join(', ')}. You can refine further or adjust individual sliders manually.`;

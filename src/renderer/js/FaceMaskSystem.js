@@ -121,6 +121,7 @@ class FaceMaskSystem {
     // Caches
     this._modelCache = {};   // styleName -> THREE.Group
     this._loadId = 0;
+    this._loads = new AssetLoadTracker('faceMask');
 
     // Current scene container
     this._container = null;
@@ -308,10 +309,11 @@ class FaceMaskSystem {
     }
 
     const loader = new THREE.OBJLoader();
+    this._loads.begin();
     loader.load(
       config.file,
       (group) => {
-        if (this._loadId !== thisLoadId) return;
+        if (this._loadId !== thisLoadId) { this._loads.end(); return; }
 
         // No axis fix: these OBJs are already Y-up with +Z forward.
         const baked = new THREE.Group();
@@ -323,10 +325,19 @@ class FaceMaskSystem {
 
         this._modelCache[this.currentStyle] = baked;
         this._showCached(this.currentStyle);
+        this._loads.end();
       },
       null,
-      (err) => { console.error('[FaceMaskSystem] Failed to load OBJ:', config.file, err); }
+      (err) => {
+        console.error('[FaceMaskSystem] Failed to load OBJ:', config.file, err);
+        this._loads.end();
+      }
     );
+  }
+
+  /** Resolves once no mask model is mid-load. See AssetLoadTracker. */
+  whenIdle() {
+    return this._loads.whenIdle();
   }
 
   /**

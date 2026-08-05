@@ -10,6 +10,24 @@
  */
 
 class EyeSystem {
+  /** Bounds on how far the eyeball may follow the opening's size. */
+  static get MIN_FOLLOW_SCALE() { return 0.80; }
+  static get MAX_FOLLOW_SCALE() { return 1.30; }
+
+  /**
+   * Which container axis rolls the eye within the frontal plane, and its sign
+   * per side — the two containers are mirrored, so the same visual tilt needs
+   * opposite signs. Isolated here because it is the one part of following the
+   * opening that cannot be derived from the mesh: it depends on how the eye
+   * GLB was authored. If tilted eyes ever roll the wrong way, flip TILT_SIGN;
+   * if they roll about the wrong axis, change TILT_AXIS to 'z'.
+   */
+  static get TILT_AXIS() { return 'y'; }
+  static get TILT_SIGN() { return { left: 1, right: -1 }; }
+
+  /** Set false to keep the eyeball level regardless of eyeTilt. */
+  static get FOLLOW_TILT() { return true; }
+
   constructor(scene) {
     this.scene = scene;
 
@@ -150,7 +168,63 @@ class EyeSystem {
     this._initialLandmarkRight = null;
     this._initialBaseLeft = null;
     this._initialBaseRight = null;
+    this._initialFit = null;
+    this._eyeFollow = null;
     this._computeHeadMetrics();
+  }
+
+  /**
+   * Measure one eye's opening on the live, morphed mesh.
+   *
+   * The eyeball is a separate mesh from the head, so something has to tell it
+   * where the socket went. It used to track the eye-CENTRE landmark, and that
+   * is the root of the "asleep" look: the morphs displace that centre vertex at
+   * full weight, while the ring of lid vertices around it is displaced by a
+   * falloff and therefore travels less. Following the centre made the eyeball
+   * over-travel — pushed back by eyeDepth it sank behind lids that had barely
+   * moved, and the iris disappeared.
+   *
+   * Measuring the ring instead fixes that at the source, and gives the two
+   * things the centre could never express: how big the opening now is, and
+   * which way it is tilted.
+   *
+   * Head space here is X = left/right, Y = depth, Z = up/down — the convention
+   * _computeHeadMetrics reads the bounding box in.
+   */
+  _measureEyeOpening(side) {
+    const m = this._morpher;
+    if (!m || typeof m.getCurrentLandmarkPosition !== 'function') return null;
+
+    const p = {};
+    for (const key of ['inner', 'outer', 'upper', 'lower']) {
+      const v = m.getCurrentLandmarkPosition(`eye_${side}_${key}`);
+      if (!v) return null;
+      p[key] = new THREE.Vector3(v[0], v[1], v[2]);
+    }
+
+    const centre = new THREE.Vector3()
+      .add(p.inner).add(p.outer).add(p.upper).add(p.lower)
+      .multiplyScalar(0.25);
+
+    return {
+      centre,
+      span: p.outer.distanceTo(p.inner),
+      // Angle of the inner→outer line in the frontal (X/Z) plane.
+      tilt: Math.atan2(p.outer.z - p.inner.z, p.outer.x - p.inner.x),
+    };
+  }
+
+  /**
+   * Growth ratio of an opening, bounded. A landmark that lands on a degenerate
+   * or badly-morphed vertex should not be able to inflate the eyeball off the
+   * face; past these limits the eyeball is wrong either way, and wrong-and-small
+   * is far less alarming than wrong-and-enormous.
+   */
+  _followScale(span, initialSpan) {
+    if (!(initialSpan > 1e-6)) return 1;
+    const ratio = span / initialSpan;
+    return Math.max(EyeSystem.MIN_FOLLOW_SCALE,
+                    Math.min(EyeSystem.MAX_FOLLOW_SCALE, ratio));
   }
 
   _computeHeadMetrics() {
@@ -171,7 +245,42 @@ class EyeSystem {
     const bbLeft = new THREE.Vector3(this.modelCenter.x - eyeOffsetX, eyeY, eyeZ);
     const bbRight = new THREE.Vector3(this.modelCenter.x + eyeOffsetX, eyeY, eyeZ);
 
-    // Track landmark movement delta so eyes follow face morphs
+    // Follow the eye OPENING, measured from the live mesh — see _measureEyeOpening.
+    const fitL = this._measureEyeOpening('left');
+    const fitR = this._measureEyeOpening('right');
+    if (fitL && fitR) {
+      if (!this._initialFit) {
+        this._initialFit = { left: fitL, right: fitR };
+        this._initialBaseLeft = bbLeft.clone();
+        this._initialBaseRight = bbRight.clone();
+      }
+      const init = this._initialFit;
+
+      this._leftEyeBasePos.copy(this._initialBaseLeft)
+        .add(fitL.centre.clone().sub(init.left.centre));
+      this._rightEyeBasePos.copy(this._initialBaseRight)
+        .add(fitR.centre.clone().sub(init.right.centre));
+
+      // How much the opening has grown and rotated since the neutral face.
+      // Derived from the mesh rather than read off the morph sliders, so it
+      // stays correct however those morphs are combined or recalibrated.
+      this._eyeFollow = {
+        left: {
+          scale: this._followScale(fitL.span, init.left.span),
+          tilt: fitL.tilt - init.left.tilt,
+        },
+        right: {
+          scale: this._followScale(fitR.span, init.right.span),
+          tilt: fitR.tilt - init.right.tilt,
+        },
+      };
+
+      this.eyeSpacing = Math.abs(this._rightEyeBasePos.x - this._leftEyeBasePos.x);
+      return;
+    }
+
+    // Older path: track the centre vertex alone. Kept only for meshes without
+    // the four ring landmarks; it cannot see size or tilt.
     if (this._morpher && typeof this._morpher.getCurrentLandmarkPosition === 'function') {
       const leftPos = this._morpher.getCurrentLandmarkPosition('eye_left_center');
       const rightPos = this._morpher.getCurrentLandmarkPosition('eye_right_center');
@@ -179,7 +288,6 @@ class EyeSystem {
         const curLeft = new THREE.Vector3(leftPos[0], leftPos[1], leftPos[2]);
         const curRight = new THREE.Vector3(rightPos[0], rightPos[1], rightPos[2]);
 
-        // Store initial positions on first call
         if (!this._initialLandmarkLeft) {
           this._initialLandmarkLeft = curLeft.clone();
           this._initialLandmarkRight = curRight.clone();
@@ -187,12 +295,12 @@ class EyeSystem {
           this._initialBaseRight = bbRight.clone();
         }
 
-        // Apply delta from initial landmark to current landmark
         const deltaLeft = curLeft.clone().sub(this._initialLandmarkLeft);
         const deltaRight = curRight.clone().sub(this._initialLandmarkRight);
 
         this._leftEyeBasePos.copy(this._initialBaseLeft).add(deltaLeft);
         this._rightEyeBasePos.copy(this._initialBaseRight).add(deltaRight);
+        this._eyeFollow = null;
         this.eyeSpacing = Math.abs(this._rightEyeBasePos.x - this._leftEyeBasePos.x);
         return;
       }
@@ -641,7 +749,16 @@ class EyeSystem {
     this._leftEyeContainer.rotation.y = BASE_ROT_Y + rotYNorm * 0.3;
     this._leftEyeContainer.rotation.z = BASE_ROT_Z + rotZNorm * 0.3;
 
-    this._leftEyeContainer.scale.set(scale, scale, scale);
+    // Follow the opening's size and tilt on top of the manual sliders, so the
+    // eyeball stays registered with the socket the morphs actually produced.
+    const followL = this._eyeFollow ? this._eyeFollow.left : null;
+    const scaleL = scale * (followL ? followL.scale : 1);
+    if (followL && EyeSystem.FOLLOW_TILT) {
+      this._leftEyeContainer.rotation[EyeSystem.TILT_AXIS] +=
+        EyeSystem.TILT_SIGN.left * followL.tilt;
+    }
+
+    this._leftEyeContainer.scale.set(scaleL, scaleL, scaleL);
 
     // RIGHT EYE
     this._rightEyeContainer.position.copy(this._rightEyeBasePos);
@@ -655,7 +772,14 @@ class EyeSystem {
     this._rightEyeContainer.rotation.y = -BASE_ROT_Y - rotYNorm * 0.3;
     this._rightEyeContainer.rotation.z = -BASE_ROT_Z - rotZNorm * 0.3;
 
-    this._rightEyeContainer.scale.set(scale, scale, scale);
+    const followR = this._eyeFollow ? this._eyeFollow.right : null;
+    const scaleR = scale * (followR ? followR.scale : 1);
+    if (followR && EyeSystem.FOLLOW_TILT) {
+      this._rightEyeContainer.rotation[EyeSystem.TILT_AXIS] +=
+        EyeSystem.TILT_SIGN.right * followR.tilt;
+    }
+
+    this._rightEyeContainer.scale.set(scaleR, scaleR, scaleR);
 
     // Set opacity
     const opacity = this.params.opacity / 100;

@@ -2911,6 +2911,25 @@ class UIController {
 
     picker.onUpdate = () => this._renderVariantGrid();
 
+    // Hair, colouring and accessories for the candidate set go through the same
+    // path as a normal AI build — it already handles every block, persists to
+    // the case and resyncs the panel, and reusing it is what keeps the picker's
+    // faces to the same standard as the builder's.
+    picker.applyShared = (shared) => {
+      if (!shared || !this.aiController) return;
+      this.aiController._applyParams(shared);
+      this.updatePropertyPanel?.();
+      // Taken off the AI controller so the list cannot drift from the systems
+      // _applyParams actually just touched. Resolved here rather than in the
+      // constructor: the picker is built before any of this is attached.
+      const ai = this.aiController;
+      picker.assetSystems = [ai.hair, ai.glasses, ai.faceMask, ai.earrings, ai.bandana];
+    };
+
+    // Once a session has changed more than morphs, undo is the only thing that
+    // can put the whole face back — the restore point went in before start().
+    picker.onRestore = () => this.undo();
+
     document.getElementById('btnStartVariantPicker')?.addEventListener('click', async () => {
       const description = (document.getElementById('aiChatInput')?.value || '').trim();
       const refs = this.aiController?.referenceImages || [];

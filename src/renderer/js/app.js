@@ -121,19 +121,28 @@
         `Vertices: ${vertexCount.toLocaleString()}`;
       console.log(`OBJ loaded: ${vertexCount} vertices, region data: ${!!regionData}`);
 
-      // ── Auto-refresh hair, eyes, glasses, mask, earrings when morphs change (debounced) ──
+      // ── Auto-refresh hair, eyes, glasses, mask, earrings when morphs change ──
+      // Everything worn on the head is fitted to the head's measurements, so it
+      // has to be re-fitted whenever the skull changes shape.
+      const refitWornSystems = () => {
+        hairSystem.refreshFromMesh(objMorpher.morphValues);
+        eyeSystem.refreshFromMesh();
+        glassesSystem.refreshFromMesh(objMorpher.morphValues);
+        faceMaskSystem.refreshFromMesh(objMorpher.morphValues);
+        earringSystem.refreshFromMesh(objMorpher.morphValues);
+        bandanaSystem.refreshFromMesh(objMorpher.morphValues);
+        browPiercingSystem.refreshFromMesh(objMorpher.morphValues);
+      };
+      // Dragging a slider fires this on every frame, so the interactive path is
+      // debounced. Callers that change the face and then immediately read the
+      // result — thumbnail capture, offscreen render — must call
+      // refitWornSystems() directly instead: each new change cancels the
+      // pending timer, so a synchronous burst would land zero re-fits.
+      sceneManager.refitWornSystems = refitWornSystems;
       let _morphTimer = null;
       objMorpher.onMorphApplied = () => {
         if (_morphTimer) clearTimeout(_morphTimer);
-        _morphTimer = setTimeout(() => {
-          hairSystem.refreshFromMesh(objMorpher.morphValues);
-          eyeSystem.refreshFromMesh();
-          glassesSystem.refreshFromMesh(objMorpher.morphValues);
-          faceMaskSystem.refreshFromMesh(objMorpher.morphValues);
-          earringSystem.refreshFromMesh(objMorpher.morphValues);
-          bandanaSystem.refreshFromMesh(objMorpher.morphValues);
-          browPiercingSystem.refreshFromMesh(objMorpher.morphValues);
-        }, 120);
+        _morphTimer = setTimeout(refitWornSystems, 120);
       };
 
       // Generate initial hair (use setStyle to apply calibrated defaults)

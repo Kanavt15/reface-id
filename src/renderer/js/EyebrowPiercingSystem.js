@@ -64,6 +64,7 @@ class EyebrowPiercingSystem {
     this._unitGeometries = null;
     this._hoopCentre = new THREE.Vector3();
     this._loadPromise = null;
+    this._loads = new AssetLoadTracker('browPiercing');
     this._loadId = 0;
     this._sides = { left: null, right: null };
 
@@ -401,6 +402,7 @@ class EyebrowPiercingSystem {
     this._loadId++;
     const thisLoadId = this._loadId;
 
+    this._loads.begin();
     this._loadModel().then(unitGeoms => {
       if (this._loadId !== thisLoadId || !unitGeoms) return;
 
@@ -432,7 +434,12 @@ class EyebrowPiercingSystem {
       this.browPiercingGroup.visible = this.enabled;
       this._applySideVisibility();
       this._alignAndAdjust();
-    });
+    }).finally(() => this._loads.end());
+  }
+
+  /** Resolves once no brow-ring model is mid-load. See AssetLoadTracker. */
+  whenIdle() {
+    return this._loads.whenIdle();
   }
 
   _applySideVisibility() {

@@ -116,6 +116,7 @@ class GlassesSystem {
     // Caches
     this._modelCache = {};   // styleName -> THREE.Group
     this._loadId = 0;
+    this._loads = new AssetLoadTracker('glasses');
 
     // Current scene container
     this._container = null;
@@ -279,6 +280,8 @@ class GlassesSystem {
       return;
     }
 
+    this._loads.begin();
+
     if ((config.loader || 'glb') === 'obj') {
       this._loadOBJ(config, thisLoadId);
       return;
@@ -320,7 +323,13 @@ class GlassesSystem {
       })
       .catch(err => {
         console.error('[GlassesSystem] Failed to load model:', config.file, err);
-      });
+      })
+      .finally(() => this._loads.end());
+  }
+
+  /** Resolves once no glasses model is mid-load. See AssetLoadTracker. */
+  whenIdle() {
+    return this._loads.whenIdle();
   }
 
   _loadOBJ(config, thisLoadId) {
@@ -328,7 +337,7 @@ class GlassesSystem {
     loader.load(
       config.file,
       (group) => {
-        if (this._loadId !== thisLoadId) return;
+        if (this._loadId !== thisLoadId) { this._loads.end(); return; }
 
         // Blender's OBJ exporter writes Z-up; Three.js scene is Y-up. Bake a
         // -90° X rotation onto each mesh's geometry so downstream bbox/scale
@@ -347,9 +356,13 @@ class GlassesSystem {
 
         this._modelCache[this.currentStyle] = baked;
         this._showCached(this.currentStyle);
+        this._loads.end();
       },
       null,
-      (err) => { console.error('[GlassesSystem] Failed to load OBJ:', config.file, err); }
+      (err) => {
+        console.error('[GlassesSystem] Failed to load OBJ:', config.file, err);
+        this._loads.end();
+      }
     );
   }
 

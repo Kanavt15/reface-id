@@ -154,6 +154,7 @@ class EarringSystem {
     this._hoopCentreY = -0.5;      // ring centre in unit space, set by _normalise
     this._loadPromise = null;
     this._loadId = 0;
+    this._loads = new AssetLoadTracker('earrings');
 
     // Per-side scene containers
     this._sides = { left: null, right: null };
@@ -867,6 +868,7 @@ class EarringSystem {
     const needsModel = this.usesModel();
     const ready = needsModel ? this._loadModel() : Promise.resolve(null);
 
+    this._loads.begin();
     ready.then(unitGeoms => {
       if (this._loadId !== thisLoadId) return;
       if (needsModel && !unitGeoms) return;   // load failed, already logged
@@ -882,7 +884,12 @@ class EarringSystem {
       this.earringGroup.visible = this.enabled;
       this._applySideVisibility();
       this._alignAndAdjust();
-    });
+    }).finally(() => this._loads.end());
+  }
+
+  /** Resolves once no earring model is mid-load. See AssetLoadTracker. */
+  whenIdle() {
+    return this._loads.whenIdle();
   }
 
   _applySideVisibility() {

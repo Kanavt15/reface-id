@@ -77,6 +77,7 @@ class SceneManager {
     ground.position.y = -1.0;
     ground.receiveShadow = true;
     this.scene.add(ground);
+    this.ground = ground;
 
     // Grid helper
     const grid = new THREE.GridHelper(6, 30, 0x2a2a3a, 0x1f1f2f);

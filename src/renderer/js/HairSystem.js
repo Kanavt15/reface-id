@@ -9,6 +9,21 @@
  */
 
 class HairSystem {
+  /** Clearance kept between the bottom of the brow and the upper eyelid. */
+  static get BROW_EYE_GAP() { return 0.02; }
+
+  /** Most the brow may be lifted to clear the eye, so it cannot reach the forehead. */
+  static get MAX_BROW_LIFT() { return 0.08; }
+
+  /** Landmarks under the beard, used to check the surface has not outrun it. */
+  static get BEARD_SURFACE_LANDMARKS() {
+    return ['chin', 'chin_left', 'chin_right', 'jaw_left', 'jaw_right',
+            'lower_cheek_left', 'lower_cheek_right'];
+  }
+
+  /** Cap on that correction, so one bad landmark cannot float the beard off. */
+  static get MAX_BEARD_CLEARANCE() { return 0.06; }
+
   constructor(scene) {
     this.scene = scene;
 
@@ -51,6 +66,7 @@ class HairSystem {
     // GLB model cache: { styleName: THREE.Group }
     this._modelCache = {};
     this._loadId = 0;
+    this._loads = new AssetLoadTracker('hair');
 
     // Current hair container
     this._hairContainer = null;
@@ -196,33 +212,45 @@ class HairSystem {
     this.headTop = box.max.y;
     this.headWidth = box.max.x - box.min.x;
 
-    // Track eyebrow landmarks for automatic adjustment with face morphs
+    // Track the brow line so the eyebrows move with the ridge they sit on.
+    //
+    // getCurrentLandmarkPosition returns an ARRAY [x, y, z]. Reading .x/.y/.z
+    // off it yields undefined, so the midpoint came out NaN and the isNaN guard
+    // in _alignAndAdjustEyebrows then quietly dropped the offset to zero —
+    // which is why the eyebrows stayed pinned at browRegionY while the brow
+    // ridge moved underneath them.
+    //
+    // Averaged over all six brow landmarks rather than the two centres: the
+    // centre vertex is displaced at full weight by the brow morphs while the
+    // ends of the brow move less, so following it alone would over-travel, the
+    // same way the eyeball used to (see EyeSystem._measureEyeOpening).
     if (this._morpher && typeof this._morpher.getCurrentLandmarkPosition === 'function') {
-      try {
-        // Get current eyebrow landmark positions (midpoint between left/right brow)
-        const leftBrowPos = this._morpher.getCurrentLandmarkPosition('brow_left_center');
-        const rightBrowPos = this._morpher.getCurrentLandmarkPosition('brow_right_center');
-        
-        if (leftBrowPos && rightBrowPos) {
-          // Calculate midpoint for eyebrow center tracking
-          const currentBrowCenter = new THREE.Vector3(
-            (leftBrowPos.x + rightBrowPos.x) / 2,
-            (leftBrowPos.y + rightBrowPos.y) / 2,
-            (leftBrowPos.z + rightBrowPos.z) / 2
-          );
-
-          // Store initial position on first call
-          if (!this._initialBrowCenter) {
-            this._initialBrowCenter = currentBrowCenter.clone();
-            this._initialBrowBaseY = 0.39; // Default browRegionY
-          }
-
-          // Calculate delta from initial to current position
-          this._browLandmarkDelta = currentBrowCenter.clone().sub(this._initialBrowCenter);
+      const names = [
+        'brow_left_inner', 'brow_left_center', 'brow_left_outer',
+        'brow_right_inner', 'brow_right_center', 'brow_right_outer',
+      ];
+      const centre = new THREE.Vector3();
+      let found = 0;
+      for (const name of names) {
+        const v = this._morpher.getCurrentLandmarkPosition(name);
+        if (!v) continue;
+        centre.x += v[0]; centre.y += v[1]; centre.z += v[2];
+        found++;
+      }
+      if (found > 0) {
+        centre.multiplyScalar(1 / found);
+        if (!this._initialBrowCenter) {
+          this._initialBrowCenter = centre.clone();
         }
-      } catch (e) {
-        // Silently fail if landmarks aren't available - eyebrows will use default positioning
-        console.warn('[HairSystem] Eyebrow landmark tracking unavailable:', e.message);
+        this._browLandmarkDelta = centre.clone().sub(this._initialBrowCenter);
+
+        // Vertical position follows the average, but DEPTH follows whichever
+        // landmark came forward the most. The brow ridge is curved — its inner
+        // end sits ~0.16 further forward than its outer — while the eyebrow
+        // mesh is placed at a single Z, so a morph that pushes the inner brow
+        // forward moves the average less than the inner end and the mesh's
+        // inner end ends up behind the skin. See _maxForwardDelta.
+        this._browLandmarkDelta.z = this._maxForwardDelta('brow', names);
       }
     }
   }
@@ -303,10 +331,11 @@ class HairSystem {
 
     console.log('[HairSystem] Loading hair model from:', config.file);
     const loader = new THREE.GLBLoader();
+    this._loads.begin();
     loader.load(
       config.file,
       (group) => {
-        if (this._loadId !== thisLoadId) return;
+        if (this._loadId !== thisLoadId) { this._loads.end(); return; }
 
         console.log('[HairSystem] Hair model loaded successfully:', config.file);
         if (config.meshName) {
@@ -323,10 +352,19 @@ class HairSystem {
         }
 
         this._showCachedModel(this.currentStyle);
+        this._loads.end();
       },
       null,
-      (err) => { console.error('[HairSystem] Failed to load hair model:', config.file, err); }
+      (err) => {
+        console.error('[HairSystem] Failed to load hair model:', config.file, err);
+        this._loads.end();
+      }
     );
+  }
+
+  /** Resolves once no hair model is mid-load. See AssetLoadTracker. */
+  whenIdle() {
+    return this._loads.whenIdle();
   }
 
   _showCachedModel(style) {
@@ -489,6 +527,7 @@ class HairSystem {
 
     console.log('[HairSystem] Loading eyebrow model from:', config.file);
     const loader = new THREE.GLBLoader();
+    this._loads.begin();
     loader.load(
       config.file,
       (group) => {
@@ -506,9 +545,13 @@ class HairSystem {
           this._modelCache['eyebrows'] = group;
         }
         this._showCachedEyebrows();
+        this._loads.end();
       },
       null,
-      (err) => { console.error('[HairSystem] Failed to load eyebrow model:', config.file, err); }
+      (err) => {
+        console.error('[HairSystem] Failed to load eyebrow model:', config.file, err);
+        this._loads.end();
+      }
     );
   }
 
@@ -550,6 +593,44 @@ class HairSystem {
     console.log('[HairSystem] Calling _alignAndAdjustEyebrows...');
     this._alignAndAdjustEyebrows();
     console.log('[HairSystem] Eyebrows displayed successfully');
+  }
+
+  /**
+   * How far the most-forward landmark in `names` has moved since the neutral
+   * face, in +Z. Baselines are captured on the first call.
+   *
+   * The furthest-forward point rather than the average, deliberately. These
+   * meshes are placed at a single depth while the surface under them is curved
+   * and moves unevenly; tracking the average lets whichever part moved most
+   * forward end up behind the skin. Erring forward leaves a mesh floating
+   * slightly proud at worst, which reads as hair. Erring back buries it.
+   */
+  _maxForwardDelta(key, names) {
+    const m = this._morpher;
+    if (!m || typeof m.getCurrentLandmarkPosition !== 'function') return 0;
+    this._forwardBaselines = this._forwardBaselines || {};
+    const baseline = this._forwardBaselines[key] || (this._forwardBaselines[key] = {});
+    let max = null;
+    for (const name of names) {
+      const v = m.getCurrentLandmarkPosition(name);
+      if (!v) continue;
+      if (baseline[name] === undefined) baseline[name] = v[2];
+      const d = v[2] - baseline[name];
+      max = max === null ? d : Math.max(max, d);
+    }
+    return max === null ? 0 : max;
+  }
+
+  /** Highest point of either upper eyelid on the live mesh, or null. */
+  _upperLidY() {
+    const m = this._morpher;
+    if (!m || typeof m.getCurrentLandmarkPosition !== 'function') return null;
+    let y = null;
+    for (const name of ['eye_left_upper', 'eye_right_upper']) {
+      const v = m.getCurrentLandmarkPosition(name);
+      if (v) y = y === null ? v[1] : Math.max(y, v[1]);
+    }
+    return y;
   }
 
   _alignAndAdjustEyebrows() {
@@ -645,8 +726,26 @@ class HairSystem {
     );
 
     const finalX = this.modelCenter.x + spacingOffset + posOffsetX;
-    const finalY = browRegionY + archF + posOffsetY + landmarkOffsetY;
+    let finalY = browRegionY + archF + posOffsetY + landmarkOffsetY;
     const finalZ = browRegionZ + posOffsetZ + landmarkOffsetZ;
+
+    // Keep the brow off the eye.
+    //
+    // thickness scales the mesh vertically about its centre, so a thick brow
+    // grows DOWNWARD as well as up. Past roughly thickness 62 its lower edge
+    // reaches below the upper eyelid, and the brow reads as merged into the eye
+    // rather than sitting above it. Rather than trusting a fixed number, this
+    // measures the lid on the live morphed mesh and lifts the brow just enough
+    // to clear it — bounded, so a bad landmark can never fling the brow up onto
+    // the forehead.
+    const lidY = this._upperLidY();
+    if (lidY !== null) {
+      const halfHeight = (browSize.y / 2) * (baseScale * thicknessF);
+      const minY = lidY + halfHeight + HairSystem.BROW_EYE_GAP;
+      if (finalY < minY) {
+        finalY = Math.min(minY, finalY + HairSystem.MAX_BROW_LIFT);
+      }
+    }
 
     container.position.set(finalX, finalY, finalZ);
     
@@ -733,6 +832,7 @@ class HairSystem {
     }
 
     const loader = new THREE.GLBLoader();
+    this._loads.begin();
     loader.load(
       config.file,
       (group) => {
@@ -749,9 +849,13 @@ class HairSystem {
           this._modelCache[cacheKey] = group;
         }
         this._showCachedBeard();
+        this._loads.end();
       },
       null,
-      (err) => { console.error('Failed to load beard model:', config.file, err); }
+      (err) => {
+        console.error('Failed to load beard model:', config.file, err);
+        this._loads.end();
+      }
     );
   }
 
@@ -935,10 +1039,26 @@ class HairSystem {
       baseScale * scaleF * faceScaleZ
     );
 
+    // Everything above estimates how far the jaw and cheeks moved from the
+    // morph sliders. Those coefficients are hand-tuned approximations, and one
+    // of them (nasolabialDepth) pulls BACKWARD — so a face whose surface has
+    // actually come forward further than the estimate swallows the beard.
+    //
+    // Measure what the surface really did and add only the shortfall, so this
+    // never double-counts an offset that was already applied and never pulls
+    // the beard back.
+    const modelledZ = chinZOffset + jawDefZOffset + cheekZOffset
+                    + cheekBoneZOffset + nasoZOffset + lipZOffset + lipZShift;
+    const surfaceZ = this._maxForwardDelta('beard', HairSystem.BEARD_SURFACE_LANDMARKS);
+    const clearanceZ = Math.min(
+      Math.max(0, surfaceZ - modelledZ),
+      HairSystem.MAX_BEARD_CLEARANCE
+    );
+
     container.position.set(
       this.modelCenter.x + posOffsetX,
       beardRegionY + posOffsetY + chinYOffset + cheekYOffset + mouthYOffset + lipYShift,
-      beardRegionZ + posOffsetZ + chinZOffset + jawDefZOffset + cheekZOffset + cheekBoneZOffset + nasoZOffset + lipZOffset + lipZShift
+      beardRegionZ + posOffsetZ + modelledZ + clearanceZ
     );
 
     container.rotation.set(rotX, rotY, rotZ);

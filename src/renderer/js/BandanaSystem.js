@@ -96,6 +96,7 @@ class BandanaSystem {
     // Caches
     this._modelCache = {};   // styleName -> THREE.Group
     this._loadId = 0;
+    this._loads = new AssetLoadTracker('bandana');
 
     this._container = null;
     this._fitCache = null;
@@ -612,6 +613,7 @@ class BandanaSystem {
       return;
     }
 
+    this._loads.begin();
     fetch(config.file)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status} for ${config.file}`);
@@ -643,7 +645,13 @@ class BandanaSystem {
       })
       .catch(err => {
         console.error('[BandanaSystem] Failed to load model:', config.file, err);
-      });
+      })
+      .finally(() => this._loads.end());
+  }
+
+  /** Resolves once no bandana model is mid-load. See AssetLoadTracker. */
+  whenIdle() {
+    return this._loads.whenIdle();
   }
 
   _showCached(style) {

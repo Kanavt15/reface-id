@@ -102,6 +102,9 @@ Available styles and their descriptions:
 - "hair10": Dreadlocks / locs
 - "hair11": Mohawk style
 - "hair12": Bob / shoulder length
+- "hair13": Medium crop, a little fuller and taller than hair1
+- "hair14": Near-duplicate of hair7, cut slightly tighter. Prefer "hair7" for a
+  side-swept medium; reach for this only to distinguish two similar faces.
 - "bald": No hair
 
 Hair properties (0-100): length, density, volume, curl
@@ -110,8 +113,45 @@ Hair color: hex color string (e.g., "#1a1a1a" for black, "#d4a23f" for blonde)
 ## EYEBROWS — all 0-100
 Properties: thickness, arch, spacing, density
 
+⚠ These are NOT centred on 50, and thickness in particular is not a percentage
+of "normal" — it scales the brow mesh vertically, and past about 62 the mesh
+grows down over the upper eyelid and merges with the eye. Sit inside these:
+- Normal brows: thickness 52-60, density 70-80
+- Heavy / bushy brows: thickness 60-62, density 85-100. Express a heavy brow
+  through density, which darkens it, rather than thickness, which drops it
+  onto the eye.
+- Thin or sparse brows: thickness 38-48, density 45-60
+- arch is a HEIGHT control, not a shape one: 50 sits the brow at the ridge, 0
+  is the lowest, 100 the highest. Use 45-55 normally, higher for a
+  high-set brow, lower for one that sits close to the eye.
+- Keep spacing near 42; raise it only for a notably wide-set brow.
+
 ## BEARD
-Style: "none" or "beard1" (full beard)
+Style: one of "none", "beard1", "beard2", "beard3", "beard4", "beard5",
+"beard6", "moustache1".
+The numbers mean nothing. Each style is a combination of three parts — a jaw
+curtain, a chin patch, and a moustache — so pick by which parts you need:
+
+- "beard2" = jaw curtain + chin patch + moustache. The COMPLETE full beard, and
+  the right answer for most bearded faces.
+- "beard5" = jaw curtain + moustache. A full beard, slightly lighter on the chin.
+- "beard6" = jaw curtain ONLY — no moustache. A jawline beard with a bare lip.
+  Only pick this when the upper lip is clearly shaved.
+- "beard3" = chin patch + moustache. A goatee with a moustache, bare jaw.
+- "beard4" = chin patch only. A goatee or chin tuft, bare lip and bare jaw.
+- "moustache1" = moustache only. Bare chin, bare jaw.
+- "beard1" = a separate, older asset, not built from the three parts above.
+  Prefer "beard2" for a full beard; it is the one whose coverage is known.
+
+Choosing:
+- Hair along the jaw AND on the upper lip ⇒ "beard2" (or "beard5"). This is the
+  ordinary full beard, thick or trimmed.
+- Bare jaw with hair only on the chin ⇒ "beard3" (with moustache) or "beard4".
+- A moustache with a clean-shaven chin ⇒ "moustache1".
+- "none" means clean-shaven. Use it whenever no facial hair is described.
+- When a reference image is attached, read the jawline: if it is dark with hair
+  down to the jaw edge, that is a full beard — "beard2" — whatever the
+  description says. Check the upper lip separately before choosing "beard6".
 Color: hex color string
 
 ## APPEARANCE
@@ -210,6 +250,25 @@ Example earrings:
 Metal hints:
 - Gold: "#d4af37"   Silver: "#c8cdd2"   Rose gold: "#b76e79"   Black / gunmetal: "#3a3d42"
 
+## EYEBROW PIERCING — OPTIONAL
+Include this block only when the description mentions an eyebrow piercing, brow
+bar, brow ring, or a stud through the eyebrow.
+- enabled: true to show it, false to remove it
+- sideMode: "both", "left", or "right" — the subject's own sides. A brow
+  piercing is usually on one side, so prefer "left" or "right".
+- metalColor: hex color of the metal
+- polish: 0-100 (0 = matte, 100 = mirror)
+
+Example eyebrow piercing:
+```json
+"browPiercing": {
+  "enabled": true,
+  "sideMode": "right",
+  "metalColor": "#c8cdd2",
+  "polish": 85
+}
+```
+
 ## BANDANA — OPTIONAL
 Include this block only when the description mentions a bandana, kerchief, or a cloth pulled up over the lower face outlaw-style.
 - enabled: true to show the bandana, false to remove it
@@ -240,7 +299,7 @@ Tint hints:
 6. If one or more reference images are attached, infer visible facial traits from them and combine that with user text instructions.
 7. IMPORTANT: Only include "facialMarks" if the user explicitly requests mark generation (e.g., "add scars", "include visible marks from the image") OR if you're analyzing reference images and marks are prominently visible.
 8. Only include "glasses" if the description mentions glasses, spectacles, eyewear, sunglasses, or similar. If the user says "remove glasses", set enabled: false.
-9. The same applies to "faceMask", "earrings" and "bandana": include each block ONLY when the description mentions that item, and set enabled: false when the user asks to remove it. Omit the block entirely otherwise.
+9. The same applies to "faceMask", "earrings", "browPiercing" and "bandana": include each block ONLY when the description mentions that item, and set enabled: false when the user asks to remove it. Omit the block entirely otherwise.
 10. A bandana and a face mask both cover the lower face, so never enable both at once. Pick whichever the description actually calls for.
 11. Accessories are worn items, not facial features. Never invent them — a face described without eyewear or jewellery should return none of these blocks.
 
@@ -248,7 +307,7 @@ Tint hints:
 {
   "morphTargets": { "paramName": value, ... },
   "hair": { "style": "hair1", "color": "#hex", "length": 50, "density": 50, "volume": 50, "curl": 0 },
-  "eyebrows": { "thickness": 50, "arch": 50, "spacing": 50, "density": 70 },
+  "eyebrows": { "thickness": 56, "arch": 50, "spacing": 42, "density": 74 },
   "beard": { "style": "none", "color": "#hex" },
   "appearance": { "skinColor": "#hex", "lipColor": "#hex", "eyeColor": "#hex", "ageRange": "25-35", "sex": "male" },
   "facialMarks": [
@@ -274,6 +333,12 @@ Tint hints:
     "metalColor": "#d4af37",
     "polish": 82
   },
+  "browPiercing": {
+    "enabled": false,
+    "sideMode": "right",
+    "metalColor": "#c8cdd2",
+    "polish": 85
+  },
   "bandana": {
     "enabled": false,
     "style": "paisley",
@@ -298,34 +363,77 @@ person they remember. People are poor at describing individual features but
 very good at recognising a face, so the job here is to offer a genuine choice
 — not one face plus a handful of near-copies.
 
+Only BONE STRUCTURE varies between candidates. Everything else about the
+person — colouring, hair, beard, age, sex, marks, anything they are wearing —
+is the same in all of them, because it is the same person being described. So
+you produce that part ONCE, in a "shared" block, exactly as you would for a
+single face, and then one "morphTargets" set per candidate.
+
+## THE SHARED BLOCK
+Build it with the full care you would give a single face: read the description
+and the reference images for skin tone, eye colour, hair style and colour,
+eyebrows, beard, age range and sex, and include the accessory blocks under
+exactly the same conditions as always — only when the description actually
+mentions that item. Every rule from the format above still governs this block.
+Getting it right matters more than the morphs do: a witness rejects a face on
+colouring and hair long before they weigh up its jaw.
+
 ## WHAT MAKES A GOOD SET
 - Every candidate must be a plausible reading of the SAME description. Never
   contradict something the user stated explicitly.
 - Where the description is vague or silent, make a DIFFERENT decision in each
   candidate. That ambiguity is exactly what the witness is there to resolve.
-- Vary the big structural things: overall head shape, face length and width,
-  jaw, brow, nose bridge and width, eye spacing and set. These drive
-  recognition far more than small surface details.
-- Two candidates differing by a few points on a few sliders are a wasted slot.
-  If you could not tell two of them apart in a lineup, change one of them.
+- Differentiate through the parameters that carry recognition: overall head
+  shape, face length and width, jaw, brow, nose bridge, eye spacing and set.
+  These matter far more than small surface details.
+- Separate the candidates by giving them different COMBINATIONS, not by pushing
+  sliders toward their extremes. Every candidate must still read as a real
+  person you could pass in the street — six believable faces beat six merely
+  distinguishable ones, because the witness is matching a memory of a real
+  face, and a caricature matches nothing.
+- The value guide and the ⚠ high-sensitivity warnings above apply here in full.
+  Nose width parameters especially stay near 50 unless the description calls
+  for otherwise; separate noses by bridge height and length instead.
+- Move a face as a whole. Real structure is correlated — a broad skull usually
+  carries a broad jaw and wide cheekbones, a long face a longer nose and chin.
+  Shift related parameters together rather than varying them independently, or
+  the candidate stops looking like a person.
+- Leave out eyeOpenness. It moves the eyelids themselves, so below 50 the eyes
+  simply close, and nobody is recognised from a portrait with its eyes shut.
+  Every candidate is a neutral, eyes-open portrait. The other eye parameters —
+  eyeSpacing, eyeHeight, eyeDepth, eyeSize, eyeTilt — are all yours to vary,
+  but keep them within a few points of the range below; the eyeball is a
+  separate mesh that follows the socket, and it follows a moderate change far
+  more convincingly than an extreme one.
+- Keep every value between 30 and 70. Beyond that this rig stops looking like
+  bone and starts looking melted, and a melted face is not a candidate. There
+  is more than enough room inside that range to build six distinct people.
 - Give each a short `label` of 2-4 words naming what makes it distinct, for
   example "Narrow jaw, deep-set eyes" or "Broad face, heavy brow".
 
 ## OUTPUT FORMAT (strict JSON, nothing else) — REPLACES THE FORMAT ABOVE
 {
+  "shared": {
+    "hair": { "style": "hair1", "color": "#hex", "length": 50, "density": 50, "volume": 50, "curl": 0 },
+    "eyebrows": { "thickness": 56, "arch": 50, "spacing": 42, "density": 74 },
+    "beard": { "style": "none", "color": "#hex" },
+    "appearance": { "skinColor": "#hex", "eyeColor": "#hex", "ageRange": "25-35", "sex": "male" }
+  },
   "variants": [
     { "label": "Short description", "morphTargets": { "paramName": value, ... } }
   ]
 }
 
 Rules for this mode:
-1. Output ONLY the "variants" array. No hair, eyebrows, beard, appearance,
-   facialMarks, glasses, faceMask, earrings or bandana blocks — those are set
-   separately and would be identical across candidates anyway.
-2. Produce exactly the number of candidates requested.
-3. Each candidate carries its own complete "morphTargets" object. Include every
+1. "shared" carries everything EXCEPT morphTargets, in the same shape and under
+   the same conditions as the single-face format above. Omit any block the
+   description gives you nothing to say about — an omitted block is left alone,
+   so never invent hair or accessories to fill it out.
+2. "variants" carries ONLY "label" and "morphTargets". No appearance keys there.
+3. Produce exactly the number of candidates requested.
+4. Each candidate carries its own complete "morphTargets" object. Include every
    parameter you are varying; omit any that should stay at the neutral 50.
-4. Integer values 0-100 only.
+5. Integer values 0-100 only.
 """
 
 # Paths
@@ -1026,6 +1134,13 @@ def ai_variants():
     """
     Generate several distinct candidate faces in a single call.
 
+    Returns a "shared" block — hair, eyebrows, beard, colouring, age, sex,
+    marks, accessories — alongside the per-candidate morph sets. Candidates are
+    readings of one person, so everything but bone structure is identical
+    between them; emitting it once keeps the response the same size while
+    letting the picker build faces to the same standard as the single-face
+    builder, which is the only reason a candidate looks like anyone at all.
+
     Backs the witness variant picker. The picker only calls this twice at most
     in a normal session — once to open, and again if the witness rejects the
     whole set — because every round after a pick is generated locally by
@@ -1156,6 +1271,16 @@ def ai_variants():
 
         parsed = json.loads(ai_text)
         variants = parsed.get('variants') if isinstance(parsed, dict) else parsed
+        # Colouring, hair and worn items come back once and apply to the whole
+        # set. Passed through unvalidated, exactly like /api/ai/generate does —
+        # each frontend system checks its own payload in applyFromAI. Only
+        # morphTargets is stripped, so a stray copy here cannot fight the
+        # per-candidate values.
+        shared = parsed.get('shared') if isinstance(parsed, dict) else None
+        if isinstance(shared, dict):
+            shared = {k: v for k, v in shared.items() if k != 'morphTargets'}
+        else:
+            shared = None
         if not isinstance(variants, list) or not variants:
             return jsonify({
                 "error": "The model did not return a variants array.",
@@ -1188,7 +1313,7 @@ def ai_variants():
                 "provider": provider,
             }), 500
 
-        return jsonify({"success": True, "variants": clean, "provider": provider})
+        return jsonify({"success": True, "variants": clean, "shared": shared, "provider": provider})
 
     except json.JSONDecodeError as e:
         print(f"[AI Variants - JSON] {e}")
