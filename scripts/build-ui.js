@@ -81,10 +81,14 @@ const icon = (name, cls = '') =>
 
 const faIcon = (fa, cls) => icon(ICON_MAP[fa] || null, cls);
 
-/* Re-emit only the attributes that carry meaning to the controller. */
-function dataStr(data) {
+/* Re-emit only the attributes that carry meaning to the controller.
+   `omit` skips keys already written by the caller — without it a slider
+   emitted data-param twice, which is malformed markup (the browser keeps
+   the first and silently drops the second). */
+function dataStr(data, omit = []) {
   if (!data) return '';
   return Object.entries(data)
+    .filter(([k]) => !omit.includes(k))
     .map(([k, v]) => ` ${k}="${esc(v)}"`).join('');
 }
 
@@ -109,7 +113,7 @@ function cSlider(b) {
   const cls = keepClasses(['slider-control'], b.value === '50' ? ['k-centred'] : []);
   const inputCls = keepClasses(b.sliderClass);
   return `
-            <div class="${cls}"${attr('id', b.controlId)}${attr('data-param', b.param)}${dataStr(b.data)}>
+            <div class="${cls}"${attr('id', b.controlId)}${attr('data-param', b.param)}${dataStr(b.data, ['data-param'])}>
               <label>
                 <span>${esc(b.label || b.param || '')}</span>
                 <span class="slider-value"${attr('id', b.valueId)}>${esc(b.valueText ?? b.value)}</span>

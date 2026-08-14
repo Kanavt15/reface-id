@@ -98,13 +98,18 @@ class HairSystem {
     this._beardGroup.name = 'BeardSystem';
     this.scene.add(this._beardGroup);
 
+    /* Opaque, for the same reason as the hair: solid card geometry with no
+       alpha map, and a fixed 0.95 opacity nobody can change. All it did was
+       let the jaw show through and drop the beard into the alpha pass,
+       where overlapping cards blend in arbitrary order. */
     this._beardMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(this.beardColor),
       roughness: 0.50,
       metalness: 0.08,
       side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.95,
+      transparent: false,
+      opacity: 1,
+      depthWrite: true,
     });
 
     // Hair model configs with per-model default positions/scales
@@ -170,14 +175,24 @@ class HairSystem {
     // Override defaults from localStorage (user-set in-app defaults)
     this._loadBeardDefaultsFromStorage();
 
-    // Hair material
+    /* Hair material — opaque on purpose.
+     *
+     * The hair styles are solid card geometry with no texture and no alpha
+     * map, so there is nothing for blending to reveal: transparency only
+     * let the scalp show through and put every strand into the alpha pass.
+     * Triangles are not sorted within a mesh, so overlapping cards blended
+     * in arbitrary order and came out as blocky see-through patches.
+     *
+     * Opaque also lets the hair write depth properly, which fixes its
+     * shadows and its occlusion of the ears and forehead. */
     this._hairMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(this.hairColor),
       roughness: 0.45,
       metalness: 0.12,
       side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.95,
+      transparent: false,
+      opacity: 1,
+      depthWrite: true,
     });
   }
 
@@ -463,13 +478,27 @@ class HairSystem {
     // Rotation: curl + user rotation
     container.rotation.y = (curlF > 0 ? curlF * 0.15 : 0) + rotOffsetY;
 
-    // Density → opacity
-    const opacity = 0.5 + (density / 100) * 0.5;
+    /* Density → how the surface takes light, not how transparent it is.
+     *
+     * Density used to drive opacity directly (0.5 → 1.0), which is why the
+     * head showed through the hair at anything under full density and why
+     * the strands broke into blended patches. Opacity was the wrong
+     * channel: it thins the whole surface uniformly instead of thinning
+     * the strands.
+     *
+     * Sparse hair scatters more and reads matte and lighter; dense hair
+     * reads tighter and darker. That is what these two do, with the mesh
+     * staying fully opaque throughout. */
+    const d = Math.max(0, Math.min(100, density)) / 100;
+
     container.traverse(child => {
-      if (child.isMesh && child.material) {
-        child.material.opacity = opacity;
-        child.material.transparent = opacity < 1.0;
-      }
+      if (!child.isMesh || !child.material) return;
+      const m = child.material;
+      m.transparent = false;
+      m.opacity = 1;
+      m.depthWrite = true;
+      m.roughness = 0.62 - d * 0.26;
+      m.needsUpdate = true;
     });
   }
 
@@ -1302,7 +1331,11 @@ class HairSystem {
       modelCenterY: this.modelCenter.y,
       modelCenterZ: this.modelCenter.z,
       modelHeight: this.modelHeight,
-      opacity: 0.5 + (this.params.density / 100) * 0.5,
+      /* Kept at 1 so the Blender render matches the viewport, which draws
+         hair opaque. `density` is already in this payload, so Blender can
+         still express density through its own shader rather than by
+         thinning the whole surface. */
+      opacity: 1.0,
     };
 
     if (!this._hairContainer || !this._headGroup || this.currentStyle === 'bald') {
