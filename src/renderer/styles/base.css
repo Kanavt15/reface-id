@@ -1,0 +1,377 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   ReFace ID — base.css
+   Ground, type, tokens, reset.
+
+   ── The idea ──────────────────────────────────────────────────────────────
+   Reconstructing a face is closer to colour grading than to filling in a
+   form: the room is dark, one image is the truth, and every control exists
+   to move that image. So the interface is built like a grading suite. The
+   render owns the screen. The instrumentation is quiet apparatus arranged
+   around it — precise, dense where it needs to be, and otherwise silent.
+
+   ── Rules this file enforces ──────────────────────────────────────────────
+   1. Monochrome first. The entire interface is neutral except for one
+      chroma, and that chroma only ever marks a *live* value — a slider
+      fill, a committed selection, focus. Never decoration, never a
+      gradient, never a brand flourish.
+   2. No glow. Depth is a hairline and one soft shadow. Blur is used in
+      exactly one place (the sheet, over the stage) and only because the
+      operator has to keep seeing the face underneath it.
+   3. Film black, not blue-black. The ground carries a faint green cast the
+      way graded blacks do; the text is warm off-white, not cold white.
+      A neutral render sits on it without a colour cast fighting the skin.
+   4. Small radii, hard corners. 3px. Nothing is a pill.
+   5. Grain. A real dark room is never a flat fill.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ══ Typefaces ═══════════════════════════════════════════════════════════
+   Archivo for interface text — a grotesque with enough weight range to
+   build hierarchy without changing family, and squarer than the geometric
+   sans everything else defaults to. IBM Plex Mono for every number and
+   identifier, because measurements must not shift width while dragging.
+   Both are local: this app has to work in a room with no network. */
+
+@font-face {
+  font-family: 'Archivo';
+  src: url('../vendor/fonts/archivo-wght.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Plex Mono';
+  src: url('../vendor/fonts/plex-mono-400.woff2') format('woff2');
+  font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Plex Mono';
+  src: url('../vendor/fonts/plex-mono-500.woff2') format('woff2');
+  font-weight: 500;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Plex Mono';
+  src: url('../vendor/fonts/plex-mono-600.woff2') format('woff2');
+  font-weight: 600;
+  font-display: block;
+}
+
+:root {
+  /* ─── Ground ───────────────────────────────────────────────────────────
+     Darkest → lightest. A faint green cast (g one point above r and b)
+     keeps the blacks filmic instead of the blue-black every dark UI
+     defaults to. The stage is the darkest thing on screen so the render
+     always reads as the brightest object. */
+  --k-void:    #060707;
+  --k-base:    #0b0c0c;
+  --k-raise:   #101111;
+  --k-panel:   #151717;
+  --k-lift:    #1c1e1e;
+  --k-hover:   #242626;
+  --k-active:  #2e3130;
+  --k-sunken:  #030404;
+
+  /* ─── Lines ────────────────────────────────────────────────────────────
+     Hairlines are white at low alpha, never a grey hex — so they sit
+     correctly on any of the grounds above without being retuned. */
+  --k-hair:    rgba(255, 255, 255, 0.055);
+  --k-edge:    rgba(255, 255, 255, 0.10);
+  --k-rule:    rgba(255, 255, 255, 0.15);
+  --k-strong:  rgba(255, 255, 255, 0.24);
+
+  /* ─── Text — warm off-white, never #fff ──────────────────────────────── */
+  --t-hi:      #f2f0ec;
+  --t:         #c7c5c0;
+  --t-lo:      #8d8c87;
+  --t-mute:    #63635f;
+  --t-off:     #454644;
+
+  /* ─── The one chroma ───────────────────────────────────────────────────
+     A cold acid lime. It is the complement of skin, so it separates from
+     the render instead of muddying into it, and it belongs to the family
+     of signal colours used on real broadcast and audio hardware rather
+     than to the indigo every dashboard reaches for.
+
+     Reserved for: slider fill, focus ring, active selection, live state.
+     If it is being used to make something look nice, it is being misused. */
+  --sig:       #c4e04f;
+  --sig-hi:    #d6ee72;
+  --sig-lo:    #93a93a;
+  --sig-dim:   rgba(196, 224, 79, 0.16);
+  --sig-line:  rgba(196, 224, 79, 0.42);
+  --on-sig:    #0d1003;
+
+  /* ─── Semantic — used as data, not decoration ────────────────────────── */
+  --rec:       #ff4d3d;             /* record / destructive */
+  --rec-dim:   rgba(255, 77, 61, 0.15);
+  --ok:        #5fbf8a;
+  --ok-dim:    rgba(95, 191, 138, 0.15);
+  --warn:      #e0a33c;
+  --warn-dim:  rgba(224, 163, 60, 0.15);
+  --info:      #8fa8b8;
+  --info-dim:  rgba(143, 168, 184, 0.15);
+
+  /* ─── Type ─────────────────────────────────────────────────────────────
+     Sizes are deliberately few. Hierarchy comes from weight, case and
+     colour far more than from size — a dense tool that solves hierarchy
+     with size alone ends up with sixteen sizes and no rhythm. */
+  --f-ui:   'Archivo', system-ui, sans-serif;
+  --f-num:  'Plex Mono', ui-monospace, monospace;
+
+  --s-micro: 9.5px;    /* uppercase eyebrow labels */
+  --s-tiny:  10.5px;   /* dense metadata */
+  --s-sm:    11.5px;   /* control labels */
+  --s-ui:    12.5px;   /* body */
+  --s-md:    14px;
+  --s-lg:    17px;
+  --s-xl:    22px;
+  --s-dis:   30px;     /* display */
+  --s-dis-l: 44px;
+
+  --lh-tight: 1.15;
+  --lh:       1.5;
+
+  /* Uppercase micro-labels need real tracking or they set as a smear. */
+  --tr-cap:  0.085em;
+  --tr-wide: 0.16em;
+  --tr-tight: -0.015em;   /* display sizes only */
+
+  /* ─── Metrics ──────────────────────────────────────────────────────── */
+  --h-top:    38px;      /* command bar */
+  --h-foot:   26px;      /* status strip */
+  --w-sheet:  368px;     /* the instrument sheet */
+  --w-nav:    56px;      /* section rail inside the sheet */
+
+  --row:      26px;      /* control row */
+  --row-sm:   22px;
+  --hit:      30px;      /* minimum comfortable click target */
+
+  --r-1: 2px;
+  --r-2: 3px;
+  --r-3: 5px;
+  --r-4: 10px;           /* sheet + modal corners only */
+
+  --pad:   14px;         /* sheet gutter */
+  --pad-y: 11px;
+
+  /* ─── Elevation ───────────────────────────────────────────────────────
+     One shadow, three depths. Deliberately soft and very dark — on a
+     near-black ground a light shadow reads as fog. */
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --sh-2: 0 8px 24px -6px rgba(0, 0, 0, 0.7);
+  --sh-3: 0 24px 60px -12px rgba(0, 0, 0, 0.85);
+
+  /* ─── Motion ──────────────────────────────────────────────────────────
+     Two curves. `--e` is the standard decelerate for anything that moves
+     under its own weight; `--e-out` is for things being dismissed. Every
+     duration is short — an instrument that takes 300ms to acknowledge a
+     click feels broken, not smooth. */
+  --e:      cubic-bezier(0.22, 1, 0.36, 1);
+  --e-out:  cubic-bezier(0.4, 0, 1, 1);
+  --t-1:    90ms;
+  --t-2:    160ms;
+  --t-3:    260ms;
+  --t-4:    440ms;
+
+  /* ─── Z ───────────────────────────────────────────────────────────── */
+  --z-hud:     40;
+  --z-sheet:   60;
+  --z-bar:     80;
+  --z-pop:     300;
+  --z-modal:   600;
+  --z-palette: 800;
+  --z-toast:   900;
+}
+
+/* ══ Reset ═══════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body { height: 100%; width: 100%; }
+
+body {
+  font-family: var(--f-ui);
+  font-size: var(--s-ui);
+  line-height: var(--lh);
+  font-weight: 400;
+  color: var(--t);
+  background: var(--k-void);
+  overflow: hidden;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-ligatures: none;
+  text-rendering: optimizeLegibility;
+}
+
+/* ══ Grain ═══════════════════════════════════════════════════════════════
+   A dark room is never a flat fill. This is a single tiled fractal-noise
+   tile at very low opacity over the whole app — it costs one composited
+   layer and it is the difference between "dark theme" and "photographed".
+   pointer-events:none so it is invisible to interaction. */
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.028;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+img, svg, video, canvas { display: block; max-width: 100%; }
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  outline: none;
+  letter-spacing: inherit;
+}
+
+button { cursor: pointer; -webkit-app-region: no-drag; }
+
+button:disabled, input:disabled, select:disabled, textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+/* Text the operator may legitimately need to copy out of a case file. */
+input, textarea, [contenteditable], .k-sel { user-select: text; }
+
+a { color: var(--sig); text-decoration: none; }
+
+h1, h2, h3, h4 { font-weight: 600; line-height: var(--lh-tight); letter-spacing: var(--tr-tight); }
+
+/* ══ Icons ═══════════════════════════════════════════════════════════════
+   One sprite, one stroke weight, sized by font-size so an icon always
+   matches the text it sits beside. */
+
+/* Presentation attributes on the sprite root do NOT cross a <use>
+   boundary — the shadow content inherits from the *referencing* <svg>.
+   So the stroke system is declared here, once, on every icon. Without
+   this the paths fall back to fill:black and vanish on a dark ground. */
+.i {
+  width: 1em;
+  height: 1em;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vertical-align: -0.14em;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.i-lg { width: 1.25em; height: 1.25em; }
+
+/* ══ Focus ═══════════════════════════════════════════════════════════════
+   Keyboard focus has to be unmissable on a near-black ground. Pointer
+   focus must add nothing at all. */
+
+:focus { outline: none; }
+
+:focus-visible {
+  outline: 1px solid var(--sig);
+  outline-offset: 2px;
+  border-radius: var(--r-1);
+}
+
+/* ══ Scrollbars ══════════════════════════════════════════════════════════
+   Trackless and narrow. Visible enough to grab, quiet enough to forget. */
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.10);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.20); background-clip: padding-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* ══ Type utilities ══════════════════════════════════════════════════════ */
+
+/* The uppercase eyebrow used above every section and field group. Tracked
+   wide, set small, and always in a dim colour — it labels, it never
+   competes. */
+.k-cap {
+  font-size: var(--s-micro);
+  font-weight: 600;
+  letter-spacing: var(--tr-wide);
+  text-transform: uppercase;
+  color: var(--t-mute);
+  line-height: 1;
+}
+
+.k-label {
+  font-size: var(--s-sm);
+  font-weight: 450;
+  color: var(--t-lo);
+  line-height: 1.3;
+}
+
+/* Every number in the app. Tabular so digits never jitter mid-drag, and
+   slightly tightened because Plex Mono sets wide by default. */
+.k-num {
+  font-family: var(--f-num);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'zero' 1;
+  letter-spacing: -0.02em;
+  font-size: var(--s-tiny);
+}
+
+.k-display {
+  font-size: var(--s-dis);
+  font-weight: 600;
+  letter-spacing: var(--tr-tight);
+  line-height: var(--lh-tight);
+  color: var(--t-hi);
+}
+
+.k-dim  { color: var(--t-lo); }
+.k-mute { color: var(--t-mute); }
+.k-hi   { color: var(--t-hi); }
+
+/* A hairline that stops short of the container edge. Full-bleed rules make
+   a dense panel read as a spreadsheet; inset ones let it breathe. */
+.k-rule {
+  height: 1px;
+  background: var(--k-hair);
+  margin: var(--pad-y) var(--pad);
+}
+
+.k-hidden { display: none !important; }
+
+/* Element exists for a binding but must never be seen. Used only for
+   <input type=file> triggers, which are driven by a visible button. */
+.k-offscreen {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ══ Reduced motion ══════════════════════════════════════════════════════
+   The JS motion layer reads this too (see motion.js) and switches springs
+   for instant sets, so this only has to cover pure-CSS transitions. */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

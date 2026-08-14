@@ -1,0 +1,627 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   ReFace ID — carried.css
+   The blocks that came through the inventory as markup.
+
+   Most controls were re-authored from data through the component system in
+   build-ui.js. About thirty blocks could not be — the assist transcript, the
+   camera sheet, the snapshot bar, the lip-paint tools, the export row — each
+   carries bespoke structure that the engine drives in a one-off way, so their
+   markup is preserved byte-for-byte and only re-skinned.
+
+   Their class names therefore come from the old document and cannot change.
+   Everything they look like is defined here, in the same language as the rest
+   of the interface: film-black grounds, hairline borders, one chroma reserved
+   for live state, 3px radii, mono numerals.
+
+   ── Two contracts to respect ──────────────────────────────────────────────
+   1. AIController toggles `.visible` on .ai-action-menu. That menu must be
+      display:none by default.
+   2. It shows the camera sheet and the reference strip with
+      `style.display = ''` — which falls back to whatever CSS says. So their
+      CSS default must be the *visible* layout; the markup carries an inline
+      display:none to keep them shut until then. Setting display:none here
+      would make them impossible to open.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ══ Shared utilities carried from the old document ═════════════════════ */
+
+/* A file input driven by a visible button. Never shown — left in the
+   layout it renders as "Choose Files / No file chosen". */
+.rf-file-input,
+.rf-hidden {
+  display: none !important;
+}
+
+.rf-mono {
+  font-family: var(--f-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--s-tiny);
+  letter-spacing: -0.02em;
+}
+
+.rf-note,
+.edit-points-desc,
+.snapshot-empty,
+.ai-setting-title {
+  font-size: var(--s-sm);
+  line-height: 1.5;
+  color: var(--t-mute);
+}
+
+.rf-row-gap,
+.rf-stack-6,
+.rf-btn-wrap,
+.panel-actions,
+.edit-points-controls,
+.export-buttons,
+.ai-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.rf-stack-6,
+.export-buttons,
+.edit-points-controls { flex-direction: column; align-items: stretch; }
+
+.rf-counter-line,
+.snapshot-count {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: var(--s-sm);
+  color: var(--t-mute);
+}
+
+.rf-counter-line b,
+.snapshot-count b {
+  font-family: var(--f-num);
+  font-weight: 500;
+  font-size: var(--s-tiny);
+  color: var(--t-hi);
+}
+
+/* Button variants the old markup used. Mapped onto the new weights rather
+   than given looks of their own. */
+.btn-secondary,
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: var(--hit);
+  padding: 0 13px;
+  background: var(--k-lift);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-2);
+  font-size: var(--s-sm);
+  font-weight: 500;
+  color: var(--t);
+  white-space: nowrap;
+  transition: background var(--t-1) var(--e), border-color var(--t-1) var(--e), color var(--t-1) var(--e);
+}
+
+.btn-outline { background: transparent; }
+
+.btn-secondary:hover,
+.btn-outline:hover { background: var(--k-hover); border-color: var(--k-edge); color: var(--t-hi); }
+
+.btn-accent {
+  background: var(--sig);
+  border-color: var(--sig);
+  color: var(--on-sig);
+  font-weight: 600;
+}
+
+.btn-accent:hover { background: var(--sig-hi); border-color: var(--sig-hi); }
+
+.param-select,
+.text-input {
+  width: 100%;
+  height: var(--hit);
+  padding: 0 10px;
+  background: var(--k-sunken);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-2);
+  font-size: var(--s-sm);
+  color: var(--t-hi);
+  transition: border-color var(--t-1) var(--e);
+}
+
+.param-select { -webkit-appearance: none; appearance: none; padding-right: 28px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238d8c87' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 9px center; }
+
+.param-select:hover, .text-input:hover { border-color: var(--k-edge); }
+.param-select:focus, .text-input:focus { border-color: var(--sig-line); background: var(--k-void); }
+.param-select option { background: var(--k-panel); color: var(--t-hi); }
+
+/* Min/max captions that sit under a slider. */
+.slider-label-left,
+.slider-label-right {
+  font-size: var(--s-micro);
+  color: var(--t-off);
+  letter-spacing: var(--tr-cap);
+  text-transform: uppercase;
+}
+
+.slider-label-right { margin-left: auto; }
+
+/* ══ Assist ══════════════════════════════════════════════════════════════
+   Set as a working console rather than a chat app: a header with the model
+   selector, a transcript, a compose row, and quick prompts. No bubbles, no
+   avatars — at 368px wide a transcript reads far better than either. */
+
+.ai-chat-panel { display: flex; flex-direction: column; gap: 0; }
+
+.ai-chat-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--k-hair);
+}
+
+.ai-chat-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+  font-size: var(--s-micro);
+  font-weight: 650;
+  letter-spacing: var(--tr-wide);
+  text-transform: uppercase;
+  color: var(--t-lo);
+}
+
+.ai-chat-title .i { color: var(--sig); font-size: 13px; }
+
+.ai-chat-actions { display: flex; align-items: center; gap: 4px; }
+
+/* The model selector. Narrow, mono, and quiet — it is configuration, not
+   a primary control. */
+.ai-provider-select {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 24px;
+  max-width: 132px;
+  padding: 0 22px 0 8px;
+  background: var(--k-raise);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-2);
+  font-family: var(--f-num);
+  font-size: var(--s-micro);
+  color: var(--t-lo);
+  cursor: pointer;
+  text-overflow: ellipsis;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2363635f' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+  transition: border-color var(--t-1) var(--e), color var(--t-1) var(--e);
+}
+
+.ai-provider-select:hover { border-color: var(--k-edge); color: var(--t-hi); }
+.ai-provider-select:focus { border-color: var(--sig-line); }
+.ai-provider-select option { background: var(--k-panel); color: var(--t-hi); font-family: var(--f-ui); }
+
+.ai-action-btn,
+.ai-mic-btn,
+.ai-camera-close-btn {
+  width: 26px; height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-2);
+  color: var(--t-mute);
+  font-size: 14px;
+  transition: background var(--t-1) var(--e), color var(--t-1) var(--e);
+}
+
+.ai-action-btn:hover,
+.ai-mic-btn:hover,
+.ai-camera-close-btn:hover { background: var(--k-hover); color: var(--t-hi); }
+.ai-mic-btn.recording { color: var(--rec); background: var(--rec-dim); }
+
+/* ── Transcript ──────────────────────────────────────────────────────── */
+
+.ai-chat-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  min-height: 90px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 12px 0;
+  font-size: var(--s-sm);
+  line-height: 1.6;
+  color: var(--t-lo);
+}
+
+/* AIController appends plain nodes; these keep any shape it produces
+   legible without assuming a structure it does not emit. */
+.ai-chat-messages > div { max-width: 100%; }
+.ai-chat-messages strong,
+.ai-chat-messages b { color: var(--t-hi); font-weight: 600; }
+
+/* ── Example prompts ─────────────────────────────────────────────────── */
+
+.rf-ai-examples { display: flex; flex-direction: column; gap: 6px; }
+
+.rf-ai-examples-label {
+  font-size: var(--s-micro);
+  font-weight: 600;
+  letter-spacing: var(--tr-cap);
+  text-transform: uppercase;
+  color: var(--t-off);
+}
+
+.rf-ai-example-chip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--k-raise);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-2);
+  font-size: var(--s-sm);
+  line-height: 1.45;
+  color: var(--t-mute);
+  text-align: left;
+  transition: background var(--t-1) var(--e), border-color var(--t-1) var(--e), color var(--t-1) var(--e);
+}
+
+.rf-ai-example-chip .i { margin-top: 2px; color: var(--t-off); }
+.rf-ai-example-chip:hover { background: var(--k-hover); border-color: var(--k-edge); color: var(--t-hi); }
+.rf-ai-example-chip:hover .i { color: var(--sig); }
+
+/* ── Compose ─────────────────────────────────────────────────────────── */
+
+.ai-chat-input-area {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding-top: 10px;
+  border-top: 1px solid var(--k-hair);
+}
+
+.ai-input-row { display: flex; flex-direction: column; gap: 6px; }
+
+.ai-chat-textarea {
+  width: 100%;
+  min-height: 66px;
+  max-height: 180px;
+  padding: 9px 10px;
+  background: var(--k-sunken);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-2);
+  font-family: var(--f-ui);
+  font-size: var(--s-sm);
+  line-height: 1.55;
+  color: var(--t-hi);
+  resize: vertical;
+  transition: border-color var(--t-1) var(--e), background var(--t-1) var(--e);
+}
+
+.ai-chat-textarea::placeholder { color: var(--t-off); }
+.ai-chat-textarea:hover { border-color: var(--k-edge); }
+.ai-chat-textarea:focus { border-color: var(--sig-line); background: var(--k-void); }
+
+/* Reference thumbnails attached to the prompt. CSS default is the visible
+   layout — AIController reveals it by clearing the inline display. */
+.ai-reference-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+
+.ai-reference-info img {
+  width: 34px; height: 34px;
+  object-fit: cover;
+  border-radius: var(--r-1);
+  border: 1px solid var(--k-edge);
+}
+
+.ai-btn-row { justify-content: flex-end; }
+
+/* The + menu. Anchored to its button, hidden until .visible. */
+.ai-action-wrapper { position: relative; margin-right: auto; }
+
+.ai-action-menu {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: var(--z-pop);
+  min-width: 158px;
+  padding: 4px;
+  background: rgba(20, 21, 21, 0.96);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--k-edge);
+  border-radius: var(--r-3);
+  box-shadow: var(--sh-3);
+}
+
+.ai-action-menu.visible { display: block; }
+
+.ai-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 9px;
+  border-radius: var(--r-2);
+  font-size: var(--s-sm);
+  color: var(--t-lo);
+  text-align: left;
+  transition: background var(--t-1) var(--e), color var(--t-1) var(--e);
+}
+
+.ai-menu-item:hover { background: var(--k-hover); color: var(--t-hi); }
+.ai-menu-item .i { color: var(--t-off); }
+.ai-menu-item:hover .i { color: var(--sig); }
+
+/* Send is the only filled button in the panel — it is the one action that
+   costs a request. */
+.ai-send-btn {
+  height: 26px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--sig);
+  border-radius: var(--r-2);
+  font-size: var(--s-sm);
+  font-weight: 600;
+  color: var(--on-sig);
+  transition: background var(--t-1) var(--e);
+}
+
+.ai-send-btn:hover { background: var(--sig-hi); }
+.ai-send-btn:disabled { background: var(--k-lift); color: var(--t-off); }
+
+/* ── Quick prompts ───────────────────────────────────────────────────── */
+
+.ai-quick-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding-top: 10px;
+}
+
+.ai-quick-btn {
+  padding: 5px 10px;
+  background: transparent;
+  border: 1px solid var(--k-rule);
+  border-radius: 100px;
+  font-size: var(--s-tiny);
+  color: var(--t-mute);
+  white-space: nowrap;
+  transition: background var(--t-1) var(--e), border-color var(--t-1) var(--e), color var(--t-1) var(--e);
+}
+
+.ai-quick-btn:hover { background: var(--k-hover); border-color: var(--k-strong); color: var(--t-hi); }
+
+/* ── Variant launcher ────────────────────────────────────────────────── */
+
+.rf-variant-launch {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--k-hair);
+}
+
+.rf-variant-launch .sub-group-label { padding: 0; text-transform: none; letter-spacing: 0;
+  font-size: var(--s-sm); font-weight: 400; line-height: 1.5; color: var(--t-mute); }
+
+/* ── Assist settings ─────────────────────────────────────────────────── */
+
+.ai-setting-item { display: flex; flex-direction: column; gap: 5px; padding: 6px 0; }
+
+.ai-checkbox-label,
+.ai-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  font-size: var(--s-sm);
+  color: var(--t-lo);
+  padding: 3px 0;
+  transition: color var(--t-1) var(--e);
+}
+
+.ai-checkbox-label:hover,
+.ai-radio-label:hover { color: var(--t-hi); }
+
+.ai-radio-group { display: flex; flex-direction: column; gap: 2px; }
+
+.ai-checkbox-label input,
+.ai-radio-label input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px; height: 15px;
+  flex: none;
+  background: var(--k-sunken);
+  border: 1px solid var(--k-rule);
+  cursor: pointer;
+  position: relative;
+  transition: background var(--t-1) var(--e), border-color var(--t-1) var(--e);
+}
+
+.ai-checkbox-label input { border-radius: var(--r-1); }
+.ai-radio-label input { border-radius: 50%; }
+
+.ai-checkbox-label input:checked,
+.ai-radio-label input:checked { background: var(--sig); border-color: var(--sig); }
+
+.ai-checkbox-label input:checked::after {
+  content: '';
+  position: absolute;
+  left: 4.5px; top: 1.5px;
+  width: 4px; height: 8px;
+  border: solid var(--on-sig);
+  border-width: 0 2px 2px 0;
+  transform: rotate(43deg);
+}
+
+.ai-radio-label input:checked::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: var(--on-sig);
+}
+
+/* ── Camera sheet ────────────────────────────────────────────────────────
+   CSS default is the open layout; the markup's inline display:none keeps
+   it shut, and AIController opens it by clearing that. */
+
+.ai-camera-modal {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: 40px;
+  background: rgba(3, 4, 4, 0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.ai-camera-modal-content {
+  width: min(520px, 100%);
+  background: var(--k-panel);
+  border: 1px solid var(--k-edge);
+  border-radius: var(--r-4);
+  box-shadow: var(--sh-3);
+  overflow: hidden;
+}
+
+.ai-camera-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  height: 44px;
+  padding: 0 10px 0 16px;
+  border-bottom: 1px solid var(--k-hair);
+  font-size: var(--s-md);
+  font-weight: 560;
+  color: var(--t-hi);
+}
+
+.ai-camera-preview-wrapper {
+  position: relative;
+  background: var(--k-sunken);
+  aspect-ratio: 4 / 3;
+}
+
+.ai-camera-preview-wrapper video,
+.ai-camera-preview-wrapper canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ai-camera-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  border-top: 1px solid var(--k-hair);
+}
+
+/* A shutter, drawn as a ring around a disc. */
+.ai-camera-capture-btn {
+  width: 48px; height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--k-lift);
+  box-shadow: inset 0 0 0 2px var(--k-strong);
+  color: var(--rec);
+  font-size: 20px;
+  transition: box-shadow var(--t-1) var(--e), background var(--t-1) var(--e);
+}
+
+.ai-camera-capture-btn:hover { background: var(--k-hover); box-shadow: inset 0 0 0 2px var(--rec); }
+
+/* ══ Skin tools ═════════════════════════════════════════════════════════ */
+
+.lip-paint-section { display: flex; flex-direction: column; gap: 8px; }
+
+.edit-points-controls > * { width: 100%; }
+
+.age-progression-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+  gap: 5px;
+}
+
+.age-label { font-size: var(--s-sm); font-weight: 500; color: var(--t); }
+.age-desc  { font-size: var(--s-micro); color: var(--t-off); line-height: 1.3; }
+.age-card.active .age-label { color: var(--sig); }
+
+/* ══ Snapshots ══════════════════════════════════════════════════════════ */
+
+.snapshot-capture-bar,
+.snapshot-clear-bar { display: flex; align-items: center; gap: 6px; }
+.snapshot-capture-bar > .btn,
+.snapshot-capture-bar > .btn-primary { flex: 1; }
+
+.snapshot-empty { padding: 16px 0; text-align: center; color: var(--t-off); }
+
+.rf-turntable-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  background: var(--k-raise);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-2);
+  font-family: var(--f-num);
+  font-size: var(--s-micro);
+  color: var(--t-mute);
+}
+
+/* ══ Case ═══════════════════════════════════════════════════════════════ */
+
+.export-buttons > * { width: 100%; }
+
+.rf-ref-empty {
+  padding: 16px 10px;
+  text-align: center;
+  font-size: var(--s-sm);
+  color: var(--t-off);
+  border: 1px dashed var(--k-rule);
+  border-radius: var(--r-3);
+}
+
+.rf-ref-thumb-wrap {
+  position: relative;
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-3);
+  overflow: hidden;
+}
+
+.rf-ref-thumb-wrap img { width: 100%; display: block; background: var(--k-sunken); }
+
+.rf-ref-thumb-name {
+  display: block;
+  padding: 6px 8px;
+  font-family: var(--f-num);
+  font-size: var(--s-micro);
+  color: var(--t-mute);
+  border-top: 1px solid var(--k-hair);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

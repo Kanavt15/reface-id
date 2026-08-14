@@ -1,0 +1,988 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   ReFace ID — shell.css
+   Stage, sheet, and the apparatus arranged around them.
+
+   ── Layout model ──────────────────────────────────────────────────────────
+   The render is never boxed in. #viewport fills the entire area between the
+   command bar and the status strip, edge to edge, and everything else floats
+   above it:
+
+     ┌───────────────────────────────────────────────────────────┐
+     │  command bar                              ─ □ ×           │
+     ├───────────────────────────────────────────────────────────┤
+     │  ┌ sections ┐                              ┌ subject ┐    │
+     │                                                       ┌─┐ │
+     │  ┌──────────┐                                         │ │ │
+     │  │  sheet   │              render                     │t│ │
+     │  │          │                                         │o│ │
+     │  └──────────┘                                         │o│ │
+     │                                                       │l│ │
+     │                     ┌ camera dock ┐                   └─┘ │
+     ├───────────────────────────────────────────────────────────┤
+     │  status strip                                             │
+     └───────────────────────────────────────────────────────────┘
+
+   The sheet is dismissible. That is the whole point of floating it: at any
+   moment the operator can press Escape and see the face with nothing on top
+   of it, which the previous fixed side docks made impossible.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ══ Screen router ═══════════════════════════════════════════════════════
+   Four screens, only one mounted-visible at a time. The editor is never
+   unmounted — the head keeps loading behind the intake flow so the render
+   is already live when the operator arrives. */
+
+#k-router { position: relative; width: 100%; height: 100%; }
+
+.k-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  will-change: opacity, transform;
+}
+
+/* ScreenRouter.js owns these four classes and a 400ms budget
+   (ScreenRouter.TRANSITION_MS). The transition is a short push with a
+   scale of less than 2% — at full-screen size that reads as the frame
+   moving rather than a card sliding, which is the whole difference
+   between a cut in a film and a slide transition in a deck. */
+
+.rf-screen-hidden { display: none !important; }
+
+.rf-screen-active {
+  opacity: 1;
+  transform: none;
+  transition: opacity var(--t-4) var(--e), transform var(--t-4) var(--e);
+}
+
+.rf-screen-enter {
+  opacity: 0;
+  transform: translateY(10px) scale(0.988);
+}
+
+.rf-screen-exit {
+  opacity: 0;
+  transform: translateY(-8px) scale(1.012);
+  transition: opacity var(--t-4) var(--e-out), transform var(--t-4) var(--e-out);
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INTAKE  —  hero, case setup, method
+   ═══════════════════════════════════════════════════════════════════════════
+   The intake screens are the only place the app is allowed to be quiet and
+   large. They are set on the void, with a single shaft of light behind the
+   content and nothing else. */
+
+.k-intake {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--k-void);
+  overflow: hidden;
+}
+
+/* One off-centre elliptical wash. Not a gradient background — a light
+   source. It is placed off-axis so the composition is never symmetrical. */
+.k-intake::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -30%;
+  width: 120vw;
+  height: 110vh;
+  transform: translateX(-58%);
+  background: radial-gradient(
+    46% 42% at 50% 50%,
+    rgba(255, 255, 255, 0.045) 0%,
+    rgba(255, 255, 255, 0.014) 38%,
+    transparent 70%);
+  pointer-events: none;
+}
+
+.k-intake-bar {
+  position: relative;
+  z-index: 2;
+  height: var(--h-top);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 8px 0 14px;
+  -webkit-app-region: drag;
+}
+
+.k-intake-body {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 40px 56px;
+}
+
+.k-intake-foot {
+  position: relative;
+  z-index: 2;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 56px 30px;
+}
+
+/* ── The intake measure ──────────────────────────────────────────────────
+   Content is held to a readable measure and pushed left of centre. Centred
+   hero text is the single most generic layout there is; an asymmetric
+   measure with a long empty right side reads as considered. */
+.k-measure {
+  width: 100%;
+  max-width: 940px;
+  margin: 0 auto;
+}
+
+.k-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.k-eyebrow::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--k-edge), transparent);
+}
+
+/* Display type. Tight tracking, low weight contrast, and a deliberately
+   large step down to the body copy underneath. */
+.k-title {
+  font-size: var(--s-dis-l);
+  font-weight: 620;
+  letter-spacing: -0.032em;
+  line-height: 1.02;
+  color: var(--t-hi);
+  max-width: 16ch;
+}
+
+.k-title-sm { font-size: var(--s-dis); letter-spacing: -0.026em; max-width: 22ch; }
+
+.k-lede {
+  margin-top: 16px;
+  max-width: 52ch;
+  font-size: var(--s-md);
+  line-height: 1.62;
+  color: var(--t-lo);
+  font-weight: 380;
+}
+
+/* ── Start screen: the two entry cards ───────────────────────────────────
+   Two cards, unequal. The primary one is wider — an even 50/50 split makes
+   both look optional. */
+.k-start-grid {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 12px;
+  margin-top: 44px;
+}
+
+.k-start-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px 22px 20px;
+  min-height: 172px;
+  text-align: left;
+  background: var(--k-base);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-4);
+  color: var(--t);
+  transition: background var(--t-2) var(--e), border-color var(--t-2) var(--e);
+  overflow: hidden;
+}
+
+.k-start-card:hover { background: var(--k-raise); border-color: var(--k-edge); }
+
+/* The primary card carries the one chroma, as a hairline at its top edge
+   only — enough to say "this one", not enough to shout. */
+.k-start-card-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--sig), transparent 62%);
+}
+
+.k-start-card-icon {
+  width: 30px; height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--k-edge);
+  border-radius: var(--r-2);
+  color: var(--t-lo);
+  font-size: 15px;
+  margin-bottom: 4px;
+  transition: color var(--t-2) var(--e), border-color var(--t-2) var(--e);
+}
+
+.k-start-card-primary .k-start-card-icon { color: var(--sig); border-color: var(--sig-line); }
+
+.k-start-card-title {
+  font-size: var(--s-lg);
+  font-weight: 560;
+  letter-spacing: -0.018em;
+  color: var(--t-hi);
+}
+
+.k-start-card-note {
+  font-size: var(--s-sm);
+  line-height: 1.55;
+  color: var(--t-mute);
+  max-width: 34ch;
+}
+
+.k-start-card-go {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--s-micro);
+  font-weight: 600;
+  letter-spacing: var(--tr-wide);
+  text-transform: uppercase;
+  color: var(--t-mute);
+  transition: color var(--t-2) var(--e), gap var(--t-2) var(--e);
+}
+
+.k-start-card:hover .k-start-card-go { color: var(--t); gap: 11px; }
+.k-start-card-primary:hover .k-start-card-go { color: var(--sig); }
+
+/* ── Recent cases strip ──────────────────────────────────────────────── */
+.k-recent { margin-top: 34px; }
+
+.k-recent-list {
+  margin-top: 12px;
+  border-top: 1px solid var(--k-hair);
+}
+
+.k-recent-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 11px 4px;
+  border-bottom: 1px solid var(--k-hair);
+  text-align: left;
+  color: var(--t-lo);
+  transition: color var(--t-1) var(--e), padding-left var(--t-2) var(--e);
+}
+
+.k-recent-row:hover { color: var(--t-hi); padding-left: 10px; }
+.k-recent-empty { padding: 18px 4px; font-size: var(--s-sm); color: var(--t-off); }
+
+/* ── Case setup: the form ────────────────────────────────────────────────
+   Two columns of fields on a shared baseline, with the section label in the
+   left margin rather than above the fields. */
+.k-form {
+  display: grid;
+  grid-template-columns: 132px 1fr;
+  gap: 26px 30px;
+  margin-top: 40px;
+  padding-top: 26px;
+  border-top: 1px solid var(--k-hair);
+}
+
+.k-form-legend { padding-top: 5px; }
+.k-form-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 18px; }
+.k-form-fields > .k-field-wide { grid-column: 1 / -1; }
+
+/* ── Method screen ───────────────────────────────────────────────────── */
+.k-method-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 40px;
+}
+
+/* .rf-method-card / .rf-method-selected are the names ScreenRouter.js
+   toggles; multi-select, so these read as checkboxes rather than radios. */
+.rf-method-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 20px 18px;
+  min-height: 158px;
+  text-align: left;
+  background: var(--k-base);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-4);
+  color: var(--t);
+  cursor: pointer;
+  transition: background var(--t-2) var(--e), border-color var(--t-2) var(--e);
+}
+
+.rf-method-card:hover { background: var(--k-raise); border-color: var(--k-edge); }
+
+.rf-method-card.rf-method-selected {
+  background: var(--k-raise);
+  border-color: var(--sig-line);
+}
+
+.rf-method-card.rf-method-selected .k-method-check { opacity: 1; transform: none; }
+
+.k-method-check {
+  position: absolute;
+  top: 14px; right: 14px;
+  width: 17px; height: 17px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--sig);
+  color: var(--on-sig);
+  font-size: 10px;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity var(--t-2) var(--e), transform var(--t-2) var(--e);
+}
+
+.k-method-icon { font-size: 17px; color: var(--t-lo); }
+.rf-method-card.rf-method-selected .k-method-icon { color: var(--sig); }
+
+.k-method-title { font-size: var(--s-md); font-weight: 560; color: var(--t-hi); letter-spacing: -0.012em; }
+.k-method-note  { font-size: var(--s-sm); line-height: 1.55; color: var(--t-mute); }
+
+/* ── Intake form field ───────────────────────────────────────────────────
+   .rf-error and .rf-visible are applied by ScreenRouter._validateCaseSetup.
+   The message is reserved space, so a field that fails validation does not
+   shove the rest of the form down the page. */
+
+.k-field-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: var(--s-micro);
+  font-weight: 600;
+  letter-spacing: var(--tr-cap);
+  text-transform: uppercase;
+  color: var(--t-off);
+}
+
+.k-field-label .k-req { color: var(--sig); margin-left: 3px; }
+
+.k-field-input {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  background: var(--k-base);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-2);
+  font-size: var(--s-ui);
+  color: var(--t-hi);
+  transition: border-color var(--t-1) var(--e), background var(--t-1) var(--e);
+}
+
+textarea.k-field-input { height: auto; min-height: 84px; padding: 10px 12px; line-height: 1.6; resize: vertical; }
+.k-field-input::placeholder { color: var(--t-off); }
+.k-field-input:hover { border-color: var(--k-edge); }
+.k-field-input:focus { border-color: var(--sig-line); background: var(--k-void); }
+.k-field-input.rf-error { border-color: var(--rec); }
+
+.k-field-error {
+  height: 0;
+  overflow: hidden;
+  margin-top: 0;
+  font-size: var(--s-micro);
+  color: var(--rec);
+  opacity: 0;
+  transition: height var(--t-2) var(--e), opacity var(--t-2) var(--e), margin-top var(--t-2) var(--e);
+}
+
+.k-field-error.rf-visible { height: 14px; margin-top: 5px; opacity: 1; }
+
+/* Disabled CTA — ScreenRouter toggles .rf-cta-disabled alongside
+   [disabled], so both are covered. */
+.rf-cta-disabled,
+.k-btn-primary:disabled {
+  background: var(--k-lift);
+  border-color: var(--k-hair);
+  color: var(--t-off);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.rf-cta-disabled:hover,
+.k-btn-primary:disabled:hover { background: var(--k-lift); border-color: var(--k-hair); color: var(--t-off); }
+
+/* Steps indicator in the intake footer. */
+.k-steps { display: flex; align-items: center; gap: 7px; }
+.k-step {
+  width: 20px; height: 2px;
+  background: var(--k-rule);
+  border-radius: 1px;
+  transition: background var(--t-3) var(--e), width var(--t-3) var(--e);
+}
+.k-step.active { width: 34px; background: var(--sig); }
+.k-step.done { background: var(--t-off); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EDITOR
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#k-editor { background: var(--k-void); }
+
+/* ── Command bar ─────────────────────────────────────────────────────────
+   The only full-width chrome in the app. Draggable, because the window is
+   frameless; every interactive child opts back out. */
+
+.k-cmdbar {
+  position: relative;
+  z-index: var(--z-bar);
+  height: var(--h-top);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 13px;
+  background: var(--k-base);
+  border-bottom: 1px solid var(--k-hair);
+  -webkit-app-region: drag;
+}
+
+.k-cmdbar-left,
+.k-cmdbar-right { display: flex; align-items: center; gap: 3px; }
+.k-cmdbar-left { gap: 11px; }
+.k-cmdbar-right { margin-left: auto; }
+
+/* Wordmark: a small filled square, then the name. The square is the only
+   solid chroma in the chrome and it doubles as the app's identity mark. */
+.k-mark {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.k-mark-dot {
+  width: 9px; height: 9px;
+  background: var(--sig);
+  border-radius: 1px;
+}
+
+.k-mark-text {
+  font-size: var(--s-tiny);
+  font-weight: 680;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--t-hi);
+}
+
+/* Case identity, set in mono because it is a reference number. */
+.k-cmdbar-case {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding-left: 11px;
+  border-left: 1px solid var(--k-hair);
+  min-width: 0;
+}
+
+.k-case-name {
+  font-size: var(--s-sm);
+  color: var(--t);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 30ch;
+}
+
+/* ── Window controls ─────────────────────────────────────────────────── */
+.k-wc {
+  width: 42px;
+  height: var(--h-top);
+  display: grid;
+  place-items: center;
+  color: var(--t-lo);
+  font-size: 13px;
+  -webkit-app-region: no-drag;
+  transition: background var(--t-1) var(--e), color var(--t-1) var(--e);
+}
+
+.k-wc:hover { background: var(--k-hover); color: var(--t-hi); }
+.k-wc-close:hover { background: var(--rec); color: #fff; }
+
+/* ── Stage ───────────────────────────────────────────────────────────── */
+
+.k-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: var(--k-sunken);
+  overflow: hidden;
+}
+
+/* The render mount fills the stage completely. */
+#viewport { position: absolute; inset: 0; }
+#viewport canvas { width: 100% !important; height: 100% !important; display: block; }
+
+/* A vignette anchors the render in the frame — the same trick a grading
+   suite uses, and it keeps floating chrome legible over bright skin. */
+.k-stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(78% 68% at 50% 46%, transparent 46%, rgba(0, 0, 0, 0.46) 100%);
+}
+
+/* Everything that floats sits above the vignette. */
+.k-float { position: absolute; z-index: var(--z-hud); }
+
+/* ── Section nav ─────────────────────────────────────────────────────────
+   Floating, top-left. These are the real .panel-tab elements the controller
+   binds — no proxying. Clicking the active section closes the sheet, so the
+   nav is also the dismiss control. */
+
+.k-sections {
+  top: 14px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 3px;
+  background: rgba(10, 11, 11, 0.72);
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-3);
+  box-shadow: var(--sh-2);
+}
+
+.panel-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 27px;
+  padding: 0 11px;
+  border-radius: var(--r-2);
+  font-size: var(--s-sm);
+  font-weight: 480;
+  color: var(--t-mute);
+  white-space: nowrap;
+  transition: color var(--t-1) var(--e), background var(--t-1) var(--e);
+}
+
+.panel-tab .i { font-size: 13px; opacity: 0.85; }
+.panel-tab:hover { color: var(--t); background: rgba(255, 255, 255, 0.04); }
+
+/* The active tab's ground is a single marker element that slides between
+   tabs (k-motion.js), so the tab itself only changes colour. Sits behind
+   the labels via z-index rather than opacity. */
+.k-tab-marker {
+  position: absolute;
+  top: 3px;
+  left: 0;
+  height: 27px;
+  width: 0;
+  background: var(--k-lift);
+  border-radius: var(--r-2);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.panel-tab { z-index: 1; }
+.panel-tab.active { color: var(--t-hi); }
+.panel-tab.active .i { color: var(--sig); opacity: 1; }
+
+/* Without the motion layer the marker never gets placed, so the active
+   tab still needs a ground of its own. */
+.k-sections:not(:has(.k-tab-marker)) .panel-tab.active { background: var(--k-lift); }
+
+/* ── Subject readout ─────────────────────────────────────────────────────
+   Top-right. A live summary of what has actually been built — style, eye
+   colour, tone, marks. Mono, dim, and never interactive: it is a gauge. */
+
+.k-subject {
+  top: 14px;
+  right: 14px;
+  min-width: 186px;
+  padding: 9px 11px;
+  background: rgba(10, 11, 11, 0.62);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-3);
+}
+
+.k-subject-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 2.5px 0;
+}
+
+.k-subject-k { font-size: var(--s-micro); letter-spacing: var(--tr-cap); text-transform: uppercase; color: var(--t-off); }
+.k-subject-v { font-family: var(--f-num); font-size: var(--s-tiny); color: var(--t-lo); letter-spacing: -0.02em; }
+
+/* ── Tool strip ──────────────────────────────────────────────────────────
+   Right edge, vertical, icon-only. These are modes, not commands, so they
+   latch: an engaged tool keeps the chroma until it is disengaged. */
+
+.k-tools {
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  background: rgba(10, 11, 11, 0.72);
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-3);
+  box-shadow: var(--sh-2);
+}
+
+.k-tool {
+  position: relative;
+  width: 30px; height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-2);
+  color: var(--t-lo);
+  font-size: 15px;
+  transition: background var(--t-1) var(--e), color var(--t-1) var(--e);
+}
+
+.k-tool:hover { background: var(--k-hover); color: var(--t-hi); }
+
+.k-tool.active {
+  background: var(--sig-dim);
+  color: var(--sig);
+  box-shadow: inset 0 0 0 1px var(--sig-line);
+}
+
+.k-tool-sep { height: 1px; margin: 3px 4px; background: var(--k-hair); }
+
+/* ── Camera dock ─────────────────────────────────────────────────────────
+   Bottom centre. Camera and display state only — nothing that edits the
+   subject lives here, so the operator always knows this row is safe. */
+
+.k-dock {
+  bottom: 16px;
+  /* Centred on the *free* stage, not the window — with the sheet open,
+     centring on the window buries the first half of the dock behind it. */
+  left: calc(50% + (var(--w-sheet) + 28px) / 2);
+  transform: translateX(-50%);
+  transition: left var(--t-3) var(--e);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  background: rgba(10, 11, 11, 0.74);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-3);
+  box-shadow: var(--sh-2);
+}
+
+.k-dock-btn {
+  height: 28px;
+  min-width: 28px;
+  padding: 0 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--r-2);
+  font-size: var(--s-sm);
+  font-weight: 480;
+  color: var(--t-lo);
+  transition: background var(--t-1) var(--e), color var(--t-1) var(--e);
+}
+
+body.k-sheet-closed .k-dock { left: 50%; }
+
+.k-dock-btn.k-icon-only { padding: 0; justify-content: center; font-size: 14px; }
+.k-dock-btn:hover { background: var(--k-hover); color: var(--t-hi); }
+.k-dock-btn.active { background: var(--k-lift); color: var(--t-hi); }
+.k-dock-btn.active .i { color: var(--sig); }
+.k-dock-sep { width: 1px; align-self: stretch; margin: 4px 5px; background: var(--k-hair); }
+
+/* ── The sheet ───────────────────────────────────────────────────────────
+   The instrument surface. Floats over the stage rather than displacing it,
+   and blurs what is behind so the face stays readable underneath — the one
+   place in this design where blur is doing real work. */
+
+.k-sheet {
+  position: absolute;
+  z-index: var(--z-sheet);
+  left: 14px;
+  top: 58px;
+  bottom: 16px;
+  width: var(--w-sheet);
+  display: flex;
+  flex-direction: column;
+  background: rgba(12, 13, 13, 0.86);
+  backdrop-filter: blur(22px) saturate(1.25);
+  -webkit-backdrop-filter: blur(22px) saturate(1.25);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-4);
+  box-shadow: var(--sh-3);
+  overflow: hidden;
+  transform-origin: left center;
+}
+
+/* Dismissed state. Kept in the DOM and only moved, because several panels
+   host modals and video elements that must survive being hidden. */
+body.k-sheet-closed .k-sheet {
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-14px) scale(0.985);
+}
+
+.k-sheet-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 42px;
+  padding: 0 8px 0 var(--pad);
+  border-bottom: 1px solid var(--k-hair);
+}
+
+.k-sheet-title {
+  font-size: var(--s-ui);
+  font-weight: 560;
+  color: var(--t-hi);
+  letter-spacing: -0.012em;
+}
+
+.k-sheet-count {
+  font-family: var(--f-num);
+  font-size: var(--s-micro);
+  color: var(--t-off);
+  padding: 1px 5px;
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-1);
+}
+
+.k-sheet-actions { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+
+/* The scroller. Lenis drives this; overflow stays on so it degrades to a
+   normal scroll area if the motion layer is disabled. */
+.k-sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Only the active section is mounted-visible. This is the contract
+   UIController.bindPanelTabs() drives, so the class names stay. */
+.panel-content { display: none; padding-bottom: 28px; }
+.panel-content.active { display: block; }
+
+/* ── Status strip ────────────────────────────────────────────────────── */
+
+.k-status {
+  position: relative;
+  z-index: var(--z-bar);
+  height: var(--h-foot);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 4px 0 12px;
+  background: var(--k-base);
+  border-top: 1px solid var(--k-hair);
+  font-size: var(--s-micro);
+}
+
+.k-status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 11px;
+  height: 100%;
+  color: var(--t-mute);
+  white-space: nowrap;
+}
+
+.k-status-item:first-child { padding-left: 0; }
+.k-status-sep { width: 1px; height: 11px; background: var(--k-hair); }
+.k-status-right { margin-left: auto; display: flex; align-items: center; }
+
+.k-status-k {
+  letter-spacing: var(--tr-cap);
+  text-transform: uppercase;
+  color: var(--t-off);
+}
+
+.k-status-v {
+  font-family: var(--f-num);
+  font-size: var(--s-tiny);
+  color: var(--t-lo);
+  letter-spacing: -0.02em;
+}
+
+/* A button in the status strip (activity log opener). */
+.k-status-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0 11px;
+  color: var(--t-mute);
+  font-size: var(--s-micro);
+  letter-spacing: var(--tr-cap);
+  text-transform: uppercase;
+  transition: color var(--t-1) var(--e), background var(--t-1) var(--e);
+}
+
+.k-status-btn:hover { color: var(--t-hi); background: var(--k-raise); }
+
+/* Connection dot. Colour is state, and it is the only thing in the status
+   strip permitted to carry any. */
+.k-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--t-off);
+  flex: none;
+}
+
+.k-dot.ok   { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-dim); }
+.k-dot.warn { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-dim); }
+.k-dot.err  { background: var(--rec); box-shadow: 0 0 0 3px var(--rec-dim); }
+.k-dot.live { background: var(--sig); box-shadow: 0 0 0 3px var(--sig-dim); }
+
+/* .connected is the class UIController toggles on the backend dot. */
+.k-dot.status-dot { background: var(--rec); box-shadow: 0 0 0 3px var(--rec-dim); }
+.k-dot.status-dot.connected { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-dim); }
+
+/* UIController rewrites #statusBackend's innerHTML and includes its own
+   small dot glyph. The strip already shows state in the dot beside it, so
+   the duplicate is suppressed rather than shown twice. Icons injected the
+   same way collapse to nothing now that the icon font is gone. */
+.status-dot-small { display: none; }
+.k-status-item i { display: none; }
+
+/* ── Backend banner ───────────────────────────────────────────────────── */
+
+.k-banner {
+  flex: none;
+  height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 14px;
+  background: var(--warn-dim);
+  color: var(--warn);
+  font-size: var(--s-sm);
+  border-bottom: 1px solid transparent;
+  transition: height var(--t-3) var(--e), border-color var(--t-3) var(--e);
+}
+
+.k-banner.visible { height: 27px; border-bottom-color: rgba(224, 163, 60, 0.24); }
+
+/* ── Loading overlay ─────────────────────────────────────────────────────
+   Sits over the stage while the head loads. A determinate bar, not a
+   spinner — a spinner tells the operator nothing about a 40MB mesh. */
+
+.k-loading {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: var(--k-void);
+  transition: opacity var(--t-4) var(--e), visibility var(--t-4);
+}
+
+.k-loading.hidden,
+.k-loading[style*="none"] { opacity: 0; visibility: hidden; pointer-events: none; }
+
+.k-loading-bar {
+  position: relative;
+  width: 168px;
+  height: 2px;
+  background: var(--k-lift);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+/* Indeterminate sweep — a band that traverses rather than a pulse. */
+.k-loading-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 42%;
+  background: var(--sig);
+  border-radius: 1px;
+  animation: k-sweep 1.15s var(--e) infinite;
+}
+
+@keyframes k-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(340%); }
+}
+
+.k-loading-text {
+  font-family: var(--f-num);
+  font-size: var(--s-tiny);
+  letter-spacing: 0.06em;
+  color: var(--t-mute);
+  text-transform: uppercase;
+}
+
+/* ── Age progression overlay ─────────────────────────────────────────── */
+
+#ageProgressionOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-pop);
+  display: none;
+  place-items: center;
+  background: rgba(3, 4, 4, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+#ageProgressionOverlay.active { display: grid; }
+
+/* ── Hair preview video ──────────────────────────────────────────────────
+   Follows the cursor near a style card. Framed like a monitor feed. */
+
+#hairPreviewContainer {
+  position: fixed;
+  z-index: var(--z-pop);
+  width: 194px;
+  padding: 4px;
+  background: var(--k-base);
+  border: 1px solid var(--k-edge);
+  border-radius: var(--r-3);
+  box-shadow: var(--sh-3);
+  pointer-events: none;
+}
+
+#hairPreviewVideo {
+  width: 100%;
+  border-radius: var(--r-1);
+  background: var(--k-sunken);
+}

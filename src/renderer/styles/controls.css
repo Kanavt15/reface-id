@@ -1,909 +1,813 @@
-/* ══════════════════════════════════════════════════════════════════════
-   REface ID — Form Controls & Sliders
-   Custom styled inputs for the forensic UI
-   ══════════════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+   ReFace ID — controls.css
+   Every instrument in the sheet.
 
-/* ─── Slider Controls ───────────────────────────────────────────────── */
+   Class names like .slider-control, .morph-slider, .color-swatch and
+   .hair-style-card are the selectors UIController.js binds to. They are the
+   application's API and they are kept. Everything they look like is new.
 
-.slider-control {
-  margin-bottom: 10px;
+   ── Governing idea ────────────────────────────────────────────────────────
+   Two hundred controls in one surface only works if the eye can skip. So:
+   labels are dim and lowercase-weighted, values are mono and right-aligned
+   on a shared column, and the only bright thing in a resting row is nothing
+   at all. A row lights up when it holds a non-default value or the pointer
+   is on it — never otherwise.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ══ Group ═══════════════════════════════════════════════════════════════
+   A collapsible section. The header sticks to the top of the scroller so
+   the operator always knows which region they are editing while deep in a
+   long list. */
+
+.control-group { border-bottom: 1px solid var(--k-hair); }
+.control-group:last-child { border-bottom: none; }
+
+.control-group-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 34px;
+  padding: 0 10px 0 var(--pad);
+  cursor: pointer;
+  background: rgba(14, 15, 15, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--k-hair);
+  user-select: none;
+  transition: color var(--t-1) var(--e);
 }
 
-.slider-control:last-child {
+.control-group-header:hover { color: var(--t-hi); }
+
+.control-group-header > .i {
+  font-size: 13px;
+  color: var(--t-mute);
+  transition: color var(--t-1) var(--e);
+}
+
+.control-group-header:hover > .i { color: var(--t-lo); }
+
+.control-group-header > span {
+  flex: 1;
+  font-size: var(--s-micro);
+  font-weight: 650;
+  letter-spacing: var(--tr-wide);
+  text-transform: uppercase;
+  color: var(--t-lo);
+}
+
+/* Disclosure chevron. Rotates rather than swapping glyph, so the motion
+   reads as one object turning. */
+.k-caret {
+  font-size: 12px;
+  color: var(--t-off);
+  transition: transform var(--t-2) var(--e), color var(--t-1) var(--e);
+}
+
+.control-group-header.collapsed .k-caret { transform: rotate(-90deg); }
+.control-group-header:hover .k-caret { color: var(--t-lo); }
+
+/* Collapse. Animating grid-template-rows between 1fr and 0fr is the one
+   technique that transitions to *content height* without hard-coding a
+   max-height that will be wrong for some group. Requires the single
+   wrapper child the generator emits. */
+.control-group-body,
+.sub-group-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--t-3) var(--e);
+}
+
+.control-group-body.collapsed,
+.sub-group-body.collapsed { grid-template-rows: 0fr; }
+
+.control-group-body > *,
+.sub-group-body > * { min-height: 0; overflow: hidden; }
+
+/* The wrapper's own padding is NOT part of what 0fr collapses — the grid
+   row goes to zero but the padding box does not, which left every closed
+   group 14px tall and leaking the first line of its contents. So the
+   padding animates shut on the same curve. */
+.k-group-inner {
+  padding: 4px 0 10px;
+  transition: padding var(--t-3) var(--e);
+}
+
+.control-group-body.collapsed > .k-group-inner { padding-top: 0; padding-bottom: 0; }
+
+/* ══ Sub-group ═══════════════════════════════════════════════════════════
+   A quieter division inside a group. Marked with a rule in the left margin
+   rather than a box, so nesting reads as indentation instead of another
+   card inside a card. */
+
+.feature-sub-group { margin-top: 6px; }
+.feature-sub-group:first-child { margin-top: 0; }
+
+.sub-group-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 24px;
+  padding: 0 var(--pad);
+  cursor: pointer;
+  user-select: none;
+}
+
+.sub-group-header > .i { font-size: 11px; color: var(--t-off); }
+
+.sub-group-header > span {
+  flex: 1;
+  font-size: var(--s-micro);
+  font-weight: 600;
+  letter-spacing: var(--tr-cap);
+  text-transform: uppercase;
+  color: var(--t-mute);
+  transition: color var(--t-1) var(--e);
+}
+
+.sub-group-header:hover > span { color: var(--t-lo); }
+.sub-group-header .k-caret { font-size: 11px; }
+.sub-group-header.collapsed .k-caret { transform: rotate(-90deg); }
+
+.k-sub-inner {
+  margin-left: var(--pad);
+  padding-left: 11px;
+  border-left: 1px solid var(--k-hair);
+}
+
+/* A plain caption between controls. */
+.sub-group-label,
+.rf-subhead {
+  display: block;
+  padding: 9px var(--pad) 5px;
+  font-size: var(--s-micro);
+  font-weight: 600;
+  letter-spacing: var(--tr-cap);
+  text-transform: uppercase;
+  color: var(--t-off);
+}
+
+.k-sub-inner .sub-group-label,
+.k-sub-inner .rf-subhead { padding-left: 0; padding-right: 0; }
+
+.k-note {
+  padding: 4px var(--pad) 9px;
+  font-size: var(--s-sm);
+  line-height: 1.5;
+  color: var(--t-mute);
+}
+
+.k-sub-inner .k-note { padding-left: 0; }
+
+/* ══ Slider ══════════════════════════════════════════════════════════════
+   The workhorse — 194 of them. Label and value share a baseline above the
+   track, so scanning a column of values needs no eye movement sideways.
+
+   The fill is driven by --fill-pct, which UIController.updateSliderFill()
+   writes on input. CSS reads it; no JS touches presentation. */
+
+.slider-control {
+  padding: 5px var(--pad) 6px;
+  border-radius: var(--r-2);
+  transition: background var(--t-1) var(--e);
+}
+
+.k-sub-inner .slider-control { padding-left: 0; padding-right: 8px; }
+
+.slider-control:hover { background: rgba(255, 255, 255, 0.022); }
+
+.slider-control > label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 5px;
+  font-size: var(--s-sm);
+  font-weight: 420;
+  color: var(--t-lo);
+  cursor: default;
+  transition: color var(--t-1) var(--e);
+}
+
+.slider-control:hover > label { color: var(--t); }
+
+.slider-row { display: flex; align-items: center; gap: 10px; }
+
+/* The readout lives in the label row, pinned right, tabular. */
+.slider-value {
+  font-family: var(--f-num);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  font-size: var(--s-tiny);
+  letter-spacing: -0.02em;
+  color: var(--t-mute);
+  min-width: 3ch;
+  text-align: right;
+  transition: color var(--t-1) var(--e);
+}
+
+.slider-control:hover .slider-value { color: var(--t-hi); }
+
+/* While a slider is under the pointer, its readout takes the chroma and
+   the row holds its hover ground — so the number the operator is watching
+   is unambiguous even with the cursor over the track. */
+.slider-control.k-live { background: rgba(255, 255, 255, 0.032); }
+.slider-control.k-live > label { color: var(--t-hi); }
+.slider-control.k-live .slider-value { color: var(--sig); font-weight: 500; }
+
+/* Nothing on the stage animates during a drag. An instrument that shifts
+   under your hand feels loose, and the sheet is 200 rows deep. */
+body.k-dragging .k-float,
+body.k-dragging .k-sheet { transition: none !important; }
+body.k-dragging { cursor: ew-resize; }
+
+/* ── The track ───────────────────────────────────────────────────────────
+   Height is the hit area (16px); the visible track is drawn 2px through
+   the middle with a background gradient, so the control is precise to look
+   at and forgiving to grab. */
+
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  width: 100%;
+  height: 16px;
+  background: transparent;
+  cursor: pointer;
+  --fill-pct: 50%;
+  /* At rest the fill is neutral. With two hundred sliders on screen,
+     painting every one of them in the signal colour turns the chroma into
+     wallpaper and it stops meaning "live". It earns the colour only under
+     the pointer. */
+  --fill-col: var(--t-mute);
+  transition: none;
+}
+
+.slider-control:hover input[type=range],
+.slider-control.k-live input[type=range],
+input[type=range]:focus-visible { --fill-col: var(--sig); }
+
+input[type=range]::-webkit-slider-runnable-track {
+  height: 16px;
+  background:
+    linear-gradient(var(--fill-col), var(--fill-col)) left center / var(--fill-pct) 2px no-repeat,
+    linear-gradient(var(--k-active), var(--k-active)) left center / 100% 2px no-repeat;
+  border-radius: 1px;
+}
+
+/* A vertical bar, not a knob. Hit area is 13px wide; only the centre 3px
+   is drawn. Instrument, not toy. */
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 14px;
+  margin-top: 1px;
+  border: none;
+  background: linear-gradient(var(--t-hi), var(--t-hi)) center / 3px 14px no-repeat;
+  border-radius: 1px;
+  transition: background-size var(--t-1) var(--e);
+}
+
+input[type=range]:hover::-webkit-slider-thumb {
+  background: linear-gradient(var(--t-hi), var(--t-hi)) center / 3px 16px no-repeat;
+}
+
+input[type=range]:active::-webkit-slider-thumb {
+  background: linear-gradient(var(--sig), var(--sig)) center / 3px 16px no-repeat;
+}
+
+input[type=range]:focus-visible::-webkit-slider-thumb {
+  background: linear-gradient(var(--sig), var(--sig)) center / 3px 16px no-repeat;
+}
+
+/* Reset-to-default affordance: a hairline tick at the 50% detent. */
+.slider-control.k-centred .slider-row { position: relative; }
+
+.slider-control.k-centred .slider-row::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1px;
+  height: 6px;
+  transform: translate(-50%, -50%);
+  background: var(--k-rule);
+  pointer-events: none;
+}
+
+/* ══ Buttons ═════════════════════════════════════════════════════════════
+   Three weights: quiet (default), primary (the one chroma), danger. All
+   flat, all hairline-bordered, none with a gradient. */
+
+.btn,
+.btn-small,
+.k-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: var(--hit);
+  padding: 0 13px;
+  background: var(--k-lift);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-2);
+  font-size: var(--s-sm);
+  font-weight: 500;
+  color: var(--t);
+  white-space: nowrap;
+  transition: background var(--t-1) var(--e), border-color var(--t-1) var(--e),
+              color var(--t-1) var(--e), transform var(--t-1) var(--e);
+}
+
+.btn-small { height: 25px; padding: 0 10px; font-size: var(--s-tiny); }
+
+.btn:hover, .btn-small:hover, .k-btn:hover {
+  background: var(--k-hover);
+  border-color: var(--k-edge);
+  color: var(--t-hi);
+}
+
+/* A short, real press. 60ms of 1px travel is what makes a button feel
+   mechanical rather than animated. */
+/* Press and hover motion for buttons, cards and swatches is owned by
+   k-motion.js (Motion One springs). Declaring a CSS transform here too
+   would fight the spring and snap the element mid-flight. */
+
+.btn-primary,
+.k-btn-primary {
+  background: var(--sig);
+  border-color: var(--sig);
+  color: var(--on-sig);
+  font-weight: 600;
+}
+
+.btn-primary:hover, .k-btn-primary:hover {
+  background: var(--sig-hi);
+  border-color: var(--sig-hi);
+  color: var(--on-sig);
+}
+
+.btn-danger, .k-btn-danger { color: var(--rec); border-color: rgba(255, 77, 61, 0.28); }
+.btn-danger:hover, .k-btn-danger:hover { background: var(--rec-dim); border-color: var(--rec); color: var(--rec); }
+
+.k-btn-ghost { background: transparent; border-color: transparent; color: var(--t-lo); }
+.k-btn-ghost:hover { background: var(--k-hover); border-color: var(--k-hair); }
+
+.k-btn-full, .rf-full { width: 100%; }
+
+/* Icon-only button, used across the sheet head and group headers. */
+.k-ibtn {
+  width: 26px; height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-2);
+  color: var(--t-mute);
+  font-size: 14px;
+  transition: background var(--t-1) var(--e), color var(--t-1) var(--e);
+}
+
+.k-ibtn:hover { background: var(--k-hover); color: var(--t-hi); }
+.k-ibtn.active { color: var(--sig); }
+
+/* Reset-group button in a group header. Stays invisible until the group is
+   hovered — it is a rare, destructive action and should not advertise. */
+.btn-reset-group {
+  width: 22px; height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-1);
+  color: var(--t-off);
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity var(--t-1) var(--e), background var(--t-1) var(--e), color var(--t-1) var(--e);
+}
+
+.control-group-header:hover .btn-reset-group { opacity: 1; }
+.btn-reset-group:hover { background: var(--k-hover); color: var(--rec); }
+.btn-reset-group:focus-visible { opacity: 1; }
+
+/* A row of buttons inside a group. */
+.k-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px var(--pad) 8px;
+}
+
+.k-sub-inner .k-btn-row { padding-left: 0; padding-right: 8px; }
+.k-btn-row > * { flex: 1 1 auto; min-width: 0; }
+
+/* ══ Field (text, number, textarea, select) ══════════════════════════════ */
+
+.k-field { padding: 6px var(--pad) 7px; }
+.k-sub-inner .k-field { padding-left: 0; padding-right: 8px; }
+
+.k-field > label,
+.select-control > label,
+.input-control > label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: var(--s-micro);
+  font-weight: 600;
+  letter-spacing: var(--tr-cap);
+  text-transform: uppercase;
+  color: var(--t-off);
+}
+
+.k-input,
+.custom-select,
+textarea.k-input {
+  width: 100%;
+  height: var(--hit);
+  padding: 0 10px;
+  background: var(--k-sunken);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-2);
+  font-size: var(--s-sm);
+  color: var(--t-hi);
+  transition: border-color var(--t-1) var(--e), background var(--t-1) var(--e);
+}
+
+textarea.k-input {
+  height: auto;
+  min-height: 72px;
+  padding: 9px 10px;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.k-input::placeholder { color: var(--t-off); }
+.k-input:hover, .custom-select:hover { border-color: var(--k-edge); }
+
+.k-input:focus,
+.custom-select:focus {
+  border-color: var(--sig-line);
+  background: var(--k-void);
+  outline: none;
+}
+
+/* Select: native control, custom chevron, no OS styling. */
+.select-control { padding: 6px var(--pad) 7px; }
+.k-sub-inner .select-control { padding-left: 0; padding-right: 8px; }
+
+.custom-select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 30px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238d8c87' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+.custom-select option { background: var(--k-panel); color: var(--t-hi); }
+
+/* ══ Checkbox ════════════════════════════════════════════════════════════
+   A real box, drawn small and square. The native input stays in the DOM
+   (the controller reads .checked) but is visually replaced. */
+
+.input-control { padding: 5px var(--pad) 6px; }
+.k-sub-inner .input-control { padding-left: 0; padding-right: 8px; }
+
+/* Written to out-specify `.input-control > label` above (0,1,1), which
+   would otherwise set every checkbox caption as an uppercase eyebrow —
+   correct for a field label, wrong for a sentence next to a tick box. */
+.input-control > label.checkbox-label,
+label.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  font-size: var(--s-sm);
+  color: var(--t-lo);
+  padding: 3px 0;
+  transition: color var(--t-1) var(--e);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 420;
   margin-bottom: 0;
 }
 
-.slider-control label {
-  display: block;
-  font-size: 11px;
-  color: var(--text-secondary);
-  margin-bottom: 5px;
-  font-weight: 500;
-  letter-spacing: 0.2px;
-}
+.checkbox-label:hover { color: var(--t-hi); }
 
-.slider-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.slider-value {
-  min-width: 26px;
-  text-align: right;
-  font-size: 10.5px;
-  font-family: var(--font-mono);
-  color: var(--rf-accent-gold);
-  font-weight: 600;
-  padding: 2px 6px;
-  background: rgba(201, 169, 110, 0.1);
-  border-radius: 4px;
-  border: 1px solid rgba(201, 169, 110, 0.2);
-}
-
-.slider-label-left,
-.slider-label-right {
-  font-size: 9px;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-
-/* Custom range slider */
-input[type="range"] {
+.checkbox-label input[type=checkbox] {
   -webkit-appearance: none;
   appearance: none;
-  flex: 1;
-  height: 5px;
-  border-radius: 3px;
-  outline: none;
-  cursor: pointer;
-  background: linear-gradient(90deg, var(--bg-primary) 0%, var(--bg-elevated) 100%);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
-  transition: all var(--transition-fast);
-}
-
-input[type="range"]:hover {
-  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.4),
-              0 0 8px rgba(201, 169, 110, 0.2);
-}
-
-/* Track */
-input[type="range"]::-webkit-slider-runnable-track {
-  height: 5px;
-  border-radius: 3px;
-  background: linear-gradient(
-    to right,
-    var(--rf-accent-gold) 0%,
-    var(--rf-accent-gold) var(--slider-fill, 50%),
-    transparent var(--slider-fill, 50%)
-  );
-}
-
-/* Thumb */
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--text-primary) 0%, #d0d0e0 100%);
-  border: 2px solid var(--rf-accent-gold);
-  margin-top: -6px;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4),
-              0 0 8px rgba(201, 169, 110, 0.3);
-}
-
-input[type="range"]::-webkit-slider-thumb:hover {
-  background: linear-gradient(135deg, var(--rf-accent-gold-bright) 0%, var(--rf-accent-gold) 100%);
-  border-color: var(--rf-accent-gold-bright);
-  transform: scale(1.25);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5),
-              0 0 16px rgba(201, 169, 110, 0.5);
-}
-
-input[type="range"]:active::-webkit-slider-thumb {
-  background: var(--rf-accent-gold);
-  transform: scale(1.15);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6),
-              0 0 20px rgba(201, 169, 110, 0.6);
-}
-
-/* Morph slider color variation */
-.morph-slider::-webkit-slider-runnable-track {
-  background: linear-gradient(to right, #a8844a, var(--rf-accent-gold));
-}
-
-.hair-slider::-webkit-slider-runnable-track {
-  background: linear-gradient(to right, #a8844a, var(--rf-accent-gold-bright));
-}
-
-.appearance-slider::-webkit-slider-runnable-track {
-  background: linear-gradient(to right, #a8844a, var(--rf-accent-gold));
-}
-
-.skin-texture-slider::-webkit-slider-runnable-track {
-  background: linear-gradient(to right, #8b6914, #d4a574);
-}
-
-.eyebrow-slider::-webkit-slider-runnable-track {
-  background: linear-gradient(to right, #a8844a, var(--rf-accent-gold));
-}
-
-/* ─── Select Controls ───────────────────────────────────────────────── */
-
-.select-control {
-  margin-bottom: 12px;
-}
-
-.select-control label {
-  display: block;
-  font-size: 11px;
-  color: var(--text-secondary);
-  margin-bottom: 5px;
-  font-weight: 500;
-}
-
-.custom-select {
-  width: 100%;
-  padding: 7px 12px;
-  border: 1px solid var(--border-accent);
-  border-radius: 6px;
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
-  color: var(--text-primary);
-  font-family: var(--font-main);
-  font-size: 11px;
-  cursor: pointer;
-  outline: none;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237da3f7'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 32px;
-  transition: all var(--transition-fast);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.custom-select:hover {
-  border-color: var(--rf-accent-gold);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3),
-              0 0 0 1px rgba(201, 169, 110, 0.2);
-}
-
-.custom-select:focus {
-  border-color: var(--rf-accent-gold);
-  box-shadow: 0 0 0 3px rgba(201, 169, 110, 0.2),
-              0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.custom-select option {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  padding: 6px;
-}
-
-/* ─── Text Inputs ───────────────────────────────────────────────────── */
-
-.input-control {
-  margin-bottom: 12px;
-}
-
-.input-control label {
-  display: block;
-  font-size: 11px;
-  color: var(--text-secondary);
-  margin-bottom: 5px;
-  font-weight: 500;
-}
-
-.text-input {
-  width: 100%;
-  padding: 7px 12px;
-  border: 1px solid var(--border-accent);
-  border-radius: 6px;
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
-  color: var(--text-primary);
-  font-family: var(--font-main);
-  font-size: 11px;
-  outline: none;
-  transition: all var(--transition-fast);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.text-input::placeholder {
-  color: var(--text-muted);
-}
-
-.text-input:hover {
-  border-color: var(--rf-accent-gold);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3),
-              0 0 0 1px rgba(201, 169, 110, 0.2);
-}
-
-.text-input:focus {
-  border-color: var(--rf-accent-gold);
-  box-shadow: 0 0 0 3px rgba(201, 169, 110, 0.2),
-              0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.text-area {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid var(--border-accent);
-  border-radius: 6px;
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
-  color: var(--text-primary);
-  font-family: var(--font-main);
-  font-size: 11px;
-  outline: none;
-  resize: vertical;
-  min-height: 60px;
-  transition: all var(--transition-fast);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.text-area::placeholder {
-  color: var(--text-muted);
-}
-
-.text-area:hover {
-  border-color: var(--rf-accent-gold);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3),
-              0 0 0 1px rgba(201, 169, 110, 0.2);
-}
-
-.text-area:focus {
-  border-color: var(--rf-accent-gold);
-  box-shadow: 0 0 0 3px rgba(201, 169, 110, 0.2),
-              0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-/* ─── Checkbox ──────────────────────────────────────────────────────── */
-
-.checkbox-control {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 5px 0;
-  cursor: pointer;
-}
-
-.checkbox-control input[type="checkbox"] {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--border-accent);
-  border-radius: 4px;
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  width: 15px; height: 15px;
+  flex: none;
+  background: var(--k-sunken);
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-1);
   cursor: pointer;
   position: relative;
-  transition: all var(--transition-fast);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: background var(--t-1) var(--e), border-color var(--t-1) var(--e);
 }
 
-.checkbox-control input[type="checkbox"]:hover {
-  border-color: var(--rf-accent-gold);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3),
-              0 0 0 1px rgba(201, 169, 110, 0.2);
+.checkbox-label input[type=checkbox]:hover { border-color: var(--k-strong); }
+
+.checkbox-label input[type=checkbox]:checked {
+  background: var(--sig);
+  border-color: var(--sig);
 }
 
-.checkbox-control input[type="checkbox"]:checked {
-  background: linear-gradient(135deg, var(--rf-accent-gold) 0%, #a8844a 100%);
-  border-color: var(--rf-accent-gold);
-  box-shadow: 0 2px 6px rgba(201, 169, 110, 0.4),
-              0 0 12px rgba(201, 169, 110, 0.3);
-}
-
-.checkbox-control input[type="checkbox"]:checked::after {
-  content: '✓';
+/* Tick drawn in CSS so it inherits the chroma contrast automatically. */
+.checkbox-label input[type=checkbox]:checked::after {
+  content: '';
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 12px;
-  color: #ffffff;
-  font-weight: 700;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  left: 4.5px; top: 1.5px;
+  width: 4px; height: 8px;
+  border: solid var(--on-sig);
+  border-width: 0 2px 2px 0;
+  transform: rotate(43deg);
 }
 
-.checkbox-control label {
-  font-size: 11px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-weight: 500;
+/* ══ Colour ══════════════════════════════════════════════════════════════
+   A preset row plus a custom picker. Swatches are square with a hairline,
+   because a ring of circles reads as decoration and a grid of squares
+   reads as a palette. */
+
+.color-picker-row { padding: 7px var(--pad) 9px; }
+.k-sub-inner .color-picker-row { padding-left: 0; padding-right: 8px; }
+
+.color-picker-row > label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: var(--s-micro);
+  font-weight: 600;
+  letter-spacing: var(--tr-cap);
+  text-transform: uppercase;
+  color: var(--t-off);
 }
 
-/* ─── Slider fill update via JS ─────────────────────────────────────── */
-
-/* We use a CSS gradient trick for the filled portion of the slider track.
-   This is updated dynamically when the slider value changes. */
-
-/* ─── Face Point Editor Controls ────────────────────────────────────── */
-
-.edit-points-desc {
-  font-size: 11px;
-  color: var(--text-secondary);
-  line-height: 1.6;
-  margin-bottom: 12px;
-  padding: 8px 10px;
-  background: linear-gradient(135deg, rgba(201, 169, 110, 0.08) 0%, rgba(201, 169, 110, 0.03) 100%);
-  border-radius: 6px;
-  border-left: 3px solid var(--rf-accent-gold);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.edit-points-controls {
+.color-presets {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 4px;
+  margin-bottom: 7px;
 }
 
-.edit-points-controls .btn {
-  flex: 1;
-  min-width: 110px;
+.color-swatch {
+  position: relative;
+  width: 22px; height: 22px;
+  border-radius: var(--r-1);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  transition: transform var(--t-1) var(--e), box-shadow var(--t-1) var(--e);
 }
 
-.btn-sm {
-  padding: 5px 12px;
-  font-size: 10.5px;
+.color-swatch:hover { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.34); }
+
+/* Selection is a chroma ring drawn outside the swatch, so it never covers
+   the colour the operator is judging. */
+.color-swatch.active {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3),
+              0 0 0 1px var(--k-base),
+              0 0 0 2px var(--sig);
 }
 
-.btn-accent {
-  background: linear-gradient(135deg, var(--rf-accent-gold) 0%, #a8844a 100%);
-  color: #ffffff;
-  border: 1px solid var(--rf-accent-gold);
-  font-weight: 600;
-  transition: all var(--transition-fast);
-  box-shadow: 0 2px 8px rgba(201, 169, 110, 0.3);
+/* The custom picker, styled as a wide well showing the current colour. */
+.color-input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 26px;
+  padding: 0;
+  background: none;
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-2);
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color var(--t-1) var(--e);
 }
 
-.btn-accent:hover {
-  background: linear-gradient(135deg, var(--rf-accent-gold-bright) 0%, var(--rf-accent-gold) 100%);
-  border-color: var(--rf-accent-gold-bright);
-  box-shadow: 0 4px 12px rgba(201, 169, 110, 0.4);
-  transform: translateY(-1px);
+.color-input:hover { border-color: var(--k-edge); }
+.color-input::-webkit-color-swatch-wrapper { padding: 0; }
+.color-input::-webkit-color-swatch { border: none; border-radius: 0; }
+
+/* ══ Card grids ══════════════════════════════════════════════════════════
+   Style pickers (hair, glasses, masks, earrings, bandanas, ages). A tight
+   grid of small tiles — the label sits under the tile, not on it. */
+
+.hair-style-grid,
+.k-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(74px, 1fr));
+  gap: 5px;
+  padding: 6px var(--pad) 9px;
 }
 
-.btn-accent.active {
-  background: linear-gradient(135deg, var(--accent-danger) 0%, #e65878 100%);
-  border-color: var(--accent-danger);
-  box-shadow: 0 0 16px rgba(250, 122, 152, 0.4),
-              inset 0 1px 0 rgba(255, 255, 255, 0.2);
+.k-sub-inner .hair-style-grid,
+.k-sub-inner .k-card-grid { padding-left: 0; padding-right: 8px; }
+
+.hair-style-card,
+.style-card,
+.age-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 5px 8px;
+  min-height: 62px;
+  background: var(--k-raise);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-2);
+  cursor: pointer;
+  text-align: center;
+  transition: background var(--t-1) var(--e), border-color var(--t-1) var(--e), transform var(--t-1) var(--e);
 }
 
-#btnEditPoints.active {
-  background: linear-gradient(135deg, var(--rf-accent-gold) 0%, #a8844a 100%);
-  color: #ffffff;
-  border-color: var(--rf-accent-gold);
-  box-shadow: 0 0 16px rgba(201, 169, 110, 0.4);
+.hair-style-card:hover,
+.style-card:hover,
+.age-card:hover { background: var(--k-hover); border-color: var(--k-edge); }
+
+.hair-style-card.active,
+.style-card.active,
+.age-card.active {
+  background: var(--sig-dim);
+  border-color: var(--sig-line);
 }
 
-#btnTogglePointEdit.active {
-  background: linear-gradient(135deg, var(--accent-danger) 0%, #e65878 100%);
-  border-color: var(--accent-danger);
+.hair-style-card > span,
+.style-card > span,
+.age-card > span {
+  font-size: var(--s-micro);
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--t-mute);
+  letter-spacing: 0.01em;
 }
 
-#btnTogglePointEdit.active i::before {
-  content: '\f00d';  /* fa-times */
+.hair-style-card.active > span,
+.style-card.active > span,
+.age-card.active > span { color: var(--sig); }
+
+.hair-icon,
+.k-card-icon {
+  font-size: 16px;
+  color: var(--t-off);
+  transition: color var(--t-1) var(--e);
 }
 
-/* ─── Skin Mark Controls ───────────────────────────────────────────── */
+.hair-style-card:hover .hair-icon,
+.hair-style-card:hover .k-card-icon { color: var(--t-lo); }
 
-#btnToggleSkinMarks.active {
-  background: var(--accent-danger);
-  border-color: var(--accent-danger);
+.hair-style-card.active .hair-icon,
+.hair-style-card.active .k-card-icon,
+.style-card.active .k-card-icon,
+.age-card.active .k-card-icon { color: var(--sig); }
+
+/* Skin tone grid — larger swatches, no labels, colour is the whole point. */
+.skin-tone-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  gap: 4px;
+  padding: 6px var(--pad) 9px;
 }
 
-#btnSkinMarks.active {
-  background: var(--rf-accent-gold);
-  color: var(--bg-primary);
-  border-color: var(--rf-accent-gold);
+.skin-swatch {
+  aspect-ratio: 1;
+  border-radius: var(--r-2);
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  transition: transform var(--t-1) var(--e), box-shadow var(--t-1) var(--e);
 }
 
-#skinMarkProperties {
-  border-top: 1px solid var(--border-accent);
-  padding-top: 4px;
-  margin-top: 4px;
+.skin-swatch:hover { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3); }
+
+.skin-swatch.active {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3),
+              0 0 0 1px var(--k-base),
+              0 0 0 2px var(--sig);
 }
 
-/* ─── Wrinkle Painter Controls ────────────────────────────────────── */
-
-#btnWrinklePaint.active {
-  background: var(--rf-accent-gold);
-  color: var(--bg-primary);
-  border-color: var(--rf-accent-gold);
-}
-
-#btnToggleWrinklePaint.active {
-  background: var(--accent-danger);
-  border-color: var(--accent-danger);
-}
-
-#btnWrinkleErase.active {
-  background: var(--accent-warning, #e6a817);
-  border-color: var(--accent-warning, #e6a817);
-  color: var(--bg-primary);
-}
-
-#wrinklePaintControls {
-  border-top: 1px solid var(--border-accent);
-  padding-top: 8px;
-  margin-top: 8px;
-}
-
-/* ─── Lip Painter Controls ─────────────────────────────────────────── */
-
-#btnLipPaint.active,
-#btnToggleLipPaint.active {
-  background: var(--rf-accent-gold);
-  color: var(--bg-primary);
-  border-color: var(--rf-accent-gold);
-}
-
-#btnLipErase.active {
-  background: var(--accent-warning, #e6a817);
-  border-color: var(--accent-warning, #e6a817);
-  color: var(--bg-primary);
-}
-
-/* ─── Decal System Controls ───────────────────────────────────────── */
-
-#btnDecals.active {
-  background: var(--rf-accent-gold);
-  color: var(--bg-primary);
-  border-color: var(--rf-accent-gold);
-}
-
-#btnToggleDecalPlace.active {
-  background: var(--accent-danger);
-  border-color: var(--accent-danger);
-}
-
-#decalProperties {
-  border-top: 1px solid var(--border-accent);
-  padding-top: 4px;
-  margin-top: 4px;
-}
-
+/* Decal thumbnails. */
 .decal-texture-gallery {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
-  gap: 6px;
-  margin-bottom: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 5px;
+  padding: 6px var(--pad) 9px;
 }
 
 .decal-thumb {
-  width: 100%;
   aspect-ratio: 1;
-  border-radius: 6px;
-  border: 2px solid var(--border-primary);
-  overflow: hidden;
+  background: var(--k-raise);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-2);
   cursor: pointer;
-  transition: all var(--transition-fast);
-  background: var(--bg-tertiary);
+  overflow: hidden;
+  transition: border-color var(--t-1) var(--e), transform var(--t-1) var(--e);
 }
 
-.decal-thumb:hover {
-  border-color: var(--text-secondary);
-  transform: scale(1.05);
-}
+.decal-thumb:hover { border-color: var(--k-edge); transform: translateY(-1px); }
+.decal-thumb.active { border-color: var(--sig); }
+.decal-thumb img { width: 100%; height: 100%; object-fit: cover; }
 
-.decal-thumb.active {
-  border-color: var(--rf-accent-gold);
-  box-shadow: 0 0 8px rgba(201, 169, 110, 0.4);
-}
+/* ══ Snapshots ═══════════════════════════════════════════════════════════ */
 
-.decal-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-/* ─── Glasses Gallery ─────────────────────────────────────────────── */
-
-.glasses-gallery {
+.snapshot-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-  gap: 8px;
-  margin-bottom: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 6px var(--pad) 9px;
 }
 
-.glasses-item {
-  width: 100%;
-  aspect-ratio: 1.5;
-  border-radius: 6px;
-  border: 2px solid var(--border-primary);
+.snapshot-card {
+  background: var(--k-raise);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-2);
   overflow: hidden;
   cursor: pointer;
-  transition: all var(--transition-fast);
-  background: var(--bg-tertiary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
+  transition: border-color var(--t-1) var(--e), transform var(--t-1) var(--e);
 }
 
-.glasses-item:hover {
-  border-color: var(--text-secondary);
-  transform: scale(1.05);
-}
+.snapshot-card:hover { border-color: var(--k-edge); transform: translateY(-1px); }
+.snapshot-card.active { border-color: var(--sig); }
+.snapshot-card img { width: 100%; aspect-ratio: 3/4; object-fit: cover; background: var(--k-sunken); }
 
-.glasses-item.active {
-  border-color: var(--rf-accent-gold);
-  box-shadow: 0 0 8px rgba(201, 169, 110, 0.4);
-}
-
-.glasses-item .glasses-preview {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
-  padding: 8px;
-}
-
-.glasses-item .glasses-name {
-  position: absolute;
-  bottom: 2px;
-  left: 0;
-  right: 0;
-  background: rgba(0, 0, 0, 0.7);
-  color: var(--text-primary);
-  font-size: 8px;
-  text-align: center;
-  padding: 2px 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-#glassesProperties {
-  border-top: 1px solid var(--border-accent);
-  padding-top: 4px;
-  margin-top: 4px;
-}
-
-/* ─── Import Model ─────────────────────────────────────────────────── */
-
-.control-hint {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin: 0 0 8px 0;
-  line-height: 1.4;
-}
-
-.btn-danger {
-  color: #ff6b6b !important;
-  border-color: #ff6b6b !important;
-}
-
-.btn-danger:hover {
-  background: rgba(255, 107, 107, 0.15) !important;
-}
-
-.imported-models-list {
-  margin-top: 6px;
-}
-
-/* ─── Age Progression Cards ─────────────────────────────────────────── */
-
-.age-progression-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(18, 20, 30, 0.98);
-  backdrop-filter: blur(4px);
-  z-index: 1000;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  animation: fadeIn 0.2s ease-out;
-  overflow-y: auto;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.age-progression-container {
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-  width: 100%;
-  max-height: 100%;
-  overflow: visible;
-  animation: slideDown 0.3s ease-out;
-  padding-top: 10px;
-}
-
-@keyframes slideDown {
-  from {
-    transform: translateY(-20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.age-progression-header {
+.snapshot-card-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  background: linear-gradient(135deg, rgba(201, 169, 110, 0.15) 0%, rgba(201, 169, 110, 0.08) 100%);
-  border-bottom: 1px solid var(--border-accent);
-  border-radius: 8px 8px 0 0;
-  margin: 0 10px;
+  gap: 6px;
+  padding: 5px 7px;
+  font-family: var(--f-num);
+  font-size: var(--s-micro);
+  color: var(--t-mute);
 }
 
-.age-progression-header h3 {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+/* ══ Activity log ════════════════════════════════════════════════════════
+   UIController.addHistory() prepends a <div class="history-item"> holding
+   plain text. Newest first, so it reads as a tape running downward. The
+   leading rule is drawn on ::before rather than as a border so the newest
+   entry does not carry a stray line above it. */
 
-.age-progression-header h3 i {
-  color: var(--rf-accent-gold);
-  font-size: 16px;
-}
+.k-history { display: flex; flex-direction: column; }
 
-.btn-close-overlay {
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 18px;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: all var(--transition-fast);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-close-overlay:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-primary);
-}
-
-.age-progression-content {
-  padding: 16px;
-  overflow-y: auto;
-}
-
-.age-progression-desc {
-  margin: 0 0 14px 0;
-  color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 1.5;
-  text-align: center;
-}
-
-.age-progression-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-
-.age-card {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 12px 14px;
-  gap: 12px;
-  border: 2px solid var(--border-accent);
-  border-radius: 6px;
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+.history-item {
   position: relative;
-  overflow: hidden;
+  padding: 7px 0 7px 14px;
+  font-size: var(--s-sm);
+  line-height: 1.45;
+  color: var(--t-lo);
+  border-bottom: 1px solid var(--k-hair);
 }
 
-.age-card::before {
+.history-item:last-child { border-bottom: none; }
+
+/* A tick in the margin — cheaper to scan than a bullet, and it lines the
+   entries up into a visible column. */
+.history-item::before {
   content: '';
   position: absolute;
-  top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(201, 169, 110, 0.05) 0%, transparent 100%);
-  opacity: 0;
-  transition: opacity var(--transition-fast);
+  top: 13px;
+  width: 5px;
+  height: 1px;
+  background: var(--t-off);
 }
 
-.age-card:hover {
-  border-color: var(--rf-accent-gold);
-  transform: translateX(4px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3),
-              0 0 0 1px rgba(201, 169, 110, 0.3);
+/* The newest entry is the one the operator just caused. */
+.history-item:first-child { color: var(--t-hi); }
+.history-item:first-child::before { background: var(--sig); width: 7px; }
+
+.k-history:empty::after {
+  content: 'Nothing recorded yet.';
+  display: block;
+  padding: 14px 0;
+  font-size: var(--s-sm);
+  color: var(--t-off);
 }
 
-.age-card:hover::before {
-  opacity: 1;
-}
+/* ══ Misc blocks carried from the instrument inventory ══════════════════ */
 
-.age-card.active {
-  border-color: var(--rf-accent-gold);
-  background: linear-gradient(135deg, rgba(201, 169, 110, 0.2) 0%, rgba(201, 169, 110, 0.1) 100%);
-  box-shadow: 0 4px 12px rgba(201, 169, 110, 0.4),
-              0 0 0 2px rgba(201, 169, 110, 0.4);
-}
+.k-stack { display: flex; flex-direction: column; gap: 6px; padding: 6px var(--pad) 8px; }
+.k-sub-inner .k-stack { padding-left: 0; padding-right: 8px; }
 
-.age-card.active::before {
-  opacity: 1;
-  background: linear-gradient(135deg, rgba(201, 169, 110, 0.1) 0%, transparent 100%);
-}
+.k-row { display: flex; align-items: center; gap: 8px; }
 
-.age-card i {
-  font-size: 24px;
-  color: var(--rf-accent-gold);
-  transition: all var(--transition-fast);
-  flex-shrink: 0;
-}
-
-.age-card:hover i {
-  color: var(--rf-accent-gold-bright);
-  transform: scale(1.1);
-}
-
-.age-card.active i {
-  color: var(--rf-accent-gold-bright);
-}
-
-.age-card > div {
+.k-counter {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-}
-
-.age-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-  text-align: left;
-}
-
-.age-desc {
-  font-size: 10px;
-  color: var(--text-secondary);
-  text-align: left;
-}
-
-.age-progression-actions {
-  display: flex;
-  justify-content: center;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 10px;
+  padding: 5px var(--pad);
+  font-size: var(--s-sm);
+  color: var(--t-mute);
 }
 
-.btn-reset-age {
-  padding: 8px 16px;
-  background: linear-gradient(135deg, var(--bg-elevated) 0%, var(--bg-secondary) 100%);
-  border: 1px solid var(--border-accent);
-  border-radius: 6px;
-  color: var(--text-primary);
-  font-size: 11px;
+.k-counter b {
+  font-family: var(--f-num);
   font-weight: 500;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-  flex: 1;
-  justify-content: center;
+  font-size: var(--s-tiny);
+  color: var(--t-hi);
 }
 
-.btn-reset-age:hover {
-  background: linear-gradient(135deg, var(--rf-accent-gold) 0%, #a8844a 100%);
-  border-color: var(--rf-accent-gold);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(201, 169, 110, 0.3);
-  color: #ffffff;
-}
-
-.btn-reset-age i {
-  font-size: 12px;
-}
-
-/* ══════════════════════════════════════════════════════════════════════
-   PHASE 8 — Slider Track Deep Polish (dynamic fill via --fill-pct)
-   ══════════════════════════════════════════════════════════════════════ */
-
-/* Base track override — uses JS-driven --fill-pct for all range inputs */
-input[type="range"]::-webkit-slider-runnable-track {
-  height: 4px;
-  border-radius: 2px;
-  background: linear-gradient(
-    to right,
-    var(--rf-accent-gold) 0%,
-    var(--rf-accent-gold) var(--fill-pct, 50%),
-    var(--rf-bg-overlay) var(--fill-pct, 50%),
-    var(--rf-bg-overlay) 100%
-  );
-}
-
-/* Morph sliders — standard gold fill */
-.morph-slider::-webkit-slider-runnable-track {
-  background: linear-gradient(
-    to right,
-    var(--rf-accent-gold) 0%,
-    var(--rf-accent-gold) var(--fill-pct, 50%),
-    var(--rf-bg-overlay) var(--fill-pct, 50%),
-    var(--rf-bg-overlay) 100%
-  );
-}
-
-/* Hair sliders — gold-bright fill */
-.hair-slider::-webkit-slider-runnable-track,
-.beard-slider::-webkit-slider-runnable-track {
-  background: linear-gradient(
-    to right,
-    var(--rf-accent-gold-bright) 0%,
-    var(--rf-accent-gold-bright) var(--fill-pct, 50%),
-    var(--rf-bg-overlay) var(--fill-pct, 50%),
-    var(--rf-bg-overlay) 100%
-  );
-}
-
-/* Eye / Eyebrow / Eyelash sliders — subtle purple accent */
-.eye-slider::-webkit-slider-runnable-track,
-.eyebrow-slider::-webkit-slider-runnable-track,
-.eyelash-slider::-webkit-slider-runnable-track {
-  background: linear-gradient(
-    to right,
-    rgba(140, 115, 200, 0.80) 0%,
-    rgba(140, 115, 200, 0.80) var(--fill-pct, 50%),
-    var(--rf-bg-overlay) var(--fill-pct, 50%),
-    var(--rf-bg-overlay) 100%
-  );
-}
-
-.eye-slider::-webkit-slider-thumb,
-.eyebrow-slider::-webkit-slider-thumb,
-.eyelash-slider::-webkit-slider-thumb {
-  border-color: rgba(140, 115, 200, 0.90);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), 0 0 8px rgba(140, 115, 200, 0.35);
-}
-
-.eye-slider::-webkit-slider-thumb:hover,
-.eyebrow-slider::-webkit-slider-thumb:hover,
-.eyelash-slider::-webkit-slider-thumb:hover {
-  border-color: rgba(170, 145, 230, 1.0);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 14px rgba(140, 115, 200, 0.55);
-}
-
-/* Appearance / skin-texture sliders — muted gold */
-.appearance-slider::-webkit-slider-runnable-track,
-.skin-texture-slider::-webkit-slider-runnable-track {
-  background: linear-gradient(
-    to right,
-    rgba(201, 169, 110, 0.70) 0%,
-    rgba(201, 169, 110, 0.70) var(--fill-pct, 50%),
-    var(--rf-bg-overlay) var(--fill-pct, 50%),
-    var(--rf-bg-overlay) 100%
-  );
-}
-
+/* Anything the inventory carried through verbatim gets the sheet's gutter
+   so it lines up with everything authored above it. */
+.k-verbatim { padding: 6px var(--pad) 9px; }
+.k-sub-inner .k-verbatim { padding-left: 0; padding-right: 8px; }
+.k-verbatim > *:not(:last-child) { margin-bottom: 6px; }

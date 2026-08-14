@@ -1,0 +1,365 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   ReFace ID — overlays.css
+   Command palette, modals, popovers, toasts, and the AI transcript.
+
+   Everything here sits above the stage. All of it dismisses on Escape and
+   on backdrop click, without exception — an operator should never have to
+   hunt for the way out of a surface they opened by accident.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ══ Command palette ═════════════════════════════════════════════════════
+   The answer to two hundred controls. Typing "jaw" finds every jaw
+   parameter across every section, jumps to it, and flashes the row.
+
+   Placed high in the window rather than dead-centre: a centred dialog that
+   grows downward as results arrive makes the first result move, which is
+   the one thing a keyboard user cannot tolerate. */
+
+.k-palette {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-palette);
+  display: none;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 13vh;
+  background: rgba(3, 4, 4, 0.6);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.k-palette.open { display: flex; }
+
+.k-palette-box {
+  width: min(620px, calc(100vw - 48px));
+  max-height: 62vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(18, 19, 19, 0.95);
+  backdrop-filter: blur(28px) saturate(1.3);
+  -webkit-backdrop-filter: blur(28px) saturate(1.3);
+  border: 1px solid var(--k-edge);
+  border-radius: var(--r-4);
+  box-shadow: var(--sh-3);
+  overflow: hidden;
+}
+
+.k-palette-search {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0 15px;
+  height: 50px;
+  flex: none;
+  border-bottom: 1px solid var(--k-hair);
+}
+
+.k-palette-search .i { font-size: 16px; color: var(--t-mute); }
+
+.k-palette-input {
+  flex: 1;
+  height: 100%;
+  font-size: var(--s-md);
+  color: var(--t-hi);
+  background: none;
+  border: none;
+}
+
+.k-palette-input::placeholder { color: var(--t-off); }
+
+.k-palette-results {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.k-palette-group {
+  padding: 9px 10px 5px;
+  font-size: var(--s-micro);
+  font-weight: 650;
+  letter-spacing: var(--tr-wide);
+  text-transform: uppercase;
+  color: var(--t-off);
+}
+
+.k-palette-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--r-2);
+  text-align: left;
+  color: var(--t-lo);
+  font-size: var(--s-ui);
+  transition: background var(--t-1) var(--e), color var(--t-1) var(--e);
+}
+
+/* Selection is driven by keyboard as well as pointer, so hover and the
+   active row must look identical — otherwise arrowing down and moving the
+   mouse produce two different "current" rows. */
+.k-palette-item:hover,
+.k-palette-item.sel { background: var(--k-hover); color: var(--t-hi); }
+.k-palette-item.sel .k-palette-where { color: var(--sig); }
+
+.k-palette-item .i { font-size: 14px; color: var(--t-off); flex: none; }
+.k-palette-item.sel .i { color: var(--sig); }
+
+.k-palette-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Matched substring, marked rather than highlighted with a background. */
+.k-palette-name mark { background: none; color: var(--sig); font-weight: 600; }
+
+.k-palette-where {
+  font-size: var(--s-micro);
+  letter-spacing: var(--tr-cap);
+  text-transform: uppercase;
+  color: var(--t-off);
+  flex: none;
+}
+
+.k-palette-empty { padding: 26px 14px; text-align: center; font-size: var(--s-sm); color: var(--t-off); }
+
+.k-palette-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 14px;
+  height: 32px;
+  border-top: 1px solid var(--k-hair);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.k-hint { display: flex; align-items: center; gap: 6px; font-size: var(--s-micro); color: var(--t-off); }
+
+/* A key cap. Bordered, mono, small — never a filled pill. */
+.k-key {
+  display: inline-grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  font-family: var(--f-num);
+  font-size: 9.5px;
+  color: var(--t-lo);
+  background: var(--k-lift);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-1);
+}
+
+/* The flash left on a parameter row the palette jumped to. */
+@keyframes k-locate {
+  0%   { background: var(--sig-dim); }
+  100% { background: transparent; }
+}
+
+.k-locate { animation: k-locate 1.1s var(--e); }
+
+/* ══ Modal ═══════════════════════════════════════════════════════════════ */
+
+.k-modal {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: none;
+  place-items: center;
+  padding: 40px;
+  background: rgba(3, 4, 4, 0.66);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.k-modal.open { display: grid; }
+
+.k-modal-box {
+  width: min(660px, 100%);
+  max-height: 84vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--k-panel);
+  border: 1px solid var(--k-edge);
+  border-radius: var(--r-4);
+  box-shadow: var(--sh-3);
+  overflow: hidden;
+}
+
+.k-modal-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0 10px 0 18px;
+  height: 46px;
+  border-bottom: 1px solid var(--k-hair);
+}
+
+.k-modal-title { flex: 1; font-size: var(--s-md); font-weight: 560; color: var(--t-hi); letter-spacing: -0.012em; }
+.k-modal-body { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 18px; }
+.k-modal-note { padding: 11px 18px; font-size: var(--s-sm); color: var(--t-mute); border-bottom: 1px solid var(--k-hair); }
+
+.k-modal-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--k-hair);
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.k-modal-foot .k-spacer { margin-right: auto; }
+
+/* ══ Variant picker ══════════════════════════════════════════════════════
+   A grid of candidate faces. Larger tiles than a style card because the
+   operator is comparing likenesses, not picking an icon. */
+
+.k-variant-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 9px;
+}
+
+.k-variant-card {
+  position: relative;
+  background: var(--k-sunken);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-3);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color var(--t-1) var(--e), transform var(--t-1) var(--e);
+}
+
+.k-variant-card:hover { border-color: var(--k-edge); transform: translateY(-2px); }
+.k-variant-card.active,
+.k-variant-card.selected { border-color: var(--sig); }
+.k-variant-card img,
+.k-variant-card canvas { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+
+.k-variant-tag {
+  position: absolute;
+  left: 7px; bottom: 7px;
+  padding: 2px 6px;
+  font-family: var(--f-num);
+  font-size: var(--s-micro);
+  color: var(--t-hi);
+  background: rgba(3, 4, 4, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: var(--r-1);
+}
+
+/* ══ Popover ═════════════════════════════════════════════════════════════
+   Anchored to the status strip (activity) and the sheet head. */
+
+.k-popover {
+  position: fixed;
+  z-index: var(--z-pop);
+  display: none;
+  width: 320px;
+  max-height: 400px;
+  flex-direction: column;
+  background: rgba(18, 19, 19, 0.95);
+  backdrop-filter: blur(22px) saturate(1.3);
+  -webkit-backdrop-filter: blur(22px) saturate(1.3);
+  border: 1px solid var(--k-edge);
+  border-radius: var(--r-3);
+  box-shadow: var(--sh-3);
+  overflow: hidden;
+}
+
+.k-popover.open { display: flex; }
+
+.k-popover-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 8px 0 13px;
+  border-bottom: 1px solid var(--k-hair);
+}
+
+.k-popover-title {
+  flex: 1;
+  font-size: var(--s-micro);
+  font-weight: 650;
+  letter-spacing: var(--tr-wide);
+  text-transform: uppercase;
+  color: var(--t-mute);
+}
+
+.k-popover-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 13px 11px; }
+
+/* ══ Toast ═══════════════════════════════════════════════════════════════
+   Bottom-left, above the status strip. Stacked, hairline-bordered, and
+   never wider than a sentence. */
+
+.k-toasts {
+  position: fixed;
+  left: 14px;
+  bottom: calc(var(--h-foot) + 14px);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 7px;
+  pointer-events: none;
+}
+
+.k-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 380px;
+  padding: 9px 13px;
+  background: rgba(20, 21, 21, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--k-edge);
+  border-left: 2px solid var(--t-off);
+  border-radius: var(--r-2);
+  box-shadow: var(--sh-2);
+  font-size: var(--s-sm);
+  color: var(--t);
+  pointer-events: auto;
+}
+
+.k-toast .i { font-size: 14px; flex: none; }
+.k-toast.ok    { border-left-color: var(--ok); }
+.k-toast.ok .i { color: var(--ok); }
+.k-toast.err   { border-left-color: var(--rec); }
+.k-toast.err .i { color: var(--rec); }
+.k-toast.warn  { border-left-color: var(--warn); }
+.k-toast.warn .i { color: var(--warn); }
+.k-toast.info  { border-left-color: var(--info); }
+.k-toast.info .i { color: var(--info); }
+
+/* ══ Assist ═════════════════════════════════════════════════════════════
+   The assist panel's markup is carried over from the inventory, so its
+   class names come from the old document and it is styled in
+   carried.css alongside the other carried blocks. Nothing for it here.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ══ Reference overlay controls ══════════════════════════════════════════ */
+
+.k-ref-empty {
+  padding: 16px var(--pad);
+  text-align: center;
+  font-size: var(--s-sm);
+  color: var(--t-off);
+  border: 1px dashed var(--k-rule);
+  border-radius: var(--r-3);
+  margin: 6px var(--pad) 9px;
+}
+
+.k-ref-thumb {
+  position: relative;
+  margin: 6px var(--pad) 9px;
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-3);
+  overflow: hidden;
+}
+
+.k-ref-thumb img { width: 100%; display: block; background: var(--k-sunken); }
