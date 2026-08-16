@@ -10,3 +10,11 @@ venv/
 DEMO_SCRIPT.md
 upload.txt
 
+# college presentation — deck, sources, brand marks and exports
+*.ppt
+*.pptx
+*.pptm
+*.potx
+*.odp
+presentation/
+

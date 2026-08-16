@@ -1,179 +1,354 @@
 <div align="center">
 
-<a href="https://youtu.be/Kt6TKoFV9VM">
-  <img src="screenshots/01-hero-landing.png" alt="ReFace — intelligent 3D facial reconstruction for forensics" width="900" />
-</a>
+<img src="screenshots/01-hero.png" alt="ReFace" width="960">
 
 # ReFace
 
-### Intelligent 3D Facial Reconstruction for Forensics
+**Intelligent 3D Facial Reconstruction for forensics**
 
-**Describe a face in plain words, or sculpt it by hand. Watch it take shape in 3D.**
+A parametric human head, 179 live parameters, and an optional AI assist,
+wrapped in a case file that records every adjustment.
 
-A desktop workbench for forensic facial reconstruction. Drive a human head with
-natural language, fine-tune it across 60+ anatomical controls in a full manual
-editor, and render it in Blender.
+<br>
 
-<br/>
-
-[![Watch the demo](https://img.shields.io/badge/▶_Watch_the_demo-FF0000?logo=youtube&logoColor=white&style=for-the-badge)](https://youtu.be/Kt6TKoFV9VM)
-
-[![Electron](https://img.shields.io/badge/Electron-28-2B2E3A?logo=electron&logoColor=9FEAF9)](https://www.electronjs.org/)
-[![Three.js](https://img.shields.io/badge/Three.js-r160-000000?logo=three.js&logoColor=white)](https://threejs.org/)
-[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Flask](https://img.shields.io/badge/Flask-API-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
-[![Blender](https://img.shields.io/badge/Blender-Engine-E87D0D?logo=blender&logoColor=white)](https://www.blender.org/)
-[![License](https://img.shields.io/badge/License-ISC-4C6EF5)](#license)
+[![Electron](https://img.shields.io/badge/Electron-28-2b2e3a?style=flat-square&logo=electron&logoColor=9feaf9)](https://www.electronjs.org/)
+[![Three.js](https://img.shields.io/badge/Three.js-r160-000?style=flat-square&logo=three.js&logoColor=fff)](https://threejs.org/)
+[![Python](https://img.shields.io/badge/Flask-Python_3.10+-000?style=flat-square&logo=flask&logoColor=fff)](https://flask.palletsprojects.com/)
+[![Blender](https://img.shields.io/badge/Blender-render_engine-e87d0d?style=flat-square&logo=blender&logoColor=fff)](https://www.blender.org/)
+[![License](https://img.shields.io/badge/license-ISC-c4e04f?style=flat-square)](#license)
 
 </div>
 
 ---
 
-## What it is
+An investigator opens a case, describes a face, and shapes it until the witness
+agrees. ReFace gives them a real 3D head to do it on: 18,097 vertices that
+deform live under 179 sliders, with hair, skin, marks and worn items layered on
+top, and Blender behind it for the final render.
 
-ReFace turns a witness statement into a 3D face. An investigator types or speaks a
-description. An AI model maps that language onto precise morph values. The
-parametric head reshapes live. Blender renders the final portrait and exports a
-mesh for downstream use.
+Language models are here as a **first draft, not the product**. Describe the
+subject and the assist resolves it into validated parameter values in seconds;
+everything it sets is a control you can then take over by hand. The app runs
+without any API key at all.
 
-But ReFace is more than a prompt box. Under the hood sits a **complete manual
-editor** — every skull, feature, hair, skin, and accessory control is yours to
-tune by hand. The AI gives you a strong first draft in seconds. The editor lets
-you refine it until it matches the witness exactly.
-
-Built as a single Electron app: a Three.js viewport up front, a Flask + Blender
-engine behind it.
-
-> 💡 **Tip** — **[▶ Watch the 2-minute demo](https://youtu.be/Kt6TKoFV9VM)** to see
-> the full flow, from description to rendered face.
+Morphing, rendering, exports and case storage stay on the machine. The only
+outbound calls are to the AI provider, and only when you ask for one.
 
 ---
 
-## Two ways to build. Best results from both.
+## Opening a case
+
+Every session starts as a case record. The reference and name are stamped onto
+every export and snapshot that follows, so nothing leaves the app unattributed.
 
 <table>
 <tr>
-<td width="33%" valign="top">
-
-### 🤖 AI-first
-
-Describe the face in plain language or feed reference photos. Claude or Gemini
-resolves it into 60+ validated parameters and builds the head in seconds.
-
-</td>
-<td width="33%" valign="top">
-
-### 🎚️ Manual editor
-
-A full control surface. Sculpt the skull, features, hair, skin, marks, and
-accessories by hand with live feedback in the 3D viewport.
-
-</td>
-<td width="33%" valign="top">
-
-### 🔀 The combination
-
-Let AI lay the foundation, then refine every detail by hand. In practice, the
-hybrid workflow produces the most accurate reconstructions.
-
-</td>
+<td width="50%"><img src="screenshots/02-case-record.png" alt="Case record form"></td>
+<td width="50%"><img src="screenshots/03-method.png" alt="Choosing a source for the likeness"></td>
+</tr>
+<tr>
+<td><sub><b>Step 1.</b> Case reference, name, investigating officer, and the
+subject description as it was given.</sub></td>
+<td><sub><b>Step 2.</b> Pick any combination of sources. The editor opens on
+the first one; the rest stay available throughout.</sub></td>
 </tr>
 </table>
+
+Four ways in: a **spoken or typed description**, **reference photographs**,
+**live capture** from a camera, or straight to the **manual editor** from the
+neutral head.
 
 ---
 
 ## The workspace
 
-<div align="center">
+<img src="screenshots/04-editor-face.png" alt="The editor">
 
-<img src="screenshots/03-editor-glasses.png" alt="Editor with tinted glasses and full beard" width="900" />
+The viewport is full-bleed and everything else floats over it: section nav
+top-left, subject readout top-right, tool rail on the right edge, camera dock
+bottom-centre. The control sheet is dismissible (`\`), so the render is never
+more than one keystroke from filling the screen.
 
-<sub>The editor — live Three.js viewport, tool rail, and snapshot history</sub>
+The status strip along the bottom reports what is actually true right now:
+backend reachability, whether Blender was found, the loaded mesh, live vertex
+count, and how many parameters you have moved off default.
 
-</div>
+**Seven sections** carry the whole control surface:
 
-<br/>
+| Section | What lives there |
+|---|---|
+| **Face** | 50 sliders across skull, forehead, brows, eyes, nose, cheeks, mouth, jaw, chin and ears, plus direct point editing |
+| **Hair** | 43 sliders: hairstyle, properties, position, colour, facial hair, eyebrows, eyelashes, tint painting |
+| **Skin** | Tone, lip and eye colour, ageing and texture, age progression, skin marks, decals, demographics |
+| **Wear** | 61 sliders across glasses, face masks, earrings, eyebrow piercings and bandanas |
+| **Assist** | Description-to-face generation, model picker, witness variant picker |
+| **Frames** | Snapshots and turntable clip recording |
+| **Case** | Reference photo comparison, case metadata, save / load |
 
-<div align="center">
+---
+
+## Facial structure
+
+<img src="screenshots/05-face-nose.png" alt="Nose controls">
+
+Nine anatomical groups, each broken into the sub-regions a forensic artist
+actually works in. The nose alone splits into overall, bridge, tip and nostrils.
+Vertex offsets are computed in a **web worker**, so dragging a slider on a
+100,000-vertex scene never blocks the interface.
+
+<img src="screenshots/28-point-editing.png" alt="Manual point editing">
+
+When a slider cannot get there, **manual point editing** exposes the facial
+landmarks directly. Drag any handle to reshape the mesh, with an adjustable
+influence radius and falloff so the surrounding surface follows smoothly.
+
+---
+
+## Finding a control
+
+<img src="screenshots/06-palette.png" alt="Command palette">
+
+179 sliders across 39 collapsible groups and 91 sub-groups is more than anyone
+should have to navigate by scrolling. `Ctrl/Cmd+K` indexes every slider, style
+card, colour row and tool from the live DOM. Choose a result and it switches
+section, expands the groups the control is nested inside, scrolls it into view
+and flashes the row.
+
+---
+
+## Hair and facial hair
+
 <table>
 <tr>
-<td width="50%"><img src="screenshots/02-editor-eyes-wrinkles.png" alt="Eyes, wrinkles and skin detail" width="100%"/></td>
-<td width="50%"><img src="screenshots/04-editor-snapshots.png" alt="Sunglasses accessory and saved snapshots" width="100%"/></td>
+<td width="50%"><img src="screenshots/07-hair-styles.png" alt="Hairstyle selection"></td>
+<td width="50%"><img src="screenshots/08-facial-hair.png" alt="Facial hair and eyebrows"></td>
 </tr>
 <tr>
-<td align="center"><sub>Skin, wrinkles, and iris color dialed in</sub></td>
-<td align="center"><sub>Accessories on, snapshots saved per case</sub></td>
+<td><sub>14 hairstyle meshes plus bald, each with length, volume, density,
+curl, and full position / rotation / scale fitting.</sub></td>
+<td><sub>Six beards and a moustache, with independent eyebrow shape, density,
+arch, spacing and tilt. 14 eyebrow controls on their own.</sub></td>
 </tr>
 </table>
-</div>
+
+<img src="screenshots/09-hair-tint.png" alt="Manual tint painting">
+
+Colour is not limited to presets. **Tint painting** lets you brush greying,
+sun-bleaching or root regrowth directly onto the hair, beard or eyebrows, with
+brush size, strength and an eraser.
 
 ---
 
-## Features
+## Skin
 
-| | Capability | Detail |
-|---|---|---|
-| 🗣️ | **Natural-language sculpting** | Type or speak a description. Claude or Gemini translates it to parameters. |
-| 🎚️ | **60+ morph controls** | Skull, forehead, brows, eyes, nose, cheeks, mouth, jaw, chin, ears. |
-| 🖼️ | **Reference images** | Feed photos alongside the text prompt to guide the build. |
-| 💇 | **Hair & facial hair** | 12 hairstyles plus bald, beards and moustache, with length, density, curl, tint. |
-| 👁️ | **Eyes, brows, glasses** | Iris color, brow shape, multiple glasses frames with tint and opacity. |
-| 🩹 | **Skin & marks** | Tone, pigmentation, wrinkles, lip color, plus scars, moles, birthmarks, wounds. |
-| 📸 | **Snapshots** | Save any face state per case and jump back to it later. |
-| 🎨 | **Blender rendering** | High-fidelity portraits rendered headless through the Blender engine. |
-| 📦 | **Export** | OBJ, FBX, and GLB out. Case files save and reload as `.rfc`. |
+<table>
+<tr>
+<td width="50%"><img src="screenshots/10-skin-colour.png" alt="Skin tone, lip and eye colour"></td>
+<td width="50%"><img src="screenshots/11-skin-texture.png" alt="Skin texture and ageing"></td>
+</tr>
+<tr>
+<td><sub>Eight skin tones plus a custom picker, lip colour with a manual lip
+pen, and iris colour.</sub></td>
+<td><sub>Age, wrinkle depth, sun damage, roughness and pore detail, with
+manual wrinkle and pigmentation brushes over the top.</sub></td>
+</tr>
+</table>
+
+<img src="screenshots/12-age-progression.png" alt="Age progression preview">
+
+**Age progression** projects the current face forward by 5, 10, 15, 20 or 25
+years and reverts cleanly, for long-outstanding cases where the subject has
+aged since the description was taken.
 
 ---
 
-## How it works
+## Marks and decals
 
-```text
-  Investigator            Frontend                        Backend
-  text / voice            Electron + Three.js             Flask · server.py
- ┌──────────────┐         ┌────────────────────┐          ┌──────────────────┐
- │ "narrow jaw, │ ──────▶ │  Renderer          │  ─POST─▶ │  API router      │
- │  thin nose"  │         │  live 3D viewport  │          │                  │
- │  (describe)  │         │  + manual editor   │          └─────────┬────────┘
- └──────────────┘         └────────────────────┘                    │
-                                                          ┌─────────┴────────┐
-                                                          ▼                  ▼
-                                                  ┌───────────────┐  ┌───────────────┐
-                                                  │ AI providers  │  │ Blender engine│
-                                                  │ Claude·Gemini │  │ render·export │
-                                                  └───────────────┘  └───────────────┘
+<table>
+<tr>
+<td width="50%"><img src="screenshots/13-skin-marks.png" alt="Skin marks placed on the mesh"></td>
+<td width="50%"><img src="screenshots/14-decals.png" alt="Image decals"></td>
+</tr>
+<tr>
+<td><sub>Moles, pimples, scars, birthmarks and wounds, placed by clicking the
+mesh. Each mark stores barycentric coordinates inside its hit triangle, so it
+stays put when the face morphs underneath it.</sub></td>
+<td><sub>Image decals (tattoos and skin graphics) projected onto the surface
+with <code>DecalGeometry</code> so they wrap real curvature rather than floating
+flat.</sub></td>
+</tr>
+</table>
 
-  results  (morph params · render · export)  flow back into the live viewport  ◀──
+---
+
+## Worn items
+
+Five accessory systems, each with its own colour, fit and per-side controls.
+Every frame below is the same subject, changed only by what he is wearing.
+
+<table>
+<tr>
+<td width="50%"><img src="screenshots/15-wear-glasses.png" alt="Glasses"></td>
+<td width="50%"><img src="screenshots/16-wear-mask.png" alt="Face mask"></td>
+</tr>
+<tr>
+<td><sub><b>Glasses.</b> Four frames, separate frame and lens colour,
+adjustable lens opacity, arm splay and length.</sub></td>
+<td><sub><b>Face mask.</b> Cloth or medical, with cheek wrap, nose coverage
+and independent left / right ear-loop angle and splay.</sub></td>
+</tr>
+<tr>
+<td><img src="screenshots/17-wear-jewellery.png" alt="Earrings and eyebrow piercing"></td>
+<td><img src="screenshots/18-wear-bandana.png" alt="Bandana"></td>
+</tr>
+<tr>
+<td><sub><b>Earrings and eyebrow rings.</b> Hoop, stud or drop in gold,
+silver, rose or black, worn on either side or both, with a matte-to-mirror
+polish control.</sub></td>
+<td><sub><b>Bandana.</b> Dyed or left printed, with wrap width, side depth and
+hem flare. Shown over a bald head.</sub></td>
+</tr>
+</table>
+
+---
+
+## Description assist
+
+<table>
+<tr>
+<td width="55%"><img src="screenshots/19-assist.png" alt="AI face builder"></td>
+<td width="45%"><img src="screenshots/20-assist-settings.png" alt="Generation settings"></td>
+</tr>
+<tr>
+<td><sub>Type or dictate the description; the model returns validated morph,
+hair, colouring and accessory values and the head reshapes. Reference images
+can be attached, or a photo taken from the camera.</sub></td>
+<td><sub>Marks generated from an image can replace yours, merge with them, or
+be ignored entirely. The investigator's own placements are never silently
+overwritten.</sub></td>
+</tr>
+</table>
+
+Six models are selectable per request: **Claude Haiku 4.5, Sonnet 4.6, Opus 4.7,
+Sonnet 5, Opus 5**, and **Gemini Flash**.
+
+**Build with a witness** takes a different approach. Rather than asking someone
+to rate a nose from one to ten, which fights how face memory works, it shows a
+set of complete candidate faces and asks which is closest, then generates a new
+set around that choice and narrows in. Opening a session is one AI request;
+every round after a pick is jittered locally at zero cost.
+
+---
+
+## Working the case
+
+<table>
+<tr>
+<td width="50%"><img src="screenshots/21-snapshots.png" alt="Snapshots"></td>
+<td width="50%"><img src="screenshots/22-turntable.png" alt="Turntable recording"></td>
+</tr>
+<tr>
+<td><sub><b>Snapshots.</b> Save the full face state at any point, with a
+thumbnail and the case stamp, and jump back to it later. Up to 30 per
+case.</sub></td>
+<td><sub><b>Turntable clips.</b> Record a rotating pass straight off the WebGL
+canvas. A moving view carries depth and profile that a single frame flattens
+away. Duration, sweep, camera height and frame rate are all set here.</sub></td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td width="50%"><img src="screenshots/23-reference-overlay.png" alt="Reference photo comparison"></td>
+<td width="50%"><img src="screenshots/24-case-record.png" alt="Case record and actions"></td>
+</tr>
+<tr>
+<td><sub><b>Reference comparison.</b> Pin a mugshot or CCTV still over the
+render and blend or wipe between them. The overlay never takes a pointer event,
+so you can keep orbiting and editing through it, and it never leaks into a
+screenshot.</sub></td>
+<td><sub><b>Case record.</b> Metadata and notes stay editable throughout, and
+the whole case saves to a single file that reopens exactly as you left
+it.</sub></td>
+</tr>
+</table>
+
+---
+
+## The viewport
+
+<table>
+<tr>
+<td width="50%"><img src="screenshots/25-viewport-profile.png" alt="Profile view"></td>
+<td width="50%"><img src="screenshots/26-wireframe.png" alt="Wireframe"></td>
+</tr>
+<tr>
+<td><sub>Front, three-quarter, profile and top presets, with free orbit and
+zoom in between.</sub></td>
+<td><sub>Wireframe over the shaded surface, for reading topology while worn
+items stay solid.</sub></td>
+</tr>
+</table>
+
+<img src="screenshots/27-lighting.png" alt="Lighting presets">
+
+Three lighting rigs: studio, outdoor and dramatic. A face reads differently
+under each, and the witness may have seen it under only one.
+
+Two further tools live on the rail and need a camera: **live head tracking**,
+which drives the model's pose from your own head via MediaPipe Face Mesh, and
+**guided capture**, which walks you through seven angles (front, both
+three-quarters, both profiles, tilt up and tilt down) and sends the set to the
+assist as reconstruction input. Both pull MediaPipe from a CDN, so, like the
+assist itself, they need a network connection. Everything else runs offline.
+
+---
+
+## How it fits together
+
+```
+  Electron renderer                          Flask · 127.0.0.1:5001
+  ┌────────────────────────────┐             ┌──────────────────────────┐
+  │  Three.js viewport         │──── POST ──▶│  17 routes               │
+  │  179 parameter controls    │             │                          │
+  │  OBJMorpher ──▶ MorphWorker│◀─── JSON ───│    ai · morph · hair     │
+  │  hair · eyes · accessories │             │    render · export       │
+  │  marks · decals · painters │             │    case · decal · speech │
+  └────────────────────────────┘             └───────────┬──────────────┘
+                                                         │
+                                      ┌──────────────────┴──────────────────┐
+                                      ▼                                     ▼
+                            ┌──────────────────┐              ┌──────────────────────┐
+                            │  Claude · Gemini │              │  Blender, headless   │
+                            │  (only on assist)│              │  EEVEE / Cycles      │
+                            └──────────────────┘              │  render · morph      │
+                                                              │  export · bake       │
+                                                              └──────────────────────┘
 ```
 
-1. The renderer captures a description and posts it to the backend.
-2. Claude or Gemini returns a validated set of morph, hair, and skin values.
-3. Three.js applies them to the parametric head in real time.
-4. Blender bakes the final render and export on demand.
+Morphing runs locally in the renderer whether or not the backend is up. The
+status strip says which. Blender is only reached for high-fidelity renders,
+decal baking and mesh export.
+
+**Out:** OBJ, FBX and GLB from the File menu; PNG stills; WebM turntable clips;
+and the case itself as a single reloadable file.
 
 ---
 
-## Getting started
+## Running it
 
-### Prerequisites
-
-- **Node.js** 18 or newer
-- **Python** 3.10 or newer
-- **Blender** installed and on your PATH (rendering + export engine)
-- A **Conda env** named `reface` is auto-detected if present, else system `python` is used
-
-### Install
+**You will need** Node 18+ and Python 3.10+. Install **Blender** as well if you
+want high-fidelity renders and mesh export. The backend finds it on its own in
+the standard install locations on Windows, macOS and Linux, and reports what it
+found in the status strip. A Conda environment named `reface` is used if one
+exists; otherwise the system `python` is.
 
 ```bash
-# frontend + electron
 npm install
-
-# backend
 pip install -r backend/requirements.txt
 ```
 
-### Configure
-
-Copy the example env and add your keys.
+Configuration is optional. Every control is editable by hand without a key.
 
 ```bash
 cp .env.example .env
@@ -182,78 +357,75 @@ cp .env.example .env
 ```ini
 ANTHROPIC_API_KEY=sk-ant-...
 GEMINI_API_KEY=...
-AI_PROVIDER=anthropic   # or: gemini
+AI_PROVIDER=anthropic          # anthropic | gemini
+ANTHROPIC_MODEL=claude-opus-5  # fallback when a request names no model
 ```
-
-> 📝 **Note** — Only the provider you set in `AI_PROVIDER` needs a key. The app
-> runs without AI too. Every control is editable by hand in the manual editor.
-
-### Run
 
 ```bash
-npm run dev          # backend + electron together
+npm run dev            # backend and Electron together
 ```
 
-Or start each side on its own:
+Or run the halves separately with `npm run start:backend` and `npm start`.
+
+**Shortcuts.** `Ctrl/Cmd+K` command palette, `Esc` dismiss, `\` toggle the
+control sheet, `Ctrl+Z` / `Ctrl+Y` undo and redo, `Ctrl+S` save case,
+`Ctrl+Shift+S` export screenshot.
+
+---
+
+## Repository layout
+
+```
+src/
+  main/            Electron main process, menu, native dialogs, preload bridge
+  renderer/
+    index.html     generated, see the build pipeline below
+    js/            37 modules: morphing, hair, eyes, accessories, marks,
+                   decals, painters, AI, cases, snapshots, capture, shell
+    js/vendor/     GLB / OBJ loaders, OrbitControls, DecalGeometry
+    styles/        base · shell · controls · overlays · carried
+    vendor/        GSAP, Motion One, Lenis, vendored, no bundler
+backend/
+  server.py        Flask API, 17 routes
+  blender_scripts/ headless jobs: morph, render, export, hair, decal bake
+assets/
+  models/          base head, hair, facial-feature and mask meshes
+  Glasses/         frame models
+  accessories/     bandana, earring and piercing meshes
+  Hair_Previews/   hairstyle preview clips
+scripts/           interface build pipeline (see scripts/README.md)
+```
+
+### The interface is generated
+
+`src/renderer/index.html` is **built, not hand-written**. The control inventory
+lives in `scripts/ui-manifest.json`; `build-ui.js` renders it through a
+component set into the document, and `verify-ui.js` proves that all 270-odd
+element IDs the application logic reaches for still resolve.
 
 ```bash
-npm run start:backend    # Flask server only
-npm start                # Electron shell only
+npm run ui          # build + verify
+npm run ui:smoke    # launch the app and drive it end to end
 ```
 
----
-
-## Project structure
-
-```
-reface/
-├── src/
-│   ├── main/                 Electron main process + preload bridge
-│   └── renderer/
-│       ├── index.html        App shell (hero → case → editor screens)
-│       ├── js/               30 modules: morphing, hair, eyes, skin, AI, cases
-│       ├── js/vendor/        Three.js loaders + OrbitControls
-│       └── styles/           Palette, panels, editor layout
-├── backend/
-│   ├── server.py             Flask API — AI, morph, render, export, cases
-│   ├── analyze_mesh.py       Mesh inspection utilities
-│   └── blender_scripts/      Headless Blender jobs (render, morph, export, hair)
-├── assets/
-│   ├── models/               Base head, hair, facial-feature meshes
-│   ├── Glasses/              Glasses frame models
-│   └── Hair_Previews/        Hairstyle preview clips
-└── screenshots/              README imagery
-```
+Edit the manifest or the components. A hand edit to `index.html` is lost on
+the next build. Full detail in [scripts/README.md](scripts/README.md).
 
 ---
 
-## Tech stack
+## Responsible use
 
-| Layer | Tools |
-|---|---|
-| Shell | Electron 28, frameless custom titlebar |
-| 3D viewport | Three.js r160, OrbitControls, GLB / OBJ loaders |
-| Backend | Python, Flask, Flask-CORS |
-| AI | Anthropic Claude, Google Gemini |
-| Voice | SpeechRecognition |
-| Rendering | Blender (headless) |
-| Packaging | electron-builder |
-
----
-
-## Ethical use
-
-ReFace is a tool for **authorized forensic and investigative work**. Faces it
-produces are approximations built from descriptions, not identifications. Treat
-every output as an investigative aid, subject to human review, not as proof.
-
----
+ReFace is built for authorised investigative work. What it produces is an
+approximation assembled from a description, an investigative aid subject to
+human review, never an identification and never evidence in itself. Treat the
+output accordingly.
 
 ## License
 
-Released under the **ISC License**. See the `license` field in
-[package.json](package.json).
+ISC. See the `license` field in [package.json](package.json).
+
+---
 
 <div align="center">
-<sub>Built by the ReFace team · powered by Blender</sub>
+<sub>Built by the ReFace team</sub>
 </div>
