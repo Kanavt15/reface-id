@@ -20,13 +20,13 @@ class FaceCaptureSystem {
     // Capture steps — order the user goes through
     // Each step defines yaw (horizontal) and pitch (vertical) ranges
     this.steps = [
-      { id: 'front',       label: 'Front',      icon: 'fa-portrait',        instruction: 'Look straight at the camera',                    yawRange: [-0.15, 0.15],       pitchRange: [-0.15, 0.15] },
-      { id: 'left-three',  label: 'Left ¾',     icon: 'fa-angle-left',      instruction: 'Turn slightly LEFT — show your left cheekbone',  yawRange: [0.20, 0.50],        pitchRange: [-0.25, 0.25] },
-      { id: 'left',        label: 'Left',        icon: 'fa-arrow-left',      instruction: 'Turn fully LEFT — show your left profile',       yawRange: [0.50, Infinity],    pitchRange: [-0.25, 0.25] },
-      { id: 'right-three', label: 'Right ¾',    icon: 'fa-angle-right',     instruction: 'Turn slightly RIGHT — show your right cheekbone', yawRange: [-0.50, -0.20],     pitchRange: [-0.25, 0.25] },
-      { id: 'right',       label: 'Right',       icon: 'fa-arrow-right',     instruction: 'Turn fully RIGHT — show your right profile',     yawRange: [-Infinity, -0.50],  pitchRange: [-0.25, 0.25] },
-      { id: 'tilt-up',     label: 'Tilt Up',     icon: 'fa-arrow-up',        instruction: 'Tilt your chin UP slightly',                     yawRange: [-0.25, 0.25],       pitchRange: [-0.55, -0.20] },
-      { id: 'tilt-down',   label: 'Tilt Down',   icon: 'fa-arrow-down',      instruction: 'Tilt your chin DOWN slightly',                   yawRange: [-0.25, 0.25],       pitchRange: [0.20, 0.55] },
+      { id: 'front',       label: 'Front',      icon: 'i-face',           instruction: 'Look straight at the camera',                    yawRange: [-0.15, 0.15],       pitchRange: [-0.15, 0.15] },
+      { id: 'left-three',  label: 'Left ¾',     icon: 'i-chevron-left',   instruction: 'Turn slightly LEFT — show your left cheekbone',  yawRange: [0.20, 0.50],        pitchRange: [-0.25, 0.25] },
+      { id: 'left',        label: 'Left',        icon: 'i-arrow-left',     instruction: 'Turn fully LEFT — show your left profile',       yawRange: [0.50, Infinity],    pitchRange: [-0.25, 0.25] },
+      { id: 'right-three', label: 'Right ¾',    icon: 'i-chevron-right',  instruction: 'Turn slightly RIGHT — show your right cheekbone', yawRange: [-0.50, -0.20],     pitchRange: [-0.25, 0.25] },
+      { id: 'right',       label: 'Right',       icon: 'i-arrow-right',    instruction: 'Turn fully RIGHT — show your right profile',     yawRange: [-Infinity, -0.50],  pitchRange: [-0.25, 0.25] },
+      { id: 'tilt-up',     label: 'Tilt Up',     icon: 'i-chevron-up',     instruction: 'Tilt your chin UP slightly',                     yawRange: [-0.25, 0.25],       pitchRange: [-0.55, -0.20] },
+      { id: 'tilt-down',   label: 'Tilt Down',   icon: 'i-chevron-down',   instruction: 'Tilt your chin DOWN slightly',                   yawRange: [-0.25, 0.25],       pitchRange: [0.20, 0.55] },
     ];
 
     this.currentStep = 0;
@@ -36,6 +36,7 @@ class FaceCaptureSystem {
 
     // DOM
     this.overlay = null;
+    this._onKeyDown = null;
   }
 
   // ── Public API ─────────────────────────────────────────────
@@ -73,7 +74,14 @@ class FaceCaptureSystem {
       this._updateUI();
       this._detectLoop();
     } catch (err) {
+      // Tearing the overlay down without a word reads as a dead button, so
+      // say why — a denied permission and an absent camera look identical
+      // from the outside otherwise.
       console.error('[FaceCapture] Camera error:', err);
+      const reason = err && err.name === 'NotAllowedError'
+        ? 'Camera permission denied'
+        : 'Camera unavailable — check that no other app is using it';
+      if (window.kToast) window.kToast(reason, 'err');
       this.cancel();
     }
   }
@@ -251,27 +259,29 @@ class FaceCaptureSystem {
     this.overlay = document.createElement('div');
     this.overlay.id = 'face-capture-overlay';
     // Build step indicators and thumbnails dynamically from this.steps
+    const icon = (id) => `<svg class="i" aria-hidden="true"><use href="#${id}"/></svg>`;
+
     const stepDotsHTML = this.steps.map((s, i) => {
       const dot = `<div class="fc-step-dot${i === 0 ? ' active' : ''}" data-step="${i}">
-              <i class="fas ${s.icon}"></i>
+              ${icon(s.icon)}
               <span>${s.label}</span>
             </div>`;
       return i < this.steps.length - 1 ? dot + '\n            <div class="fc-step-line"></div>' : dot;
     }).join('\n            ');
 
     const thumbsHTML = this.steps.map((s, i) =>
-      `<div class="fc-thumb" data-step="${i}"><i class="fas ${s.icon}"></i></div>`
+      `<div class="fc-thumb" data-step="${i}">${icon(s.icon)}</div>`
     ).join('\n            ');
 
     this.overlay.innerHTML = `
       <div class="fc-modal">
         <div class="fc-header">
           <div class="fc-title">
-            <i class="fas fa-user-circle"></i>
+            ${icon('i-camera')}
             <span>Multi-Angle Face Capture</span>
           </div>
           <div class="fc-step-counter">Step <span class="fc-step-current">1</span> of ${this.steps.length}</div>
-          <button class="fc-close-btn" title="Cancel"><i class="fas fa-times"></i></button>
+          <button type="button" class="fc-close-btn" title="Cancel" aria-label="Cancel capture">${icon('i-close')}</button>
         </div>
 
         <div class="fc-body">
@@ -318,6 +328,12 @@ class FaceCaptureSystem {
     this.overlay.addEventListener('click', (e) => {
       if (e.target === this.overlay) this.cancel();
     });
+
+    // Escape closes, like every other surface in the shell
+    this._onKeyDown = (e) => {
+      if (e.key === 'Escape') this.cancel();
+    };
+    document.addEventListener('keydown', this._onKeyDown);
   }
 
   _updateUI() {
@@ -406,6 +422,10 @@ class FaceCaptureSystem {
 
   _cleanup() {
     this.running = false;
+    if (this._onKeyDown) {
+      document.removeEventListener('keydown', this._onKeyDown);
+      this._onKeyDown = null;
+    }
     if (this.stream) {
       this.stream.getTracks().forEach(t => t.stop());
       this.stream = null;

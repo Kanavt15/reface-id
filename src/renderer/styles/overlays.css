@@ -342,6 +342,287 @@
    carried.css alongside the other carried blocks. Nothing for it here.
    ═══════════════════════════════════════════════════════════════════════ */
 
+/* ══ Multi-angle face capture ════════════════════════════════════════════
+   FaceCaptureSystem builds this overlay itself and appends it to the body,
+   so nothing here matches the static document — see the RUNTIME_ONLY list
+   in scripts/verify-ui.js.
+
+   The camera feed is the subject, so it gets the room: steps above it,
+   status below, captured thumbnails at the foot. The guide ring and the
+   progress ring sit on the feed rather than beside it, because the operator
+   is watching their own face, not the chrome. */
+
+#face-capture-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: 40px;
+  background: rgba(3, 4, 4, 0.66);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.fc-modal {
+  width: min(600px, 100%);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--k-panel);
+  border: 1px solid var(--k-edge);
+  border-radius: var(--r-4);
+  box-shadow: var(--sh-3);
+  overflow: hidden;
+}
+
+.fc-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0 10px 0 18px;
+  height: 46px;
+  border-bottom: 1px solid var(--k-hair);
+}
+
+.fc-title {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: var(--s-md);
+  font-weight: 560;
+  color: var(--t-hi);
+  letter-spacing: var(--tr-tight);
+}
+
+.fc-title .i { font-size: 15px; color: var(--sig); flex: none; }
+
+.fc-step-counter {
+  flex: none;
+  font-family: var(--f-num);
+  font-size: var(--s-micro);
+  letter-spacing: var(--tr-cap);
+  text-transform: uppercase;
+  color: var(--t-mute);
+}
+
+.fc-step-counter .fc-step-current { color: var(--sig); }
+
+.fc-close-btn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--hit);
+  height: var(--hit);
+  color: var(--t-lo);
+  background: none;
+  border: none;
+  border-radius: var(--r-2);
+  cursor: pointer;
+  transition: background var(--t-1) var(--e), color var(--t-1) var(--e);
+}
+
+.fc-close-btn:hover { background: var(--k-hover); color: var(--t-hi); }
+.fc-close-btn .i { font-size: 14px; }
+
+.fc-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  padding: 16px 18px;
+}
+
+/* ── Step rail ──────────────────────────────────────────────────────────
+   Seven steps across a 600px box, so the labels are tiny and the icons
+   carry the meaning. Completed steps stay lit at half strength: the
+   operator should be able to see how far they have come without counting. */
+
+.fc-step-indicators {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.fc-step-dot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 6px;
+  border-radius: var(--r-2);
+  transition: color var(--t-2) var(--e);
+}
+
+.fc-step-dot .i { font-size: 14px; color: var(--t-off); transition: color var(--t-2) var(--e); }
+
+.fc-step-dot span {
+  font-family: var(--f-num);
+  font-size: var(--s-micro);
+  letter-spacing: var(--tr-cap);
+  text-transform: uppercase;
+  color: var(--t-off);
+  white-space: nowrap;
+  transition: color var(--t-2) var(--e);
+}
+
+.fc-step-dot.active .i,
+.fc-step-dot.active span { color: var(--sig); }
+.fc-step-dot.completed .i,
+.fc-step-dot.completed span { color: var(--sig-lo); }
+
+.fc-step-line {
+  flex: none;
+  width: 14px;
+  height: 1px;
+  background: var(--k-rule);
+  transition: background var(--t-2) var(--e);
+}
+
+.fc-step-line.completed { background: var(--sig-line); }
+
+/* ── Camera ─────────────────────────────────────────────────────────────
+   The video element itself stays hidden: every frame is drawn to the canvas
+   mirrored, with landmarks composited on top. */
+
+.fc-camera-area {
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+  aspect-ratio: 4 / 3;
+  background: var(--k-sunken);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-3);
+  overflow: hidden;
+}
+
+.fc-video { display: none; }
+
+.fc-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fc-guide-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 55%;
+  height: 75%;
+  transform: translate(-50%, -50%);
+  border: 1px dashed var(--k-strong);
+  border-radius: 50%;
+  pointer-events: none;
+  transition: border-color var(--t-3) var(--e), box-shadow var(--t-3) var(--e);
+}
+
+.fc-guide-ring.fc-filling {
+  border-color: var(--sig-line);
+  box-shadow: inset 0 0 30px var(--sig-dim);
+}
+
+.fc-guide-ring.fc-complete {
+  border-color: var(--sig);
+  border-style: solid;
+  box-shadow: inset 0 0 40px var(--sig-dim);
+}
+
+.fc-progress-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 60%;
+  height: 80%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.fc-progress-ring svg { width: 100%; height: 100%; }
+
+.fc-progress-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.06);
+  stroke-width: 2;
+}
+
+.fc-progress-fill {
+  fill: none;
+  stroke: var(--sig);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 351.86;
+  stroke-dashoffset: 351.86;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition: stroke-dashoffset var(--t-2) linear;
+}
+
+/* Shutter. Brief enough to read as a capture, not as a flicker. */
+.fc-flash {
+  position: absolute;
+  inset: 0;
+  background: var(--t-hi);
+  pointer-events: none;
+  animation: fc-flash 350ms var(--e-out) forwards;
+}
+
+@keyframes fc-flash {
+  from { opacity: 0.75; }
+  to   { opacity: 0; }
+}
+
+/* ── Status and captures ────────────────────────────────────────────────
+   The status line carries the instruction for the current angle and the
+   hold countdown, so it is reserved a fixed height — text swapping between
+   one and two lines must not shift the camera above it. */
+
+.fc-status {
+  display: grid;
+  place-items: center;
+  min-height: 32px;
+  text-align: center;
+}
+
+.fc-status-text {
+  font-family: var(--f-num);
+  font-size: var(--s-sm);
+  color: var(--t-lo);
+  transition: color var(--t-2) var(--e);
+}
+
+.fc-status-text.fc-success { color: var(--sig); }
+
+.fc-thumbnails {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.fc-thumb {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 42px;
+  background: var(--k-sunken);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-2);
+  overflow: hidden;
+  transition: border-color var(--t-2) var(--e);
+}
+
+.fc-thumb .i { font-size: 13px; color: var(--t-off); }
+.fc-thumb.captured { border-color: var(--sig-line); }
+.fc-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
 /* ══ Reference overlay controls ══════════════════════════════════════════ */
 
 .k-ref-empty {
