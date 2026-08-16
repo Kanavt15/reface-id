@@ -18,3 +18,13 @@ upload.txt
 *.odp
 presentation/
 
+
+# Slide decks — kept out of the repo entirely (output, assets and build scripts)
+*.pptx
+~$*.pptx
+ppt-images/
+scripts/deck_kit.py
+scripts/build_deck.py
+scripts/build_idea_deck.py
+
+.DS_Store
