@@ -456,14 +456,61 @@
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smoothWheel: true,
       touchMultiplier: 1.6,
+      /* The transcript and any other inner scroller live inside this
+         wrapper. Without this Lenis swallows the wheel over them and
+         scrolls the sheet instead, so the inner list can never move. */
+      allowNestedScroll: true,
     });
 
     let raf;
     const loop = (time) => { lenis.raf(time); raf = requestAnimationFrame(loop); };
     raf = requestAnimationFrame(loop);
 
+    keepLimitFresh(lenis, wrapper);
+
     window.kLenis = lenis;
     window.addEventListener('beforeunload', () => { cancelAnimationFrame(raf); lenis.destroy(); });
+  }
+
+  /* Lenis caches the scroll limit and re-measures on a ResizeObserver
+     watching the wrapper's own box. That box never changes here — the
+     sheet body is a fixed-height flex child — so every group that
+     collapses or expands leaves the cached limit describing the old
+     content height, and it stays wrong until the window is resized or a
+     section is switched.
+
+     A wrong limit clamps the wheel target. Cached too large and the
+     wheel does nothing near the bottom; cached too small and the last
+     stretch of the panel is unreachable. The visible one is worse: when
+     a group above the viewport expands, the browser's scroll anchoring
+     moves scrollTop past the stale limit, and the next wheel event
+     clamps the target back down — the sheet travels backwards under the
+     cursor, hundreds of pixels at a time. A wheel mouse shows this
+     plainly because one notch is one large jump; a trackpad's small
+     continuous deltas mostly smear it into a stall.
+
+     The panels are what actually change height, so observing them is the
+     signal. dimensions.resize() only re-measures — unlike lenis.resize()
+     it leaves animatedScroll alone, so it is safe to call mid-scroll,
+     which matters because a group's height transitions over ~200ms and
+     the user may well be scrolling through it. */
+
+  function keepLimitFresh(lenis, wrapper) {
+    if (typeof ResizeObserver === 'undefined') return;
+
+    let queued = false;
+    const remeasure = () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => {
+        queued = false;
+        if (lenis.dimensions) lenis.dimensions.resize();
+        else if (lenis.isScrolling !== 'smooth') lenis.resize();
+      });
+    };
+
+    const ro = new ResizeObserver(remeasure);
+    Array.from(wrapper.children).forEach((panel) => ro.observe(panel));
   }
 
   /* ══ Boot ══════════════════════════════════════════════════════════════ */

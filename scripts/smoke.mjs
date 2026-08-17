@@ -17,8 +17,12 @@ const APP_DIR = path.resolve(import.meta.dirname, '..');
 const SHOTS = process.env.SCREENSHOT_DIR || path.join(APP_DIR, 'scripts', 'shots');
 fs.mkdirSync(SHOTS, { recursive: true });
 
+/* The macOS build ships an .app bundle rather than a bare binary, so the
+   path is not just a different filename. */
 const bin = path.join(APP_DIR, 'node_modules', 'electron', 'dist',
-  process.platform === 'win32' ? 'electron.exe' : 'electron');
+  process.platform === 'win32' ? 'electron.exe'
+  : process.platform === 'darwin' ? 'Electron.app/Contents/MacOS/Electron'
+  : 'electron');
 
 const logs = [];
 const errors = [];
