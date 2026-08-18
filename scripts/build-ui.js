@@ -356,16 +356,20 @@ function renderSubGroup(sg) {
 
   /* header + body must stay adjacent siblings: UIController toggles
      header.nextElementSibling. The single .k-sub-inner child is what makes
-     the 0fr/1fr height transition possible. */
+     the 0fr/1fr height transition possible.
+
+     Collapsed on render — see renderGroup. The manifest's own `collapsed`
+     flag is deliberately ignored; it carries whatever state the old
+     document happened to be saved in. */
   return `
           <div class="feature-sub-group"${attr('id', sg.id)}>
-            <div class="sub-group-header${sg.collapsed ? ' collapsed' : ''}">
+            <div class="sub-group-header collapsed">
               ${faIcon(sg.icon)}
               <span>${esc(sg.title || '')}</span>
               ${cHeaderActions(sg.actions, null)}
               ${icon('chevron-down', 'k-caret')}
             </div>
-            <div class="sub-group-body${sg.collapsed ? ' collapsed' : ''}">
+            <div class="sub-group-body collapsed">
               <div class="k-sub-inner">${inner}
               </div>
             </div>
@@ -385,15 +389,21 @@ function renderGroup(g) {
         ? `<button type="button" class="btn-reset-group" data-group="${esc(g.resetGroup)}" title="Reset ${esc(g.title || 'group')}">${icon('reset')}</button>`
         : '');
 
+  /* Every group renders collapsed. A section holds up to a dozen groups and
+     several hundred controls between them; opening one with everything
+     already expanded means the operator lands mid-list with no idea what
+     the section contains. Closed, the section reads as a table of contents
+     and one click opens the part they came for. k-shell re-collapses on
+     each section open so this stays true after the first visit. */
   return `
         <div class="control-group"${attr('id', g.id)}>
-          <div class="control-group-header${g.collapsed ? ' collapsed' : ''}">
+          <div class="control-group-header collapsed">
             ${faIcon(g.icon)}
             <span>${esc(g.title || '')}</span>
             ${actions}
             ${icon('chevron-down', 'k-caret')}
           </div>
-          <div class="control-group-body${g.collapsed ? ' collapsed' : ''}">
+          <div class="control-group-body collapsed">
             <div class="k-group-inner">${inner}
             </div>
           </div>

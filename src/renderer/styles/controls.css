@@ -43,32 +43,36 @@
 .control-group-header:hover { color: var(--t-hi); }
 
 .control-group-header > .i {
-  font-size: 13px;
-  color: var(--t-mute);
+  font-size: 14px;
+  color: var(--t-lo);
   transition: color var(--t-1) var(--e);
 }
 
-.control-group-header:hover > .i { color: var(--t-lo); }
+.control-group-header:hover > .i { color: var(--t-hi); }
 
+/* These headings are the section's table of contents — every group ships
+   collapsed, so this row is the only thing the operator reads when deciding
+   where to go. At 9.5px in --t-lo it was quieter than the controls it
+   indexes, which is backwards. */
 .control-group-header > span {
   flex: 1;
-  font-size: var(--s-micro);
+  font-size: var(--s-ui);
   font-weight: 650;
-  letter-spacing: var(--tr-wide);
+  letter-spacing: var(--tr-cap);
   text-transform: uppercase;
-  color: var(--t-lo);
+  color: var(--t-hi);
 }
 
 /* Disclosure chevron. Rotates rather than swapping glyph, so the motion
    reads as one object turning. */
 .k-caret {
-  font-size: 12px;
-  color: var(--t-off);
+  font-size: 13px;
+  color: var(--t-mute);
   transition: transform var(--t-2) var(--e), color var(--t-1) var(--e);
 }
 
 .control-group-header.collapsed .k-caret { transform: rotate(-90deg); }
-.control-group-header:hover .k-caret { color: var(--t-lo); }
+.control-group-header:hover .k-caret { color: var(--t-hi); }
 
 /* Collapse. Animating grid-template-rows between 1fr and 0fr is the one
    technique that transitions to *content height* without hard-coding a
@@ -116,19 +120,21 @@
   user-select: none;
 }
 
-.sub-group-header > .i { font-size: 11px; color: var(--t-off); }
+.sub-group-header > .i { font-size: 12px; color: var(--t-mute); }
 
+/* Lifted alongside the group headers, but kept a step below them so the two
+   levels still read as a hierarchy rather than as one flat list. */
 .sub-group-header > span {
   flex: 1;
-  font-size: var(--s-micro);
+  font-size: var(--s-sm);
   font-weight: 600;
   letter-spacing: var(--tr-cap);
   text-transform: uppercase;
-  color: var(--t-mute);
+  color: var(--t);
   transition: color var(--t-1) var(--e);
 }
 
-.sub-group-header:hover > span { color: var(--t-lo); }
+.sub-group-header:hover > span { color: var(--t-hi); }
 .sub-group-header .k-caret { font-size: 11px; }
 .sub-group-header.collapsed .k-caret { transform: rotate(-90deg); }
 

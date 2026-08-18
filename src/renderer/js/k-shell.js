@@ -82,7 +82,14 @@
 
         /* UIController swaps the panel in its own listener, which has not
            run yet at capture time. */
-        requestAnimationFrame(syncSheetHead);
+        requestAnimationFrame(() => {
+          syncSheetHead();
+          /* A section always opens as a list of closed headings, never
+             mid-way down an expanded one. Skipped when the click is what
+             shut the sheet, so the groups do not visibly snap closed on
+             the way out. */
+          if (!collapse) collapseGroups(activePanel());
+        });
       }, true);
     }
 
@@ -109,6 +116,22 @@
      UIController toggles .collapsed on the body and header already. This
      only adds the bulk operation, and keeps the caret in step for groups
      it collapses itself. */
+
+  function activePanel() {
+    const key = activeSection();
+    return key ? document.getElementById('panel-' + key) : null;
+  }
+
+  /* Shut every group and sub-group in a panel. Sub-groups are included on
+     purpose: a group that opens onto more already-open nested sections is
+     the thing that made these panels hard to read in the first place. */
+  function collapseGroups(panel) {
+    if (!panel) return;
+    $$('.control-group-header, .sub-group-header', panel).forEach((h) => {
+      h.classList.add('collapsed');
+      h.nextElementSibling?.classList.add('collapsed');
+    });
+  }
 
   function bindCollapseAll() {
     const btn = $('#k-sheet-collapse-all');
@@ -336,6 +359,13 @@
     bindModals();
     bindKeys();
     syncSheetHead();
+
+    /* The generated markup already ships collapsed, but UIController and the
+       engine mount controls into these panels during boot and some of that
+       work expands a group on the way past. Shut them once more after the
+       dust settles so the first section the operator sees matches every
+       later one. */
+    requestAnimationFrame(() => collapseGroups(activePanel()));
 
     /* Anything the engine reveals by clearing an inline display — the
        recalibrate control is the current example — should not occupy the
