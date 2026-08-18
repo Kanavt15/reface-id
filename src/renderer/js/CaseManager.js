@@ -13,9 +13,26 @@ class CaseManager {
     this._pendingSnapshot = null;
   }
 
+  /**
+   * A case gets its identity the moment it exists, not when it first reaches
+   * the backend. The id used to be filled in from the save response, so
+   * anything keyed by it before the first successful save — snapshots, most
+   * of all — was filed under a placeholder and orphaned the moment a real id
+   * arrived. Minting here makes that window zero-width.
+   */
+  static newCaseId() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    // file:// is a secure context in Chromium so the branch above normally
+    // wins; this keeps a plain browser or an older runtime working.
+    return 'case-' + Date.now().toString(36) + '-' +
+           Math.random().toString(36).slice(2, 10);
+  }
+
   newCaseTemplate() {
     return {
-      caseId: null,
+      caseId: CaseManager.newCaseId(),
       caseNumber: '',
       caseName: 'Untitled Case',
       investigator: '',
@@ -402,7 +419,10 @@ class CaseManager {
             this.currentCase = {
               ...template,
               ...parsed,
-              caseId: null, // Generate new ID on next save
+              // An imported case is a new case in this install's database,
+              // so it takes a fresh id immediately rather than waiting for a
+              // save to hand it one.
+              caseId: CaseManager.newCaseId(),
               createdAt: parsed.createdAt || new Date().toISOString(),
               modifiedAt: new Date().toISOString(),
             };

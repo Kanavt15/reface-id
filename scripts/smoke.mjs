@@ -11,6 +11,7 @@
  */
 import { _electron as electron } from 'playwright-core';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 
 const APP_DIR = path.resolve(import.meta.dirname, '..');
@@ -41,9 +42,18 @@ async function shot(page, name) {
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
 
+/* A throwaway Electron profile, so a smoke run never touches the operator's
+   real reface.db. main.js derives REFACE_DATA_DIR from app.getPath('userData'),
+   which this flag controls, so the database follows the profile. Without it
+   this suite walks the intake flow with a real case number and the app quite
+   correctly files things against it — including adopting snapshots recovered
+   from the pre-database era, which then belong to a test case. */
+const PROFILE = path.join(os.tmpdir(), 'reface-smoke-profile');
+fs.rmSync(PROFILE, { recursive: true, force: true });
+
 const app = await electron.launch({
   executablePath: bin,
-  args: ['--no-sandbox', APP_DIR],
+  args: ['--no-sandbox', `--user-data-dir=${PROFILE}`, APP_DIR],
   env,
   timeout: 60_000,
 });

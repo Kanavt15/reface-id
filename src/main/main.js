@@ -13,8 +13,18 @@ function startBackend() {
     'miniforge3', 'envs', 'reface', 'bin', 'python'
   );
   const pythonCmd = require('fs').existsSync(condaPython) ? condaPython : 'python';
+
+  /* The SQLite store must not live inside the repo — a reinstall or a
+     packaged build would leave it somewhere the app cannot write, and cases
+     would silently reset. userData is the one path that means the same thing
+     for `npm start` and for an installed build, so hand it to Python rather
+     than letting each side guess. */
+  const dataDir = app.getPath('userData');
+  console.log(`[Backend] data dir: ${dataDir}`);
+
   pythonProcess = spawn(pythonCmd, [backendPath], {
-    cwd: path.join(__dirname, '..', '..', 'backend')
+    cwd: path.join(__dirname, '..', '..', 'backend'),
+    env: { ...process.env, REFACE_DATA_DIR: dataDir }
   });
 
   pythonProcess.stdout.on('data', (data) => {

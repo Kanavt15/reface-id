@@ -20,6 +20,7 @@ index.legacy.html ──▶ extract-ui-manifest.js ──▶ ui-manifest.json
 | `npm run ui:verify` | prove every binding the engine relies on still resolves |
 | `npm run ui` | build + verify |
 | `npm run ui:smoke` | launch the app, drive intake → editor, report console errors |
+| `npm run test:snapshots` | launch the app **twice**, capture snapshots in the first run and read them back in the second |
 | `npm run ui:vendor` | re-copy libraries, fonts and the icon sprite from `node_modules` |
 | `npm run ui:extract` | re-read the control inventory from `index.legacy.html` |
 

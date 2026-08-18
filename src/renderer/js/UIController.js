@@ -4843,6 +4843,12 @@ class UIController {
 
     this.updateCaseTitle();
     this.updatePropertyPanel();
+
+    // A new case has a new id, so its snapshot list is a different set of
+    // rows. Without this the panel kept showing the previous case's captures
+    // — the old code loaded snapshots exactly once, at boot.
+    this.snapshotManager?.loadForCurrentCase();
+
     this.addHistory('New case created');
   }
 
@@ -4926,6 +4932,11 @@ class UIController {
 
       this.updateCaseTitle();
       this.updatePropertyPanel();
+
+      // Pull this case's snapshots out of the database. A case opened from a
+      // file used to inherit whatever list happened to be in memory.
+      this.snapshotManager?.loadForCurrentCase();
+
       this.addHistory(`Loaded case: ${data.caseName || 'Untitled'}`);
     } else {
       this.addHistory('Failed to load case');
@@ -5307,15 +5318,27 @@ class UIController {
   bindSnapshotControls() {
     if (!this.snapshotManager) return;
 
-    // Capture button
-    document.getElementById('btnCaptureSnapshot')?.addEventListener('click', () => {
-      // Sync all live system state into currentCase before capturing
-      this.updateCaseFromUI();
-      const input = document.getElementById('snapshotNameInput');
-      const name = input ? input.value : '';
-      const snap = this.snapshotManager.capture(name);
-      if (input) input.value = '';
-      this.addHistory(`Snapshot saved: ${snap.name}`);
+    // Capture button. Every snapshot operation is a database round trip now,
+    // so the button is disabled for the duration — a double click used to be
+    // able to queue two captures of the same state.
+    const captureBtn = document.getElementById('btnCaptureSnapshot');
+    captureBtn?.addEventListener('click', async () => {
+      if (captureBtn.disabled) return;
+      captureBtn.disabled = true;
+      try {
+        // Sync all live system state into currentCase before capturing
+        this.updateCaseFromUI();
+        const input = document.getElementById('snapshotNameInput');
+        const name = input ? input.value : '';
+        const snap = await this.snapshotManager.capture(name);
+        if (input) input.value = '';
+        this.addHistory(`Snapshot saved: ${snap.name}`);
+      } catch (err) {
+        console.error('[UI] snapshot capture failed', err);
+        this.addHistory('Snapshot capture failed');
+      } finally {
+        captureBtn.disabled = false;
+      }
     });
 
     // Allow Enter key in the name input
@@ -5327,10 +5350,11 @@ class UIController {
     });
 
     // Clear all button
-    document.getElementById('btnClearSnapshots')?.addEventListener('click', () => {
-      if (!confirm('Delete all snapshots? This cannot be undone.')) return;
-      this.snapshotManager.deleteAll();
-      this.addHistory('All snapshots cleared');
+    document.getElementById('btnClearSnapshots')?.addEventListener('click', async () => {
+      if (!confirm('Clear all snapshots for this case?')) return;
+      if (await this.snapshotManager.deleteAll()) {
+        this.addHistory('All snapshots cleared');
+      }
     });
 
     // Import snapshot button
@@ -5344,8 +5368,38 @@ class UIController {
     // Re-render list when snapshots change
     this.snapshotManager.onSnapshotsChanged = (list) => this.renderSnapshotList(list);
 
+    // Surface storage problems in the activity log instead of the console,
+    // where an operator would never see them.
+    this.snapshotManager.onStatus = (message) => this.addHistory(message);
+
+    // Opening the Frames panel re-reads the list when the case has changed
+    // underneath it. The intake flow fills the case fields on the existing
+    // template rather than creating a case, so neither newCase() nor
+    // loadCase() fires and nothing else would notice.
+    document.querySelector('.panel-tab[data-panel="snapshots"]')
+      ?.addEventListener('click', () => {
+        this.snapshotManager.refreshIfCaseChanged();
+      });
+
     // Initial render
     this.renderSnapshotList(this.snapshotManager.getList());
+  }
+
+  /**
+   * Build an icon element from the sprite sheet.
+   * FontAwesome was removed in the UI rebuild and build-ui.js only rewrites
+   * `<i class="fa…">` that appears in *markup* — icons created at runtime in
+   * JS were left behind and rendered as empty boxes, which is what made the
+   * snapshot export button look like it had stopped working.
+   */
+  _icon(name) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'i');
+    svg.setAttribute('aria-hidden', 'true');
+    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+    use.setAttribute('href', `#i-${name}`);
+    svg.appendChild(use);
+    return svg;
   }
 
   renderSnapshotList(list) {
@@ -5371,7 +5425,8 @@ class UIController {
     sorted.forEach(snap => {
       const card = document.createElement('div');
       card.className = 'snapshot-card';
-      card.dataset.snapshotId = snap.id;
+      card.dataset.snapshotUid = snap.uid;
+      if (snap.pending) card.classList.add('snapshot-pending');
 
       // Thumbnail
       const thumb = document.createElement('div');
@@ -5384,8 +5439,18 @@ class UIController {
       } else {
         const ph = document.createElement('div');
         ph.className = 'snapshot-thumb-placeholder';
-        ph.innerHTML = '<i class="fas fa-image"></i>';
+        ph.appendChild(this._icon('image'));
         thumb.appendChild(ph);
+      }
+
+      // A capture taken while the backend was down is shown, not hidden, with
+      // a marker saying it has not reached the database yet.
+      if (snap.pending) {
+        const badge = document.createElement('span');
+        badge.className = 'snapshot-badge';
+        badge.textContent = 'QUEUED';
+        badge.title = 'Saved locally — will be written to the database when the backend is reachable';
+        thumb.appendChild(badge);
       }
 
       // Info
@@ -5421,18 +5486,21 @@ class UIController {
 
       const restoreBtn = document.createElement('button');
       restoreBtn.className = 'snapshot-action-btn btn-restore';
+      restoreBtn.type = 'button';
       restoreBtn.title = 'Restore this snapshot';
-      restoreBtn.innerHTML = '<i class="fas fa-undo"></i>';
+      restoreBtn.appendChild(this._icon('undo'));
 
       const exportBtn = document.createElement('button');
       exportBtn.className = 'snapshot-action-btn btn-export';
-      exportBtn.title = 'Export this snapshot to file';
-      exportBtn.innerHTML = '<i class="fas fa-download"></i>';
+      exportBtn.type = 'button';
+      exportBtn.title = 'Export this snapshot to a file';
+      exportBtn.appendChild(this._icon('export'));
 
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'snapshot-action-btn btn-delete';
+      deleteBtn.type = 'button';
       deleteBtn.title = 'Delete this snapshot';
-      deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+      deleteBtn.appendChild(this._icon('trash'));
 
       actions.appendChild(restoreBtn);
       actions.appendChild(exportBtn);
@@ -5448,41 +5516,52 @@ class UIController {
       // Restore on card click (not on action buttons or rename input)
       card.addEventListener('click', (e) => {
         if (e.target.closest('.snapshot-action-btn') || e.target.closest('.snapshot-name-input')) return;
-        this._restoreSnapshot(snap.id, card);
+        this._restoreSnapshot(snap.uid, card);
       });
 
       // Restore button
       restoreBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        this._restoreSnapshot(snap.id, card);
+        this._restoreSnapshot(snap.uid, card);
       });
 
       // Export button
-      exportBtn.addEventListener('click', (e) => {
+      exportBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        this.snapshotManager.exportToFile(snap.id);
-        this.addHistory(`Snapshot exported: ${snap.name}`);
+        exportBtn.disabled = true;
+        try {
+          // Only log the export once it has actually been written — the old
+          // code logged it unconditionally, so a cancelled or failed save
+          // still reported success in the activity log.
+          if (await this.snapshotManager.exportToFile(snap.uid)) {
+            this.addHistory(`Snapshot exported: ${snap.name}`);
+          }
+        } finally {
+          exportBtn.disabled = false;
+        }
       });
 
       // Delete button
-      deleteBtn.addEventListener('click', (e) => {
+      deleteBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        this.snapshotManager.delete(snap.id);
-        this.addHistory(`Snapshot deleted: ${snap.name}`);
+        if (!confirm(`Delete snapshot "${snap.name}"?`)) return;
+        if (await this.snapshotManager.delete(snap.uid)) {
+          this.addHistory(`Snapshot deleted: ${snap.name}`);
+        }
       });
 
       // Double-click name to rename
-      nameEl.addEventListener('dblclick', (e) => {
-        this._startSnapshotRename(snap.id, nameEl);
+      nameEl.addEventListener('dblclick', () => {
+        this._startSnapshotRename(snap.uid, nameEl);
       });
     });
   }
 
-  _restoreSnapshot(id, cardEl) {
-    const state = this.snapshotManager.restore(id);
+  async _restoreSnapshot(uid, cardEl) {
+    const state = await this.snapshotManager.restore(uid);
     if (!state) return;
     this.restoreState(state);
-    this.addHistory(`Restored snapshot`);
+    this.addHistory('Restored snapshot');
 
     // Visual feedback
     if (cardEl) {
@@ -5491,7 +5570,7 @@ class UIController {
     }
   }
 
-  _startSnapshotRename(id, nameEl) {
+  _startSnapshotRename(uid, nameEl) {
     const currentName = nameEl.textContent;
     const input = document.createElement('input');
     input.type = 'text';
@@ -5504,16 +5583,24 @@ class UIController {
     input.focus();
     input.select();
 
+    // blur fires again when the list re-renders under the input, so commit
+    // has to be idempotent or a rename round-trips to the backend twice.
+    let committed = false;
     const commit = () => {
+      if (committed) return;
+      committed = true;
       const newName = input.value.trim() || currentName;
-      this.snapshotManager.rename(id, newName);
-      // Re-render handled by onSnapshotsChanged callback
+      // Put the text back before calling rename. A rename to the same name is
+      // a no-op that never fires onSnapshotsChanged, and without this the
+      // input stayed mounted with no way to dismiss it.
+      nameEl.textContent = newName;
+      this.snapshotManager.rename(uid, newName);
     };
 
     input.addEventListener('blur', commit);
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
-      if (e.key === 'Escape') { input.value = currentName; input.blur(); }
+      if (e.key === 'Escape') { committed = true; nameEl.textContent = currentName; }
     });
   }
 

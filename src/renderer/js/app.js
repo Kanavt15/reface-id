@@ -284,11 +284,22 @@
 
     // ── Initialize Snapshot Manager ──
     console.log('[App] Initializing Snapshot Manager...');
-    const snapshotManager = new SnapshotManager(caseManager, sceneManager);
-    snapshotManager.loadForCurrentCase();
+    const snapshotManager = new SnapshotManager(caseManager, sceneManager, api);
     ui.snapshotManager = snapshotManager;
+    // Bind before loading: the load is a database round trip that fires
+    // onSnapshotsChanged when it lands, and that callback is installed here.
     ui.bindSnapshotControls();
-    console.log('[App] Snapshot Manager initialized');
+    snapshotManager.loadForCurrentCase()
+      .then((n) => console.log(`[App] Snapshot Manager initialized (${n} snapshot(s))`))
+      .catch((e) => console.error('[App] Snapshot load failed', e));
+
+    // ── Debug handle ──
+    // main.js opens DevTools on every launch and there was no way to reach the
+    // live controllers from that console; scripts/snapshot-check.mjs drives the
+    // app through this too. It must live inside this callback — the systems it
+    // names are scoped to it, and referencing them from the outer body throws
+    // a ReferenceError that takes the rest of app.js down with it.
+    window.rfApp = { ui, api, caseManager, sceneManager, snapshotManager };
 
     // ── Initialize AI Controller ──
     console.log('[App] Initializing AI Controller...');

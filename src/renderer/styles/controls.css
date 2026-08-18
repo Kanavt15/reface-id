@@ -706,7 +706,12 @@ label.checkbox-label {
 .decal-thumb.active { border-color: var(--sig); }
 .decal-thumb img { width: 100%; height: 100%; object-fit: cover; }
 
-/* ══ Snapshots ═══════════════════════════════════════════════════════════ */
+/* ══ Snapshots ═══════════════════════════════════════════════════════════
+   A contact sheet of captured frames. UIController.renderSnapshotList()
+   builds each card as .snapshot-thumb + .snapshot-info + .snapshot-actions;
+   the rules here were written against a different structure (.snapshot-card
+   > img, .snapshot-card-meta) that the controller never emitted, so the
+   action row had no styling at all and its buttons collapsed to nothing. */
 
 .snapshot-list {
   display: grid;
@@ -715,7 +720,20 @@ label.checkbox-label {
   padding: 6px var(--pad) 9px;
 }
 
+/* The empty-state line spans both columns rather than sitting in the first. */
+.snapshot-empty {
+  grid-column: 1 / -1;
+  padding: 14px 2px;
+  font-size: var(--s-micro);
+  line-height: 1.6;
+  color: var(--t-mute);
+  text-align: center;
+}
+
 .snapshot-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
   background: var(--k-raise);
   border: 1px solid var(--k-hair);
   border-radius: var(--r-2);
@@ -726,16 +744,123 @@ label.checkbox-label {
 
 .snapshot-card:hover { border-color: var(--k-edge); transform: translateY(-1px); }
 .snapshot-card.active { border-color: var(--sig); }
-.snapshot-card img { width: 100%; aspect-ratio: 3/4; object-fit: cover; background: var(--k-sunken); }
 
-.snapshot-card-meta {
+/* Restore confirmation — a single pulse of the one accent colour. */
+.snapshot-card.restored { border-color: var(--sig); }
+
+/* Queued locally, not yet in the database. */
+.snapshot-card.snapshot-pending { border-style: dashed; }
+
+.snapshot-thumb {
+  position: relative;
+  aspect-ratio: 4 / 3;          /* matches the captured thumbnail, so no crop */
+  background: var(--k-sunken);
+}
+
+.snapshot-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.snapshot-thumb-placeholder {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  padding: 5px 7px;
+  justify-content: center;
+  height: 100%;
+  color: var(--t-mute);
+  opacity: .4;
+}
+
+.snapshot-thumb-placeholder .i { width: 20px; height: 20px; }
+
+.snapshot-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: var(--k-void);
+  color: var(--sig);
+  font-family: var(--f-num);
+  font-size: 8px;
+  letter-spacing: .08em;
+}
+
+.snapshot-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 7px 4px;
+  min-width: 0;
+}
+
+.snapshot-name {
+  font-size: var(--s-micro);
+  color: var(--t);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snapshot-meta,
+.snapshot-time {
   font-family: var(--f-num);
   font-size: var(--s-micro);
+  color: var(--t-mute);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Inline rename field — sized to the card so a long name cannot widen the
+   grid column and reflow the whole sheet while it is being typed. */
+.snapshot-name-input {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--sig);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.snapshot-actions {
+  display: flex;
+  gap: 2px;
+  padding: 0 5px 5px;
+  margin-top: auto;
+}
+
+.snapshot-action-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--t-mute);
+  cursor: pointer;
+  transition: color var(--t-1) var(--e), background var(--t-1) var(--e),
+              border-color var(--t-1) var(--e);
+}
+
+.snapshot-action-btn .i { width: 13px; height: 13px; }
+
+.snapshot-action-btn:hover {
+  border-color: var(--k-edge);
+  background: var(--k-sunken);
+  color: var(--sig);
+}
+
+.snapshot-action-btn:disabled { opacity: .35; cursor: default; }
+.snapshot-action-btn:disabled:hover {
+  border-color: transparent;
+  background: transparent;
   color: var(--t-mute);
 }
 

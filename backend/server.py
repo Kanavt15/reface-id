@@ -20,11 +20,33 @@ import anthropic
 import google.generativeai as genai
 import speech_recognition as sr
 
+import db
+
+# Windows gives a piped stdout the cp1252 codepage, and this file prints box
+# drawing and check/cross marks. Under Electron — which always pipes — the
+# startup banner therefore raised UnicodeEncodeError and killed the server
+# before app.run() was ever reached, so the whole backend looked "offline"
+# while python exited 1. Force UTF-8 and never let an unprintable character
+# take the process down again.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding='utf-8', errors='replace')
+    except (AttributeError, ValueError):
+        pass  # already a UTF-8 stream, or not reconfigurable
+
 # Load .env from project root
 load_dotenv(Path(__file__).parent.parent / '.env')
 
 app = Flask(__name__)
 CORS(app)
+
+# Open the SQLite store at import time rather than under __main__, so the
+# schema exists whether this file is run directly or imported by a WSGI host.
+try:
+    _DB_PATH = db.init()
+    print(f"[DB] SQLite ready: {_DB_PATH}")
+except Exception as _db_err:
+    print(f"[DB] FAILED to initialize: {_db_err}")
 
 # ─── AI Clients (Anthropic & Gemini) ─────────────────────────────────────────
 anthropic_client = None
@@ -784,10 +806,20 @@ def download_export(filename):
 
 @app.route('/api/case/save', methods=['POST'])
 def save_case():
-    """Save current reconstruction state as a case file."""
+    """Save current reconstruction state to the database and a .rfc file.
+
+    The database is the working store; the .rfc file stays because Open Case
+    and the export flow both address cases by path.
+    """
     data = request.json
-    case_id = data.get('caseId', str(uuid.uuid4()))
-    
+
+    # `data.get('caseId', <uuid>)` used to sit here, and the default never
+    # fired: currentCase always *has* a caseId key, so a brand new case sent
+    # an explicit null and this returned None. Every unsaved case wrote to
+    # "None.rfc" and reported caseId None back to the renderer, which is why
+    # no case ever acquired an id. Treat null and '' as absent too.
+    case_id = data.get('caseId') or str(uuid.uuid4())
+
     case_file = CASES_DIR / f"{case_id}.rfc"
     case_data = {
         'caseId': case_id,
@@ -804,7 +836,15 @@ def save_case():
     
     with open(case_file, 'w') as f:
         json.dump(case_data, f, indent=2)
-    
+
+    try:
+        db.upsert_case(case_id, case_data)
+        db.log_event(case_id, 'case.save', case_data.get('caseName', ''))
+    except Exception as e:
+        # A database problem must not cost the operator their .rfc file, which
+        # is already on disk by this point.
+        print(f"[DB] case save failed: {e}")
+
     return jsonify({"success": True, "caseId": case_id, "path": str(case_file)})
 
 
@@ -813,14 +853,136 @@ def load_case():
     """Load a case file."""
     data = request.json
     case_path = data.get('path', '')
-    
+
     if not os.path.exists(case_path):
         return jsonify({"error": "Case file not found"}), 404
-    
+
     with open(case_path, 'r') as f:
         case_data = json.load(f)
-    
+
     return jsonify(case_data)
+
+
+@app.route('/api/case/list', methods=['GET'])
+def list_cases_route():
+    """Every case the database knows about, newest activity first."""
+    try:
+        return jsonify({"success": True, "cases": db.list_cases()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ─── Snapshots ────────────────────────────────────────────────────────────────
+#
+# Snapshots used to live in renderer localStorage under a key rebuilt on every
+# write from the case id, while the only load happened once at boot before any
+# case existed. Anything written after that point was never read back. They are
+# rows now, addressed by a case id the renderer mints up front.
+
+@app.route('/api/snapshots', methods=['GET'])
+def list_snapshots_route():
+    case_id = request.args.get('caseId', '').strip()
+    if not case_id:
+        return jsonify({"error": "caseId is required"}), 400
+    try:
+        return jsonify({"success": True, "snapshots": db.list_snapshots(case_id)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/snapshots/<int:snapshot_id>', methods=['GET'])
+def get_snapshot_route(snapshot_id):
+    try:
+        snap = db.get_snapshot(snapshot_id)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    if not snap:
+        return jsonify({"error": "Snapshot not found"}), 404
+    return jsonify({"success": True, "snapshot": snap})
+
+
+@app.route('/api/snapshots', methods=['POST'])
+def create_snapshot_route():
+    data = request.json or {}
+    case_id = (data.get('caseId') or '').strip()
+    if not case_id:
+        return jsonify({"error": "caseId is required"}), 400
+
+    state = data.get('state')
+    if not isinstance(state, dict):
+        return jsonify({"error": "state must be an object"}), 400
+
+    try:
+        snap = db.create_snapshot(
+            case_id=case_id,
+            name=(data.get('name') or 'Snapshot').strip(),
+            state=state,
+            thumbnail=data.get('thumbnail'),
+            client_uuid=data.get('clientUuid'),
+            case_meta=data.get('caseMeta'),
+        )
+        return jsonify({"success": True, "snapshot": snap})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/snapshots/<int:snapshot_id>', methods=['PATCH'])
+def rename_snapshot_route(snapshot_id):
+    data = request.json or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({"error": "name is required"}), 400
+    try:
+        if not db.rename_snapshot(snapshot_id, name):
+            return jsonify({"error": "Snapshot not found"}), 404
+        return jsonify({"success": True, "snapshot": db.get_snapshot(snapshot_id)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/snapshots/<int:snapshot_id>', methods=['DELETE'])
+def delete_snapshot_route(snapshot_id):
+    try:
+        if not db.delete_snapshot(snapshot_id):
+            return jsonify({"error": "Snapshot not found"}), 404
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/snapshots/adopt', methods=['POST'])
+def adopt_snapshots_route():
+    """Attach snapshots recovered from localStorage to a real case."""
+    data = request.json or {}
+    case_id = (data.get('caseId') or '').strip()
+    if not case_id:
+        return jsonify({"error": "caseId is required"}), 400
+    try:
+        adopted = db.adopt_pending_snapshots(case_id, data.get('caseMeta'))
+        return jsonify({"success": True, "adopted": adopted})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/snapshots/clear', methods=['POST'])
+def clear_snapshots_route():
+    data = request.json or {}
+    case_id = (data.get('caseId') or '').strip()
+    if not case_id:
+        return jsonify({"error": "caseId is required"}), 400
+    try:
+        return jsonify({"success": True, "cleared": db.delete_all_snapshots(case_id)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/db/stats', methods=['GET'])
+def db_stats_route():
+    """Where the database file is and what is in it — useful from DevTools."""
+    try:
+        return jsonify({"success": True, **db.stats()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ─── Blender Render ────────────────────────────────────────────────────────────
