@@ -321,11 +321,11 @@ class SkinTextureSystem {
         let r = baseColor.r, g = baseColor.g, b = baseColor.b;
 
         // ── Natural noise variation ──
-        const cv = (colorVar[ni] - 0.5) * 28;
+        const cv = (colorVar[ni] - 0.5) * 16;
         r += cv * 1.3; g += cv * 0.9; b += cv * 0.5;
-        const lv = (largeVar[ni] - 0.5) * 18;
+        const lv = (largeVar[ni] - 0.5) * 10;
         r += lv * 1.1; g += lv * 0.7; b += lv * 0.4;
-        const mv = (microVar[ni] - 0.5) * 10;
+        const mv = (microVar[ni] - 0.5) * 6;
         r += mv; g += mv * 0.5; b -= mv * 0.3;
 
         if (hasPos) {
@@ -334,17 +334,17 @@ class SkinTextureSystem {
           const cheekW = Math.max(
             this._gw3d(px, py, pz, -0.40, -0.15, 0.95, 0.20, 0.18, 0.25),
             this._gw3d(px, py, pz,  0.40, -0.15, 0.95, 0.20, 0.18, 0.25));
-          r += cheekW * 25; g -= cheekW * 4; b -= cheekW * 10;
+          r += cheekW * 8; g += cheekW * 1; b -= cheekW * 3;
 
           // Nose: redder (0, 0.02, 1.30)
           const noseW = this._gw3d(px, py, pz, 0, 0.02, 1.30, 0.08, 0.12, 0.15);
-          r += noseW * 18; g -= noseW * 3; b -= noseW * 4;
+          r += noseW * 8; g -= noseW * 1; b -= noseW * 2;
 
           // Ears: redder (x=±0.80, y=0.15, z=-0.05)
           const earW = Math.max(
             this._gw3d(px, py, pz, -0.80, 0.15, -0.05, 0.15, 0.20, 0.20),
             this._gw3d(px, py, pz,  0.80, 0.15, -0.05, 0.15, 0.20, 0.20));
-          r += earW * 15; b -= earW * 5;
+          r += earW * 7; b -= earW * 2;
 
           // Under-eye: darker/bluer
           const ueW = Math.max(
@@ -369,7 +369,7 @@ class SkinTextureSystem {
 
           // Lip area: pinker/redder
           const lipW = this._gw3d(px, py, pz, 0, -0.30, 1.12, 0.15, 0.06, 0.12);
-          r += lipW * 14; g -= lipW * 2; b -= lipW * 5;
+          r += lipW * 7; g -= lipW * 1; b -= lipW * 2;
         }
 
         // ── Pore texture ──

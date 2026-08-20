@@ -43,7 +43,7 @@ class SceneManager {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.2;
+    this.renderer.toneMappingExposure = 1.0;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     // Camera — Y-up, looking at model center, front = +Z direction
@@ -107,11 +107,17 @@ class SceneManager {
         if (this.headMesh) this.scene.remove(this.headMesh);
 
         // GLB is already Y-up, no rotation needed
-        const skinMat = new THREE.MeshStandardMaterial({
+        const skinMat = new THREE.MeshPhysicalMaterial({
           color: 0xd4a574,
-          roughness: 0.50,
-          metalness: 0.02,
+          roughness: 0.45,
+          metalness: 0.0,
           side: THREE.FrontSide,
+          clearcoat: 0.05,
+          clearcoatRoughness: 0.6,
+          sheen: 0.15,
+          sheenRoughness: 0.5,
+          sheenColor: new THREE.Color(0xcc8866),
+          ior: 1.4,
         });
 
         group.traverse((child) => {
@@ -169,11 +175,17 @@ class SceneManager {
         group.updateMatrixWorld(true);
 
         // Apply default skin material with SSS-like properties
-        const skinMat = new THREE.MeshStandardMaterial({
+        const skinMat = new THREE.MeshPhysicalMaterial({
           color: 0xd4a574,
-          roughness: 0.50,
-          metalness: 0.02,
+          roughness: 0.45,
+          metalness: 0.0,
           side: THREE.FrontSide,
+          clearcoat: 0.05,
+          clearcoatRoughness: 0.6,
+          sheen: 0.15,
+          sheenRoughness: 0.5,
+          sheenColor: new THREE.Color(0xcc8866),
+          ior: 1.4,
         });
 
         group.traverse((child) => {
@@ -336,11 +348,17 @@ class SceneManager {
     }
 
     if (!material) {
-      material = new THREE.MeshStandardMaterial({
+      material = new THREE.MeshPhysicalMaterial({
         color: 0xd4a574,
-        roughness: 0.55,
-        metalness: 0.05,
+        roughness: 0.45,
+        metalness: 0.0,
         side: THREE.DoubleSide,
+        clearcoat: 0.05,
+        clearcoatRoughness: 0.6,
+        sheen: 0.15,
+        sheenRoughness: 0.5,
+        sheenColor: new THREE.Color(0xcc8866),
+        ior: 1.4,
       });
     }
 
@@ -601,35 +619,42 @@ class SceneManager {
   setupStudioLighting() {
     this.clearLights();
 
-    // Key light — upper right front
-    const keyLight = new THREE.DirectionalLight(0xffeedd, 1.8);
+    // Key light — upper right front (neutral warm, large soft source)
+    const keyLight = new THREE.DirectionalLight(0xfff5ee, 1.5);
     keyLight.position.set(2, 3, 3);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.width = 2048;
     keyLight.shadow.mapSize.height = 2048;
     keyLight.shadow.camera.near = 0.1;
     keyLight.shadow.camera.far = 15;
+    keyLight.shadow.bias = -0.0005;
+    keyLight.shadow.radius = 4;
     this.scene.add(keyLight);
 
-    // Fill light — left side
-    const fillLight = new THREE.DirectionalLight(0xccddff, 0.6);
-    fillLight.position.set(-2, 2, 2);
+    // Fill light — left side (cool, soft)
+    const fillLight = new THREE.DirectionalLight(0xd4e4f7, 0.7);
+    fillLight.position.set(-2.5, 2, 2.5);
     this.scene.add(fillLight);
 
-    // Rim light — behind
-    const rimLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    // Rim light — behind (subtle edge definition)
+    const rimLight = new THREE.DirectionalLight(0xffffff, 0.4);
     rimLight.position.set(0, 1, -3);
     this.scene.add(rimLight);
 
-    // Ambient
-    const ambientLight = new THREE.AmbientLight(0x404050, 0.4);
+    // Bounce light — from below for under-chin fill
+    const bounceLight = new THREE.DirectionalLight(0xffe8d6, 0.25);
+    bounceLight.position.set(0, -1.5, 1.5);
+    this.scene.add(bounceLight);
+
+    // Ambient — subtle to avoid washing out
+    const ambientLight = new THREE.AmbientLight(0x3a3a4a, 0.35);
     this.scene.add(ambientLight);
 
-    // Hemisphere light for natural fill
-    const hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x362d20, 0.3);
+    // Hemisphere light for natural sky/ground fill
+    const hemiLight = new THREE.HemisphereLight(0x8fadcf, 0x443322, 0.4);
     this.scene.add(hemiLight);
 
-    this.lights = [keyLight, fillLight, rimLight, ambientLight, hemiLight];
+    this.lights = [keyLight, fillLight, rimLight, bounceLight, ambientLight, hemiLight];
   }
 
   /**

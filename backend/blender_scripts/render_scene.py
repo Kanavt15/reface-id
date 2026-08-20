@@ -72,10 +72,11 @@ def create_skin_material(skin_color='#d4a574'):
     bsdf = nodes.new('ShaderNodeBsdfPrincipled')
     bsdf.location = (0, 0)
     bsdf.inputs['Base Color'].default_value = (r, g, b, 1.0)
-    bsdf.inputs['Subsurface Weight'].default_value = 0.35
-    bsdf.inputs['Subsurface Radius'].default_value = (1.0, 0.2, 0.1)
-    bsdf.inputs['Roughness'].default_value = 0.45
-    bsdf.inputs['Specular IOR Level'].default_value = 0.3
+    bsdf.inputs['Subsurface Weight'].default_value = 0.4
+    bsdf.inputs['Subsurface Radius'].default_value = (1.0, 0.4, 0.25)
+    bsdf.inputs['Subsurface Scale'].default_value = 0.01
+    bsdf.inputs['Roughness'].default_value = 0.40
+    bsdf.inputs['Specular IOR Level'].default_value = 0.35
 
     links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
 
@@ -111,45 +112,55 @@ def create_hair_material(hair_color='#2c1b0e'):
 
 
 def setup_studio_lighting():
-    """Create a 3-point studio lighting setup."""
-    # Key light (warm, strong)
+    """Create a 3-point studio lighting setup with bounce light."""
+    # Key light (neutral warm, large soft source)
     key = bpy.data.lights.new(name="KeyLight", type='AREA')
-    key.energy = 200
-    key.color = (1.0, 0.95, 0.9)
-    key.size = 3
+    key.energy = 180
+    key.color = (1.0, 0.96, 0.93)
+    key.size = 4
     key_obj = bpy.data.objects.new("KeyLight", key)
     bpy.context.collection.objects.link(key_obj)
     key_obj.location = (2.5, -2.5, 3.0)
     key_obj.rotation_euler = (math.radians(45), 0, math.radians(45))
 
-    # Fill light (cooler, softer)
+    # Fill light (cool, soft, larger area)
     fill = bpy.data.lights.new(name="FillLight", type='AREA')
-    fill.energy = 80
-    fill.color = (0.85, 0.9, 1.0)
-    fill.size = 4
+    fill.energy = 90
+    fill.color = (0.88, 0.92, 1.0)
+    fill.size = 5
     fill_obj = bpy.data.objects.new("FillLight", fill)
     bpy.context.collection.objects.link(fill_obj)
     fill_obj.location = (-2.5, -1.5, 2.0)
     fill_obj.rotation_euler = (math.radians(40), 0, math.radians(-50))
 
-    # Rim/back light
+    # Rim/back light (subtle edge definition)
     rim = bpy.data.lights.new(name="RimLight", type='AREA')
-    rim.energy = 120
+    rim.energy = 100
     rim.color = (1.0, 1.0, 1.0)
-    rim.size = 2
+    rim.size = 2.5
     rim_obj = bpy.data.objects.new("RimLight", rim)
     bpy.context.collection.objects.link(rim_obj)
     rim_obj.location = (0, 3.0, 2.5)
     rim_obj.rotation_euler = (math.radians(-45), 0, math.radians(180))
 
-    # Environment light (subtle)
+    # Bounce light from below (warm, subtle under-chin fill)
+    bounce = bpy.data.lights.new(name="BounceLight", type='AREA')
+    bounce.energy = 40
+    bounce.color = (1.0, 0.93, 0.85)
+    bounce.size = 3
+    bounce_obj = bpy.data.objects.new("BounceLight", bounce)
+    bpy.context.collection.objects.link(bounce_obj)
+    bounce_obj.location = (0, -1.5, -1.0)
+    bounce_obj.rotation_euler = (math.radians(-90), 0, 0)
+
+    # Environment light (slightly brighter for better GI)
     world = bpy.data.worlds.new(name="REface_World")
     bpy.context.scene.world = world
     world.use_nodes = True
     bg = world.node_tree.nodes.get('Background')
     if bg:
-        bg.inputs['Color'].default_value = (0.15, 0.17, 0.2, 1.0)
-        bg.inputs['Strength'].default_value = 0.3
+        bg.inputs['Color'].default_value = (0.18, 0.20, 0.24, 1.0)
+        bg.inputs['Strength'].default_value = 0.5
 
 
 def setup_camera():
