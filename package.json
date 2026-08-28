@@ -14,6 +14,8 @@
     "ui:build": "node scripts/build-ui.js",
     "ui:verify": "node scripts/verify-ui.js",
     "ui:smoke": "node scripts/smoke.mjs",
+    "face:probe": "node scripts/face-probe.mjs",
+    "face:verify": "node scripts/verify-realism.mjs",
     "test:snapshots": "node scripts/snapshot-check.mjs",
     "ui": "npm run ui:build && npm run ui:verify"
   },

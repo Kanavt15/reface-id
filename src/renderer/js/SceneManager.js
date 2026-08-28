@@ -15,12 +15,19 @@ class SceneManager {
     this.wireframeMode = false;
     this.lightingMode = 0; // 0 = studio, 1 = outdoor, 2 = dramatic
 
+    // Render mode: 'photoreal' shades against the studio IBL and hides the
+    // technical backdrop; 'structure' restores the flat matte shading and the
+    // ground/grid, which is far easier to read while sculpting 180 sliders.
+    this.renderMode = 'photoreal';
+    this.environmentSystem = null;
+    this._skinMaterial = null;
+
     // Model bounding info (set after loading)
     this.modelCenter = new THREE.Vector3(0, 0.18, 0);
     this.modelHeight = 2.2;
 
     // Lip color state
-    this._skinColor = '#d4a574';
+    this._skinColor = '#cb9a78';
     this._lipColor = null;
     this._lipWeights = null; // cached per-vertex lip weights
     this._lipPaintOverrides = null; // Map<mesh, Float32Array> manual paint deltas
@@ -43,7 +50,19 @@ class SceneManager {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.2;
+    /* Exposure dropped from 1.2 when the studio IBL below started contributing
+       real energy that had previously been faked with a hot key light, and
+       again to 0.92 once the four-light rig went in.
+       ACES desaturates as it rolls off, so an over-exposed face does not just
+       read as bright — it reads as pale and colourless, which is most of what
+       made this head look like a wax model. Holding the forehead and the
+       cheekbones below the shoulder of the curve is what lets the melanin and
+       haemoglobin variation in the diffuse map survive to the screen at all.
+       Down again to 0.84 with the loop key: the face was sitting at a median
+       of 151 and a 90th percentile of 172 out of 255, which is most of the way
+       up the curve where ACES is flattest, so the new shading gradient would
+       have been compressed away as fast as the key created it. */
+    this.renderer.toneMappingExposure = 0.88;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     // Camera — Y-up, looking at model center, front = +Z direction
@@ -62,8 +81,19 @@ class SceneManager {
     this.controls.minDistance = 1.5;
     this.controls.maxDistance = 15;
 
+    // ── Image-based lighting ──
+    // Everything else in this file is downstream of this: with no
+    // scene.environment a PBR material's specular lobe has nothing to reflect
+    // and skin renders as flat clay. Built before the lights so the softbox
+    // directions and the shadow-casting directions are set up as one thing.
+    this.environmentSystem = new EnvironmentSystem(this.renderer);
+    this.environmentSystem.build();
+    this.scene.environment = this.environmentSystem.texture;
+
     // Background
-    this.scene.background = new THREE.Color(0x1a1a24);
+    this._structureBackground = new THREE.Color(0x1a1a24);
+    this._photoBackground = this.environmentSystem.buildBackground();
+    this.scene.background = this._photoBackground;
 
     // Ground plane (Y-up convention: plane lies in XZ, positioned below model)
     const groundGeo = new THREE.PlaneGeometry(10, 10);
@@ -88,12 +118,87 @@ class SceneManager {
     // Lighting
     this.setupStudioLighting();
 
+    // Post-processing. Created before the first resize so setSize() below can
+    // give it real dimensions on the very first frame.
+    if (window.PostFX) {
+      this.postFX = new PostFX(this.renderer);
+      this.postFX.setTier('medium');
+    }
+
+    // Applies the ground/grid/background visibility for the starting mode.
+    this.setRenderMode(this.renderMode);
+
     // Handle resize
     this.resize();
     window.addEventListener('resize', () => this.resize());
 
     // Start render loop
     this.animate();
+  }
+
+  /**
+   * The photoreal skin surface constants, in one place.
+   *
+   * These used to be written out as literals in three separate files —
+   * _createSkinMaterial() here, setRenderMode() below, and
+   * SkinTextureSystem._applyToMesh(), which runs last on every slider tick and
+   * therefore won. They had already drifted apart once (envMapIntensity was
+   * 0.9 in two of them and 0.4 in the third, so regenerating the skin textures
+   * silently halved the IBL contribution), and clearcoat drifted the same way
+   * the moment it was retuned. Anything the three of them share belongs here.
+   */
+  static get SKIN() {
+    return {
+      clearcoat: 0.10,
+      /* Multiplied by clearcoatRoughnessMap, which SkinTextureSystem binds to
+         the skin roughness map — so this is the top of the range, not a flat
+         value. A T-zone texel lands near 0.11 (a tight wet highlight) and a dry
+         cheek near 0.33 (broad and soft). At the old constant 0.22 every part
+         of the face had an identically tight sheen, which is the plastic look. */
+      clearcoatRoughness: 0.55,
+      /* Eased from 0.9. The studio IBL is four broad softboxes, so it fills
+         from every direction at once — exactly what a face needs for its
+         specular to look real, and exactly what flattens its diffuse shading
+         if it is doing too much of the lighting. This keeps the reflections
+         and hands the shading gradients back to the key. */
+      envMapIntensity: 0.88,
+    };
+  }
+
+  /**
+   * The one place the skin material is defined.
+   *
+   * MeshPhysicalMaterial rather than MeshStandardMaterial because skin needs
+   * two specular lobes: a broad dermal one (`roughness`) and a tight oily
+   * epidermal one on top. `clearcoat` is a cheap stand-in for the second lobe
+   * and is most of what separates "skin" from "painted plastic" at a glance.
+   *
+   * `ior` 1.4 is skin's measured refractive index — the default 1.5 is glass
+   * and gives a slightly too-bright grazing edge.
+   */
+  _createSkinMaterial() {
+    const mat = new THREE.MeshPhysicalMaterial({
+      color: 0xcb9a78,
+      roughness: 0.45,
+      metalness: 0.0,
+      ior: 1.4,
+      specularIntensity: 1.0,
+      clearcoat: SceneManager.SKIN.clearcoat,
+      clearcoatRoughness: SceneManager.SKIN.clearcoatRoughness,
+      envMapIntensity: SceneManager.SKIN.envMapIntensity,
+      side: THREE.FrontSide,
+    });
+
+    // Pre-integrated subsurface scattering, pore detail and cavity occlusion.
+    // Degrades to a plain physical material if the injection is unavailable.
+    if (window.SkinShader) {
+      SkinShader.attach(mat);
+      this._skinShaderMaterials = this._skinShaderMaterials || [];
+      this._skinShaderMaterials.push(mat);
+    }
+
+    this._skinMaterial = mat;
+    return mat;
   }
 
   /**
@@ -107,12 +212,7 @@ class SceneManager {
         if (this.headMesh) this.scene.remove(this.headMesh);
 
         // GLB is already Y-up, no rotation needed
-        const skinMat = new THREE.MeshStandardMaterial({
-          color: 0xd4a574,
-          roughness: 0.50,
-          metalness: 0.02,
-          side: THREE.FrontSide,
-        });
+        const skinMat = this._createSkinMaterial();
 
         group.traverse((child) => {
           if (child.isMesh) {
@@ -126,10 +226,17 @@ class SceneManager {
         this.headMesh.name = 'HeadMesh';
         this.scene.add(this.headMesh);
 
+        // Seed the cavity attribute for the undeformed mesh; OBJMorpher
+        // refreshes it after every morph settles.
+        if (window.SkinShader) SkinShader.computeCavity(this.headMesh);
+
         const box = new THREE.Box3().setFromObject(this.headMesh);
         this.modelCenter = new THREE.Vector3();
         box.getCenter(this.modelCenter);
         this.modelHeight = box.max.y - box.min.y;
+        // The shadow frustum is fitted to the subject, so it has to be refitted
+        // whenever the subject changes.
+        this.updateShadowFrustums();
 
         const cY = this.modelCenter.y;
         this.controls.target.set(0, cY, 0);
@@ -168,13 +275,7 @@ class SceneManager {
         group.rotation.x = -Math.PI / 2;
         group.updateMatrixWorld(true);
 
-        // Apply default skin material with SSS-like properties
-        const skinMat = new THREE.MeshStandardMaterial({
-          color: 0xd4a574,
-          roughness: 0.50,
-          metalness: 0.02,
-          side: THREE.FrontSide,
-        });
+        const skinMat = this._createSkinMaterial();
 
         group.traverse((child) => {
           if (child.isMesh) {
@@ -193,11 +294,18 @@ class SceneManager {
         this.headMesh.name = 'HeadMesh';
         this.scene.add(this.headMesh);
 
+        // Seed the cavity attribute for the undeformed mesh; OBJMorpher
+        // refreshes it after every morph settles.
+        if (window.SkinShader) SkinShader.computeCavity(this.headMesh);
+
         // Compute bounding box in world space to set camera properly
         const box = new THREE.Box3().setFromObject(this.headMesh);
         this.modelCenter = new THREE.Vector3();
         box.getCenter(this.modelCenter);
         this.modelHeight = box.max.y - box.min.y;
+        // The shadow frustum is fitted to the subject, so it has to be refitted
+        // whenever the subject changes.
+        this.updateShadowFrustums();
 
         // Reposition camera for loaded model
         const cY = this.modelCenter.y;
@@ -336,12 +444,8 @@ class SceneManager {
     }
 
     if (!material) {
-      material = new THREE.MeshStandardMaterial({
-        color: 0xd4a574,
-        roughness: 0.55,
-        metalness: 0.05,
-        side: THREE.DoubleSide,
-      });
+      material = this._createSkinMaterial();
+      material.side = THREE.DoubleSide;
     }
 
     this.headMesh = new THREE.Mesh(geometry, material);
@@ -596,40 +700,246 @@ class SceneManager {
   }
 
   /**
-   * Setup studio lighting (3-point)
+   * Setup studio lighting.
+   *
+   * LOOP LIGHTING — FORM WITHOUT DRAMA
+   * ----------------------------------
+   * Two earlier placements, and this is the third. The key began at (2,3,3),
+   * 45 degrees off axis and 45 up — Rembrandt. That throws the nose shadow
+   * clear across the cheek and hides the nasolabial fold and the cheekbone,
+   * which are exactly the features an identification is made on. So it was
+   * pulled in to 18 degrees off axis and 27 up, the passport-photo placement.
+   *
+   * That over-corrected. Measured off a rendered front view, the left and
+   * right cheeks came out within 3% of each other — a 1.03:1 ratio across the
+   * face, which is not low-contrast lighting, it is no lighting: nothing in
+   * the image tells the eye the head is round. Combined with the IBL and the
+   * two rims all filling from their own directions, the whole face sat inside
+   * an 80-level band with no shadow anywhere in it. A head lit that evenly
+   * reads as a drawing of a head, and no amount of skin detail survives it.
+   *
+   * The key now sits at about 33 degrees off axis and 32 up. That is loop
+   * lighting — the standard flattering portrait key, and the one placement
+   * that buys real modelling without the Rembrandt cost: the nose shadow
+   * stays a short wedge angled down and out, and never reaches the cheek
+   * shadow to close the loop. Both sides of the face stay readable, which is
+   * the constraint that matters here, but they are no longer the same value.
    */
   setupStudioLighting() {
     this.clearLights();
 
-    // Key light — upper right front
-    const keyLight = new THREE.DirectionalLight(0xffeedd, 1.8);
-    keyLight.position.set(2, 3, 3);
+    // Intensities are roughly halved from the pre-IBL values, and the ambient
+    // and hemisphere lights are cut hard. The studio environment now supplies
+    // the fill that those were faking, and leaving them at the old levels
+    // double-counts it — which washes the face out and flattens exactly the
+    // shading gradients the IBL was added to restore.
+    /* Up from 0.95 with the dome halved. The old number was set against an
+       environment that was doing much of the lighting on its own; against a
+       dark studio the key has to actually light the face. Raising it rather
+       than lifting exposure or the fill is deliberate — it is the one source
+       with a direction, so every unit of it adds modelling instead of
+       averaging it away. */
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.25);
+    keyLight.position.set(1.95, 2.15, 3.05);
     keyLight.castShadow = true;
-    keyLight.shadow.mapSize.width = 2048;
-    keyLight.shadow.mapSize.height = 2048;
-    keyLight.shadow.camera.near = 0.1;
-    keyLight.shadow.camera.far = 15;
+    this._configureShadow(keyLight);
     this.scene.add(keyLight);
 
-    // Fill light — left side
-    const fillLight = new THREE.DirectionalLight(0xccddff, 0.6);
-    fillLight.position.set(-2, 2, 2);
+    /* Fill — opposite side, and low, so it lifts the shadowed cheek and the
+       underside of the jaw without adding a second catchlight or a second set
+       of shadows. Cool, because a real fill card is bouncing skylight. */
+    const fillLight = new THREE.DirectionalLight(0xd6e2f5, 0.20);
+    fillLight.position.set(-2.7, 0.65, 2.3);
     this.scene.add(fillLight);
 
-    // Rim light — behind
-    const rimLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    rimLight.position.set(0, 1, -3);
+    /* Two kickers rather than one light straight behind. A single rim on the
+       axis rims the nose and the ears equally, which reads as a halo; offset
+       pairs catch the jawline and the far cheek instead, which is what
+       separates a head from its background. */
+    const rimLight = new THREE.DirectionalLight(0xffffff, 0.30);
+    rimLight.position.set(-1.9, 1.5, -2.4);
     this.scene.add(rimLight);
 
-    // Ambient
-    const ambientLight = new THREE.AmbientLight(0x404050, 0.4);
+    const rimLight2 = new THREE.DirectionalLight(0xf6f9ff, 0.16);
+    rimLight2.position.set(2.1, 1.2, -2.2);
+    this.scene.add(rimLight2);
+
+    const ambientLight = new THREE.AmbientLight(0x404050, 0.12);
     this.scene.add(ambientLight);
 
-    // Hemisphere light for natural fill
-    const hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x362d20, 0.3);
+    const hemiLight = new THREE.HemisphereLight(0x9fb4c2, 0x2b2a2a, 0.10);
     this.scene.add(hemiLight);
 
-    this.lights = [keyLight, fillLight, rimLight, ambientLight, hemiLight];
+    /* Named so setRenderMode() can put the fill back for Structure mode, which
+       has no environment to supply it and would otherwise render the head
+       under a bare key light with pitch-black shadow sides. */
+    this._ambientLight = ambientLight;
+    this._hemiLight = hemiLight;
+    this.lights = [keyLight, fillLight, rimLight, rimLight2, ambientLight, hemiLight];
+    this._applyModeLighting();
+    this.updateShadowFrustums();
+  }
+
+  /**
+   * Shadow settings shared by every shadow-casting light.
+   *
+   * Two bugs lived here, and between them they produced every grey smudge on
+   * the face.
+   *
+   * 1. THE FRUSTUM WAS TOO SMALL FOR THE SUBJECT. The orthographic shadow
+   *    camera was pinned at +/-1.6 x +/-1.8. The head with its neck measures
+   *    1.9 x 3.1 x 2.2, and seen from a light 45 degrees up its silhouette is
+   *    about 3.8 tall — so the bottom of the neck fell outside. three's shadow
+   *    lookup treats anything outside the frustum as fully lit, so the boundary
+   *    landed on the neck as a dead-straight diagonal line with shadow on one
+   *    side and none on the other. Hardcoded extents cannot be right for a mesh
+   *    the morph sliders resize, so updateShadowFrustums() now fits them to the
+   *    real bounding sphere and this function only sets what is scale-free.
+   *
+   * 2. DEPTH BIAS AT GRAZING INCIDENCE. `bias` is in normalised depth, so over
+   *    a near 0.5 / far 12 range -0.0005 was pushing the comparison ~5.8mm
+   *    through the surface. Where the light rakes along a cheek that offset
+   *    converts to a lateral slide of the shadow by bias/tan(angle) — which is
+   *    how the nose shadow ended up as a detached oval floating on the cheek.
+   *    `normalBias` is the right tool: it offsets along the surface normal in
+   *    world units and scales with the angle by construction, so peter-panning
+   *    stays bounded. Depth bias drops to a hair above nothing, and the tighter
+   *    near/far below buys back the precision that pays for it.
+   *
+   * `radius` is deliberately absent: it is ignored under PCFSoftShadowMap, so
+   * the 3 that used to sit here did nothing at all.
+   */
+  _configureShadow(light) {
+    // 2048 over a frustum fitted to the head is ~0.15mm per texel — finer than
+    // the geometry can express. 4096 quadrupled the cost to render the same
+    // shadow.
+    light.shadow.mapSize.width = 2048;
+    light.shadow.mapSize.height = 2048;
+    light.shadow.bias = -0.00005;
+    light.shadow.normalBias = 0.018;
+    this._shadowLights = this._shadowLights || [];
+    if (!this._shadowLights.includes(light)) this._shadowLights.push(light);
+    this.updateShadowFrustums();
+  }
+
+  /**
+   * Fit every shadow camera to the subject.
+   *
+   * Called after the head loads and whenever it is replaced, because the
+   * imported meshes differ in scale by more than a factor of two and a frustum
+   * fitted to one clips another. Uses the bounding sphere rather than the box
+   * so the fit is orientation-independent — the same extents are correct from
+   * whatever direction each light happens to sit.
+   */
+  updateShadowFrustums() {
+    if (!this._shadowLights || !this._shadowLights.length) return;
+
+    let center = this.modelCenter ? this.modelCenter.clone() : new THREE.Vector3();
+    let radius = 2.2;
+
+    if (this.headMesh) {
+      const box = new THREE.Box3().setFromObject(this.headMesh);
+      if (!box.isEmpty()) {
+        box.getCenter(center);
+        // Half the diagonal: the smallest sphere at `center` containing the box.
+        radius = box.getSize(new THREE.Vector3()).length() * 0.5;
+      }
+    }
+
+    // Headroom for hair, and for a morph that grows the head between fits.
+    const extent = radius * 1.25;
+
+    for (const light of this._shadowLights) {
+      const cam = light.shadow.camera;
+      cam.left = -extent;
+      cam.right = extent;
+      cam.top = extent;
+      cam.bottom = -extent;
+
+      /* A DirectionalLight's shadow camera sits at the light's position and
+         looks at its target, so the subject spans `dist +/- extent` along that
+         axis. Clamping near/far to that band instead of 0.5..12 concentrates
+         the depth buffer on the head, which is what makes the tiny depth bias
+         above survivable. */
+      const dist = light.position.distanceTo(center);
+      cam.near = Math.max(0.05, dist - extent);
+      cam.far = dist + extent;
+      cam.updateProjectionMatrix();
+
+      // Aim the light at the head. Without this the shadow camera points at
+      // the world origin, and the head is not centred there.
+      light.target.position.copy(center);
+      if (!light.target.parent) this.scene.add(light.target);
+      light.target.updateMatrixWorld();
+    }
+  }
+
+  /**
+   * Switch between the photoreal look and the flat technical view.
+   *
+   * Structure mode is not just "photoreal off" — a matte unlit-ish surface with
+   * a ground plane and grid genuinely reads better when you are judging the
+   * shape of a jaw against a slider, which is most of what this app is for.
+   */
+  setRenderMode(mode) {
+    this.renderMode = mode === 'structure' ? 'structure' : 'photoreal';
+    const photo = this.renderMode === 'photoreal';
+
+    this.scene.environment = photo ? this.environmentSystem.texture : null;
+    this.scene.background = photo ? this._photoBackground : this._structureBackground;
+    if (this.ground) this.ground.visible = !photo;
+    if (this.grid) this.grid.visible = !photo;
+
+    // The head material carries the whole photoreal skin stack; structure mode
+    // strips it back to a plain diffuse surface so form reads cleanly.
+    if (this.headMesh) {
+      this.headMesh.traverse((child) => {
+        if (!child.isMesh || !child.material) return;
+        const mat = child.material;
+        if (window.SkinShader) SkinShader.setEnabled(mat, photo);
+        mat.envMapIntensity = photo ? SceneManager.SKIN.envMapIntensity : 0.0;
+        if (mat.isMeshPhysicalMaterial) {
+          mat.clearcoat = photo ? SceneManager.SKIN.clearcoat : 0.0;
+          mat.clearcoatRoughness = SceneManager.SKIN.clearcoatRoughness;
+        }
+        mat.needsUpdate = true;
+      });
+    }
+
+    this._applyModeLighting();
+
+    if (this.postFX) this.postFX.setEnabled(photo);
+    return this.renderMode;
+  }
+
+  /**
+   * Ambient and hemisphere levels depend on whether the environment is lit.
+   *
+   * Photoreal keeps them near zero because the studio IBL already supplies
+   * that fill, and running both double-counts it — which washes the face out
+   * and flattens the very shading gradients the environment was added to
+   * restore. Structure has no environment at all, so those two lights are the
+   * only fill there is; at the photoreal levels the shadow side of the head
+   * goes to near black and the mode becomes useless for judging form.
+   */
+  _applyModeLighting() {
+    const photo = this.renderMode === 'photoreal';
+    /* Photoreal values cut again (0.12/0.10). Both of these are perfectly
+       directionless — they add the same light to a texel facing the key and a
+       texel facing away from it, so every unit of them is subtracted straight
+       from the modelling the key is there to create. The IBL already fills the
+       shadow side from real directions; these two only need to keep it off the
+       floor. Structure mode is unchanged: it has no environment, so they are
+       the only fill it has. */
+    if (this._ambientLight) this._ambientLight.intensity = photo ? 0.06 : 0.55;
+    if (this._hemiLight) this._hemiLight.intensity = photo ? 0.06 : 0.45;
+  }
+
+  /** Cycle Photoreal → Structure → Photoreal. Returns the new mode label. */
+  toggleRenderMode() {
+    const next = this.renderMode === 'photoreal' ? 'structure' : 'photoreal';
+    this.setRenderMode(next);
+    return next === 'photoreal' ? 'Photoreal' : 'Structure';
   }
 
   /**
@@ -638,12 +948,17 @@ class SceneManager {
   setupOutdoorLighting() {
     this.clearLights();
 
-    const sunLight = new THREE.DirectionalLight(0xfff4e0, 2.2);
+    const sunLight = new THREE.DirectionalLight(0xfff4e0, 1.5);
     sunLight.position.set(3, 5, 2);
     sunLight.castShadow = true;
+    this._configureShadow(sunLight);
+    /* Direct sun is a small source, so its shadow should be harder than the
+       studio key's. It already is: `shadow.radius` is ignored under
+       PCFSoftShadowMap, so the assignment that used to sit here changed
+       nothing, and both presets get the same filter width either way. */
     this.scene.add(sunLight);
 
-    const skyLight = new THREE.HemisphereLight(0x87CEEB, 0x362d20, 0.8);
+    const skyLight = new THREE.HemisphereLight(0x87CEEB, 0x362d20, 0.35);
     this.scene.add(skyLight);
 
     const bounceLight = new THREE.DirectionalLight(0x8899aa, 0.3);
@@ -662,6 +977,11 @@ class SceneManager {
     const spotLight = new THREE.SpotLight(0xff8844, 3, 10, Math.PI / 6, 0.3);
     spotLight.position.set(2, 3, 1);
     spotLight.castShadow = true;
+    spotLight.shadow.mapSize.width = 2048;
+    spotLight.shadow.mapSize.height = 2048;
+    spotLight.shadow.radius = 4;
+    spotLight.shadow.bias = -0.0005;
+    spotLight.shadow.normalBias = 0.02;
     this.scene.add(spotLight);
 
     const accent = new THREE.PointLight(0x4488ff, 1.5, 5);
@@ -676,9 +996,24 @@ class SceneManager {
 
   clearLights() {
     if (this.lights) {
-      this.lights.forEach(light => this.scene.remove(light));
+      this.lights.forEach((light) => {
+        // updateShadowFrustums() parents each shadow light's target to aim it
+        // at the head; the target has to leave with the light.
+        if (light.target && light.target.parent === this.scene) {
+          this.scene.remove(light.target);
+        }
+        this.scene.remove(light);
+      });
     }
     this.lights = [];
+    // Only the studio preset defines these; the others must not leave stale
+    // references pointing at lights that are no longer in the scene.
+    this._ambientLight = null;
+    this._hemiLight = null;
+    /* Emptied for the same reason. Without this, cycling the lighting preset
+       would leave every previous preset's key light in the refit list, and each
+       refit would go on re-aiming lights that are no longer in the scene. */
+    this._shadowLights = [];
   }
 
   /**
@@ -767,10 +1102,28 @@ class SceneManager {
   }
 
   /**
+   * The ONE place the scene is drawn.
+   *
+   * Every capture path — the animation loop, screenshots, snapshot thumbnails,
+   * the variant picker, and the turntable recorder reading the live canvas —
+   * must go through here. Before this existed each of them called
+   * `renderer.render()` directly, which was harmless while there was no post
+   * stack; with one, a direct call silently produces an ungraded frame that
+   * does not match what the operator saw when they pressed the button.
+   */
+  renderFrame() {
+    if (this.postFX && this.postFX.enabled) {
+      this.postFX.render(this.scene, this.camera);
+    } else {
+      this.renderer.render(this.scene, this.camera);
+    }
+  }
+
+  /**
    * Take a screenshot of the viewport
    */
   takeScreenshot() {
-    this.renderer.render(this.scene, this.camera);
+    this.renderFrame();
     return this.canvas.toDataURL('image/png');
   }
 
@@ -800,6 +1153,27 @@ class SceneManager {
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height);
+    if (this.postFX) this.postFX.setSize(width, height);
+  }
+
+  /**
+   * Post-processing quality. 'low' bypasses the chain entirely.
+   * Returns the tier that is now active.
+   */
+  setQualityTier(tier) {
+    /* The tier governs CPU cost as well as GPU: the procedural skin maps are
+       regenerated on the main thread on every slider tick, so their resolution
+       belongs to the same control the operator uses to trade quality for
+       responsiveness. */
+    if (this.skinTextureSystem) {
+      this.skinTextureSystem.setResolution(tier === 'high' ? 1024 : 512);
+    }
+    if (!this.postFX) return 'low';
+    const active = this.postFX.setTier(tier);
+    // Low disables post, which also hands tone mapping back to the renderer;
+    // re-applying the mode keeps everything else consistent with that.
+    if (this.renderMode === 'structure') this.postFX.setEnabled(false);
+    return active;
   }
 
   /**
@@ -828,7 +1202,8 @@ class SceneManager {
   animate() {
     requestAnimationFrame(() => this.animate());
     this.controls.update();
-    this.renderer.render(this.scene, this.camera);
+    if (this.postFX) this.postFX.tick();
+    this.renderFrame();
   }
 }
 

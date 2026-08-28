@@ -28,3 +28,9 @@ scripts/build_deck.py
 scripts/build_idea_deck.py
 
 .DS_Store
+
+# Render-check output: face-probe.mjs and verify-realism.mjs write screenshots
+# here on every run. The scripts are source; their output is not.
+scripts/probe/
+scripts/verify/
+scripts/maps/

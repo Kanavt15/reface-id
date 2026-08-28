@@ -6,7 +6,7 @@
 
 **Intelligent 3D Facial Reconstruction for forensics**
 
-A parametric human head, 179 live parameters, and an optional AI assist,
+A parametric human head, 180 live parameters, and an optional AI assist,
 wrapped in a case file that records every adjustment.
 
 <br>
@@ -23,7 +23,7 @@ wrapped in a case file that records every adjustment.
 
 An investigator opens a case, describes a face, and shapes it until the witness
 agrees. ReFace gives them a real 3D head to do it on: 18,097 vertices that
-deform live under 179 sliders, with hair, skin, marks and worn items layered on
+deform live under 180 sliders, with hair, skin, marks and worn items layered on
 top, and Blender behind it for the final render.
 
 Language models are here as a **first draft, not the product**. Describe the
@@ -77,7 +77,7 @@ count, and how many parameters you have moved off default.
 
 | Section | What lives there |
 |---|---|
-| **Face** | 50 sliders across skull, forehead, brows, eyes, nose, cheeks, mouth, jaw, chin and ears, plus direct point editing |
+| **Face** | 51 sliders across skull, forehead, brows, eyes, nose, cheeks, mouth, jaw, chin and ears, plus asymmetry and direct point editing |
 | **Hair** | 43 sliders: hairstyle, properties, position, colour, facial hair, eyebrows, eyelashes, tint painting |
 | **Skin** | Tone, lip and eye colour, ageing and texture, age progression, skin marks, decals, demographics |
 | **Wear** | 61 sliders across glasses, face masks, earrings, eyebrow piercings and bandanas |
@@ -108,7 +108,7 @@ influence radius and falloff so the surrounding surface follows smoothly.
 
 <img src="screenshots/06-palette.png" alt="Command palette">
 
-179 sliders across 39 collapsible groups and 91 sub-groups is more than anyone
+180 sliders across 39 collapsible groups and 91 sub-groups is more than anyone
 should have to navigate by scrolling. `Ctrl/Cmd+K` indexes every slider, style
 card, colour row and tool from the live DOM. Choose a result and it switches
 section, expands the groups the control is nested inside, scrolls it into view
@@ -310,7 +310,7 @@ assist itself, they need a network connection. Everything else runs offline.
   Electron renderer                          Flask · 127.0.0.1:5001
   ┌────────────────────────────┐             ┌──────────────────────────┐
   │  Three.js viewport         │──── POST ──▶│  17 routes               │
-  │  179 parameter controls    │             │                          │
+  │  180 parameter controls    │             │                          │
   │  OBJMorpher ──▶ MorphWorker│◀─── JSON ───│    ai · morph · hair     │
   │  hair · eyes · accessories │             │    render · export       │
   │  marks · decals · painters │             │    case · decal · speech │

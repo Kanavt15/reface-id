@@ -63,6 +63,8 @@ class CaseManager {
           freckles: 0,
           skinOiliness: 0,
           sunDamage: 0,
+          microRelief: 50,
+          cheekFlush: false,
         },
         ageRange: '25-35',
         sex: 'male',

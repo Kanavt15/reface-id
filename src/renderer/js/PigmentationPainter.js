@@ -223,6 +223,45 @@ class PigmentationPainter {
     }
   }
 
+  /**
+   * Rebuild at a new texture resolution, resampling the painted pigment.
+   * Same reasoning as WrinklePainter.resize(): these buffers are indexed with
+   * SkinTextureSystem's resolution, which now follows the quality tier, and a
+   * stale buffer would be read past its end when compositing the diffuse map.
+   */
+  resize(res) {
+    const r = res | 0;
+    if (!r || r === this.RES || !this._pigmentMap) return;
+
+    const oldR = this.RES;
+    const oldPig = this._pigmentMap;
+    const oldCol = this._colorMap;
+    const pig = new Float32Array(r * r);
+    const col = new Uint8Array(r * r * 3);
+
+    for (let y = 0; y < r; y++) {
+      const sy = Math.min(oldR - 1, (y * oldR / r) | 0);
+      for (let x = 0; x < r; x++) {
+        const sx = Math.min(oldR - 1, (x * oldR / r) | 0);
+        const si = sy * oldR + sx;
+        const di = y * r + x;
+        pig[di] = oldPig[si];
+        col[di * 3]     = oldCol[si * 3];
+        col[di * 3 + 1] = oldCol[si * 3 + 1];
+        col[di * 3 + 2] = oldCol[si * 3 + 2];
+      }
+    }
+
+    this.RES = r;
+    this._pigmentMap = pig;
+    this._colorMap = col;
+    this._undoStack = [];
+    if (this._paintCanvas) {
+      this._paintCanvas.width = r;
+      this._paintCanvas.height = r;
+    }
+  }
+
   getPigmentMap() {
     return this._pigmentMap;
   }

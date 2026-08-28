@@ -74,30 +74,112 @@ class EyeSystem {
 
     // Eye materials
     this._eyeMaterials = {
-      scleraColor: '#ffffff',
-      irisColor: '#634e34',
+      // Not #ffffff. A sclera photographs as a warm grey — leaving it at pure
+      // white makes it the brightest thing in the frame, which it never is on
+      // a real face, and reads instantly as a doll's eye.
+      scleraColor: '#cfc6b8',
+      irisColor: '#6b5030',
       pupilColor: '#000000',
     };
 
-    // Eye material instances
-    this._sclera = new THREE.MeshStandardMaterial({
+    /* Eye materials.
+     *
+     * A face is read at the eyes before anywhere else, so flat eyes sink an
+     * otherwise good head. The three materials here were a plain white sphere,
+     * a flat coloured sphere and a black sphere, which is roughly a doll's eye:
+     * no wet surface, no limbal ring, no iris structure, no catchlight, and a
+     * sclera brighter than anything else on the face.
+     *
+     * All of the detail added below is derived from the view-space normal
+     * rather than from textures, because the eye GLB's UV layout is a Blender
+     * UV sphere and a radial iris pattern cannot be mapped onto it sensibly.
+     * The normal gives both the radius (how far off-axis a point is) and the
+     * angle, which is all an iris pattern needs. */
+
+    this._sclera = new THREE.MeshPhysicalMaterial({
+      // Never pure white. A real sclera is a warm off-white and is the single
+      // most common giveaway when it is left at #ffffff.
       color: new THREE.Color(this._eyeMaterials.scleraColor),
-      roughness: 0.4,
-      metalness: 0.05,
-      side: THREE.FrontSide,
-    });
-
-    this._iris = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(this._eyeMaterials.irisColor),
-      roughness: 0.6,
+      roughness: 0.30,
       metalness: 0.0,
+      /* The tear film is a separate smooth layer over a rougher surface — but
+         at clearcoat 1.0 with a near-mirror roughness it stopped being a film
+         and became a chrome ball, reflecting the whole bright upper half of
+         the environment. That reflection, not the base colour, was what kept
+         the sclera the brightest object in the frame no matter how far the
+         diffuse term was pushed down. A tear film is a sheen at a glancing
+         angle, not a mirror across the whole eyeball. */
+      clearcoat: 0.15,
+      clearcoatRoughness: 0.26,
+      envMapIntensity: 0.14,
+      side: THREE.FrontSide,
+    });
+    EyeSystem._attachScleraShading(this._sclera);
+
+    this._iris = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(this._eyeMaterials.irisColor),
+      roughness: 0.35,
+      metalness: 0.0,
+      clearcoat: 0.6,
+      clearcoatRoughness: 0.1,
+      envMapIntensity: 0.8,
+      side: THREE.FrontSide,
+    });
+    EyeSystem._attachIrisShading(this._iris);
+
+    this._pupil = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(this._eyeMaterials.pupilColor),
+      // A pupil is a hole. It should absorb essentially everything; the old
+      // 0.1 metalness made it pick up a grey sheen and read as a painted dot.
+      roughness: 1.0,
+      metalness: 0.0,
+      envMapIntensity: 0.0,
       side: THREE.FrontSide,
     });
 
-    this._pupil = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(this._eyeMaterials.pupilColor),
-      roughness: 0.9,
-      metalness: 0.1,
+    /* The cornea: a thin shell over the whole eyeball.
+     *
+     * Black base colour plus additive blending means it contributes nothing
+     * but its own reflection — so it adds the specular catchlight and the wet
+     * sheen without hiding the iris underneath, and without needing three's
+     * transmission pass, which would re-render the scene for two small
+     * spheres. The catchlight is what makes an eye look alive; without one the
+     * eye reads as glass no matter what else is right. */
+    this._cornea = new THREE.MeshPhysicalMaterial({
+      /* Metallic, not dielectric, and that is deliberate.
+       *
+       * A real cornea is a dielectric with an F0 of about 0.025 — it reflects
+       * 2.5% of what hits it. It looks bright in a photograph only because the
+       * lamp is a thousand times brighter than the face. This environment is a
+       * canvas that tops out at 1.0, so a physically correct cornea reflects
+       * 0.025 of that and is invisible, which is exactly what the first
+       * attempt rendered.
+       *
+       * metalness 1 makes the reflection take this colour instead, which is
+       * the standard way to buy back a highlight the tone range cannot carry.
+       * The colour value IS the reflection strength — and it is decoded from
+       * sRGB, so a mid-grey here is only ~0.05 linear. That is why the first
+       * two passes at this rendered nothing: 0x2b3138 looks like a reasonable
+       * dark reflection and is in fact 2% of the light. */
+      color: 0xeef3f8,
+      metalness: 1.0,
+      roughness: 0.11,
+      /* Low, and the catchlight comes from the direct lights instead.
+       *
+       * A mirror reflects the entire environment, and this environment is a
+       * broad soft gradient — so at a high intensity the shell was not adding
+       * a highlight, it was adding half the sky as a flat additive wash across
+       * the whole eyeball. That wash was what kept reading as a bright
+       * blue-white sclera through several attempts at darkening the sclera
+       * itself, which was never the thing that was bright.
+       *
+       * The directional lights are point sources: on a surface this smooth
+       * they give a small, hard, genuinely bright dot, which is what a
+       * catchlight is. This value only carries the faint wet sheen. */
+      envMapIntensity: 0.25,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
       side: THREE.FrontSide,
     });
 
@@ -139,23 +221,183 @@ class EyeSystem {
       curl: 50,
       thickness: 65,
       length: 50,
-      opacity: 95,
+      opacity: 100,
     };
 
-    this.eyelashColor = '#0a0a0a';
+    this.eyelashColor = '#241a14';
 
+    /* Same reasoning as the eyebrows: eyelashes.glb is 42k vertices of real
+       strands with no UVs, and blending them against each other at 0.95 is
+       what made them read as hard black spider legs rather than as hair.
+       #0a0a0a is also nearly pure black, which no hair is — lashes are dark
+       brown and pick up a rim from behind. */
     this._eyelashMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(this.eyelashColor),
-      roughness: 0.55,
-      metalness: 0.05,
+      roughness: 0.45,
+      metalness: 0.0,
       side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.95,
+      transparent: false,
+      opacity: 1,
+      depthWrite: true,
     });
+
+    if (window.StrandShading) {
+      StrandShading.attachSheen(this._eyelashMat, {
+        sheenStrength: 0.08, rimStrength: 0.10, rootDarken: 0.22,
+      });
+    }
 
     this.eyelashModel = { file: '../../assets/models/facial/eyelashes.glb' };
 
     console.log('[EyeSystem] Initialized');
+  }
+
+  // ── Eye detail shading ───────────────────────────────────────────────────
+
+  /**
+   * Give the iris its structure: a limbal ring, radial fibres, a collarette
+   * and a darkened rim.
+   *
+   * Everything is parameterised off the view-space normal instead of UVs. On a
+   * sphere, `dot(N, V)` falls from 1 at the point facing the camera to 0 at the
+   * silhouette, which is exactly a normalised radius from the iris centre; and
+   * `atan(N.y, N.x)` gives the angle around it. A Blender UV sphere's own
+   * TEXCOORD_0 could not carry a radial pattern without visible pinching at the
+   * pole and a seam down one side.
+   */
+  static _attachIrisShading(material) {
+    material.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <color_fragment>',
+        [
+          '#include <color_fragment>',
+          '#ifndef FLAT_SHADED',
+          '{',
+          '  vec3 N = normalize( vNormal );',
+          '  vec3 V = normalize( vViewPosition );',
+          // 0 at the iris centre, 1 at its outer edge.
+          '  float radius = clamp( 1.0 - abs( dot( N, V ) ), 0.0, 1.0 );',
+          '  float r = sqrt( radius );',
+          '  float angle = atan( N.y, N.x );',
+          '',
+          // Radial fibres. Two frequencies so the pattern does not read as a
+          // regular starburst; the outer iris is more fibrous than the inner.
+          '  float fib = sin( angle * 38.0 ) * 0.5 + 0.5;',
+          '  fib = mix( fib, sin( angle * 71.0 + 1.7 ) * 0.5 + 0.5, 0.45 );',
+          '  float fibreAmt = smoothstep( 0.18, 0.85, r ) * 0.30;',
+          '  diffuseColor.rgb *= 1.0 - fibreAmt * 0.5 + fib * fibreAmt;',
+          '',
+          // The collarette: the raised ring about a third out from the pupil.
+          '  float collar = exp( -pow( ( r - 0.36 ) * 9.0, 2.0 ) );',
+          '  diffuseColor.rgb *= 1.0 + collar * 0.22;',
+          '',
+          // The limbal ring — the dark band where iris meets sclera. A strong
+          // real-eye cue, and one people notice missing without knowing why.
+          '  float limbal = smoothstep( 0.78, 1.0, r );',
+          '  diffuseColor.rgb *= 1.0 - limbal * 0.62;',
+          '',
+          // Depth: an iris is a cone, darker toward the pupil where the
+          // stroma is deepest.
+          '  diffuseColor.rgb *= mix( 0.78, 1.35, smoothstep( 0.0, 0.55, r ) );',
+          '}',
+          '#endif',
+        ].join('\n')
+      );
+    };
+    material.customProgramCacheKey = () => 'iris';
+    material.needsUpdate = true;
+    return material;
+  }
+
+  /**
+   * Shade the sclera so it stops looking like a ping-pong ball.
+   *
+   * Two things are happening on a real eye: the upper part sits in the shadow
+   * of the brow and lid and is markedly darker than the lower, and the corners
+   * carry visible vasculature. A uniformly lit white sphere has neither, and
+   * ends up the brightest object on the face — which is never true of a real
+   * photograph.
+   */
+  static _attachScleraShading(material) {
+    material.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <color_fragment>',
+        [
+          '#include <color_fragment>',
+          '#ifndef FLAT_SHADED',
+          '{',
+          '  vec3 N = normalize( vNormal );',
+          '  vec3 V = normalize( vViewPosition );',
+          '  float radius = clamp( 1.0 - abs( dot( N, V ) ), 0.0, 1.0 );',
+          '',
+          // Lid and brow shadow. N.y > 0 is the upper hemisphere of the
+          // eyeball, which is the part the upper lid overhangs.
+          // The socket is a cave. An eyeball sits several millimetres inside
+          // a bony orbit under a brow, so almost none of the upper hemisphere
+          // sees open sky — which is why a sclera photographs around the value
+          // of light skin and never as white. Rendering it bright is the
+          // single most common reason CG eyes look like marbles.
+          '  float lid = smoothstep( -0.45, 0.75, N.y );',
+          '  diffuseColor.rgb *= mix( 0.86, 0.18, lid );',
+          '',
+          // Curving away into the corners of the socket.
+          '  diffuseColor.rgb *= mix( 1.0, 0.38, smoothstep( 0.30, 0.95, radius ) );',
+          '',
+          // Vasculature. Two incommensurate frequencies rather than one
+          // product of sines, which laid down regular vertical bands that
+          // looked like scratches on the surface.
+          // Vasculature, kept to a hint. A sclera is only 24mm across and at
+          // portrait distance its vessels are a faint warm cast at the
+          // corners, not drawn lines — anything stronger renders as streaks.
+          '  float vein = sin( N.x * 31.0 + N.y * 11.0 ) + 0.7 * sin( N.y * 43.0 - N.x * 7.0 ) + 0.5 * sin( N.x * 17.0 + N.y * 29.0 );',
+          '  vein = smoothstep( 1.25, 2.10, vein ) * smoothstep( 0.30, 0.80, radius );',
+          '  diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * vec3( 1.0, 0.72, 0.68 ), vein * 0.16 );',
+          '',
+          // A warm cast toward the inner and outer corners, where the
+          // conjunctiva thickens and picks up colour from the lids.
+          '  diffuseColor.rgb *= mix( vec3( 1.0 ), vec3( 1.03, 0.93, 0.86 ), smoothstep( 0.15, 0.85, radius ) );',
+          '}',
+          '#endif',
+        ].join('\n')
+      );
+    };
+    material.customProgramCacheKey = () => 'sclera';
+    material.needsUpdate = true;
+    return material;
+  }
+
+  /**
+   * Build the cornea shell for one eye container.
+   *
+   * Sized off the sclera's own bounding sphere so it tracks whatever eye model
+   * is loaded, and rendered last with depth writing off so it composites over
+   * the iris and pupil regardless of draw order.
+   */
+  _addCorneaShell(container) {
+    let sclera = null;
+    container.traverse((c) => {
+      if (c.isMesh && c.material === this._sclera) sclera = c;
+    });
+    if (!sclera) return null;
+
+    sclera.geometry.computeBoundingSphere();
+    const bs = sclera.geometry.boundingSphere;
+    if (!bs) return null;
+
+    const geo = new THREE.SphereGeometry(bs.radius * 1.02, 32, 24);
+    const shell = new THREE.Mesh(geo, this._cornea);
+    shell.name = 'CorneaShell';
+    // Parented to the sclera rather than the container: the eye parts carry
+    // their own transforms inside the GLB, and a shell added as a sibling
+    // lands in the wrong place and at the wrong size. As a child it inherits
+    // the eyeball's full transform for free, and keeps doing so when
+    // _applyAdjustments() moves and rescales the eyes.
+    shell.position.copy(bs.center);
+    shell.castShadow = false;
+    shell.receiveShadow = false;
+    shell.renderOrder = 3;
+    sclera.add(shell);
+    return shell;
   }
 
   // ── Head binding ──
@@ -616,6 +858,8 @@ class EyeSystem {
     for (const clone of clones) {
       targetContainer.add(clone);
     }
+
+    this._addCorneaShell(targetContainer);
   }
 
   /**
@@ -913,7 +1157,14 @@ class EyeSystem {
         if (child.isMesh) {
           const clone = child.clone();
           clone.material = this._eyelashMat;
-          clone.castShadow = true;
+          /* Eyelashes do not cast.
+          A lash is about 0.1mm across; the shadow map covers a ~3-unit
+          frustum at 4096, so one texel is roughly 0.8mm. Every strand is
+          far below a texel, so what lands on the sclera is not a shadow but
+          pure aliasing — a scatter of hard blue-grey dashes across the
+          white of the eye. Real lash shadows at portrait distance are a
+          faint overall darkening, which the socket shading already gives. */
+          clone.castShadow = false;
           clone.receiveShadow = true;
           offsetGroup.add(clone);
         }
@@ -959,7 +1210,14 @@ class EyeSystem {
       if (child.isMesh) {
         const clone = child.clone();
         clone.material = this._eyelashMat;
-        clone.castShadow = true;
+        /* Eyelashes do not cast.
+        A lash is about 0.1mm across; the shadow map covers a ~3-unit
+        frustum at 4096, so one texel is roughly 0.8mm. Every strand is
+        far below a texel, so what lands on the sclera is not a shadow but
+        pure aliasing — a scatter of hard blue-grey dashes across the
+        white of the eye. Real lash shadows at portrait distance are a
+        faint overall darkening, which the socket shading already gives. */
+        clone.castShadow = false;
         clone.receiveShadow = true;
         offsetGroup.add(clone);
       }

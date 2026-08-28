@@ -231,6 +231,43 @@ class WrinklePainter {
    * Returns the manual wrinkle height map for compositing.
    * Called by SkinTextureSystem._generateNormalMap().
    */
+  /**
+   * Rebuild at a new texture resolution, resampling the painted strokes.
+   *
+   * SkinTextureSystem's resolution follows the quality tier, and this buffer
+   * is indexed with that resolution when it is composited into the normal map
+   * — a stale 512 buffer read at 1024 walks off the end and poisons the map
+   * with NaN. Resampling rather than clearing because painted wrinkles are
+   * case work: an operator should not silently lose annotations by changing a
+   * render setting.
+   */
+  resize(res) {
+    const r = res | 0;
+    if (!r || r === this.RES || !this._heightMap) return;
+
+    const old = this._heightMap;
+    const oldR = this.RES;
+    const next = new Float32Array(r * r);
+
+    // Nearest neighbour is enough: these are soft brush strokes, and the two
+    // resolutions in play differ by a factor of two.
+    for (let y = 0; y < r; y++) {
+      const sy = Math.min(oldR - 1, (y * oldR / r) | 0);
+      for (let x = 0; x < r; x++) {
+        const sx = Math.min(oldR - 1, (x * oldR / r) | 0);
+        next[y * r + x] = old[sy * oldR + sx];
+      }
+    }
+
+    this.RES = r;
+    this._heightMap = next;
+    this._undoStack = [];
+    if (this._paintCanvas) {
+      this._paintCanvas.width = r;
+      this._paintCanvas.height = r;
+    }
+  }
+
   getHeightMap() {
     return this._heightMap;
   }

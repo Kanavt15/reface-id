@@ -666,7 +666,7 @@ class VariantPicker {
 
   _captureThumb() {
     const W = VariantPicker.THUMB_W, H = VariantPicker.THUMB_H;
-    this.scene.renderer.render(this.scene.scene, this.scene.camera);
+    this.scene.renderFrame();
     const src = this.scene.canvas || this.scene.renderer.domElement;
     const c = document.createElement('canvas');
     c.width = W;

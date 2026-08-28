@@ -639,6 +639,8 @@
         <div class="k-dock-sep"></div>
         <button type="button" class="k-dock-btn k-icon-only" id="btnWireframe" title="Wireframe"><svg class="i" aria-hidden="true"><use href="#i-grid"/></svg></button>
         <button type="button" class="k-dock-btn k-icon-only" id="btnLighting" title="Lighting"><svg class="i" aria-hidden="true"><use href="#i-zap"/></svg></button>
+        <button type="button" class="k-dock-btn k-icon-only active" id="btnRenderMode" title="Render: Photoreal / Structure"><svg class="i" aria-hidden="true"><use href="#i-contrast"/></svg></button>
+        <button type="button" class="k-dock-btn k-icon-only" id="btnQuality" title="Render quality"><svg class="i" aria-hidden="true"><use href="#i-sun"/></svg></button>
         <button type="button" class="k-dock-btn k-icon-only" id="rf-vp-reference" title="Reference overlay"><svg class="i" aria-hidden="true"><use href="#i-compare"/></svg></button>
         <div class="k-dock-sep"></div>
         <button type="button" class="k-dock-btn k-icon-only" id="btnScreenshot" title="Capture frame"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg></button>
@@ -693,6 +695,15 @@
             <div class="slider-control k-centred" data-param="faceLength">
               <label>
                 <span>Length</span>
+                <span class="slider-value">50</span>
+              </label>
+              <div class="slider-row">
+                <input type="range" class="morph-slider" min="0" max="100" value="50" />
+              </div>
+            </div>
+            <div class="slider-control k-centred" data-param="asymmetry">
+              <label>
+                <span>Asymmetry</span>
                 <span class="slider-value">50</span>
               </label>
               <div class="slider-row">
@@ -2943,6 +2954,21 @@
                 <input type="range" id="sliderPoreDetail" class="skin-texture-slider" min="0" max="100" value="0" />
               </div>
             </div>
+            <div class="slider-control" data-param="skinMicroRelief" title="Depth of the close-up pore bumpiness">
+              <label>
+                <span>Micro Relief</span>
+                <span class="slider-value" id="valMicroRelief">50</span>
+              </label>
+              <div class="slider-row">
+                <input type="range" id="sliderMicroRelief" class="skin-texture-slider" min="0" max="100" value="50" />
+              </div>
+            </div>
+            <div class="input-control">
+              <label class="checkbox-label">
+                <input type="checkbox" id="cheekFlushToggle" />
+                <span>Cheek flush</span>
+              </label>
+            </div>
               </div>
             </div>
           </div>
@@ -5143,6 +5169,10 @@
 <script src="js/vendor/OrbitControls.js"></script>
 <script src="js/vendor/OBJLoader.js"></script>
 <script src="js/vendor/GLBLoader.js"></script>
+<script src="js/EnvironmentSystem.js"></script>
+<script src="js/SkinShader.js"></script>
+<script src="js/StrandShading.js"></script>
+<script src="js/PostFX.js"></script>
 <script src="js/AssetLoadTracker.js"></script>
 <script src="js/BaseFaceGeometry.js"></script>
 <script src="js/FaceMorpher.js"></script>

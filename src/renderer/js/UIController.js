@@ -105,6 +105,27 @@ class UIController {
       this.addHistory(`Lighting: ${mode}`);
     });
 
+    /* Render mode. Photoreal is the default; Structure strips the skin shading
+       stack, the studio environment and the post grade back to a flat matte
+       surface over the ground and grid — which is genuinely easier to judge a
+       jaw or a brow ridge against while dragging sliders. Logged like every
+       other adjustment, because this app stamps its history onto exports. */
+    document.getElementById('btnRenderMode')?.addEventListener('click', (e) => {
+      const mode = this.scene.toggleRenderMode();
+      e.currentTarget.classList.toggle('active', mode === 'Photoreal');
+      this.addHistory(`Render: ${mode}`);
+    });
+
+    // Quality tier: Low bypasses post-processing entirely.
+    document.getElementById('btnQuality')?.addEventListener('click', (e) => {
+      const order = ['low', 'medium', 'high'];
+      const current = this.scene.postFX ? this.scene.postFX.tier : 'medium';
+      const next = order[(order.indexOf(current) + 1) % order.length];
+      const active = this.scene.setQualityTier(next);
+      e.currentTarget.classList.toggle('active', active !== 'low');
+      this.addHistory(`Quality: ${active.charAt(0).toUpperCase() + active.slice(1)}`);
+    });
+
     // Screenshot
     document.getElementById('btnScreenshot')?.addEventListener('click', () => {
       this.takeScreenshot();
@@ -1135,13 +1156,7 @@ class UIController {
   // ─── Skin Texture & Aging Controls ──────────────────────────────────────
 
   bindSkinTextureControls() {
-    const sliderMap = {
-      sliderSkinAge:       { param: 'age',         valId: 'valSkinAge' },
-      sliderWrinkleDepth:  { param: 'wrinkleDepth', valId: 'valWrinkleDepth' },
-      sliderSkinRoughness: { param: 'roughness',    valId: 'valSkinRoughness' },
-      sliderPoreDetail:    { param: 'poreDetail',   valId: 'valPoreDetail' },
-      sliderSunDamage:     { param: 'sunDamage',    valId: 'valSunDamage' },
-    };
+    const sliderMap = UIController.SKIN_TEXTURE_UI;
 
     let _skinTexDebounce = null;
 
@@ -1163,6 +1178,10 @@ class UIController {
 
         if (this.skinTextureSystem) {
           this.skinTextureSystem.setParam(cfg.param, v);
+
+          // setParam already pushed this one to the shader; regenerating the
+          // macro maps for it would just be wasted work on every tick.
+          if (cfg.shaderOnly) return;
 
           // Debounce regeneration for performance (texture gen is expensive)
           if (_skinTexDebounce) clearTimeout(_skinTexDebounce);
@@ -1190,29 +1209,70 @@ class UIController {
       });
     }
 
+    // ── Cheek flush toggle ──
+    // Not a slider: it changes the diffuse map, so it rebuilds once on change
+    // rather than on a drag debounce.
+    const flushToggle = document.getElementById('cheekFlushToggle');
+    if (flushToggle) {
+      const cur = this.skinTextureSystem && this.skinTextureSystem.params.cheekFlush;
+      flushToggle.checked = !!(cur === undefined
+        ? SkinTextureSystem.DEFAULT_PARAMS.cheekFlush : cur);
+
+      flushToggle.addEventListener('change', (e) => {
+        const on = e.target.checked;
+        this.caseManager.pushState(on ? 'Enabled cheek flush' : 'Disabled cheek flush');
+        if (this.skinTextureSystem) {
+          this.skinTextureSystem.setParam('cheekFlush', on);
+          this.skinTextureSystem.regenerate();
+          this.caseManager.updateAppearance('skinTextureParams', this.skinTextureSystem.getParams());
+        }
+        this.addHistory(on ? 'Enabled cheek flush' : 'Disabled cheek flush');
+        this.updatePropertyPanel();
+      });
+    }
+
     // Reset button
     document.getElementById('btnResetSkinTexture')?.addEventListener('click', () => {
       this.caseManager.pushState('Reset skin texture');
       if (this.skinTextureSystem) {
-        this.skinTextureSystem.params = {
-          age: 20, roughness: 50, freckles: 0,
-          poreDetail: 0, wrinkleDepth: 30, skinOiliness: 0, sunDamage: 10,
-        };
+        this.skinTextureSystem.params = { ...SkinTextureSystem.DEFAULT_PARAMS };
         this.skinTextureSystem.regenerate();
         this.caseManager.updateAppearance('skinTextureParams', this.skinTextureSystem.getParams());
       }
-      // Reset slider UI
-      for (const [sliderId, cfg] of Object.entries(sliderMap)) {
-        const slider = document.getElementById(sliderId);
-        const valEl = document.getElementById(cfg.valId);
-        const defaults = { age: 20, wrinkleDepth: 30, roughness: 50, poreDetail: 0, sunDamage: 10 };
-        const def = defaults[cfg.param] ?? 50;
-        if (slider) slider.value = def;
-        if (valEl) valEl.textContent = def;
-      }
+      // Reset slider and toggle UI
+      this._syncSkinTextureUI(SkinTextureSystem.DEFAULT_PARAMS);
       this.addHistory('Reset skin texture');
       this.updatePropertyPanel();
     });
+  }
+
+  /* Slider/toggle ids for the skin texture panel, shared by every path that
+     has to push loaded state back into the controls. */
+  static get SKIN_TEXTURE_UI() {
+    return {
+      sliderSkinAge:       { param: 'age',          valId: 'valSkinAge' },
+      sliderWrinkleDepth:  { param: 'wrinkleDepth', valId: 'valWrinkleDepth' },
+      sliderSkinRoughness: { param: 'roughness',    valId: 'valSkinRoughness' },
+      sliderPoreDetail:    { param: 'poreDetail',   valId: 'valPoreDetail' },
+      // shaderOnly: a uniform, not a texel — no map rebuild, so it lands on
+      // the same frame as the drag.
+      sliderMicroRelief:   { param: 'microRelief',  valId: 'valMicroRelief', shaderOnly: true },
+      sliderSunDamage:     { param: 'sunDamage',    valId: 'valSunDamage' },
+    };
+  }
+
+  /** Push skin texture params into the sliders and the cheek flush toggle. */
+  _syncSkinTextureUI(params) {
+    const p = params || SkinTextureSystem.DEFAULT_PARAMS;
+    for (const [sliderId, cfg] of Object.entries(UIController.SKIN_TEXTURE_UI)) {
+      if (p[cfg.param] === undefined) continue;
+      const slider = document.getElementById(sliderId);
+      const valEl = document.getElementById(cfg.valId);
+      if (slider) slider.value = p[cfg.param];
+      if (valEl) valEl.textContent = p[cfg.param];
+    }
+    const flushEl = document.getElementById('cheekFlushToggle');
+    if (flushEl) flushEl.checked = !!p.cheekFlush;
   }
 
   // ─── Age Progression Controls ────────────────────────────────────────────
@@ -4248,11 +4308,15 @@ class UIController {
             this.scene.eyeSystem.setParam(key, value);
           });
         }
-        // Restore skin texture parameters
-        if (data.appearance?.skinTextureParams) {
+        /* Restore skin texture parameters. This called scene.setSkinTextureParam,
+           which does not exist on SceneManager — loading a case with saved skin
+           params threw here and abandoned the rest of the restore. */
+        if (data.appearance?.skinTextureParams && this.skinTextureSystem) {
           Object.entries(data.appearance.skinTextureParams).forEach(([key, value]) => {
-            this.scene.setSkinTextureParam(key, value);
+            this.skinTextureSystem.setParam(key, value);
           });
+          this.skinTextureSystem.regenerate();
+          this._syncSkinTextureUI(data.appearance.skinTextureParams);
         }
         // Restore skin marks
         if (data.skinMarks && this.skinMarkSystem) {
@@ -4716,10 +4780,7 @@ class UIController {
 
     // Reset skin texture
     if (this.skinTextureSystem) {
-      this.skinTextureSystem.params = {
-        age: 20, roughness: 50, freckles: 0,
-        poreDetail: 0, wrinkleDepth: 30, skinOiliness: 0, sunDamage: 10,
-      };
+      this.skinTextureSystem.params = { ...SkinTextureSystem.DEFAULT_PARAMS };
       this.skinTextureSystem.regenerate();
     }
 
@@ -5206,37 +5267,15 @@ class UIController {
         } else {
           // Reset to defaults if no skin texture params in state
           console.log('[restoreState] No skinTextureParams, resetting to defaults');
-          const defaults = { age: 20, wrinkleDepth: 0, roughness: 30, poreDetail: 0, freckles: 0, skinOiliness: 0, sunDamage: 0 };
+          const defaults = SkinTextureSystem.DEFAULT_PARAMS;
           Object.entries(defaults).forEach(([key, val]) => {
             this.skinTextureSystem.setParam(key, val);
           });
         }
         this.skinTextureSystem.regenerate();
         
-        // Update skin texture sliders
-        const sliderMap = {
-          sliderSkinAge: 'age',
-          sliderWrinkleDepth: 'wrinkleDepth',
-          sliderSkinRoughness: 'roughness',
-          sliderPoreDetail: 'poreDetail',
-          sliderSunDamage: 'sunDamage',
-        };
-        const valMap = {
-          sliderSkinAge: 'valSkinAge',
-          sliderWrinkleDepth: 'valWrinkleDepth',
-          sliderSkinRoughness: 'valSkinRoughness',
-          sliderPoreDetail: 'valPoreDetail',
-          sliderSunDamage: 'valSunDamage',
-        };
-        const effectiveParams = params || { age: 20, wrinkleDepth: 0, roughness: 30, poreDetail: 0, freckles: 0, skinOiliness: 0, sunDamage: 0 };
-        for (const [sliderId, paramKey] of Object.entries(sliderMap)) {
-          const slider = document.getElementById(sliderId);
-          const valEl = document.getElementById(valMap[sliderId]);
-          if (slider && effectiveParams[paramKey] !== undefined) {
-            slider.value = effectiveParams[paramKey];
-            if (valEl) valEl.textContent = effectiveParams[paramKey];
-          }
-        }
+        // Update skin texture sliders and the cheek flush toggle
+        this._syncSkinTextureUI(params);
       }
     }
 

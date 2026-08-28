@@ -83,14 +83,28 @@ class HairSystem {
     this._eyebrowGroup.name = 'EyebrowSystem';
     this.scene.add(this._eyebrowGroup);
 
+    /* Opaque, not 0.85 alpha.
+     *
+     * eyebrows.glb is 35k vertices of real individual strands, not a card. At
+     * 0.85 opacity every strand blended against every strand behind it in
+     * whatever order the index buffer happened to give, which is what turned a
+     * detailed brow into a flat translucent smear sitting above the brow
+     * ridge. Opaque lets the strands occlude each other properly and read as
+     * separate hairs. */
     this._eyebrowMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(this.eyebrowColor),
-      roughness: 0.50,
-      metalness: 0.08,
+      roughness: 0.42,
+      metalness: 0.0,
       side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.85,
+      transparent: false,
+      opacity: 1,
+      depthWrite: true,
     });
+    if (window.StrandShading) {
+      StrandShading.attachSheen(this._eyebrowMat, {
+        sheenStrength: 0.10, rimStrength: 0.08, rootDarken: 0.28,
+      });
+    }
 
     // Beard model
     this._beardContainer = null;
@@ -104,13 +118,18 @@ class HairSystem {
        where overlapping cards blend in arbitrary order. */
     this._beardMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(this.beardColor),
-      roughness: 0.50,
-      metalness: 0.08,
+      roughness: 0.45,
+      metalness: 0.0,
       side: THREE.DoubleSide,
       transparent: false,
       opacity: 1,
       depthWrite: true,
     });
+    if (window.StrandShading) {
+      StrandShading.attachSheen(this._beardMat, {
+        sheenStrength: 0.10, rimStrength: 0.09, rootDarken: 0.30,
+      });
+    }
 
     // Hair model configs with per-model default positions/scales
     // defaults: { posx, posy, posz, roty, scale } - calibrated values
@@ -187,13 +206,25 @@ class HairSystem {
      * shadows and its occlusion of the ears and forehead. */
     this._hairMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(this.hairColor),
-      roughness: 0.45,
-      metalness: 0.12,
+      roughness: 0.38,
+      metalness: 0.0,
       side: THREE.DoubleSide,
       transparent: false,
       opacity: 1,
       depthWrite: true,
     });
+
+    /* The cards now carry a strand cutout, which is what the comment above
+       said was missing. alphaTest rather than blending: the material stays
+       opaque to the renderer, writes depth and sorts by depth, so none of the
+       arbitrary-order artefacts that forced full opacity can come back — it
+       just gets a hair-shaped silhouette instead of a polygon-shaped one. */
+    if (window.StrandShading) {
+      StrandShading.applyCardAlpha(this._hairMat, 3, 1);
+      StrandShading.attachSheen(this._hairMat, {
+        sheenStrength: 0.16, rimStrength: 0.10, rootDarken: 0.30,
+      });
+    }
   }
 
   // ── Head binding ──

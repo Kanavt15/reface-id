@@ -35,6 +35,14 @@ import trimesh
 import numpy as np
 import json
 import os
+import sys
+
+# Half-width of the reference head, measured off head.glb. Every lateral
+# threshold in classify_vertices() is expressed in these units, so this is the
+# number that makes x_scale exactly 1.0 for the mesh those thresholds were
+# tuned against -- carrying the full precision keeps the reclassification of
+# the shipped model at zero vertices rather than a handful of boundary flips.
+REFERENCE_HALF_WIDTH = 0.9566180109977722
 
 REGION_NAMES = [
     'SCALP', 'FOREHEAD', 'BROW', 'EYE_LEFT', 'EYE_RIGHT',
@@ -70,7 +78,24 @@ def classify_vertices(vertices, normals):
     # Normalized coordinates 0..1
     rel_y = (y - y_min) / height     # 0 = bottom, 1 = top
     rel_z = (z - z_min) / depth      # 0 = back, 1 = front
-    abs_x = np.abs(x)                # Distance from center (face is X-symmetric)
+    # Lateral coordinates are rescaled into REFERENCE-HEAD units before any
+    # threshold below sees them.
+    #
+    # rel_y and rel_z are normalised 0..1, but the x thresholds were raw
+    # literals (0.08, 0.25, 0.42 ...) that silently assumed the reference
+    # head's 1.913-unit width. On a mesh of any other scale every one of them
+    # misclassifies -- which would have blocked a base-mesh swap, since the
+    # region map has to be rebuilt for whatever mesh replaces head.glb.
+    #
+    # Rescaling here rather than renormalising the thresholds is deliberate:
+    # on the reference head x_scale is exactly 1.0, so this is a no-op and the
+    # shipped head_regions.json stays bit-identical. The literals also keep
+    # their tuned meaning as measurements of a real head, instead of becoming
+    # a table of six-decimal fractions nobody can sanity-check.
+    half_width = max(abs(x_min), abs(x_max)) or REFERENCE_HALF_WIDTH
+    x_scale = REFERENCE_HALF_WIDTH / half_width
+    xs = x * x_scale                 # signed, for the left/right splits
+    abs_x = np.abs(xs)               # distance from the midline
 
     # ── Classification (applied bottom-up, later assignments override earlier) ──
 
@@ -93,8 +118,8 @@ def classify_vertices(vertices, normals):
 
     # 3, 4: EYE sockets
     eye_band = (rel_y > 0.56) & (rel_y < 0.63) & (rel_z > 0.55) & (abs_x > 0.08)
-    regions[eye_band & (x > 0.05)] = 3   # LEFT
-    regions[eye_band & (x < -0.05)] = 4  # RIGHT
+    regions[eye_band & (xs > 0.05)] = 3   # LEFT
+    regions[eye_band & (xs < -0.05)] = 4  # RIGHT
 
     # 5: NOSE_BRIDGE
     regions[(rel_y > 0.52) & (rel_y < 0.60) & (abs_x < 0.12) & (rel_z > 0.65) & (nz > 0.3)] = 5
@@ -129,8 +154,8 @@ def classify_vertices(vertices, normals):
 
     # 16, 17: EARS
     ear_band = (rel_y > 0.40) & (rel_y < 0.62) & (abs_x > 0.42)
-    regions[ear_band & (x > 0)] = 16  # LEFT
-    regions[ear_band & (x < 0)] = 17  # RIGHT
+    regions[ear_band & (xs > 0)] = 16  # LEFT
+    regions[ear_band & (xs < 0)] = 17  # RIGHT
 
     # ── Post-fix: remove scalp leaking onto front face ──
     face_front = (rel_y > 0.40) & (rel_y < 0.78) & (rel_z > 0.55) & (nz > 0.3)
@@ -140,8 +165,23 @@ def classify_vertices(vertices, normals):
 
 
 def main():
-    src = os.path.join('assets', 'models', 'head.glb')
-    dst = os.path.join('assets', 'models', 'head_regions.json')
+    """Regenerate the region map.
+
+    Paths are arguments now, and default to the real location of the model.
+    They were hardcoded to assets/models/head.glb, which stopped existing when
+    the models were reorganised into base/ — so this script could not be run at
+    all, which matters a great deal the moment the base mesh is replaced and
+    the region map has to be rebuilt for it.
+
+        python backend/analyze_mesh.py
+        python backend/analyze_mesh.py candidate.glb candidate_regions.json
+    """
+    repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    default_src = os.path.join(repo, 'assets', 'models', 'base', 'head.glb')
+    default_dst = os.path.join(repo, 'assets', 'models', 'base', 'head_regions.json')
+
+    src = sys.argv[1] if len(sys.argv) > 1 else default_src
+    dst = sys.argv[2] if len(sys.argv) > 2 else default_dst
 
     print(f'Loading {src}...')
     scene = trimesh.load(src)

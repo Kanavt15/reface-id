@@ -46,6 +46,7 @@ class OBJMorpher {
       'cupidBow', 'philtrumDepth', 'philtrumWidth', 'lipCornerAngle',
       'jawWidth', 'chinHeight', 'chinWidth', 'chinProtrusion', 'jawDefinition',
       'earSize', 'earProtrusion', 'earHeight', 'earlobeSize',
+      'asymmetry',
     ];
     this.params.forEach(p => this.morphValues[p] = this.defaultValue);
   }
@@ -871,6 +872,57 @@ class OBJMorpher {
       }
     }
 
+    // ─── ASYMMETRY ─────────────────────────────────────────────────────
+    /* No real face is symmetric, and perfect bilateral symmetry is one of the
+       clearest signals that an image was generated rather than photographed.
+       Every other control here is mirrored across the midline by construction,
+       so without this the reconstruction cannot help but be symmetric.
+       
+       Signed like every other parameter: 50 is symmetric, below 50 makes the
+       left side dominant and above 50 the right. It stays an explicit,
+       recorded control rather than a hidden randomisation, because this app
+       stamps every adjustment onto its exports and an unlogged deviation in a
+       forensic likeness would be indefensible.
+       
+       Magnitudes are deliberately small. Ordinary facial asymmetry is on the
+       order of 1-2mm; at twice these values the head stops reading as a person
+       and starts reading as an injury, and the vertical eye offset in
+       particular outruns the eyelid opening and exposes sclera. Even at the
+       slider's extreme this should look like somebody, not like damage. */
+    if (active.asymmetry !== undefined) {
+      const t = active.asymmetry;
+      const disp = t * scale;
+
+      // One eye sits slightly higher than the other.
+      const eyeL = this._getRegionWeights(['eye_left_center', 'eye_left_upper'], 0.09);
+      const eyeR = this._getRegionWeights(['eye_right_center', 'eye_right_upper'], 0.09);
+      for (let i = 0; i < N; i++) offsets[i*3+1] += (eyeL[i] - eyeR[i]) * disp * 0.07;
+
+      // The brow above the higher eye follows it.
+      const browL = this._getRegionWeights(['brow_left_center'], 0.08);
+      const browR = this._getRegionWeights(['brow_right_center'], 0.08);
+      for (let i = 0; i < N; i++) offsets[i*3+1] += (browL[i] - browR[i]) * disp * 0.055;
+
+      // Mouth corners rarely sit level.
+      const mouthL = this._getRegionWeights(['mouth_left'], 0.07);
+      const mouthR = this._getRegionWeights(['mouth_right'], 0.07);
+      for (let i = 0; i < N; i++) offsets[i*3+1] += (mouthR[i] - mouthL[i]) * disp * 0.08;
+
+      // The nose deviates off the midline — the most commonly noticed of these.
+      const tip = this._getRegionWeights(['nose_tip', 'nose_base'], 0.06);
+      for (let i = 0; i < N; i++) offsets[i*3] += tip[i] * disp * 0.055;
+
+      // Mandibular deviation: the whole jaw sits slightly to one side.
+      const jaw = this._getRegionWeights(
+        ['jaw_left', 'jaw_right', 'chin_left', 'chin_right'], 0.13);
+      for (let i = 0; i < N; i++) offsets[i*3] += jaw[i] * disp * 0.045;
+
+      // Cheek fullness differs between sides.
+      const cheekL = this._getRegionWeights(['cheek_left'], 0.11);
+      const cheekR = this._getRegionWeights(['cheek_right'], 0.11);
+      for (let i = 0; i < N; i++) offsets[i*3+2] += (cheekL[i] - cheekR[i]) * disp * 0.04;
+    }
+
     // ─── APPLY OFFSETS ─────────────────────────────────────────────────
 
     for (let m = 0; m < this.meshes.length; m++) {
@@ -898,6 +950,11 @@ class OBJMorpher {
       this.meshes[m].geometry.computeBoundingBox();
       this.meshes[m].geometry.computeBoundingSphere();
     }
+
+    /* Cavity occlusion is derived from the deformed positions, so it goes
+       stale the moment a slider moves. Debounced rather than immediate: a drag
+       fires this dozens of times a second and only the final shape matters. */
+    if (window.SkinShader) SkinShader.scheduleCavity(this.meshes);
 
     // Refresh skin marks after morphing is complete
     if (this.skinMarkSystem && typeof this.skinMarkSystem.refreshMarksAfterMorph === 'function') {

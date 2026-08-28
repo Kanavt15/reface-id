@@ -6,3 +6,5 @@ google-generativeai
 SpeechRecognition
 numpy
 Pillow
+trimesh  # analyze_mesh.py / check_mesh.py - mesh loading and region classification
+scipy  # trimesh uses it for sparse vertex-normal accumulation

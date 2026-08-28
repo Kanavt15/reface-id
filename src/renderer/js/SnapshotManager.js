@@ -708,7 +708,7 @@ class SnapshotManager {
   }
 
   _generateThumbnail() {
-    this.sceneManager.renderer.render(this.sceneManager.scene, this.sceneManager.camera);
+    this.sceneManager.renderFrame();
     const fullCanvas = this.sceneManager.canvas;
 
     // 4:3, matching the aspect the card reserves for it — the old 120x90 was
