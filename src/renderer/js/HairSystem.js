@@ -100,9 +100,15 @@ class HairSystem {
       opacity: 1,
       depthWrite: true,
     });
+    /* Restrained settings, and not because brows are less hairy than hair.
+       This asset has no UVs, so it takes the no-tangent fallback path: the
+       strand direction is guessed from the normal, and a band placed off a
+       guessed direction is only convincing while it stays quiet. The wrap is
+       pulled in too — 3mm of brow has no mass for light to scatter through. */
     if (window.StrandShading) {
       StrandShading.attachSheen(this._eyebrowMat, {
-        sheenStrength: 0.10, rimStrength: 0.08, rootDarken: 0.28,
+        sheenStrength: 0.12, trtStrength: 0.10, rimStrength: 0.08,
+        rootDarken: 0.28, scatter: 0.20,
       });
     }
 
@@ -125,9 +131,13 @@ class HairSystem {
       opacity: 1,
       depthWrite: true,
     });
+    /* Same fallback path as the brow until the beard cards get the strand
+       maps too, so the same restraint applies. A little more wrap than the
+       brow: a beard does have some depth for light to travel through. */
     if (window.StrandShading) {
       StrandShading.attachSheen(this._beardMat, {
-        sheenStrength: 0.10, rimStrength: 0.09, rootDarken: 0.30,
+        sheenStrength: 0.12, trtStrength: 0.12, rimStrength: 0.09,
+        rootDarken: 0.30, scatter: 0.28,
       });
     }
 
@@ -219,10 +229,30 @@ class HairSystem {
        opaque to the renderer, writes depth and sorts by depth, so none of the
        arbitrary-order artefacts that forced full opacity can come back — it
        just gets a hair-shaped silhouette instead of a polygon-shaped one. */
+    /* The full model, because this is the only one of the three assets that
+       can carry it: the hair GLBs have UVs, so the cards get the strand maps
+       and the lighting gets a real strand direction to place its bands along.
+       The brow and beard materials above run the same shader with the
+       tangent-free fallback and correspondingly quiet settings. */
     if (window.StrandShading) {
-      StrandShading.applyCardAlpha(this._hairMat, 3, 1);
+      StrandShading.applyCardAlpha(this._hairMat, 1, 1);
       StrandShading.attachSheen(this._hairMat, {
-        sheenStrength: 0.16, rimStrength: 0.10, rootDarken: 0.30,
+        sheenStrength: 0.10, trtStrength: 0.09, rimStrength: 0.06,
+        /* Read these two together; on its own either one is wrong.
+           Saturated AND strong put gold streaks across the crown. Answering
+           that with desaturation alone only trades the fault: a near-white
+           transmission lobe is just a second white specular, and it washed the
+           brown out to charcoal. So the tint stays warm and the lobe goes
+           quiet instead — a sheen that carries a hint of the hair's colour and
+           never flares far enough to become a highlight in its own right. */
+        trtDesat: 0.45,
+        // Drives the mass occlusion for the hair, not the view-space stand-in
+        // the brow and beard get: this style is deep enough that the inside
+        // has to go down noticeably or the fall reads as a single printed
+        // sheet. Not further: the albedo is already near-black, so past about
+        // this the interior stops being dark hair and becomes a hole.
+        rootDarken: 0.42,
+        scatter: 0.50, toneStrength: 1.0,
       });
     }
   }
@@ -424,15 +454,27 @@ class HairSystem {
     const offsetGroup = new THREE.Group();
     offsetGroup.name = 'HairOffset';
 
-    cached.traverse(child => {
-      if (child.isMesh) {
-        const clone = child.clone();
-        clone.material = this._hairMat;
-        clone.castShadow = true;
-        clone.receiveShadow = true;
-        offsetGroup.add(clone);
-      }
-    });
+    const meshes = [];
+    cached.traverse(child => { if (child.isMesh) meshes.push(child); });
+
+    /* Prepare the geometry before cloning, and once for the whole style.
+       Mesh.clone() shares geometry, so the UVs rewritten and the attribute
+       written here reach every clone; and StrandShading needs all the meshes
+       together, because both the strand scale and how buried a fringe vertex
+       is depend on the rest of the style, not on one mesh in isolation.
+       Cached models are built once per style and each pass early-outs on
+       geometry it has already done, so re-selecting a style is free. */
+    if (window.StrandShading) {
+      StrandShading.prepareStrandGeometry(meshes.map(m => m.geometry));
+    }
+
+    for (const child of meshes) {
+      const clone = child.clone();
+      clone.material = this._hairMat;
+      clone.castShadow = true;
+      clone.receiveShadow = true;
+      offsetGroup.add(clone);
+    }
 
     container.add(offsetGroup);
     this.hairGroup.add(container);
@@ -529,7 +571,14 @@ class HairSystem {
       m.opacity = 1;
       m.depthWrite = true;
       m.roughness = 0.62 - d * 0.26;
-      m.needsUpdate = true;
+      /* No needsUpdate. It used to be set here and it was always unnecessary:
+         roughness and opacity are uniforms, and transparent and depthWrite are
+         draw state three reads every frame — none of them change the program.
+         What it did do was force a full shader recompile, on a material shared
+         by every mesh of the style, on every input event from the density
+         slider. That was survivable while the hair ran the stock shader; the
+         strand model is several times the size to compile, and leaving it in
+         turned a drag of the slider into a stutter. */
     });
   }
 

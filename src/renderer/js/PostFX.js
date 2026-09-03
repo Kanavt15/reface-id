@@ -25,6 +25,22 @@
  */
 
 class PostFX {
+  /**
+   * Per-tier grade settings — the ONLY place these numbers live.
+   *
+   * setTier() runs at the end of the constructor and used to assign its own
+   * hardcoded literals over params, so the values written in the constructor
+   * were dead on arrival and editing the obvious one changed nothing. That is
+   * the same trap that hid the duplicated exposure and the duplicated skin
+   * constants; the constructor now seeds itself from this table instead.
+   */
+  static get TIERS() {
+    return {
+      medium: { bloomStrength: 0.22, grain: 0.022, vignette: 0.30, aberration: 0.0 },
+      high:   { bloomStrength: 0.28, grain: 0.027, vignette: 0.36, aberration: 0.0022 },
+    };
+  }
+
   constructor(renderer) {
     this.renderer = renderer;
     this.enabled = true;
@@ -44,12 +60,18 @@ class PostFX {
          Two independent copies of that number meant changing the obvious one
          in SceneManager did nothing at all to the photoreal image. */
       exposure: renderer.toneMappingExposure,
-      bloomStrength: 0.22,
+      bloomStrength: PostFX.TIERS.medium.bloomStrength,
       bloomThreshold: 0.75,
       bloomKnee: 0.35,
-      grain: 0.035,
-      vignette: 0.32,
-      aberration: 0.0016,
+      /* Seeded from the tier table; setTier() sets the live values.
+         Grain is weighted toward the shadows (see the composite pass), so its
+         amplitude is governed by how it looks in the DARKEST part of the
+         frame, not the average. It came down from 0.032 because the shadow
+         side of a jaw was carrying visibly stippled noise that re-randomised
+         every frame. */
+      grain: PostFX.TIERS.medium.grain,
+      vignette: PostFX.TIERS.medium.vignette,
+      aberration: PostFX.TIERS.medium.aberration,
       contrast: 1.06,
       /* 1.0 — no chroma boost.
          This was 1.09. A global saturation lift is a normal look-development
@@ -199,6 +221,8 @@ class PostFX {
         uContrast: { value: this.params.contrast },
         uSaturation: { value: this.params.saturation },
         uTime: { value: 0 },
+        // Device pixels per grain cell. See the grain block in the shader.
+        uGrainSize: { value: 1.5 * Math.max(1, this.renderer.getPixelRatio() || 1) },
         uResolution: { value: new THREE.Vector2(1, 1) },
       },
       vertexShader: PostFX.VERTEX,
@@ -213,6 +237,7 @@ class PostFX {
         'uniform float uContrast;',
         'uniform float uSaturation;',
         'uniform float uTime;',
+        'uniform float uGrainSize;',
         'uniform vec2 uResolution;',
         'varying vec2 vUv;',
         '',
@@ -282,9 +307,41 @@ class PostFX {
         '',
         // Grain is strongest in the midtones and shadows, as on real film and
         // on a real sensor: bright areas carry more signal per grain.
-        '  float g = hash( gl_FragCoord.xy + vec2( uTime * 37.0, uTime * 19.0 ) ) - 0.5;',
-        '  float grainWeight = 1.0 - smoothstep( 0.25, 1.0, lum );',
-        '  color += g * uGrain * ( 0.35 + 0.65 * grainWeight );',
+        /* Grain is quantised to cells ~1.5 CSS pixels across, not to single
+           device pixels.
+
+           Measured on a real frame, the grain was per-device-pixel white
+           noise with about half its energy above 70% of Nyquist, fully
+           re-randomised every frame. Noise sitting right on the sampling grid
+           is the worst place to put it: it has nowhere to alias except into
+           the pixel grid itself, it sizzles rather than reading as grain, and
+           it is the only thing in the whole frame that changes when the camera
+           is completely still (verified: with grain off, two consecutive
+           frames are pixel-identical).
+
+           Sizing the cell above one pixel puts the noise below Nyquist, which
+           is also the more physical model — film grain is a particle of fixed
+           size, not something that gets finer because the panel is denser.
+           Scaling by the pixel ratio keeps the apparent size constant across
+           displays. */
+        '  vec2 grainCell = floor( gl_FragCoord.xy / max( uGrainSize, 1.0 ) );',
+        '  float g = hash( grainCell + vec2( uTime * 37.0, uTime * 19.0 ) ) - 0.5;',
+        /* The shadow weighting is gentler than it was: 0.35 + 0.65 * w gave
+           the darkest pixels almost three times the grain of the brightest.
+           Photon noise really is relatively stronger in shadow, so some of
+           this is right, but applied here — after tone mapping and the sRGB
+           encode — the perceptual effect in the dark end is exaggerated well
+           past what a sensor does.
+           The visible failure was at SHADING BOUNDARIES. Along a jawline or
+           the side of a neck the luminance crosses the smoothstep range over a
+           few pixels, so the grain amplitude jumped across that same edge and
+           laid a band of strong, fully re-randomised noise along it. Those
+           boundaries are diagonal on a three-quarter view, and noise boiling
+           along a diagonal edge reads as a diagonal line crawling across the
+           face. Flattening the ratio keeps grain in the shadows without
+           drawing it along every terminator. */
+        '  float grainWeight = 1.0 - smoothstep( 0.15, 1.0, lum );',
+        '  color += g * uGrain * ( 0.62 + 0.38 * grainWeight );',
         '',
         '  color = max( color, vec3( 0.0 ) );',
         // Manual sRGB encode: a raw ShaderMaterial does not get three's
@@ -316,18 +373,7 @@ class PostFX {
       return this.tier;
     }
 
-    if (tier === 'high') {
-      p.bloomStrength = 0.28;
-      p.grain = 0.040;
-      p.vignette = 0.36;
-      p.aberration = 0.0022;
-    } else {
-      // Medium: bloom, grain and vignette, no visible fringing.
-      p.bloomStrength = 0.22;
-      p.grain = 0.032;
-      p.vignette = 0.30;
-      p.aberration = 0.0;
-    }
+    Object.assign(p, PostFX.TIERS[tier === 'high' ? 'high' : 'medium']);
 
     const u = this._compositeMat.uniforms;
     u.uBloomStrength.value = p.bloomStrength;
@@ -354,6 +400,12 @@ class PostFX {
 
   setSize(width, height) {
     const pr = this.renderer.getPixelRatio();
+    /* Refreshed here, not just at construction: dragging the window to a
+       monitor with different scaling changes the pixel ratio, and the grain
+       should keep the same apparent size rather than growing or shrinking
+       with the panel. */
+    this._compositeMat.uniforms.uGrainSize.value = 1.5 * Math.max(1, pr);
+
     const w = Math.max(1, Math.floor(width * pr));
     const h = Math.max(1, Math.floor(height * pr));
     if (this._width === w && this._height === h) return;

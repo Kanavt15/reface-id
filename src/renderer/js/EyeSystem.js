@@ -242,8 +242,14 @@ class EyeSystem {
     });
 
     if (window.StrandShading) {
+      /* Every lobe named explicitly, including the ones this asset wants
+         almost none of. The defaults on attachSheen are calibrated for a
+         head of card hair with real UVs; a lash mesh has neither, and
+         inheriting a card's transmission strength and scatter width would
+         light 2mm of lash as though it had a hair mass behind it. */
       StrandShading.attachSheen(this._eyelashMat, {
-        sheenStrength: 0.08, rimStrength: 0.10, rootDarken: 0.22,
+        sheenStrength: 0.08, trtStrength: 0.07, rimStrength: 0.10,
+        rootDarken: 0.22, scatter: 0.16,
       });
     }
 

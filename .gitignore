@@ -29,8 +29,12 @@ scripts/build_idea_deck.py
 
 .DS_Store
 
-# Render-check output: face-probe.mjs and verify-realism.mjs write screenshots
-# here on every run. The scripts are source; their output is not.
+# Render-check output: face-probe.mjs, hair-probe.mjs and verify-realism.mjs
+# write screenshots here on every run. The scripts are source; their output is
+# not. hair-probe takes its output directory as an argument, so the comparison
+# runs land in hair-before/ and hair-after/ alongside the default.
 scripts/probe/
 scripts/verify/
 scripts/maps/
+scripts/hair/
+scripts/hair-*/
