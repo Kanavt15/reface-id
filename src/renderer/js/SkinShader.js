@@ -547,6 +547,75 @@ class SkinShader {
     return SkinShader._tiles;
   }
 
+  /**
+   * Eye-local version of the authored trough/shoulder folds. A compact shared
+   * atlas keeps the fine lid creases resolved and works even without skin PNGs.
+   * X points towards the temple, Y upwards; origin is the visible eye centre.
+   */
+  static getUnderEyeMap() {
+    if (SkinShader._underEyeMap) return SkinShader._underEyeMap;
+    const W = 1024, H = 512, x0 = -.20, y0 = -.18, sx = .52, sy = .26;
+    const dx = sx / (W - 1), dy = sy / (H - 1);
+    const height = new Float32Array(W * H);
+    const stroke = (points, width, depth) => {
+      const margin = width * 5;
+      const xs = points.map(p => p[0]), ys = points.map(p => p[1]);
+      const left = Math.max(0, Math.floor((Math.min(...xs) - margin - x0) / dx));
+      const right = Math.min(W - 1, Math.ceil((Math.max(...xs) + margin - x0) / dx));
+      const bottom = Math.max(0, Math.floor((Math.min(...ys) - margin - y0) / dy));
+      const top = Math.min(H - 1, Math.ceil((Math.max(...ys) + margin - y0) / dy));
+      for (let y = bottom; y <= top; y++) for (let x = left; x <= right; x++) {
+        const px = x0 + x * dx, py = y0 + y * dy;
+        let nearest = Infinity, along = 0;
+        for (let j = 0; j < points.length - 1; j++) {
+          const a = points[j], b = points[j + 1], vx = b[0] - a[0], vy = b[1] - a[1];
+          const t = Math.max(0, Math.min(1, ((px - a[0]) * vx + (py - a[1]) * vy) / (vx * vx + vy * vy)));
+          const distance = (px - a[0] - t * vx) ** 2 + (py - a[1] - t * vy) ** 2;
+          if (distance < nearest) { nearest = distance; along = (j + t) / (points.length - 1); }
+        }
+        const taper = Math.max(0, Math.sin(Math.PI * along)) ** .6;
+        const trough = Math.exp(-nearest / (2 * width * width));
+        const shoulder = Math.exp(-nearest / (2 * (width * 2.8) ** 2));
+        height[y * W + x] += depth * taper * (.16 * shoulder - trough);
+      }
+    };
+    for (let i = 0; i < 4; i++) {
+      const points = Array.from({length: 28}, (_, j) => {
+        const t = j / 27 * 2 - 1;
+        return [t * (.135 + i * .013), -.060 - i * .02184
+          + (.0273 + i * .00312) * t * t + .0022 * Math.sin(t * 13 + i * 2)];
+      });
+      // The nearest two creases used to be 0.00065 deep, easily lost in fill.
+      stroke(points, i < 2 ? .0024 : .0029, i < 2 ? .0021 : .0017);
+    }
+    for (let i = 0; i < 5; i++) {
+      const points = Array.from({length: 25}, (_, j) => {
+        const t = j / 24;
+        return [.135 + t * (.13 + .022 * (i % 2)),
+          .0102 + .78 * (t * (.077 - i * .036) - t * t * .022 + .002 * Math.sin(t * 14 + i))];
+      });
+      stroke(points, .0024 + i * .00016, .0018);
+    }
+    const data = new Uint8Array(W * H * 4);
+    const encode = v => Math.round(128 + Math.max(-1, Math.min(1, v)) * 127);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = y * W + x, o = i * 4;
+      data[o] = encode((height[y * W + Math.max(0, x - 1)] - height[y * W + Math.min(W - 1, x + 1)]) / (2 * dx));
+      data[o + 1] = encode((height[Math.max(0, y - 1) * W + x] - height[Math.min(H - 1, y + 1) * W + x]) / (2 * dy));
+      data[o + 2] = Math.round(Math.max(0, Math.min(1, -height[i] / .006)) * 255);
+      data[o + 3] = 255;
+    }
+    const texture = new THREE.DataTexture(data, W, H);
+    texture.colorSpace = THREE.NoColorSpace;
+    texture.magFilter = THREE.LinearFilter;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.generateMipmaps = true;
+    texture.anisotropy = 8;
+    texture.needsUpdate = true;
+    SkinShader._underEyeMap = texture;
+    return texture;
+  }
+
   /** Original anatomy fields authored in Blender; shared across skin materials. */
   static getAnatomyMaps() {
     if (SkinShader._anatomyMaps) return SkinShader._anatomyMaps;
@@ -896,6 +965,11 @@ class SkinShader {
       uAnatomyReady: { value: anatomy.ready },
       uWrinkleStrength: { value: cfg.wrinkleStrength },
       uUnderEyeStrength: { value: cfg.underEyeStrength },
+      uUnderEyeMap: { value: SkinShader.getUnderEyeMap() },
+      // Neutral head calibration; EyeSystem updates these on every adjustment.
+      // xy = eye centre in this mesh, z = relative size, w = frontal tilt.
+      uUnderEyeLeft: { value: new THREE.Vector4(-.29111776, .33871184, 1, 0) },
+      uUnderEyeRight: { value: new THREE.Vector4(.29111776, .33871184, 1, 0) },
       uPaintedWrinkles: { value: SkinShader.getEmptyWrinkleMap() },
       uFineCreaseStrength: { value: cfg.fineCreaseStrength },
       uMicrofoldMap: { value: microfold.texture },
@@ -939,12 +1013,17 @@ class SkinShader {
         'attribute float aCavity;\n' +
         'attribute vec3 aSkinPosition;\n' +
         'varying vec3 vSkinPosition;\n' +
+        'varying vec3 vSkinCurrentPosition;\n' +
         'varying float vCavity;\n' +
         shader.vertexShader;
 
       shader.vertexShader = shader.vertexShader.replace(
         '#include <begin_vertex>',
         '#include <begin_vertex>\n\tvSkinUv = uv;\n\tvCavity = aCavity;\n\tvSkinPosition = aSkinPosition;'
+      );
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <project_vertex>',
+        'vSkinCurrentPosition = transformed;\n#include <project_vertex>'
       );
 
       // ── Fragment prelude ──
@@ -960,6 +1039,9 @@ class SkinShader {
         'uniform float uAnatomyReady;\n' +
         'uniform float uWrinkleStrength;\n' +
         'uniform float uUnderEyeStrength;\n' +
+        'uniform sampler2D uUnderEyeMap;\n' +
+        'uniform vec4 uUnderEyeLeft;\n' +
+        'uniform vec4 uUnderEyeRight;\n' +
         'uniform sampler2D uPaintedWrinkles;\n' +
         'uniform float uFineCreaseStrength;\n' +
         'uniform sampler2D uMicrofoldMap;\n' +
@@ -968,6 +1050,7 @@ class SkinShader {
         'uniform float uFaceColourReady;\n' +
         'uniform float uFaceColourStrength;\n' +
         'varying vec3 vSkinPosition;\n' +
+        'varying vec3 vSkinCurrentPosition;\n' +
         '#ifdef USE_SKIN_THICKNESS\nuniform sampler2D uThicknessMap;\n#endif\n' +
         'uniform float uSSSStrength;\n' +
         'uniform float uCurvatureScale;\n' +
@@ -987,6 +1070,7 @@ class SkinShader {
         'float skinThickness = 0.0;\n' +
         'vec3 skinDetailGradient = vec3( 0.0 );\n' +
         'vec3 skinAnatomyGradient = vec3( 0.0 );\n' +
+        'vec3 skinEyeGradient = vec3( 0.0 );\n' +
         'float skinPhotoHeight = 0.0;\n' +
         'vec2 skinPaintGradient = vec2( 0.0 );\n' +
         'float skinCcRough = 0.0;\n' +
@@ -1065,23 +1149,35 @@ class SkinShader {
           skinCcRough = rd * uRoughDetail;
           vec2 anatomyUv = ( vSkinPosition.xy - vec2( -1.05, -1.80 ) ) / vec2( 2.10, 3.25 );
           vec4 fineCrease = texture2D( uAnatomyFine, anatomyUv );
-          vec4 ageCrease = texture2D( uAnatomyAge, anatomyUv );
           float anatomyMask = smoothstep( 0.10, 0.60, vSkinPosition.z ) * uAnatomyReady;
           float eyeRegion = smoothstep( 0.10, 0.16, abs( vSkinPosition.x ) )
             * ( 1.0 - smoothstep( 0.48, 0.54, abs( vSkinPosition.x ) ) )
             * smoothstep( 0.015, 0.065, vSkinPosition.y )
             * ( 1.0 - smoothstep( 0.20, 0.245, vSkinPosition.y ) );
           float lipRegion = 1.0 - smoothstep( -0.12, -0.06, vSkinPosition.y );
-          float fineStrength = lipRegion * uFineCreaseStrength + eyeRegion * uUnderEyeStrength;
-          float ageStrength = eyeRegion * uUnderEyeStrength;
-          // Forehead and other age folds are drawn by the operator. Only the
-          // separately enabled under-eye preset samples the old anatomy field.
-          vec2 creaseGradient = ( fineCrease.xy - vec2( 128.0 / 255.0 ) ) * 2.0 * fineStrength
-            + ( ageCrease.xy - vec2( 128.0 / 255.0 ) ) * 2.0 * ageStrength;
+          float fineStrength = lipRegion * uFineCreaseStrength;
+          // Lips remain attached in rest space. Eye folds follow their own live
+          // frames, independently of hand-drawn wrinkles and skin pore detail.
+          vec2 creaseGradient = ( fineCrease.xy - vec2( 128.0 / 255.0 ) ) * 2.0 * fineStrength;
           skinAnatomyGradient = vec3( creaseGradient, 0.0 ) * anatomyMask;
-          float creaseDepth = fineCrease.z * fineStrength + ageCrease.z * ageStrength;
+          float creaseDepth = fineCrease.z * fineStrength;
           // A restrained contact term keeps fine folds readable under diffuse fill.
           diffuseColor.rgb *= 1.0 - clamp( creaseDepth * 0.32, 0.0, 0.22 ) * anatomyMask * uSkinEnabled;
+          float eyeSide = vSkinCurrentPosition.x < ( uUnderEyeLeft.x + uUnderEyeRight.x ) * 0.5 ? -1.0 : 1.0;
+          vec4 eyeFrame = eyeSide < 0.0 ? uUnderEyeLeft : uUnderEyeRight;
+          float eyeCos = cos( eyeFrame.w ), eyeSin = sin( eyeFrame.w );
+          vec2 eyeAxisX = vec2( eyeCos, eyeSin ) * eyeSide / eyeFrame.z;
+          vec2 eyeAxisY = vec2( -eyeSin, eyeCos ) / eyeFrame.z;
+          vec2 eyeDelta = vSkinCurrentPosition.xy - eyeFrame.xy;
+          vec2 eyeLocal = vec2( dot( eyeDelta, eyeAxisX ), dot( eyeDelta, eyeAxisY ) );
+          vec2 eyeUv = ( eyeLocal - vec2( -0.20, -0.18 ) ) / vec2( 0.52, 0.26 );
+          float liveEyeRegion = smoothstep( 0.0, 0.06, eyeUv.x ) * ( 1.0 - smoothstep( 0.94, 1.0, eyeUv.x ) )
+            * smoothstep( 0.0, 0.06, eyeUv.y ) * ( 1.0 - smoothstep( 0.94, 1.0, eyeUv.y ) );
+          float eyeStrength = liveEyeRegion * smoothstep( 0.10, 0.60, vSkinPosition.z ) * uUnderEyeStrength;
+          vec3 eyeFold = texture2D( uUnderEyeMap, eyeUv ).rgb;
+          vec2 eyeGradient = ( eyeFold.rg * 255.0 - 128.0 ) / 127.0;
+          skinEyeGradient = vec3( eyeAxisX * eyeGradient.x + eyeAxisY * eyeGradient.y, 0.0 ) * eyeStrength;
+          diffuseColor.rgb *= 1.0 - clamp( eyeFold.b * 0.38 * eyeStrength, 0.0, 0.22 ) * uSkinEnabled;
           vec3 painted = texture2D( uPaintedWrinkles, vSkinUv ).rgb;
           skinPaintGradient = ( painted.rg * 255.0 - 128.0 ) / 127.0 * 8.0 * uWrinkleStrength;
           diffuseColor.rgb *= 1.0 - clamp( painted.b * uWrinkleStrength * 0.32, 0.0, 0.22 ) * uSkinEnabled;
@@ -1092,7 +1188,7 @@ class SkinShader {
           vec4 faceColour = texture2D( uFaceColourMap, faceUv );
           float faceMask = smoothstep( 0.20, 0.80, restN.z ) * smoothstep( 0.45, 0.80, vSkinPosition.z );
           // Exclude baked forehead/eye lines from the source colour image.
-          float noBakedFolds = 1.0 - max( eyeRegion, smoothstep( 0.28, 0.42, vSkinPosition.y ) );
+          float noBakedFolds = 1.0 - max( max( eyeRegion, liveEyeRegion ), smoothstep( 0.28, 0.42, vSkinPosition.y ) );
           float faceAmount = faceMask * uFaceColourReady * uFaceColourStrength * noBakedFolds;
           diffuseColor.rgb *= 1.0 + ( faceColour.rgb * 2.0 - 1.0 ) * faceAmount * uSkinEnabled;
           skinPhotoHeight = ( faceColour.a * 2.0 - 1.0 ) * faceAmount * 0.0008;
@@ -1114,6 +1210,8 @@ class SkinShader {
           float invDet = sign( determinant ) / max( abs( determinant ), 1e-10 );
           float ah1 = dot( skinAnatomyGradient, dFdx( vSkinPosition ) ) + dot( skinPaintGradient, dFdx( vSkinUv ) );
           float ah2 = dot( skinAnatomyGradient, dFdy( vSkinPosition ) ) + dot( skinPaintGradient, dFdy( vSkinUv ) );
+          ah1 += dot( skinEyeGradient, dFdx( vSkinCurrentPosition ) );
+          ah2 += dot( skinEyeGradient, dFdy( vSkinCurrentPosition ) );
           vec3 anatomyOffset = ( r1 * ah1 + r2 * ah2 ) * invDet;
           // Millimetre-scale folds shape diffuse light; only pore relief is softened by SSS.
           skinMacroNormal = normalize( normal + anatomyOffset * uSkinEnabled );
@@ -1250,7 +1348,7 @@ class SkinShader {
     // programs; without this they would share one and the second would render
     // with the first's shader.
     material.customProgramCacheKey = () =>
-      'skin6-painted-folds' + (material.userData.skinShader.uniforms.uThicknessMap.value ? '-thick' : '');
+      'skin7-eye-local-folds' + (material.userData.skinShader.uniforms.uThicknessMap.value ? '-thick' : '');
 
     material.needsUpdate = true;
     return material;

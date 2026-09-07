@@ -663,8 +663,8 @@ class SkinTextureSystem {
         underEyeStrength: this.params.underEyeEnabled ? this.params.underEyeIntensity / 100 : 0,
       });
     });
-    // The missing-asset fallback has no anatomy sampler to adjust.
-    if (this._initialized && !(window.SkinShader && SkinShader._anatomyMaps?.ready)) this.regenerate();
+    // Both manual and eye-local folds have independent shader maps, including
+    // when the external skin images are unavailable. No CPU map rebuild here.
   }
 
   /** Push the current micro relief onto every skin material's pore normal. */
@@ -932,14 +932,8 @@ class SkinTextureSystem {
       hm[i] = (undul[i] - 0.5) * uStr;
     }
 
-    // Only the opt-in under-eye preset falls back to procedural folds.
-    if (hasPos && this.params.underEyeEnabled && !(window.SkinShader && SkinShader._anatomyMaps?.ready)) {
-      const bounds = this._regionBounds();
-      for (const name of ['underEyeL', 'underEyeR']) {
-        this._drawWrinkles3D(hm, R, pm, SkinTextureSystem.WRINKLE_REGIONS_3D[name],
-          this.params.underEyeIntensity / 100 * .3, bounds[name]);
-      }
-    }
+    // Under-eye folds are eye-local shader detail, also in the missing-image
+    // fallback. Baking them here would leave stationary folds on the cheeks.
 
     // Composite manual wrinkle painting on top
     if (this.wrinklePainter) {

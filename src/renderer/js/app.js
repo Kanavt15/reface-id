@@ -141,6 +141,9 @@
       sceneManager.refitWornSystems = refitWornSystems;
       let _morphTimer = null;
       objMorpher.onMorphApplied = () => {
+        // Eyes and their skin folds must follow a moving slider immediately;
+        // the more expensive accessory refits can remain debounced.
+        eyeSystem.refreshFromMesh();
         if (_morphTimer) clearTimeout(_morphTimer);
         _morphTimer = setTimeout(refitWornSystems, 120);
       };

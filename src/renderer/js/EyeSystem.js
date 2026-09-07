@@ -1039,6 +1039,52 @@ class EyeSystem {
     this._sclera.transparent = opacity < 0.999;
     this._iris.transparent = opacity < 0.999;
     this._pupil.transparent = opacity < 0.999;
+    this._updateUnderEyeFrames();
+  }
+
+  /** Keep the skin preset registered with the rendered eyes, in head-mesh space. */
+  _updateUnderEyeFrames() {
+    if (!this._headGroup) return;
+    const frames = {};
+    for (const side of ['left', 'right']) {
+      const eye = this[`_${side}EyeContainer`];
+      if (!eye) return;
+      eye.updateWorldMatrix(true, false);
+      let tilt = 0;
+      const m = this._morpher;
+      const inner = m?.getCurrentLandmarkPosition?.(`eye_${side}_inner`);
+      const outer = m?.getCurrentLandmarkPosition?.(`eye_${side}_outer`);
+      const restInner = m?._landmarkPositions?.[`eye_${side}_inner`];
+      const restOuter = m?._landmarkPositions?.[`eye_${side}_outer`];
+      if (inner && outer && restInner && restOuter) {
+        // The head geometry is Y-up. Measure frontal tilt in XY, not depth XZ.
+        const angle = Math.atan2(outer[1] - inner[1], outer[0] - inner[0]);
+        const restAngle = Math.atan2(restOuter[1] - restInner[1], restOuter[0] - restInner[0]);
+        tilt = Math.atan2(Math.sin(angle - restAngle), Math.cos(angle - restAngle));
+      }
+      tilt += (side === 'left' ? 1 : -1) * (this.params.rotZ - 50) / 50 * .3;
+      frames[side] = {
+        centre: eye.getWorldPosition(new THREE.Vector3()),
+        scale: Math.max(.35, Math.min(2, eye.scale.x / (this._eyeBaseScale * 1.27))),
+        tilt,
+      };
+    }
+    this._headGroup.traverse(mesh => {
+      if (!mesh.isMesh) return;
+      mesh.updateWorldMatrix(true, false);
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const material of materials) {
+        const u = material?.userData?.skinShader?.uniforms;
+        if (!u?.uUnderEyeLeft) continue;
+        for (const side of ['left', 'right']) {
+          const frame = frames[side];
+          // World -> this mesh cancels the common head-tracker pivot rotation.
+          const centre = mesh.worldToLocal(frame.centre.clone());
+          const uniform = side === 'left' ? u.uUnderEyeLeft : u.uUnderEyeRight;
+          uniform.value.set(centre.x, centre.y, frame.scale, frame.tilt);
+        }
+      }
+    });
   }
 
   refreshFromMesh() {
