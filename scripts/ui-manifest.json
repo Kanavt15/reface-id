@@ -2053,7 +2053,7 @@
                       "hair-slider"
                     ],
                     "min": "0",
-                    "max": "300",
+                    "max": "1200",
                     "step": null,
                     "value": "70",
                     "valueText": "70",

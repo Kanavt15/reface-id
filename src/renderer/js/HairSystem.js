@@ -9,7 +9,10 @@
  */
 
 class HairSystem {
-  static get MAX_HAIR_DENSITY() { return 300; }
+  // One shell of fibres per 100. The ceiling is whatever HairStrands
+  // actually builds layers for; going past it would index off the end of
+  // the aHairLayer attribute and add nothing.
+  static get MAX_HAIR_DENSITY() { return HairStrands.MAX_LAYERS * 100; }
   /** Clearance kept between the bottom of the brow and the upper eyelid. */
   static get BROW_EYE_GAP() { return 0.02; }
 
@@ -558,7 +561,10 @@ class HairSystem {
       if (m.alphaMap) m.alphaTest = 0.56 - baseDensity * 0.42;
       // Beyond 100, add independently offset fibres using the same buffers.
       // Fractional layers are selected in the shader without rebuilding hair.
-      if (child.geometry.isInstancedBufferGeometry) child.geometry.instanceCount = Math.max(1, Math.ceil(d));
+      if (child.geometry.isInstancedBufferGeometry) {
+        const layers = child.geometry.getAttribute('aHairLayer')?.count || 1;
+        child.geometry.instanceCount = Math.min(layers, Math.max(1, Math.ceil(d)));
+      }
       /* No needsUpdate. It used to be set here and it was always unnecessary:
          roughness and opacity are uniforms, and transparent and depthWrite are
          draw state three reads every frame — none of them change the program.

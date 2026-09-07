@@ -3,6 +3,13 @@
  * No rendered polygon spans the width of an original clump.
  */
 class HairStrands {
+  // Extra shells of fibres drawn over the groom. Density above 100 switches
+  // them on one at a time, so this is what sets the density ceiling.
+  // Shells reuse the strand buffers, so each one costs draw time and no
+  // memory, and an unused shell costs neither: raising this only widens the
+  // runway, it does not make an ordinary head any more expensive to render.
+  static get MAX_LAYERS() { return 12; }
+
   // Used by both visible and shadow passes so extra density casts matching
   // shadows. Layer zero is the original groom, including its strand IDs.
   static layerVertexGLSL() {
@@ -14,7 +21,13 @@ class HairStrands {
         vec3 across = normalize(cross(tangent, surfaceNormal));
         float lateral = fract(sin(id * 127.1 + aHairLayer * 311.7) * 43758.5453) * 2.0 - 1.0;
         float lift = fract(sin(id * 269.5 + aHairLayer * 183.3) * 43758.5453) * 2.0 - 1.0;
-        return (across * lateral + surfaceNormal * lift * 0.65) * width * 7.0 * aHairLayer;
+        // Radius grows with the layer so no two shells coincide, but past the
+        // first two it grows at half rate: the outer shells of a very dense
+        // head belong inside the groom, not standing off it as a halo. Layers
+        // 1 and 2 keep their original radius, so density up to 300 renders
+        // exactly as it did before.
+        float shell = min(aHairLayer, 2.0 + (aHairLayer - 2.0) * 0.5);
+        return (across * lateral + surfaceNormal * lift * 0.65) * width * 7.0 * shell;
       }
     `;
   }
@@ -99,7 +112,7 @@ class HairStrands {
             .replace('#include <alphamap_fragment>', '')
             .replace('#include <alphatest_fragment>', '#ifdef USE_ALPHATEST\nif (vHairFiber.z < max(0.0, alphaTest - 0.14) * 0.8 || vHairFiber.y < 0.012) discard;\nif (vHairLayer > 0.5 && vHairFiber.z >= uHairDensity - vHairLayer) discard;\n#endif');
         };
-        mat.customProgramCacheKey = () => 'hair-fibre-shadow-v4';
+        mat.customProgramCacheKey = () => 'hair-fibre-shadow-v5';
       }
       material.addEventListener('dispose', () => { depth.dispose(); distance.dispose(); cache.delete(material); });
       cache.set(material, { depth, distance });
@@ -228,7 +241,7 @@ class HairStrands {
     }
     const geometry = new THREE.InstancedBufferGeometry();
     geometry.instanceCount = 1;
-    geometry.setAttribute('aHairLayer', new THREE.InstancedBufferAttribute(new Float32Array([0, 1, 2]), 1));
+    geometry.setAttribute('aHairLayer', new THREE.InstancedBufferAttribute(Float32Array.from({ length: HairStrands.MAX_LAYERS }, (_, i) => i), 1));
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
     geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
