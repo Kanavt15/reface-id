@@ -90,42 +90,56 @@ class EyeSystem {
      * no wet surface, no limbal ring, no iris structure, no catchlight, and a
      * sclera brighter than anything else on the face.
      *
-     * All of the detail added below is derived from the view-space normal
-     * rather than from textures, because the eye GLB's UV layout is a Blender
-     * UV sphere and a radial iris pattern cannot be mapped onto it sensibly.
-     * The normal gives both the radius (how far off-axis a point is) and the
-     * angle, which is all an iris pattern needs. */
+     * The structure itself lives in EyeShading, which derives it from the
+     * eyeball's own gaze axis rather than from textures — the eye GLB's UV
+     * layout is a Blender UV sphere whose pole does not sit where the pupil
+     * does, so a radial iris pattern cannot be mapped onto it without a seam
+     * and a pinch. See EyeShading.measureAnatomy(). */
 
     this._sclera = new THREE.MeshPhysicalMaterial({
       // Never pure white. A real sclera is a warm off-white and is the single
       // most common giveaway when it is left at #ffffff.
       color: new THREE.Color(this._eyeMaterials.scleraColor),
-      roughness: 0.30,
+      /* Matte, and matte by a wide margin.
+       *
+       * Bare sclera is opaque collagen with no gloss of its own; every
+       * highlight a real eye shows belongs to the tear film lying on it,
+       * which is the cornea shell's job and now stays where the film is thick
+       * enough to behave like one. At 0.30 the sclera carried its own broad
+       * specular lobe, and under the key that lobe measured 233 against skin
+       * at 128 — a clipped white smear the size of the iris sitting beside
+       * it. One mirror that big is all it takes to read as a glass bead,
+       * whatever the diffuse term is doing.
+       *
+       * The same reasoning retires the clearcoat: at 1.0 it made a chrome
+       * ball, at 0.05 it was a second, redundant film over the one in front. */
+      roughness: 0.65,
       metalness: 0.0,
-      /* The tear film is a separate smooth layer over a rougher surface — but
-         at clearcoat 1.0 with a near-mirror roughness it stopped being a film
-         and became a chrome ball, reflecting the whole bright upper half of
-         the environment. That reflection, not the base colour, was what kept
-         the sclera the brightest object in the frame no matter how far the
-         diffuse term was pushed down. A tear film is a sheen at a glancing
-         angle, not a mirror across the whole eyeball. */
-      clearcoat: 0.05,
-      clearcoatRoughness: 0.35,
-      envMapIntensity: 0.14,
+      clearcoat: 0.0,
+      envMapIntensity: 0.10,
       side: THREE.FrontSide,
     });
-    EyeSystem._attachScleraShading(this._sclera);
+    EyeShading.attachSclera(this._sclera);
 
     this._iris = new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(this._eyeMaterials.irisColor),
-      roughness: 0.35,
+      /* Matte, and with no coat of its own.
+       *
+       * An iris stroma is a fibrous, essentially matte tissue. Every bit of
+       * gloss on a real eye belongs to the tear film in front of it — which
+       * is what the cornea shell now is, and which now actually covers the
+       * iris rather than passing under it. Leaving the clearcoat at 0.6 here
+       * gave the iris a second highlight of its own a few millimetres behind
+       * the corneal one, and a doubled catchlight is a straight giveaway. */
+      roughness: 0.50,
       metalness: 0.0,
-      clearcoat: 0.6,
-      clearcoatRoughness: 0.1,
-      envMapIntensity: 0.8,
+      clearcoat: 0.0,
+      // An iris does not mirror the room; it scatters. The environment is
+      // here to keep it out of pure black in the shadowed eye, no more.
+      envMapIntensity: 0.45,
       side: THREE.FrontSide,
     });
-    EyeSystem._attachIrisShading(this._iris);
+    EyeShading.attachIris(this._iris);
 
     this._pupil = new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(this._eyeMaterials.pupilColor),
@@ -182,6 +196,12 @@ class EyeSystem {
       depthWrite: false,
       side: THREE.FrontSide,
     });
+    /* And the shell is no longer uniformly wet. attachCornea confines the
+       glassy part to the corneal cap, pools a bright meniscus in the limbal
+       groove and dries out the lid-covered top of the ball, which cuts the
+       flat additive wash the comment above is about by a further two thirds
+       everywhere except the cornea itself. */
+    EyeShading.attachCornea(this._cornea);
 
     // Eye model configurations (reference to GLB files when available)
     this.eyeModels = {
@@ -258,139 +278,105 @@ class EyeSystem {
     console.log('[EyeSystem] Initialized');
   }
 
-  // ── Eye detail shading ───────────────────────────────────────────────────
+  // ── Eye anatomy ────────────────────────────────────────────────────────
 
   /**
-   * Give the iris its structure: a limbal ring, radial fibres, a collarette
-   * and a darkened rim.
+   * Measure one assembled eyeball and hand its anatomy to the shaders.
    *
-   * Everything is parameterised off the view-space normal instead of UVs. On a
-   * sphere, `dot(N, V)` falls from 1 at the point facing the camera to 0 at the
-   * silhouette, which is exactly a normalised radius from the iris centre; and
-   * `atan(N.y, N.x)` gives the angle around it. A Blender UV sphere's own
-   * TEXCOORD_0 could not carry a radial pattern without visible pinching at the
-   * pole and a seam down one side.
+   * The three parts are spheres, so the gaze axis, the limbus and the pupil
+   * margin all fall out of sphere intersections — see
+   * EyeShading.measureAnatomy(). Measuring beats hard-coding because the same
+   * code has to serve the GLB eyes and the procedural fallback, whose
+   * proportions differ, and because nothing here then breaks if the asset is
+   * re-exported at another scale.
+   *
+   * Returns the anatomy, or null when the meshes are not the spheres this
+   * assumes; callers fall back to leaving the shaders on their defaults.
    */
-  static _attachIrisShading(material) {
-    material.onBeforeCompile = (shader) => {
-      shader.fragmentShader = shader.fragmentShader.replace(
-        '#include <color_fragment>',
-        [
-          '#include <color_fragment>',
-          '#ifndef FLAT_SHADED',
-          '{',
-          '  vec3 N = normalize( vNormal );',
-          '  vec3 V = normalize( vViewPosition );',
-          // 0 at the iris centre, 1 at its outer edge.
-          '  float radius = clamp( 1.0 - abs( dot( N, V ) ), 0.0, 1.0 );',
-          '  float r = sqrt( radius );',
-          '  float angle = atan( N.y, N.x );',
-          '',
-          // Radial fibres. Two frequencies so the pattern does not read as a
-          // regular starburst; the outer iris is more fibrous than the inner.
-          '  float fib = sin( angle * 38.0 ) * 0.5 + 0.5;',
-          '  fib = mix( fib, sin( angle * 71.0 + 1.7 ) * 0.5 + 0.5, 0.45 );',
-          '  float fibreAmt = smoothstep( 0.18, 0.85, r ) * 0.30;',
-          '  diffuseColor.rgb *= 1.0 - fibreAmt * 0.5 + fib * fibreAmt;',
-          '',
-          // The collarette: the raised ring about a third out from the pupil.
-          '  float collar = exp( -pow( ( r - 0.36 ) * 9.0, 2.0 ) );',
-          '  diffuseColor.rgb *= 1.0 + collar * 0.22;',
-          '',
-          // The limbal ring — the dark band where iris meets sclera. A strong
-          // real-eye cue, and one people notice missing without knowing why.
-          '  float limbal = smoothstep( 0.78, 1.0, r );',
-          '  diffuseColor.rgb *= 1.0 - limbal * 0.62;',
-          '',
-          // Depth: an iris is a cone, darker toward the pupil where the
-          // stroma is deepest.
-          '  diffuseColor.rgb *= mix( 0.78, 1.35, smoothstep( 0.0, 0.55, r ) );',
-          '}',
-          '#endif',
-        ].join('\n')
-      );
-    };
-    material.customProgramCacheKey = () => 'iris';
-    material.needsUpdate = true;
-    return material;
+  _bindEyeAnatomy(container) {
+    /* Bind the baked maps and the melanin first: neither depends on the
+       geometry, so both apply whether or not the parts turn out to be
+       measurable spheres. The maps cost a couple of hundred milliseconds of
+       canvas work on the first call and nothing on every call after. */
+    EyeShading.setMaps(this._iris);
+    EyeShading.setMaps(this._sclera);
+    EyeShading.setMelanin(this._iris, this.eyeColor);
+
+    const parts = {};
+    container.traverse((c) => {
+      if (!c.isMesh) return;
+      if (c.material === this._sclera) parts.sclera = c;
+      else if (c.material === this._iris) parts.iris = c;
+      else if (c.material === this._pupil) parts.pupil = c;
+    });
+    if (!parts.sclera || !parts.iris) return null;
+
+    const anatomy = EyeShading.measureAnatomy(parts);
+    if (!anatomy) {
+      console.warn('[EyeSystem] Eye parts are not measurable spheres; shading stays on defaults');
+      return null;
+    }
+
+    EyeShading.setAnatomy(this._sclera, anatomy, parts.sclera);
+    EyeShading.setAnatomy(this._iris, anatomy, parts.iris);
+    // The shell hangs off the sclera mesh and inherits its rotation, so the
+    // sclera's own space is the shell's space for directions.
+    EyeShading.setAnatomy(this._cornea, anatomy, parts.sclera);
+
+    /* Recess the pupil.
+     *
+     * The asset's pupil is a sphere whose pole sits *outside* the iris dome,
+     * so it rendered as a black bead bulging off the front of the eye rather
+     * than as a hole in it — and it poked through the cornea shell as well.
+     * A pupil is an aperture; nothing about it protrudes. Pushed back along
+     * the gaze axis until it is just under the iris surface, where it is
+     * hidden by the opaque iris and the iris shader draws the pupil instead
+     * (soft-edged, and displaced by corneal refraction, which a rigid mesh
+     * cannot be). It is kept rather than removed because the opacity slider
+     * makes the iris translucent, and then the eye does need something black
+     * behind it.
+     */
+    if (parts.pupil && anatomy.pupilProtrusion > 0) {
+      const sink = anatomy.pupilProtrusion + anatomy.irisRadius * 0.03;
+      parts.pupil.position.addScaledVector(anatomy.axis, -sink);
+      parts.pupil.updateMatrix();
+    }
+
+    return anatomy;
   }
 
   /**
-   * Shade the sclera so it stops looking like a ping-pong ball.
+   * Build the tear-film shell for one eye container.
    *
-   * Two things are happening on a real eye: the upper part sits in the shadow
-   * of the brow and lid and is markedly darker than the lower, and the corners
-   * carry visible vasculature. A uniformly lit white sphere has neither, and
-   * ends up the brightest object on the face — which is never true of a real
-   * photograph.
+   * Shaped by EyeShading.buildCorneaGeometry(): a sphere over the sclera with
+   * a corneal cap grafted on at the limbus, so the eyeball has the bulge a
+   * real one has instead of being a bare ball. Rendered last with depth
+   * writing off, so it composites over the iris and pupil regardless of draw
+   * order.
    */
-  static _attachScleraShading(material) {
-    material.onBeforeCompile = (shader) => {
-      shader.fragmentShader = shader.fragmentShader.replace(
-        '#include <color_fragment>',
-        [
-          '#include <color_fragment>',
-          '#ifndef FLAT_SHADED',
-          '{',
-          '  vec3 N = normalize( vNormal );',
-          '  vec3 V = normalize( vViewPosition );',
-          '  float radius = clamp( 1.0 - abs( dot( N, V ) ), 0.0, 1.0 );',
-          '',
-          // Lid and brow shadow. N.y > 0 is the upper hemisphere of the
-          // eyeball, which is the part the upper lid overhangs.
-          // The socket is a cave. An eyeball sits several millimetres inside
-          // a bony orbit under a brow, so almost none of the upper hemisphere
-          // sees open sky — which is why a sclera photographs around the value
-          // of light skin and never as white. Rendering it bright is the
-          // single most common reason CG eyes look like marbles.
-          '  float lid = smoothstep( -0.45, 0.75, N.y );',
-          '  diffuseColor.rgb *= mix( 0.86, 0.18, lid );',
-          '',
-          // Curving away into the corners of the socket.
-          '  diffuseColor.rgb *= mix( 1.0, 0.38, smoothstep( 0.30, 0.95, radius ) );',
-          '',
-          // Vasculature. Two incommensurate frequencies rather than one
-          // product of sines, which laid down regular vertical bands that
-          // looked like scratches on the surface.
-          // Vasculature, kept to a hint. A sclera is only 24mm across and at
-          // portrait distance its vessels are a faint warm cast at the
-          // corners, not drawn lines — anything stronger renders as streaks.
-          '  float vein = sin( N.x * 31.0 + N.y * 11.0 ) + 0.7 * sin( N.y * 43.0 - N.x * 7.0 ) + 0.5 * sin( N.x * 17.0 + N.y * 29.0 );',
-          '  vein = smoothstep( 1.25, 2.10, vein ) * smoothstep( 0.30, 0.80, radius );',
-          '  diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * vec3( 1.0, 0.72, 0.68 ), vein * 0.16 );',
-          '',
-          // A warm cast toward the inner and outer corners, where the
-          // conjunctiva thickens and picks up colour from the lids.
-          '  diffuseColor.rgb *= mix( vec3( 1.0 ), vec3( 1.03, 0.93, 0.86 ), smoothstep( 0.15, 0.85, radius ) );',
-          '}',
-          '#endif',
-        ].join('\n')
-      );
-    };
-    material.customProgramCacheKey = () => 'sclera';
-    material.needsUpdate = true;
-    return material;
-  }
-
-  /**
-   * Build the cornea shell for one eye container.
-   *
-   * Sized off the sclera's own bounding sphere so it tracks whatever eye model
-   * is loaded, and rendered last with depth writing off so it composites over
-   * the iris and pupil regardless of draw order.
-   */
-  _addCorneaShell(container) {
+  _addCorneaShell(container, anatomy) {
     let sclera = null;
     container.traverse((c) => {
       if (c.isMesh && c.material === this._sclera) sclera = c;
     });
     if (!sclera) return null;
 
-    sclera.geometry.computeBoundingSphere();
-    const bs = sclera.geometry.boundingSphere;
-    if (!bs) return null;
+    let geo = null;
+    let centre = null;
+    if (anatomy) {
+      const built = EyeShading.buildCorneaGeometry(anatomy, sclera);
+      geo = built.geometry;
+      centre = built.centre;
+    } else {
+      // Nothing measurable to shape a cap from; a plain lifted sphere is
+      // still better than no tear film at all.
+      sclera.geometry.computeBoundingSphere();
+      const bs = sclera.geometry.boundingSphere;
+      if (!bs) return null;
+      geo = new THREE.SphereGeometry(bs.radius * EyeShading.SHELL_LIFT, 48, 32);
+      centre = bs.center.clone();
+    }
 
-    const geo = new THREE.SphereGeometry(bs.radius * 1.02, 32, 24);
     const shell = new THREE.Mesh(geo, this._cornea);
     shell.name = 'CorneaShell';
     // Parented to the sclera rather than the container: the eye parts carry
@@ -398,7 +384,7 @@ class EyeSystem {
     // lands in the wrong place and at the wrong size. As a child it inherits
     // the eyeball's full transform for free, and keeps doing so when
     // _applyAdjustments() moves and rescales the eyes.
-    shell.position.copy(bs.center);
+    shell.position.copy(centre);
     shell.castShadow = false;
     shell.receiveShadow = false;
     shell.renderOrder = 3;
@@ -579,6 +565,14 @@ class EyeSystem {
     this.eyeColor = hexColor;
     this._eyeMaterials.irisColor = hexColor;
     this._iris.color.set(hexColor);
+
+    /* Colour is not only a tint here. How much anterior pigment the chosen
+       colour implies also decides how much of the stroma shows through: a
+       blue iris has none, so its fibres, crypts and furrows read at full
+       contrast, while a dark brown one buries the same structures. Without
+       this the palette would produce one texture in five hues, which is the
+       tell that an iris is a decal. */
+    EyeShading.setMelanin(this._iris, hexColor);
 
     // Ensure already-instantiated meshes update even if they were loaded earlier.
     this._updateRenderedIrisColor();
@@ -787,8 +781,21 @@ class EyeSystem {
       return;
     }
 
-    // Derive base scale from loaded mesh size so imported eyes are not oversized.
+    /* Derive base scale from loaded mesh size so imported eyes are not
+       oversized — from the anatomy only, with the tear-film shell hidden for
+       the measurement. The shell is a shading device, not part of the
+       eyeball's size, and letting it into the box means every future tweak to
+       the corneal bulge silently rescales both eyes. */
+    const shells = [];
+    this._leftEyeContainer.traverse((c) => {
+      // Detached rather than hidden: Box3.expandByObject takes no notice of
+      // `visible`, so the only way to keep a mesh out of the box is to take
+      // it out of the graph.
+      if (c.name === 'CorneaShell') shells.push({ shell: c, parent: c.parent });
+    });
+    for (const { shell, parent } of shells) parent.remove(shell);
     const leftBox = new THREE.Box3().setFromObject(this._leftEyeContainer);
+    for (const { shell, parent } of shells) parent.add(shell);
     const leftSize = new THREE.Vector3();
     leftBox.getSize(leftSize);
     const modelDiameter = Math.max(leftSize.x, leftSize.y, leftSize.z);
@@ -865,7 +872,11 @@ class EyeSystem {
       targetContainer.add(clone);
     }
 
-    this._addCorneaShell(targetContainer);
+    // Measure before the shell is built: the shell's cap is cut to the limbus
+    // the anatomy reports, so it cannot be shaped until the parts are in
+    // place and their spheres are known.
+    const anatomy = this._bindEyeAnatomy(targetContainer);
+    this._addCorneaShell(targetContainer, anatomy);
   }
 
   /**
@@ -953,6 +964,13 @@ class EyeSystem {
     this._rightEyeContainer.add(rightEyeball);
     this._rightEyeContainer.add(rightIris);
     this._rightEyeContainer.add(rightPupil);
+
+    // The fallback is measured and shelled on exactly the same path as the
+    // GLB eyes. Its spheres are differently proportioned, which is the whole
+    // reason the anatomy is derived rather than written down.
+    for (const container of [this._leftEyeContainer, this._rightEyeContainer]) {
+      this._addCorneaShell(container, this._bindEyeAnatomy(container));
+    }
 
     // Add to scene
     this.eyeGroup.add(this._leftEyeContainer);
@@ -1415,6 +1433,16 @@ class EyeSystem {
   // ── Cleanup ──
 
   _clearGroup(group) {
+    /* Free the shells on the way out.
+     *
+     * Everything else here shares geometry with the GLB cache and must not be
+     * disposed, but each cornea shell is built fresh for its container and is
+     * the one thing in the group that nothing else refers to. At 3.4k
+     * vertices a pair, regenerating eyes on every style change or restored
+     * case would otherwise strand them. */
+    group.traverse((child) => {
+      if (child.isMesh && child.name === 'CorneaShell') child.geometry.dispose();
+    });
     while (group.children.length > 0) {
       group.remove(group.children[0]);
     }
