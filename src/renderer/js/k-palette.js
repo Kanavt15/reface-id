@@ -39,7 +39,13 @@
 
   function sectionOf(node) {
     const panel = node.closest('.panel-content');
-    return panel ? panel.id.replace(/^panel-/, '') : null;
+    if (panel) return panel.id.replace(/^panel-/, '');
+    /* A control pinned to the bench has been moved out of its section, so
+       walking up finds no panel. k-workbench stamps the section it came
+       from on the way out; without reading it back, pinning a parameter
+       would quietly remove it from the palette. */
+    if (node.closest('.k-bench')) return node.dataset.kSection || null;
+    return null;
   }
 
   /* The trail of groups a control sits inside — shown as context in the

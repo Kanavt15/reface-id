@@ -99,6 +99,28 @@
                   "kind": "block",
                   "block": {
                     "type": "slider",
+                    "param": "asymmetry",
+                    "label": "Asymmetry",
+                    "id": null,
+                    "controlId": null,
+                    "valueId": null,
+                    "sliderClass": [
+                      "morph-slider"
+                    ],
+                    "min": "0",
+                    "max": "100",
+                    "step": null,
+                    "value": "50",
+                    "valueText": "50",
+                    "data": {
+                      "data-param": "asymmetry"
+                    }
+                  }
+                },
+                {
+                  "kind": "block",
+                  "block": {
+                    "type": "slider",
                     "param": "faceTaper",
                     "label": "Taper",
                     "id": null,
@@ -4564,7 +4586,8 @@
                     "valueText": "50",
                     "data": {
                       "data-param": "underEyeIntensity"
-                    }
+                    },
+                    "disabled": true
                   }
                 }
               ]
@@ -4791,6 +4814,39 @@
                     "data": {
                       "data-param": "skinPoreDetail"
                     }
+                  }
+                },
+                {
+                  "kind": "block",
+                  "block": {
+                    "type": "slider",
+                    "param": "skinMicroRelief",
+                    "label": "Micro Relief",
+                    "id": "sliderMicroRelief",
+                    "controlId": null,
+                    "valueId": "valMicroRelief",
+                    "title": "Depth of the close-up pore bumpiness",
+                    "sliderClass": [
+                      "skin-texture-slider"
+                    ],
+                    "min": "0",
+                    "max": "100",
+                    "step": null,
+                    "value": "50",
+                    "valueText": "50",
+                    "data": {
+                      "data-param": "skinMicroRelief"
+                    }
+                  }
+                },
+                {
+                  "kind": "block",
+                  "block": {
+                    "type": "checkbox",
+                    "id": "cheekFlushToggle",
+                    "label": "Cheek flush",
+                    "checked": false,
+                    "data": {}
                   }
                 }
               ]

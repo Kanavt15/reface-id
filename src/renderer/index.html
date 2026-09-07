@@ -615,19 +615,32 @@
 
       <!-- Tools -->
       <div class="k-float k-tools" id="k-tools">
-          <button type="button" class="k-tool" id="btnEditPoints" title="Edit face points" aria-label="Edit face points"><svg class="i" aria-hidden="true"><use href="#i-crosshair"/></svg></button>
-          <button type="button" class="k-tool" id="btnSkinMarks" title="Skin marks" aria-label="Skin marks"><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg></button>
-          <button type="button" class="k-tool" id="btnDecals" title="Decals and tattoos" aria-label="Decals and tattoos"><svg class="i" aria-hidden="true"><use href="#i-image"/></svg></button>
+          <button type="button" class="k-tool" id="btnEditPoints" title="Edit face points" aria-label="Edit face points"><svg class="i" aria-hidden="true"><use href="#i-crosshair"/></svg><span class="k-tool-label">Edit face points</span></button>
+          <button type="button" class="k-tool" id="btnSkinMarks" title="Skin marks" aria-label="Skin marks"><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><span class="k-tool-label">Skin marks</span></button>
+          <button type="button" class="k-tool" id="btnDecals" title="Decals and tattoos" aria-label="Decals and tattoos"><svg class="i" aria-hidden="true"><use href="#i-image"/></svg><span class="k-tool-label">Decals and tattoos</span></button>
           <div class="k-tool-sep"></div>
-          <button type="button" class="k-tool" id="btnLipPaint" title="Lip paint" aria-label="Lip paint"><svg class="i" aria-hidden="true"><use href="#i-brush"/></svg></button>
-          <button type="button" class="k-tool" id="btnPigmentPaint" title="Pigmentation" aria-label="Pigmentation"><svg class="i" aria-hidden="true"><use href="#i-droplet"/></svg></button>
-          <button type="button" class="k-tool" id="btnWrinklePaint" title="Wrinkles" aria-label="Wrinkles"><svg class="i" aria-hidden="true"><use href="#i-eraser"/></svg></button>
+          <button type="button" class="k-tool" id="btnLipPaint" title="Lip paint" aria-label="Lip paint"><svg class="i" aria-hidden="true"><use href="#i-brush"/></svg><span class="k-tool-label">Lip paint</span></button>
+          <button type="button" class="k-tool" id="btnPigmentPaint" title="Pigmentation" aria-label="Pigmentation"><svg class="i" aria-hidden="true"><use href="#i-droplet"/></svg><span class="k-tool-label">Pigmentation</span></button>
+          <button type="button" class="k-tool" id="btnWrinklePaint" title="Wrinkles" aria-label="Wrinkles"><svg class="i" aria-hidden="true"><use href="#i-eraser"/></svg><span class="k-tool-label">Wrinkles</span></button>
           <div class="k-tool-sep"></div>
-          <button type="button" class="k-tool" id="btnFaceCapture" title="Capture from camera" aria-label="Capture from camera"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg></button>
-          <button type="button" class="k-tool" id="btnHeadTrack" title="Live head tracking" aria-label="Live head tracking"><svg class="i" aria-hidden="true"><use href="#i-user"/></svg></button>
-          <button type="button" class="k-tool" id="btnRecalibrateHead" title="Recalibrate tracking" aria-label="Recalibrate tracking"><svg class="i" aria-hidden="true"><use href="#i-rotate"/></svg></button>
+          <button type="button" class="k-tool" id="btnFaceCapture" title="Capture from camera" aria-label="Capture from camera"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg><span class="k-tool-label">Capture from camera</span></button>
+          <button type="button" class="k-tool" id="btnHeadTrack" title="Live head tracking" aria-label="Live head tracking"><svg class="i" aria-hidden="true"><use href="#i-user"/></svg><span class="k-tool-label">Live head tracking</span></button>
+          <button type="button" class="k-tool" id="btnRecalibrateHead" title="Recalibrate tracking" aria-label="Recalibrate tracking"><svg class="i" aria-hidden="true"><use href="#i-rotate"/></svg><span class="k-tool-label">Recalibrate tracking</span></button>
           <div class="k-tool-sep"></div>
-          <button type="button" class="k-tool" id="btnAgeProgression" title="Age progression" aria-label="Age progression"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg></button>
+          <button type="button" class="k-tool" id="btnAgeProgression" title="Age progression" aria-label="Age progression"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span class="k-tool-label">Age progression</span></button>
+      </div>
+
+      <!-- Active-mode banner. The tools latch: pressing "Skin marks" puts
+           the stage into a state where a click on the face adds a mark,
+           and until now the only sign of that was a 30px button glowing at
+           the edge of the screen. A latched mode that the operator has
+           forgotten about turns every subsequent click into an accident,
+           so the mode says its own name over the render and offers the way
+           out. Driven by k-workbench.js watching .k-tool.active. -->
+      <div class="k-float k-mode" id="k-mode" hidden>
+        <span class="k-mode-dot"></span>
+        <span class="k-mode-name" id="k-mode-name">—</span>
+        <button type="button" class="k-mode-exit" id="k-mode-exit">Done<span class="k-key">Esc</span></button>
       </div>
 
       <!-- Camera dock -->
@@ -663,6 +676,40 @@
             <button type="button" class="k-ibtn" id="k-sheet-close" title="Hide panel (Esc)"><svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button>
           </div>
         </header>
+
+        <!-- Filter row. Always present rather than summoned: finding a
+             parameter is the most frequent single act in this interface,
+             and a field you have to remember a shortcut to open is a field
+             most operators never find. Ctrl+K still exists for jumping
+             across sections; this one narrows the section you are in and
+             lets you stay in the narrowed view and work. -->
+        <div class="k-sheet-filter">
+          <label class="k-filter-field" for="k-filter-input">
+            <svg class="i" aria-hidden="true"><use href="#i-search"/></svg>
+            <input type="text" id="k-filter-input" class="k-filter-input"
+                   placeholder="Filter this section…" autocomplete="off" spellcheck="false" />
+            <button type="button" class="k-filter-clear" id="k-filter-clear" title="Clear filter" hidden><svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button>
+          </label>
+          <button type="button" class="k-chip" id="k-filter-edited" title="Show only parameters that differ from their default">
+            <svg class="i" aria-hidden="true"><use href="#i-record"/></svg><span>Edited</span><span class="k-chip-n k-num" id="k-filter-edited-n">0</span>
+          </button>
+        </div>
+
+        <!-- Bench. Controls the operator has pinned, gathered out of
+             whichever sections they live in and kept on screen in every
+             one. Reconstruction is iterative across features — nose width,
+             then jaw, then back to the nose — and those live in different
+             groups, so without somewhere to collect them the work is a
+             loop of opening and closing the same three accordions. -->
+        <div class="k-bench" id="k-bench" hidden>
+          <div class="k-bench-head">
+            <span class="k-cap">Bench</span>
+            <span class="k-sheet-count k-num" id="k-bench-count">0</span>
+            <button type="button" class="k-ibtn" id="k-bench-clear" title="Unpin everything"><svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button>
+          </div>
+          <div class="k-bench-body" id="k-bench-body"></div>
+        </div>
+
         <div class="k-sheet-body" id="k-sheet-body">
       <div class="panel-content active" id="panel-face">
         <div class="control-group">
@@ -675,13 +722,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-expand"/></svg>
               <span>Face Dimensions</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="faceWidth">
               <label>
@@ -723,13 +770,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-record"/></svg>
               <span>Head Dimensions</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="headWidth">
               <label>
@@ -765,13 +812,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Size</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="foreheadHeight">
               <label>
@@ -804,13 +851,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-settings"/></svg>
               <span>Shape</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="foreheadSlope">
               <label>
@@ -846,13 +893,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-move"/></svg>
               <span>Position</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="browHeight">
               <label>
@@ -876,13 +923,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Shape</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="browProminence">
               <label>
@@ -927,13 +974,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-move"/></svg>
               <span>Position</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="eyeSpacing">
               <label>
@@ -966,13 +1013,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-expand"/></svg>
               <span>Size &amp; Shape</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="eyeSize">
               <label>
@@ -1017,13 +1064,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Overall</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="noseLength">
               <label>
@@ -1047,13 +1094,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Bridge</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="noseBridgeWidth">
               <label>
@@ -1077,13 +1124,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Tip</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="noseTipHeight">
               <label>
@@ -1107,13 +1154,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-hair"/></svg>
               <span>Nostrils</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="nostrilFlare">
               <label>
@@ -1140,13 +1187,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-gem"/></svg>
               <span>Cheekbones</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="cheekboneProminence">
               <label>
@@ -1170,13 +1217,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Flesh</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="cheekFullness">
               <label>
@@ -1212,13 +1259,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Size</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="mouthWidth">
               <label>
@@ -1242,13 +1289,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Lips</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="upperLipThickness">
               <label>
@@ -1290,13 +1337,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Philtrum</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="philtrumDepth">
               <label>
@@ -1320,13 +1367,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Corners</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="lipCornerAngle">
               <label>
@@ -1353,13 +1400,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Jaw</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="jawWidth">
               <label>
@@ -1383,13 +1430,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Chin</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="chinHeight">
               <label>
@@ -1434,13 +1481,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-move"/></svg>
               <span>Size &amp; Position</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="earSize">
               <label>
@@ -1473,13 +1520,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-record"/></svg>
               <span>Earlobe</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="earlobeSize">
               <label>
@@ -1506,13 +1553,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Editing Tools</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="k-verbatim">
               <p class="edit-points-desc">
@@ -1530,13 +1577,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-settings"/></svg>
               <span>Settings</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control" id="pointEditRadiusControl">
               <label>
@@ -1569,13 +1616,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-undo"/></svg>
               <span>Actions</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="k-verbatim">
               <div class="edit-points-controls">
@@ -1682,13 +1729,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Dimensions</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="hairLength">
               <label>
@@ -1712,13 +1759,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-settings"/></svg>
               <span>Texture</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control" data-param="hairDensity">
               <label>
@@ -1755,13 +1802,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-move"/></svg>
               <span>Position</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="hairPosX">
               <label>
@@ -1794,13 +1841,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-rotate"/></svg>
               <span>Transform</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="hairRotY">
               <label>
@@ -1852,13 +1899,13 @@
               
             </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-droplet"/></svg>
               <span>Color Tint / Overlay</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="color-picker-row">
               <label>Tint Color</label>
@@ -1902,13 +1949,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-palette"/></svg>
               <span>Style &amp; Color</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="select-control">
               <label for="beardStyle">Style</label>
@@ -1938,13 +1985,13 @@
               
             </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-droplet"/></svg>
               <span>Color Tint / Overlay</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="color-picker-row">
               <label>Tint Color</label>
@@ -1978,13 +2025,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-move"/></svg>
               <span>Position</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control" data-param="beardPosX">
               <label>
@@ -2017,13 +2064,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-rotate"/></svg>
               <span>Rotation &amp; Scale</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control" data-param="beardRotX">
               <label>
@@ -2077,13 +2124,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-palette"/></svg>
               <span>Color</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="color-picker-row">
               <label>Eyebrow Color</label>
@@ -2109,13 +2156,13 @@
               </div>
             </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-droplet"/></svg>
               <span>Color Tint / Overlay</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="color-picker-row">
               <label>Tint Color</label>
@@ -2149,13 +2196,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Shape</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control" data-param="eyebrowThickness">
               <label>
@@ -2206,13 +2253,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-move"/></svg>
               <span>Position</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control" data-param="eyebrowSpacing">
               <label>
@@ -2254,13 +2301,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-rotate"/></svg>
               <span>Rotation &amp; Scale</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control" data-param="eyebrowTiltX">
               <label>
@@ -2305,13 +2352,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-palette"/></svg>
               <span>Color</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="color-picker-row">
               <label>Eyelash Color</label>
@@ -2339,13 +2386,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Shape</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control" data-param="eyelashThickness">
               <label>
@@ -2378,13 +2425,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-move"/></svg>
               <span>Position</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control" data-param="eyelashPosX">
               <label>
@@ -2417,13 +2464,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-rotate"/></svg>
               <span>Rotation &amp; Scale</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="eyelashRotX">
               <label>
@@ -2477,13 +2524,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Target &amp; Tool</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="select-control">
               <label for="hairTintPaintTarget">Paint Target</label>
@@ -2498,13 +2545,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-palette"/></svg>
               <span>Brush Color</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="color-picker-row">
               <label>Tint Color</label>
@@ -2527,13 +2574,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-settings"/></svg>
               <span>Brush Settings</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control">
               <label>
@@ -2557,13 +2604,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Actions</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="k-verbatim">
               <div class="rf-btn-wrap">
@@ -2776,13 +2823,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Age &amp; Surface</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control" data-param="skinAge">
               <label>
@@ -2806,18 +2853,18 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-brush"/></svg>
               <span>Draw Wrinkles</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="k-btn-row"><button type="button" id="btnToggleWrinklePaint" class="btn-small"><svg class="i" aria-hidden="true"><use href="#i-brush"/></svg><span>Enable Wrinkle Painting</span></button></div>
             <p class="k-note">Drag to draw a soft skin fold. Width and strength apply to new strokes.</p>
             <div class="slider-control" data-param="skinWrinkleDepth">
-              <label for="sliderWrinkleDepth">
+              <label>
                 <span>Drawn Wrinkle Intensity</span>
                 <span class="slider-value" id="valWrinkleDepth">100</span>
               </label>
@@ -2860,39 +2907,40 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
-              <svg class="i" aria-hidden="true"><use href="#i-droplet"/></svg>
+            <div class="sub-group-header">
+              <svg class="i" aria-hidden="true"><use href="#i-visible"/></svg>
               <span>Under-eye Wrinkle Preset</span>
+              
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
-                <div class="input-control">
-                  <label class="checkbox-label">
-                    <input type="checkbox" id="underEyeWrinklesToggle" />
-                    <span>Enable under-eye wrinkles</span>
-                  </label>
-                </div>
-                <div class="slider-control" data-param="underEyeIntensity">
-                  <label for="sliderUnderEyeIntensity">
-                    <span>Under-eye Intensity</span>
-                    <span class="slider-value" id="valUnderEyeIntensity">50</span>
-                  </label>
-                  <div class="slider-row">
-                    <input type="range" id="sliderUnderEyeIntensity" class="skin-texture-slider" min="0" max="100" value="50" disabled />
-                  </div>
-                </div>
+            <div class="input-control">
+              <label class="checkbox-label">
+                <input type="checkbox" id="underEyeWrinklesToggle" />
+                <span>Enable under-eye wrinkles</span>
+              </label>
+            </div>
+            <div class="slider-control k-centred" data-param="underEyeIntensity">
+              <label>
+                <span>Under-eye Intensity</span>
+                <span class="slider-value" id="valUnderEyeIntensity">50</span>
+              </label>
+              <div class="slider-row">
+                <input type="range" id="sliderUnderEyeIntensity" class="skin-texture-slider" min="0" max="100" value="50" disabled />
+              </div>
+            </div>
               </div>
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-droplet"/></svg>
               <span>Pigmentation / Dark Spots</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="k-btn-row"><button type="button" id="btnTogglePigmentPaint" class="btn-small"><svg class="i" aria-hidden="true"><use href="#i-droplet"/></svg><span>Enable Pigmentation Pen</span></button></div>
             <div class="k-stack">
@@ -2955,13 +3003,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-skin"/></svg>
               <span>Skin Surface</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="skinRoughness">
               <label>
@@ -2981,7 +3029,7 @@
                 <input type="range" id="sliderPoreDetail" class="skin-texture-slider" min="0" max="100" value="0" />
               </div>
             </div>
-            <div class="slider-control" data-param="skinMicroRelief" title="Depth of the close-up pore bumpiness">
+            <div class="slider-control k-centred" data-param="skinMicroRelief" title="Depth of the close-up pore bumpiness">
               <label>
                 <span>Micro Relief</span>
                 <span class="slider-value" id="valMicroRelief">50</span>
@@ -3045,13 +3093,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-expand"/></svg>
               <span>Size</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="eyeScale">
               <label>
@@ -3075,13 +3123,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-move"/></svg>
               <span>Position</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="eyePosX">
               <label>
@@ -3114,13 +3162,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-rotate"/></svg>
               <span>Rotation</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="eyeRotX">
               <label>
@@ -3153,13 +3201,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-visible"/></svg>
               <span>Appearance</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control" data-param="eyeOpacity">
               <label>
@@ -3209,13 +3257,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-crosshair"/></svg>
               <span>Placement Tools</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="k-verbatim">
               <p class="edit-points-desc">
@@ -3246,13 +3294,13 @@
             </div>
           </div>
           <div class="feature-sub-group" id="skinMarkPropertiesGroup">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Selected Mark</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control">
               <label>
@@ -3300,13 +3348,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-user"/></svg>
               <span>Identity</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="select-control">
               <label for="ageRange">Estimated Age Range</label>
@@ -3330,13 +3378,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Body Type</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control k-centred" data-param="weight">
               <label>
@@ -3363,13 +3411,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-image"/></svg>
               <span>Texture Gallery</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="k-verbatim">
               <p class="edit-points-desc">
@@ -3387,26 +3435,26 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-crosshair"/></svg>
               <span>Placement</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="k-btn-row"><button type="button" id="btnToggleDecalPlace" class="btn btn-accent"><svg class="i" aria-hidden="true"><use href="#i-crosshair"/></svg><span>Place on Face</span></button></div>
               </div>
             </div>
           </div>
           <div class="feature-sub-group" id="decalPropertiesGroup">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-settings"/></svg>
               <span>Selected Decal</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control">
               <label>
@@ -3459,13 +3507,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-visible"/></svg>
               <span>Style</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="hair-style-grid" id="glassesStyleGrid">
                 <div class="hair-style-card active" data-glasses-style="none" role="button" tabindex="0">
@@ -3499,13 +3547,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-palette"/></svg>
               <span>Color</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="input-control">
               <label for="glassesFrameColorPicker">Frame Color</label>
@@ -3528,13 +3576,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-move"/></svg>
               <span>Fit</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control" data-param="glassesScale">
               <label>
@@ -3642,13 +3690,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-visible"/></svg>
               <span>Style</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="hair-style-grid" id="faceMaskStyleGrid">
                 <div class="hair-style-card active" data-facemask-style="none" role="button" tabindex="0">
@@ -3674,13 +3722,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-palette"/></svg>
               <span>Color</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="input-control">
               <label for="faceMaskColorPicker">Mask Color</label>
@@ -3703,13 +3751,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-move"/></svg>
               <span>Fit</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control" data-param="faceMaskScale">
               <label>
@@ -3796,13 +3844,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-link"/></svg>
               <span>Ear Loops</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="sub-group-label">Left strap (subject's left)</div>
             <div class="slider-control" data-param="faceMaskStrapScaleL">
@@ -3876,13 +3924,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-visible"/></svg>
               <span>Style</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="hair-style-grid" id="earringStyleGrid">
                 <div class="hair-style-card active" data-earring-style="none" role="button" tabindex="0">
@@ -3912,13 +3960,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Worn On</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="hair-style-grid" id="earringSideGrid">
                 <div class="hair-style-card active" data-earring-side="both" role="button" tabindex="0">
@@ -3939,13 +3987,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-palette"/></svg>
               <span>Metal</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="input-control">
               <label for="earringColorPicker">Metal Color</label>
@@ -3982,13 +4030,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Fit</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control" data-param="earringSize">
               <label>
@@ -4030,13 +4078,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-settings"/></svg>
               <span>Per Side</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="sub-group-label">Left ear (subject's left)</div>
             <div class="slider-control" data-param="earringTiltL">
@@ -4128,13 +4176,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-visible"/></svg>
               <span>Wear</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="input-control">
               <label class="checkbox-label">
@@ -4161,13 +4209,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-palette"/></svg>
               <span>Metal</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="input-control">
               <label for="browRingColorPicker">Metal Color</label>
@@ -4200,13 +4248,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Placement</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control" data-param="browRingSize">
               <label>
@@ -4257,13 +4305,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-settings"/></svg>
               <span>Per Side</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="sub-group-label">Left brow (subject's left)</div>
             <div class="slider-control" data-param="browRingYawL">
@@ -4319,13 +4367,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-visible"/></svg>
               <span>Style</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="hair-style-grid" id="bandanaStyleGrid">
                 <div class="hair-style-card active" data-bandana-style="none" role="button" tabindex="0">
@@ -4348,13 +4396,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-palette"/></svg>
               <span>Colour</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="input-control">
               <label for="bandanaTintPicker">Dye (white keeps the print)</label>
@@ -4391,13 +4439,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Fit</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control" data-param="bandanaScale">
               <label>
@@ -4619,13 +4667,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-image"/></svg>
               <span>Image Generation</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="k-verbatim">
               <div class="ai-setting-item">
@@ -4639,13 +4687,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-record"/></svg>
               <span>Mark Handling</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="k-verbatim">
               <div class="ai-setting-item">
@@ -4684,13 +4732,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-video"/></svg>
               <span>Record</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <p class="k-note">A rotating view carries structure a single frame cannot. Records straight off the viewport — overlays and UI are excluded.</p>
             <div class="slider-control" data-param="turntableDuration">
@@ -4749,13 +4797,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Capture</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="k-verbatim">
               <p class="rf-note">
@@ -4774,13 +4822,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-skin"/></svg>
               <span>Saved</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="k-verbatim">
               <div class="snapshot-clear-bar">
@@ -4819,13 +4867,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-open"/></svg>
               <span>Photo</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="k-verbatim">
               <input type="file" id="referenceFileInput" accept="image/*" class="rf-file-input">
@@ -4862,13 +4910,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Compare</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="hair-style-grid" id="referenceModeGrid">
                 <div class="hair-style-card active" data-reference-mode="blend" role="button" tabindex="0">
@@ -4902,13 +4950,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-crosshair"/></svg>
               <span>Align</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="slider-control" data-param="referenceScale">
               <label>
@@ -4968,13 +5016,13 @@
           <div class="control-group-body collapsed">
             <div class="k-group-inner">
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               <svg class="i" aria-hidden="true"><use href="#i-info"/></svg>
               <span>Basic Info</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="k-field">
               <label for="caseNumber">Case Number</label>
@@ -4992,13 +5040,13 @@
             </div>
           </div>
           <div class="feature-sub-group">
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               
               <span>Notes &amp; Description</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">
             <div class="k-field">
               <label for="caseDescription">Description</label>
@@ -5042,7 +5090,16 @@
           </div>
         </div>
       </div>
+          <div class="k-sheet-empty" id="k-sheet-empty" hidden>
+            <svg class="i" aria-hidden="true"><use href="#i-search"/></svg>
+            <span id="k-sheet-empty-text">Nothing in this section matches</span>
+          </div>
         </div>
+
+        <!-- Drag handle on the right edge. 368px is right for a list of
+             headings and cramped for a list of live controls; the sheet is
+             now wide enough to hold what it shows. -->
+        <div class="k-sheet-grip" id="k-sheet-grip" title="Drag to resize"></div>
       </section>
 
       <!-- Processing overlay. Not a boot screen: UIController.showLoading()
@@ -5084,10 +5141,16 @@
         <span class="k-status-v" id="polyCount">Vertices: 0</span>
       </div>
       <div class="k-status-sep"></div>
-      <div class="k-status-item">
+      <!-- "Edited 12" was a fact with nowhere to go. It is now the way
+           into the edited-only view: which twelve, and a reset on each.
+           #modifiedCount keeps its id and its role as a plain text sink —
+           UIController writes the number into it and knows nothing about
+           the button around it. -->
+      <button type="button" class="k-status-item k-status-btn" id="k-edited-jump"
+              title="Show only the parameters that differ from their default">
         <span class="k-status-k">Edited</span>
         <span class="k-status-v" id="modifiedCount">0</span>
-      </div>
+      </button>
 
       <div class="k-status-right">
         <div class="k-status-item">
@@ -5244,6 +5307,7 @@
 <script src="js/k-shell.js"></script>
 <script src="js/k-motion.js"></script>
 <script src="js/k-palette.js"></script>
+<script src="js/k-workbench.js"></script>
 
 </body>
 </html>

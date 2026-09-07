@@ -986,3 +986,289 @@ body.k-sheet-closed .k-sheet {
   border-radius: var(--r-1);
   background: var(--k-sunken);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   WORKBENCH  —  filter row, bench, grip, mode banner
+   ═══════════════════════════════════════════════════════════════════════════
+   Everything below is new apparatus for reaching controls, and it borrows
+   nothing new: the same film-black grounds, the same hairlines, the same
+   single chroma reserved for what is live. Behaviour lives in
+   k-workbench.js; the sheet's own geometry lives above. */
+
+/* ── Filter row ──────────────────────────────────────────────────────────
+   Sits directly under the sheet head, outside the scroller, so it stays
+   put while two hundred rows move underneath it. */
+
+.k-sheet-filter {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px var(--pad);
+  border-bottom: 1px solid var(--k-hair);
+}
+
+.k-filter-field {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 26px;
+  padding: 0 7px;
+  background: var(--k-sunken);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-2);
+  cursor: text;
+  transition: border-color var(--t-1) var(--e);
+}
+
+.k-filter-field:focus-within { border-color: var(--sig-line); }
+.k-filter-field > .i { flex: none; color: var(--t-off); font-size: 12px; }
+.k-filter-field:focus-within > .i { color: var(--sig); }
+
+.k-filter-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  background: none;
+  color: var(--t-hi);
+  font-family: var(--f-ui);
+  font-size: var(--s-sm);
+  outline: none;
+}
+
+.k-filter-input::placeholder { color: var(--t-off); }
+
+.k-filter-clear {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 16px; height: 16px;
+  border-radius: var(--r-1);
+  color: var(--t-mute);
+}
+
+.k-filter-clear:hover { background: var(--k-hover); color: var(--t-hi); }
+.k-filter-clear .i { font-size: 10px; }
+
+/* ── The edited chip ─────────────────────────────────────────────────────
+   Off by default and quiet about it. It takes the chroma only when it is
+   the thing filtering the view, which is the same rule the tools follow. */
+
+.k-chip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-2);
+  color: var(--t-lo);
+  font-size: var(--s-tiny);
+  letter-spacing: var(--tr-cap);
+  text-transform: uppercase;
+  transition: background var(--t-1) var(--e), color var(--t-1) var(--e),
+              border-color var(--t-1) var(--e);
+}
+
+.k-chip .i { font-size: 9px; color: var(--t-off); }
+.k-chip:hover { color: var(--t-hi); background: var(--k-hover); }
+
+.k-chip.on {
+  background: var(--sig-dim);
+  border-color: var(--sig-line);
+  color: var(--sig);
+}
+
+.k-chip.on .i { color: var(--sig); }
+
+.k-chip-n {
+  font-family: var(--f-num);
+  font-size: var(--s-micro);
+  color: var(--t-off);
+}
+
+.k-chip.has .k-chip-n { color: var(--t); }
+.k-chip.on .k-chip-n { color: var(--sig); }
+
+/* ── Bench ───────────────────────────────────────────────────────────────
+   A short, separately scrolling shelf between the filter and the sections.
+   Capped at a third of the sheet: it is a working set, and a bench that
+   can grow to fill the panel is just a section with extra steps. */
+
+.k-bench {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  max-height: 34%;
+  background: rgba(255, 255, 255, 0.017);
+  border-bottom: 1px solid var(--k-hair);
+}
+
+.k-bench-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 24px;
+  padding: 0 6px 0 var(--pad);
+}
+
+.k-bench-head .k-cap { color: var(--t-mute); }
+.k-bench-head .k-ibtn { margin-left: auto; }
+
+.k-bench-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 var(--pad) 8px;
+}
+
+/* A pinned row is out of its group and has no gutter of its own. */
+.k-bench-body > .slider-control { padding-left: 0; padding-right: 4px; }
+
+/* ── Nothing matched ─────────────────────────────────────────────────── */
+
+.k-sheet-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 48px var(--pad);
+  color: var(--t-off);
+  font-size: var(--s-sm);
+  text-align: center;
+}
+
+.k-sheet-empty .i { font-size: 18px; }
+
+/* ── Resize grip ─────────────────────────────────────────────────────────
+   A 6px strip on the sheet's right edge, invisible until approached. It
+   draws a hairline rather than a handle, because a visible grabber on a
+   panel this quiet would be the loudest thing in the frame. */
+
+.k-sheet-grip {
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 3;
+}
+
+.k-sheet-grip::after {
+  content: '';
+  position: absolute;
+  top: 12px; bottom: 12px; right: 1px;
+  width: 1px;
+  background: var(--sig);
+  opacity: 0;
+  transition: opacity var(--t-2) var(--e);
+}
+
+.k-sheet-grip:hover::after { opacity: 0.55; }
+body.k-resizing .k-sheet-grip::after { opacity: 1; }
+
+/* Nothing eases while the edge is being dragged — the sheet must track the
+   pointer exactly, and the dock reads its width from the same property. */
+body.k-resizing { cursor: ew-resize; user-select: none; }
+body.k-resizing .k-sheet,
+body.k-resizing .k-dock,
+body.k-resizing .k-float { transition: none !important; }
+
+/* ── Tool labels ─────────────────────────────────────────────────────────
+   The strip is 30px of icon with no words. The name flies out to the left
+   on hover, immediately — the native tooltip's one-second delay is why the
+   strip read as nine unexplained glyphs. */
+
+.k-tool-label {
+  position: absolute;
+  right: calc(100% + 9px);
+  top: 50%;
+  transform: translateY(-50%) translateX(4px);
+  white-space: nowrap;
+  padding: 4px 8px;
+  background: var(--k-lift);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-2);
+  box-shadow: var(--sh-2);
+  color: var(--t-hi);
+  font-size: var(--s-tiny);
+  letter-spacing: -0.005em;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--t-1) var(--e), transform var(--t-1) var(--e);
+}
+
+.k-tool:hover .k-tool-label,
+.k-tool:focus-visible .k-tool-label {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+/* ── Mode banner ─────────────────────────────────────────────────────────
+   Top centre of the stage, over the render. A latched tool means a click
+   on the face does something other than orbit it, and that is worth one
+   line of type. */
+
+.k-mode {
+  top: 14px;
+  left: calc(50% + (var(--w-sheet) + 28px) / 2);
+  transform: translateX(-50%);
+  transition: left var(--t-3) var(--e);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 5px 5px 11px;
+  background: rgba(10, 11, 11, 0.82);
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  border: 1px solid var(--sig-line);
+  border-radius: var(--r-3);
+  box-shadow: var(--sh-2);
+}
+
+body.k-sheet-closed .k-mode { left: 50%; }
+
+.k-mode-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--sig);
+  box-shadow: 0 0 0 3px var(--sig-dim);
+}
+
+.k-mode-name {
+  font-size: var(--s-sm);
+  font-weight: 480;
+  color: var(--t-hi);
+  letter-spacing: -0.008em;
+}
+
+.k-mode-exit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: var(--r-2);
+  background: var(--k-hover);
+  color: var(--t);
+  font-size: var(--s-tiny);
+  transition: background var(--t-1) var(--e), color var(--t-1) var(--e);
+}
+
+.k-mode-exit:hover { background: var(--sig); color: var(--on-sig); }
+.k-mode-exit:hover .k-key { border-color: rgba(13, 16, 3, 0.3); color: var(--on-sig); }
+
+/* ── Edited counter, now a control ───────────────────────────────────── */
+
+button.k-status-item {
+  border-radius: var(--r-1);
+  transition: background var(--t-1) var(--e);
+}
+
+button.k-status-item:hover { background: var(--k-hover); }
+button.k-status-item:hover .k-status-v { color: var(--sig); }

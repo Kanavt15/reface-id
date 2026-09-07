@@ -351,6 +351,15 @@ h1, h2, h3, h4 { font-weight: 600; line-height: var(--lh-tight); letter-spacing:
 
 .k-hidden { display: none !important; }
 
+/* The `hidden` attribute has no weight of its own — its UA rule is
+   `display: none`, which any class that sets a display beats on cascade
+   order alone. Several elements in the shell are shown and hidden through
+   the property (`el.hidden = …`) *and* laid out with flex, and those two
+   facts silently cancelled: the mode banner stayed a full-width invisible
+   flex box across the top of the stage and swallowed every click aimed at
+   the section tabs behind it. Attribute state wins here, always. */
+[hidden] { display: none !important; }
+
 /* Element exists for a binding but must never be seen. Used only for
    <input type=file> triggers, which are driven by a visible button. */
 .k-offscreen {

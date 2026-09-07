@@ -118,6 +118,14 @@ const RUNTIME_ONLY = [
   /^\.fa-chevron/,     /* chevron swap inside runtime-built rows         */
   /rf-method-selected/, /* state class toggled after load                */
   /^\.status-dot\.connected$/, /* backend state, only true once online   */
+
+  /* k-workbench.js grows these onto controls after boot: the per-row pin
+     and revert buttons, the per-group edited count, and two state classes
+     that are only ever true once something has happened. */
+  /^\.k-row-/,
+  /^\.k-grp-n$/,
+  /^\.slider-control\.k-modified$/,
+  /^\.k-modal\.open$/,
 ];
 
 /* Selectors that matched nothing in the legacy document either — dead

@@ -84,11 +84,15 @@
            run yet at capture time. */
         requestAnimationFrame(() => {
           syncSheetHead();
-          /* A section always opens as a list of closed headings, never
-             mid-way down an expanded one. Skipped when the click is what
-             shut the sheet, so the groups do not visibly snap closed on
-             the way out. */
-          if (!collapse) collapseGroups(activePanel());
+          /* The section comes back the way it was left. It used to be
+             force-collapsed on every entry, on the reasoning that a
+             section should read as a table of contents — which is right
+             the first time and wrong every time after. Reconstruction
+             moves between features constantly, and re-shutting the three
+             groups an operator had arranged meant paying the full cost of
+             finding them again on every return. What they left open is
+             what they meant to have open. */
+          if (!collapse) restoreGroups(activePanel());
         });
       }, true);
     }
@@ -122,14 +126,106 @@
     return key ? document.getElementById('panel-' + key) : null;
   }
 
-  /* Shut every group and sub-group in a panel. Sub-groups are included on
-     purpose: a group that opens onto more already-open nested sections is
-     the thing that made these panels hard to read in the first place. */
-  function collapseGroups(panel) {
-    if (!panel) return;
+  /* ── Remembering the arrangement ────────────────────────────────────────
+     Which groups are open is workspace state, not case data — it describes
+     how this operator likes to work, so it belongs in local storage and
+     survives a restart. Keyed by section and by the group's heading, since
+     the generated markup gives most groups no id. */
+
+  const GROUPS_KEY = 'rf.groups.v1';
+
+  function loadGroups() {
+    try { return JSON.parse(localStorage.getItem(GROUPS_KEY)) || {}; }
+    catch { return {}; }
+  }
+
+  function saveGroups(state) {
+    try { localStorage.setItem(GROUPS_KEY, JSON.stringify(state)); } catch { /* private mode */ }
+  }
+
+  function headKey(h) {
+    const name = h.querySelector('span')?.textContent.trim() || '';
+    return (h.classList.contains('sub-group-header') ? 'sub:' : 'grp:') + name;
+  }
+
+  /* Written on every toggle rather than on a timer, so a crash or a reload
+     mid-session still comes back to the sheet the operator built. */
+  function rememberGroups(panel) {
+    const key = activeSection();
+    if (!panel || !key) return;
+    const all = loadGroups();
+    const mine = {};
     $$('.control-group-header, .sub-group-header', panel).forEach((h) => {
-      h.classList.add('collapsed');
-      h.nextElementSibling?.classList.add('collapsed');
+      mine[headKey(h)] = !h.classList.contains('collapsed');
+    });
+    all[key] = mine;
+    saveGroups(all);
+  }
+
+  function restoreGroups(panel) {
+    const key = activeSection();
+    if (!panel || !key) return;
+    const mine = loadGroups()[key];
+
+    /* Never been here before. Every group ships closed, which means a
+       first visit to a section is a column of headings above six hundred
+       pixels of nothing — the operator has learned the section's contents
+       but still has to click before a single control exists. Opening the
+       first group makes the section arrive with work in it, and the choice
+       is recorded like any other so it is only ever made once. */
+    if (!mine) {
+      const first = $('.control-group-header', panel);
+      if (first) {
+        first.classList.remove('collapsed');
+        first.nextElementSibling?.classList.remove('collapsed');
+      }
+      rememberGroups(panel);
+      return;
+    }
+
+    $$('.control-group-header, .sub-group-header', panel).forEach((h) => {
+      const open = mine[headKey(h)];
+      if (open === undefined) return;
+      h.classList.toggle('collapsed', !open);
+      h.nextElementSibling?.classList.toggle('collapsed', !open);
+    });
+  }
+
+  /* UIController owns the toggle itself; this only notices that one
+     happened.
+
+     Watching the class rather than the click matters, because a click is
+     not the only way a group opens. The command palette expands every
+     group between the sheet and whatever it was asked to find, and a
+     click listener never sees that — so a group the operator reached
+     through Ctrl+K was open on screen and closed again on their next
+     visit, which reads as the palette not having worked.
+
+     Skipped while a filter is on: filtering forces matching groups open
+     as a temporary view of the section, and recording that would overwrite
+     the arrangement the operator actually built. k-workbench restores it
+     when the filter clears, and this then records the restored state. */
+  function bindGroupMemory() {
+    const bodyEl = $('#k-sheet-body');
+    if (!bodyEl) return;
+
+    const RELEVANT = ['control-group-body', 'sub-group-body',
+                      'control-group-header', 'sub-group-header'];
+    let queued = 0;
+
+    new MutationObserver((records) => {
+      const touchesAGroup = records.some((m) =>
+        RELEVANT.some((c) => m.target.classList?.contains(c)));
+      if (!touchesAGroup) return;
+
+      clearTimeout(queued);
+      queued = setTimeout(() => {
+        const panel = activePanel();
+        if (!panel || panel.classList.contains('k-filtering')) return;
+        rememberGroups(panel);
+      }, 250);
+    }).observe(bodyEl, {
+      attributes: true, subtree: true, attributeFilter: ['class'],
     });
   }
 
@@ -153,6 +249,7 @@
       });
 
       btn.title = anyOpen ? 'Expand all groups' : 'Collapse all groups';
+      rememberGroups(panel);
     });
   }
 
@@ -348,11 +445,82 @@
     });
   }
 
+  /* ══ Sheet width ═══════════════════════════════════════════════════════
+     368px was sized for a column of headings. Now that opening a group
+     shows live controls — labels, readouts, tracks and the row's own
+     buttons — the same width is tight, and the right width depends on the
+     screen and on which section the operator lives in. So it is theirs to
+     set: drag the right edge.
+
+     The width is a custom property on the root because the camera dock
+     positions itself from it (`left: calc(50% + (var(--w-sheet) + 28px)/2)`)
+     — writing it anywhere else would leave the dock centred on the wrong
+     half of the stage. */
+
+  const WIDTH_KEY = 'rf.sheet.width.v1';
+  const W_MIN = 330;
+  const W_MAX = 660;
+
+  function setSheetWidth(px) {
+    const w = Math.round(Math.min(W_MAX, Math.max(W_MIN, px)));
+    document.documentElement.style.setProperty('--w-sheet', w + 'px');
+    return w;
+  }
+
+  function bindSheetResize() {
+    const grip = $('#k-sheet-grip');
+    const sheet = $('#k-sheet');
+    if (!grip || !sheet) return;
+
+    let saved = 0;
+    try { saved = parseInt(localStorage.getItem(WIDTH_KEY), 10) || 0; } catch { /* private mode */ }
+    if (saved) setSheetWidth(saved);
+
+    let dragging = false;
+
+    const move = (e) => {
+      if (!dragging) return;
+      /* The sheet is pinned 14px from the left edge, so its width is
+         simply how far right of that the pointer is. */
+      setSheetWidth(e.clientX - sheet.getBoundingClientRect().left);
+    };
+
+    const end = () => {
+      if (!dragging) return;
+      dragging = false;
+      body.classList.remove('k-resizing');
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', end);
+      const w = parseInt(getComputedStyle(document.documentElement)
+        .getPropertyValue('--w-sheet'), 10);
+      try { localStorage.setItem(WIDTH_KEY, String(w)); } catch { /* private mode */ }
+      window.dispatchEvent(new Event('resize'));
+    };
+
+    grip.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      dragging = true;
+      body.classList.add('k-resizing');
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', end);
+    });
+
+    /* Double-click the grip for the default, so a drag that went somewhere
+       silly is one gesture to undo rather than a hunt for the old number. */
+    grip.addEventListener('dblclick', () => {
+      setSheetWidth(368);
+      try { localStorage.setItem(WIDTH_KEY, '368'); } catch { /* private mode */ }
+      window.dispatchEvent(new Event('resize'));
+    });
+  }
+
   /* ══ Boot ══════════════════════════════════════════════════════════════ */
 
   function init() {
     bindSections();
     bindCollapseAll();
+    bindGroupMemory();
+    bindSheetResize();
     bindStageSizing();
     bindActivity();
     bindBackendBanner();
@@ -360,12 +528,10 @@
     bindKeys();
     syncSheetHead();
 
-    /* The generated markup already ships collapsed, but UIController and the
-       engine mount controls into these panels during boot and some of that
-       work expands a group on the way past. Shut them once more after the
-       dust settles so the first section the operator sees matches every
-       later one. */
-    requestAnimationFrame(() => collapseGroups(activePanel()));
+    /* Put the sheet back the way this operator last had it. The generated
+       markup ships every group closed, which is the right first run; from
+       the second onwards the stored arrangement wins. */
+    requestAnimationFrame(() => restoreGroups(activePanel()));
 
     /* Anything the engine reveals by clearing an inline display — the
        recalibrate control is the current example — should not occupy the

@@ -942,3 +942,190 @@ label.checkbox-label {
 .k-verbatim { padding: 6px var(--pad) 9px; }
 .k-sub-inner .k-verbatim { padding-left: 0; padding-right: 8px; }
 .k-verbatim > *:not(:last-child) { margin-bottom: 6px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE ROW, WORKING
+   ═══════════════════════════════════════════════════════════════════════════
+   A slider row used to be a label, a number and a track. It now also holds
+   the two things an operator needs once they are looking at it — put this
+   one back, and keep this one to hand — plus a readout that can be typed
+   into. All three are grown at runtime by k-workbench.js.
+
+   They live in the label row, ahead of the number, and are invisible until
+   the row is approached. The sheet is two hundred rows deep; a permanent
+   pair of buttons on every one of them would be four hundred glyphs
+   competing with the values they sit beside. */
+
+.k-row-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  margin-left: auto;
+  margin-right: 4px;
+}
+
+.k-row-btn {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--r-1);
+  color: var(--t-off);
+  opacity: 0;
+  transition: opacity var(--t-1) var(--e), background var(--t-1) var(--e),
+              color var(--t-1) var(--e);
+}
+
+.k-row-btn .i { font-size: 9.5px; }
+.k-row-btn:hover { background: var(--k-hover); color: var(--t-hi); }
+
+.slider-control:hover .k-row-btn,
+.slider-control:focus-within .k-row-btn { opacity: 1; }
+
+/* A pin that is engaged stays lit whether or not the row is hovered —
+   it is the only way back, and a control that has left its section must
+   not hide the control that returns it. */
+.k-row-pin.on {
+  opacity: 1;
+  color: var(--sig);
+}
+
+/* Revert appears only once there is something to revert to. Offering
+   "reset" on a parameter already sitting at its default is an invitation
+   to a no-op. */
+.k-row-revert { display: none; }
+.slider-control.k-modified .k-row-revert { display: grid; }
+
+/* ── Touched ─────────────────────────────────────────────────────────────
+   A parameter that has moved off its default carries a hairline tick in
+   the gutter. Not a colour on the value — with fifty changes on a finished
+   face that would light up the whole sheet — just enough to find the work
+   by scanning. */
+
+.slider-control { position: relative; }
+
+.slider-control.k-modified::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 9px;
+  width: 2px;
+  height: 10px;
+  border-radius: 1px;
+  background: var(--sig);
+  opacity: 0.65;
+}
+
+/* The tick sits in the row's own left padding. Two places take that
+   padding away — inside a sub-group, and on the bench — and there the mark
+   has to move out into the container's gutter instead, or it is drawn on
+   top of the first letter of the label. (It was, and "Jaw & Chin" read as
+   "aw & Chin".) */
+.k-sub-inner .slider-control.k-modified::before,
+.k-bench-body > .slider-control.k-modified::before { left: -8px; }
+
+/* ── The readout, typed ──────────────────────────────────────────────────
+   Dragging gets you close; forensic work needs exact. Clicking the number
+   swaps it for a field in the same place, so the column of digits down the
+   right edge never jumps. */
+
+.slider-value.k-editable { cursor: text; }
+
+.slider-control:hover .slider-value.k-editable {
+  box-shadow: inset 0 -1px 0 var(--k-rule);
+}
+
+.k-val-edit {
+  width: 4.5ch;
+  padding: 0;
+  border: none;
+  border-bottom: 1px solid var(--sig);
+  background: none;
+  color: var(--sig);
+  font-family: var(--f-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--s-tiny);
+  letter-spacing: -0.02em;
+  text-align: right;
+  outline: none;
+}
+
+/* ── Group heading, with its share of the work ───────────────────────────
+   How many parameters inside this group have been changed. It answers
+   "where did I do things" without opening anything. */
+
+/* Specific enough to beat `.control-group-header > span { flex: 1 }`,
+   which this badge is also a direct span child of — inheriting that rule
+   made it a full-width green bar that shoved the heading onto two lines. */
+.control-group-header > .k-grp-n,
+.k-grp-n {
+  flex: none;
+  margin-left: 6px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  padding: 0 4px;
+  border-radius: var(--r-1);
+  background: var(--sig-dim);
+  color: var(--sig);
+  font-family: var(--f-num);
+  font-size: var(--s-micro);
+  line-height: 1.5;
+}
+
+/* ── Filtering ───────────────────────────────────────────────────────────
+   Hidden rather than removed: the controls keep their bindings, their
+   values and their place, and clearing the filter is instant because
+   nothing was ever torn down. */
+
+.k-filtered-out { display: none !important; }
+
+/* While a filter is on, the sheet is a flat result list, so the group
+   headings stop pretending to be doors and read as the captions they are
+   in that context. */
+.panel-content.k-filtering .control-group-header,
+.panel-content.k-filtering .sub-group-header { cursor: default; }
+
+.panel-content.k-filtering .control-group-header .k-caret,
+.panel-content.k-filtering .sub-group-header .k-caret { opacity: 0; }
+
+/* The group a benched control came from. Set as a real element rather than
+   folded into the label text, so unpinning restores the row exactly as it
+   left and nothing has to un-edit a string. */
+.k-row-from {
+  flex: none;
+  color: var(--t-off);
+  font-weight: 400;
+}
+
+.k-row-from::after {
+  content: '·';
+  margin: 0 5px;
+  color: var(--t-off);
+}
+
+/* ── Keeping the label row inside the sheet ──────────────────────────────
+   The row now carries up to four things — where it came from, what it is,
+   its two buttons and its value — and the sheet can be as narrow as 330px.
+   A flex row whose items default to min-width:auto does not shrink text;
+   it lets it spill, and "Jaw & Chin · Width" ran out past the gutter as
+   "aw & Chin · Width".
+
+   The value and the buttons hold their size (a truncated number is a lie,
+   and a half-drawn button is unusable). The parameter's own name holds its
+   size too, because it is what the row *is*. The origin is the one part
+   that can be inferred from context, so it is the part that gives way. */
+
+.slider-control > label { min-width: 0; overflow: hidden; }
+
+.slider-control > label > span:not(.k-row-from):not(.slider-value),
+.slider-control > label > .k-row-tools,
+.slider-control > label > .slider-value { flex: none; }
+
+.k-row-from {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

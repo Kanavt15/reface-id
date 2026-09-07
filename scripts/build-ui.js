@@ -112,14 +112,18 @@ function cSlider(b) {
      is the exact shape UIController.bindMorphSliders() walks. */
   const cls = keepClasses(['slider-control'], b.value === '50' ? ['k-centred'] : []);
   const inputCls = keepClasses(b.sliderClass);
+  /* `disabled` is a real starting state for a couple of controls that a
+     toggle governs — the under-eye intensity is inert until under-eye
+     wrinkles are switched on, and _syncSkinTextureUI() keeps it that way. */
+  const dis = b.disabled ? ' disabled' : '';
   return `
-            <div class="${cls}"${attr('id', b.controlId)}${attr('data-param', b.param)}${dataStr(b.data, ['data-param'])}>
+            <div class="${cls}"${attr('id', b.controlId)}${attr('data-param', b.param)}${attr('title', b.title)}${dataStr(b.data, ['data-param'])}>
               <label>
                 <span>${esc(b.label || b.param || '')}</span>
                 <span class="slider-value"${attr('id', b.valueId)}>${esc(b.valueText ?? b.value)}</span>
               </label>
               <div class="slider-row">
-                <input type="range"${attr('id', b.id)} class="${inputCls}"${attr('min', b.min)}${attr('max', b.max)}${attr('step', b.step)} value="${esc(b.value)}" />
+                <input type="range"${attr('id', b.id)} class="${inputCls}"${attr('min', b.min)}${attr('max', b.max)}${attr('step', b.step)} value="${esc(b.value)}"${dis} />
               </div>
             </div>`;
 }
@@ -358,18 +362,27 @@ function renderSubGroup(sg) {
      header.nextElementSibling. The single .k-sub-inner child is what makes
      the 0fr/1fr height transition possible.
 
-     Collapsed on render — see renderGroup. The manifest's own `collapsed`
-     flag is deliberately ignored; it carries whatever state the old
-     document happened to be saved in. */
+     Sub-groups render OPEN. They used to ship collapsed like their
+     parents, which meant reaching any single parameter cost two clicks —
+     open "Nose", then open "Tip" — before a slider was even on screen,
+     and the panel spent its whole height showing a table of contents of a
+     table of contents. A sub-group holds two to five controls; it is a
+     caption over a short run of rows, not a door. Opening its parent now
+     reveals actual instruments.
+
+     The header stays a real collapse control, so anything long can still
+     be folded away by hand and the contract UIController walks is
+     unchanged. The manifest's own `collapsed` flag is still ignored; it
+     carries whatever state the old document happened to be saved in. */
   return `
           <div class="feature-sub-group"${attr('id', sg.id)}>
-            <div class="sub-group-header collapsed">
+            <div class="sub-group-header">
               ${faIcon(sg.icon)}
               <span>${esc(sg.title || '')}</span>
               ${cHeaderActions(sg.actions, null)}
               ${icon('chevron-down', 'k-caret')}
             </div>
-            <div class="sub-group-body collapsed">
+            <div class="sub-group-body">
               <div class="k-sub-inner">${inner}
               </div>
             </div>
@@ -449,8 +462,12 @@ const TOOLS = [
   ['btnAgeProgression', 'clock',    'Age progression'],
 ];
 
+/* Every tool carries its name as markup rather than relying on the native
+   `title` tooltip. A latching mode strip whose only explanation appears
+   after a second of hovering is a strip nobody reads; the CSS flyout is
+   immediate. `title` stays for assistive technology. */
 const toolStrip = TOOLS.map((t) => t
-  ? `\n          <button type="button" class="k-tool" id="${t[0]}" title="${esc(t[2])}" aria-label="${esc(t[2])}">${icon(t[1])}</button>`
+  ? `\n          <button type="button" class="k-tool" id="${t[0]}" title="${esc(t[2])}" aria-label="${esc(t[2])}">${icon(t[1])}<span class="k-tool-label">${esc(t[2])}</span></button>`
   : `\n          <div class="k-tool-sep"></div>`
 ).join('');
 
@@ -700,6 +717,19 @@ ${SPRITE}
       <div class="k-float k-tools" id="k-tools">${toolStrip}
       </div>
 
+      <!-- Active-mode banner. The tools latch: pressing "Skin marks" puts
+           the stage into a state where a click on the face adds a mark,
+           and until now the only sign of that was a 30px button glowing at
+           the edge of the screen. A latched mode that the operator has
+           forgotten about turns every subsequent click into an accident,
+           so the mode says its own name over the render and offers the way
+           out. Driven by k-workbench.js watching .k-tool.active. -->
+      <div class="k-float k-mode" id="k-mode" hidden>
+        <span class="k-mode-dot"></span>
+        <span class="k-mode-name" id="k-mode-name">—</span>
+        <button type="button" class="k-mode-exit" id="k-mode-exit">Done<span class="k-key">Esc</span></button>
+      </div>
+
       <!-- Camera dock -->
       <div class="k-float k-dock" id="k-dock">
         <button type="button" class="k-dock-btn" id="btnFrontView">Front</button>
@@ -709,6 +739,8 @@ ${SPRITE}
         <div class="k-dock-sep"></div>
         <button type="button" class="k-dock-btn k-icon-only" id="btnWireframe" title="Wireframe">${icon('grid')}</button>
         <button type="button" class="k-dock-btn k-icon-only" id="btnLighting" title="Lighting">${icon('zap')}</button>
+        <button type="button" class="k-dock-btn k-icon-only active" id="btnRenderMode" title="Render: Photoreal / Structure">${icon('contrast')}</button>
+        <button type="button" class="k-dock-btn k-icon-only" id="btnQuality" title="Render quality">${icon('sun')}</button>
         <button type="button" class="k-dock-btn k-icon-only" id="rf-vp-reference" title="Reference overlay">${icon('compare')}</button>
         <div class="k-dock-sep"></div>
         <button type="button" class="k-dock-btn k-icon-only" id="btnScreenshot" title="Capture frame">${icon('camera')}</button>
@@ -725,8 +757,51 @@ ${SPRITE}
             <button type="button" class="k-ibtn" id="k-sheet-close" title="Hide panel (Esc)">${icon('close')}</button>
           </div>
         </header>
-        <div class="k-sheet-body" id="k-sheet-body">${manifest.panels.map(renderPanel).join('')}
+
+        <!-- Filter row. Always present rather than summoned: finding a
+             parameter is the most frequent single act in this interface,
+             and a field you have to remember a shortcut to open is a field
+             most operators never find. Ctrl+K still exists for jumping
+             across sections; this one narrows the section you are in and
+             lets you stay in the narrowed view and work. -->
+        <div class="k-sheet-filter">
+          <label class="k-filter-field" for="k-filter-input">
+            ${icon('search')}
+            <input type="text" id="k-filter-input" class="k-filter-input"
+                   placeholder="Filter this section…" autocomplete="off" spellcheck="false" />
+            <button type="button" class="k-filter-clear" id="k-filter-clear" title="Clear filter" hidden>${icon('close')}</button>
+          </label>
+          <button type="button" class="k-chip" id="k-filter-edited" title="Show only parameters that differ from their default">
+            ${icon('record')}<span>Edited</span><span class="k-chip-n k-num" id="k-filter-edited-n">0</span>
+          </button>
         </div>
+
+        <!-- Bench. Controls the operator has pinned, gathered out of
+             whichever sections they live in and kept on screen in every
+             one. Reconstruction is iterative across features — nose width,
+             then jaw, then back to the nose — and those live in different
+             groups, so without somewhere to collect them the work is a
+             loop of opening and closing the same three accordions. -->
+        <div class="k-bench" id="k-bench" hidden>
+          <div class="k-bench-head">
+            <span class="k-cap">Bench</span>
+            <span class="k-sheet-count k-num" id="k-bench-count">0</span>
+            <button type="button" class="k-ibtn" id="k-bench-clear" title="Unpin everything">${icon('close')}</button>
+          </div>
+          <div class="k-bench-body" id="k-bench-body"></div>
+        </div>
+
+        <div class="k-sheet-body" id="k-sheet-body">${manifest.panels.map(renderPanel).join('')}
+          <div class="k-sheet-empty" id="k-sheet-empty" hidden>
+            ${icon('search')}
+            <span id="k-sheet-empty-text">Nothing in this section matches</span>
+          </div>
+        </div>
+
+        <!-- Drag handle on the right edge. 368px is right for a list of
+             headings and cramped for a list of live controls; the sheet is
+             now wide enough to hold what it shows. -->
+        <div class="k-sheet-grip" id="k-sheet-grip" title="Drag to resize"></div>
       </section>
 
       <!-- Processing overlay. Not a boot screen: UIController.showLoading()
@@ -768,10 +843,16 @@ ${SPRITE}
         <span class="k-status-v" id="polyCount">Vertices: 0</span>
       </div>
       <div class="k-status-sep"></div>
-      <div class="k-status-item">
+      <!-- "Edited 12" was a fact with nowhere to go. It is now the way
+           into the edited-only view: which twelve, and a reset on each.
+           #modifiedCount keeps its id and its role as a plain text sink —
+           UIController writes the number into it and knows nothing about
+           the button around it. -->
+      <button type="button" class="k-status-item k-status-btn" id="k-edited-jump"
+              title="Show only the parameters that differ from their default">
         <span class="k-status-k">Edited</span>
         <span class="k-status-v" id="modifiedCount">0</span>
-      </div>
+      </button>
 
       <div class="k-status-right">
         <div class="k-status-item">
@@ -880,13 +961,18 @@ ${SPRITE}
 <script src="js/vendor/OrbitControls.js"></script>
 <script src="js/vendor/OBJLoader.js"></script>
 <script src="js/vendor/GLBLoader.js"></script>
-<script src="js/AssetLoadTracker.js"></script>
+<script src="js/EnvironmentSystem.js"></script>
+<script src="js/SkinShader.js"></script>
 <script src="js/StrandShading.js"></script>
 <script src="js/HairStrands.js"></script>
+<script src="js/PostFX.js"></script>
+<script src="js/AssetLoadTracker.js"></script>
 <script src="js/BaseFaceGeometry.js"></script>
 <script src="js/FaceMorpher.js"></script>
 <script src="js/OBJMorpher.js"></script>
 <script src="js/HairSystem.js"></script>
+<script src="js/EyeTextures.js"></script>
+<script src="js/EyeShading.js"></script>
 <script src="js/EyeSystem.js"></script>
 <script src="js/GlassesSystem.js"></script>
 <script src="js/FaceMaskSystem.js"></script>
@@ -923,6 +1009,7 @@ ${SPRITE}
 <script src="js/k-shell.js"></script>
 <script src="js/k-motion.js"></script>
 <script src="js/k-palette.js"></script>
+<script src="js/k-workbench.js"></script>
 
 </body>
 </html>
