@@ -1,14 +1,15 @@
 /**
- * HairSystem.js – GLB model-based hair for forensic facial reconstruction.
+ * HairSystem.js – Guided strand hair for forensic facial reconstruction.
  *
- * Loads 12 real hair GLB models (Hair1-12.glb) and aligns them to the head.
+ * Loads 14 hair GLB models (Hair1-14.glb) and aligns them to the head.
  * Loads eyebrow GLB model and aligns to brow region.
  * Adjustment sliders (length, density, volume, curl) control transforms.
- * Facial hair remains procedural (region-based from trimesh data).
+ * Hair and facial hair grow curved fibres with style-specific pigment textures.
  * Auto-refreshes when head morphs change.
  */
 
 class HairSystem {
+  static get MAX_HAIR_DENSITY() { return 300; }
   /** Clearance kept between the bottom of the brow and the upper eyelid. */
   static get BROW_EYE_GAP() { return 0.02; }
 
@@ -118,10 +119,8 @@ class HairSystem {
     this._beardGroup.name = 'BeardSystem';
     this.scene.add(this._beardGroup);
 
-    /* Opaque, for the same reason as the hair: solid card geometry with no
-       alpha map, and a fixed 0.95 opacity nobody can change. All it did was
-       let the jaw show through and drop the beard into the alpha pass,
-       where overlapping cards blend in arbitrary order. */
+    // Strand coverage supplies the transparency; each surviving hair writes
+    // depth so overlapping fibres occlude one another correctly.
     this._beardMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(this.beardColor),
       roughness: 0.45,
@@ -131,13 +130,11 @@ class HairSystem {
       opacity: 1,
       depthWrite: true,
     });
-    /* Same fallback path as the brow until the beard cards get the strand
-       maps too, so the same restraint applies. A little more wrap than the
-       brow: a beard does have some depth for light to travel through. */
+    // Beard cards receive their own textures and strand directions on load.
     if (window.StrandShading) {
       StrandShading.attachSheen(this._beardMat, {
-        sheenStrength: 0.12, trtStrength: 0.12, rimStrength: 0.09,
-        rootDarken: 0.30, scatter: 0.28,
+        sheenStrength: 0.065, trtStrength: 0.055, rimStrength: 0.012,
+        rootDarken: 0.30, scatter: 0.36, trtDesat: 0.42,
       });
     }
 
@@ -204,16 +201,8 @@ class HairSystem {
     // Override defaults from localStorage (user-set in-app defaults)
     this._loadBeardDefaultsFromStorage();
 
-    /* Hair material — opaque on purpose.
-     *
-     * The hair styles are solid card geometry with no texture and no alpha
-     * map, so there is nothing for blending to reveal: transparency only
-     * let the scalp show through and put every strand into the alpha pass.
-     * Triangles are not sorted within a mesh, so overlapping cards blended
-     * in arbitrary order and came out as blocky see-through patches.
-     *
-     * Opaque also lets the hair write depth properly, which fixes its
-     * shadows and its occlusion of the ears and forehead. */
+    // Individual fibre coverage controls opacity, with depth-writing cutouts
+    // and MSAA to keep overlapping cards and their edges stable.
     this._hairMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(this.hairColor),
       roughness: 0.38,
@@ -224,20 +213,10 @@ class HairSystem {
       depthWrite: true,
     });
 
-    /* The cards now carry a strand cutout, which is what the comment above
-       said was missing. alphaTest rather than blending: the material stays
-       opaque to the renderer, writes depth and sorts by depth, so none of the
-       arbitrary-order artefacts that forced full opacity can come back — it
-       just gets a hair-shaped silhouette instead of a polygon-shaped one. */
-    /* The full model, because this is the only one of the three assets that
-       can carry it: the hair GLBs have UVs, so the cards get the strand maps
-       and the lighting gets a real strand direction to place its bands along.
-       The brow and beard materials above run the same shader with the
-       tangent-free fallback and correspondingly quiet settings. */
+    // Texture sets are bound per style after its card geometry is prepared.
     if (window.StrandShading) {
-      StrandShading.applyCardAlpha(this._hairMat, 1, 1);
       StrandShading.attachSheen(this._hairMat, {
-        sheenStrength: 0.10, trtStrength: 0.09, rimStrength: 0.06,
+        sheenStrength: 0.065, trtStrength: 0.065, rimStrength: 0.012,
         /* Read these two together; on its own either one is wrong.
            Saturated AND strong put gold streaks across the crown. Answering
            that with desaturation alone only trades the fault: a near-white
@@ -247,7 +226,7 @@ class HairSystem {
            never flares far enough to become a highlight in its own right. */
         trtDesat: 0.45,
         // Drives the mass occlusion for the hair, not the view-space stand-in
-        // the brow and beard get: this style is deep enough that the inside
+        // the brow and lashes get: this style is deep enough that the inside
         // has to go down noticeably or the fall reads as a single printed
         // sheet. Not further: the albedo is already near-black, so past about
         // this the interior stops being dark hair and becomes a hole.
@@ -374,6 +353,11 @@ class HairSystem {
   }
 
   setParam(param, value) {
+    if (param === 'density') {
+      value = Number(value);
+      if (!Number.isFinite(value)) return;
+      value = Math.max(0, Math.min(HairSystem.MAX_HAIR_DENSITY, value));
+    }
     this.params[param] = value;
     if (this._hairContainer) this._applyAdjustments();
   }
@@ -388,6 +372,8 @@ class HairSystem {
     if (this.hairTintPainter) this.hairTintPainter.onModelChanged('hair');
     this._clearGroup(this.hairGroup);
     this._hairContainer = null;
+    // Invalidate an in-flight style even when switching to bald.
+    this._loadId++;
 
     const config = this.hairModels[this.currentStyle];
     if (!config || !config.file) {
@@ -395,7 +381,6 @@ class HairSystem {
       return;
     }
 
-    this._loadId++;
     const thisLoadId = this._loadId;
 
     if (this._modelCache[this.currentStyle]) {
@@ -439,8 +424,10 @@ class HairSystem {
   }
 
   /** Resolves once no hair model is mid-load. See AssetLoadTracker. */
-  whenIdle() {
-    return this._loads.whenIdle();
+  async whenIdle() {
+    await this._loads.whenIdle();
+    await Promise.all([this._hairMat.userData.strandTexturesReady,
+      this._beardMat.userData.strandTexturesReady]);
   }
 
   _showCachedModel(style) {
@@ -457,20 +444,21 @@ class HairSystem {
     const meshes = [];
     cached.traverse(child => { if (child.isMesh) meshes.push(child); });
 
-    /* Prepare the geometry before cloning, and once for the whole style.
-       Mesh.clone() shares geometry, so the UVs rewritten and the attribute
-       written here reach every clone; and StrandShading needs all the meshes
-       together, because both the strand scale and how buried a fringe vertex
-       is depend on the rest of the style, not on one mesh in isolation.
-       Cached models are built once per style and each pass early-outs on
-       geometry it has already done, so re-selecting a style is free. */
+    // Prepare the cached guides together so their UV direction and mass-depth
+    // field agree. The visible meshes below use a separate, bounded cache of
+    // curved fibres; original guide bounds preserve calibrated placement.
     if (window.StrandShading) {
-      StrandShading.prepareStrandGeometry(meshes.map(m => m.geometry));
+      StrandShading.prepareStrandGeometry(meshes.map(m => m.geometry), style);
+      StrandShading.applyStyle(this._hairMat, style);
     }
 
-    for (const child of meshes) {
+    const strands = window.HairStrands ? HairStrands.build(meshes.map(m => m.geometry), style) : null;
+
+    for (const [i, child] of meshes.entries()) {
       const clone = child.clone();
+      if (strands) clone.geometry = strands[i];
       clone.material = this._hairMat;
+      if (strands) HairStrands.attachShadows(clone, this._hairMat);
       clone.castShadow = true;
       clone.receiveShadow = true;
       offsetGroup.add(clone);
@@ -551,18 +539,12 @@ class HairSystem {
     // Rotation: curl + user rotation
     container.rotation.y = (curlF > 0 ? curlF * 0.15 : 0) + rotOffsetY;
 
-    /* Density → how the surface takes light, not how transparent it is.
-     *
-     * Density used to drive opacity directly (0.5 → 1.0), which is why the
-     * head showed through the hair at anything under full density and why
-     * the strands broke into blended patches. Opacity was the wrong
-     * channel: it thins the whole surface uniformly instead of thinning
-     * the strands.
-     *
-     * Sparse hair scatters more and reads matte and lighter; dense hair
-     * reads tighter and darker. That is what these two do, with the mesh
-     * staying fully opaque throughout. */
-    const d = Math.max(0, Math.min(100, density)) / 100;
+    // Density changes fibre coverage and roughness. Surviving strands stay
+    // solid instead of blending every overlapping card against the scalp.
+    const d = Math.max(0, Math.min(HairSystem.MAX_HAIR_DENSITY, density)) / 100;
+    const baseDensity = Math.min(1, d);
+    const uniforms = this._hairMat.userData.strandSheen?.uniforms;
+    if (uniforms) uniforms.uHairDensity.value = Math.max(1, d);
 
     container.traverse(child => {
       if (!child.isMesh || !child.material) return;
@@ -570,7 +552,13 @@ class HairSystem {
       m.transparent = false;
       m.opacity = 1;
       m.depthWrite = true;
-      m.roughness = 0.62 - d * 0.26;
+      m.roughness = 0.58 - baseDensity * 0.12;
+      // Thin strand coverage, including the matching shadow cutouts, instead
+      // of fading the entire mass and revealing every overlapping card.
+      if (m.alphaMap) m.alphaTest = 0.56 - baseDensity * 0.42;
+      // Beyond 100, add independently offset fibres using the same buffers.
+      // Fractional layers are selected in the shader without rebuilding hair.
+      if (child.geometry.isInstancedBufferGeometry) child.geometry.instanceCount = Math.max(1, Math.ceil(d));
       /* No needsUpdate. It used to be set here and it was always unnecessary:
          roughness and opacity are uniforms, and transparent and depthWrite are
          draw state three reads every frame — none of them change the program.
@@ -928,6 +916,7 @@ class HairSystem {
     if (this.hairTintPainter) this.hairTintPainter.onModelChanged('beard');
     this._clearGroup(this._beardGroup);
     this._beardContainer = null;
+    const loadId = this._beardLoadId = (this._beardLoadId || 0) + 1;
 
     if (this.beardStyle === 'none') return;
 
@@ -945,6 +934,7 @@ class HairSystem {
     loader.load(
       config.file,
       (group) => {
+        if (this._beardLoadId !== loadId) { this._loads.end(); return; }
         if (config.meshName) {
           const filtered = new THREE.Group();
           filtered.name = group.name;
@@ -980,10 +970,23 @@ class HairSystem {
     const offsetGroup = new THREE.Group();
     offsetGroup.name = 'BeardOffset';
 
+    if (window.StrandShading) {
+      const geometries = [];
+      cached.traverse(child => { if (child.isMesh) geometries.push(child.geometry); });
+      StrandShading.prepareStrandGeometry(geometries, this.beardStyle);
+      StrandShading.applyStyle(this._beardMat, this.beardStyle);
+    }
+
+    const beardMeshes = [];
+    cached.traverse(child => { if (child.isMesh) beardMeshes.push(child); });
+    const strands = window.HairStrands ? HairStrands.build(beardMeshes.map(m => m.geometry), this.beardStyle) : null;
+    let meshIndex = 0;
     cached.traverse(child => {
       if (child.isMesh) {
         const clone = child.clone();
+        if (strands) clone.geometry = strands[meshIndex++];
         clone.material = this._beardMat;
+        if (strands) HairStrands.attachShadows(clone, this._beardMat);
         clone.castShadow = true;
         clone.receiveShadow = true;
         offsetGroup.add(clone);
@@ -1218,13 +1221,16 @@ class HairSystem {
   _clearGroup(group) {
     while (group.children.length) {
       const c = group.children[0];
+      c.traverse(child => {
+        if (child._geometryClonedForTint && child.geometry) child.geometry.dispose();
+      });
       if (c.geometry) c.geometry.dispose();
       if (c.material) c.material.dispose();
       group.remove(c);
     }
   }
 
-  clearHair() { this._clearGroup(this.hairGroup); this._hairContainer = null; this._hairBboxCache = null; }
+  clearHair() { this._loadId++; this._clearGroup(this.hairGroup); this._hairContainer = null; this._hairBboxCache = null; }
 
   /**
    * Save current hair position/scale as the new default for this model.
@@ -1492,7 +1498,9 @@ class HairSystem {
     if (state.hairTintIntensity !== undefined) this.hairTintIntensity = state.hairTintIntensity;
     this._applyHairTint();
     if (state.length !== undefined) this.params.length = Math.round(state.length * 100);
-    if (state.density !== undefined) this.params.density = Math.round(state.density * 100);
+    if (state.density !== undefined && Number.isFinite(Number(state.density))) {
+      this.params.density = Math.max(0, Math.min(HairSystem.MAX_HAIR_DENSITY, Math.round(Number(state.density) * 100)));
+    }
     if (state.volume !== undefined) this.params.volume = Math.round(state.volume * 100);
     if (state.curl !== undefined) this.params.curl = Math.round(state.curl * 100);
     if (state.posX !== undefined) this.params.posx = Math.round(state.posX * 100);

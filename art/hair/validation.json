@@ -1,0 +1,567 @@
+[
+  {
+    "style": "hair1",
+    "meshes": [
+      {
+        "vertices": 1009894,
+        "cards": 170,
+        "fibres": 32000,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      }
+    ],
+    "texture": "hair1-strands-v2",
+    "source": "generated-fibres-v2",
+    "opacity": 1,
+    "transparent": false,
+    "alphaTest": 0.3500000000000001,
+    "toneMean": 0.6279279709853179
+  },
+  {
+    "style": "hair2",
+    "meshes": [
+      {
+        "vertices": 842804,
+        "cards": 2578,
+        "fibres": 32060,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      }
+    ],
+    "texture": "hair2-strands-v2",
+    "source": "generated-fibres-v2",
+    "opacity": 1,
+    "transparent": false,
+    "alphaTest": 0.3500000000000001,
+    "toneMean": 0.6558798779436169
+  },
+  {
+    "style": "hair3",
+    "meshes": [
+      {
+        "vertices": 1215962,
+        "cards": 251,
+        "fibres": 32006,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      }
+    ],
+    "texture": "hair3-strands-v2",
+    "source": "generated-fibres-v2",
+    "opacity": 1,
+    "transparent": false,
+    "alphaTest": 0.3500000000000001,
+    "toneMean": 0.6516535285651316
+  },
+  {
+    "style": "hair4",
+    "meshes": [
+      {
+        "vertices": 1295284,
+        "cards": 130,
+        "fibres": 32002,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      }
+    ],
+    "texture": "hair4-strands-v2",
+    "source": "generated-fibres-v2",
+    "opacity": 1,
+    "transparent": false,
+    "alphaTest": 0.3500000000000001,
+    "toneMean": 0.642677090297346
+  },
+  {
+    "style": "hair5",
+    "meshes": [
+      {
+        "vertices": 1026702,
+        "cards": 196,
+        "fibres": 31996,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      }
+    ],
+    "texture": "hair5-strands-v2",
+    "source": "generated-fibres-v2",
+    "opacity": 1,
+    "transparent": false,
+    "alphaTest": 0.3500000000000001,
+    "toneMean": 0.6361155852107232
+  },
+  {
+    "style": "hair6",
+    "meshes": [
+      {
+        "vertices": 878130,
+        "cards": 1329,
+        "fibres": 32007,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      }
+    ],
+    "texture": "hair6-strands-v2",
+    "source": "generated-fibres-v2",
+    "opacity": 1,
+    "transparent": false,
+    "alphaTest": 0.3500000000000001,
+    "toneMean": 0.6386401954880462
+  },
+  {
+    "style": "hair7",
+    "meshes": [
+      {
+        "vertices": 1292400,
+        "cards": 156,
+        "fibres": 31983,
+        "version": 3,
+        "synthesized": true,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      }
+    ],
+    "texture": "hair7-strands-v2",
+    "source": "generated-fibres-v2",
+    "opacity": 1,
+    "transparent": false,
+    "alphaTest": 0.3500000000000001,
+    "toneMean": 0.6517882475943737
+  },
+  {
+    "style": "hair8",
+    "meshes": [
+      {
+        "vertices": 1020644,
+        "cards": 323,
+        "fibres": 31998,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      }
+    ],
+    "texture": "hair8-strands-v2",
+    "source": "generated-fibres-v2",
+    "opacity": 1,
+    "transparent": false,
+    "alphaTest": 0.3500000000000001,
+    "toneMean": 0.6785237196563246
+  },
+  {
+    "style": "hair9",
+    "meshes": [
+      {
+        "vertices": 1226746,
+        "cards": 114,
+        "fibres": 32000,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      }
+    ],
+    "texture": "hair9-strands-v2",
+    "source": "generated-fibres-v2",
+    "opacity": 1,
+    "transparent": false,
+    "alphaTest": 0.3500000000000001,
+    "toneMean": 0.676404070510249
+  },
+  {
+    "style": "hair10",
+    "meshes": [
+      {
+        "vertices": 1279770,
+        "cards": 117,
+        "fibres": 32002,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      }
+    ],
+    "texture": "hair10-strands-v2",
+    "source": "generated-fibres-v2",
+    "opacity": 1,
+    "transparent": false,
+    "alphaTest": 0.3500000000000001,
+    "toneMean": 0.6599784899069009
+  },
+  {
+    "style": "hair11",
+    "meshes": [
+      {
+        "vertices": 1005686,
+        "cards": 509,
+        "fibres": 32014,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      }
+    ],
+    "texture": "hair11-strands-v2",
+    "source": "generated-fibres-v2",
+    "opacity": 1,
+    "transparent": false,
+    "alphaTest": 0.3500000000000001,
+    "toneMean": 0.6817705702562062
+  },
+  {
+    "style": "hair12",
+    "meshes": [
+      {
+        "vertices": 812202,
+        "cards": 3714,
+        "fibres": 31981,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      }
+    ],
+    "texture": "hair12-strands-v2",
+    "source": "generated-fibres-v2",
+    "opacity": 1,
+    "transparent": false,
+    "alphaTest": 0.3500000000000001,
+    "toneMean": 0.6187199679475158
+  },
+  {
+    "style": "hair13",
+    "meshes": [
+      {
+        "vertices": 1021414,
+        "cards": 1490,
+        "fibres": 31997,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      }
+    ],
+    "texture": "hair13-strands-v2",
+    "source": "generated-fibres-v2",
+    "opacity": 1,
+    "transparent": false,
+    "alphaTest": 0.3500000000000001,
+    "toneMean": 0.6382699777091314
+  },
+  {
+    "style": "hair14",
+    "meshes": [
+      {
+        "vertices": 1270388,
+        "cards": 164,
+        "fibres": 32000,
+        "version": 3,
+        "synthesized": true,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      }
+    ],
+    "texture": "hair14-strands-v2",
+    "source": "generated-fibres-v2",
+    "opacity": 1,
+    "transparent": false,
+    "alphaTest": 0.3500000000000001,
+    "toneMean": 0.6498752631728753
+  },
+  {
+    "style": "beard1",
+    "meshes": [
+      {
+        "vertices": 401136,
+        "cards": 54,
+        "fibres": 33428,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      },
+      {
+        "vertices": 28176,
+        "cards": 15,
+        "fibres": 2348,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      },
+      {
+        "vertices": 24912,
+        "cards": 15,
+        "fibres": 2076,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      },
+      {
+        "vertices": 78780,
+        "cards": 1,
+        "fibres": 6565,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      }
+    ],
+    "texture": "beard1-strands-v2",
+    "source": "generated-fibres-v2",
+    "opacity": 1,
+    "transparent": false,
+    "alphaTest": 0.3,
+    "toneMean": 0.6506872334337899
+  },
+  {
+    "style": "beard2",
+    "meshes": [
+      {
+        "vertices": 114496,
+        "cards": 2377,
+        "fibres": 9476,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      },
+      {
+        "vertices": 75750,
+        "cards": 941,
+        "fibres": 5030,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      },
+      {
+        "vertices": 21812,
+        "cards": 447,
+        "fibres": 1621,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      }
+    ],
+    "texture": "beard2-strands-v2",
+    "source": "generated-fibres-v2",
+    "opacity": 1,
+    "transparent": false,
+    "alphaTest": 0.3,
+    "toneMean": 0.6404010561336081
+  },
+  {
+    "style": "beard3",
+    "meshes": [
+      {
+        "vertices": 125080,
+        "cards": 941,
+        "fibres": 6102,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      },
+      {
+        "vertices": 36068,
+        "cards": 447,
+        "fibres": 1952,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      }
+    ],
+    "texture": "beard3-strands-v2",
+    "source": "generated-fibres-v2",
+    "opacity": 1,
+    "transparent": false,
+    "alphaTest": 0.3,
+    "toneMean": 0.6566756790939167
+  },
+  {
+    "style": "beard4",
+    "meshes": [
+      {
+        "vertices": 123320,
+        "cards": 941,
+        "fibres": 5506,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      }
+    ],
+    "texture": "beard4-strands-v2",
+    "source": "generated-fibres-v2",
+    "opacity": 1,
+    "transparent": false,
+    "alphaTest": 0.3,
+    "toneMean": 0.6421847259877749
+  },
+  {
+    "style": "beard5",
+    "meshes": [
+      {
+        "vertices": 125038,
+        "cards": 2377,
+        "fibres": 10347,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      },
+      {
+        "vertices": 23660,
+        "cards": 447,
+        "fibres": 1756,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      }
+    ],
+    "texture": "beard5-strands-v2",
+    "source": "generated-fibres-v2",
+    "opacity": 1,
+    "transparent": false,
+    "alphaTest": 0.3,
+    "toneMean": 0.6589246308953419
+  },
+  {
+    "style": "beard6",
+    "meshes": [
+      {
+        "vertices": 156910,
+        "cards": 2377,
+        "fibres": 12983,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      }
+    ],
+    "texture": "beard6-strands-v2",
+    "source": "generated-fibres-v2",
+    "opacity": 1,
+    "transparent": false,
+    "alphaTest": 0.3,
+    "toneMean": 0.6039425760546779
+  },
+  {
+    "style": "moustache1",
+    "meshes": [
+      {
+        "vertices": 34850,
+        "cards": 447,
+        "fibres": 1838,
+        "version": 3,
+        "synthesized": false,
+        "mapped": true,
+        "finite": true,
+        "validTangents": true,
+        "shadows": true
+      }
+    ],
+    "texture": "moustache1-strands-v2",
+    "source": "generated-fibres-v2",
+    "opacity": 1,
+    "transparent": false,
+    "alphaTest": 0.3,
+    "toneMean": 0.652142253822992
+  },
+  {
+    "checks": {
+      "reuse": true,
+      "unchangedUV": true,
+      "validCache": true,
+      "stableGroom": true,
+      "boundedGeometryCache": true,
+      "evictedGeometryDisposed": true,
+      "densityPixelDifference": 29774,
+      "baldStayedHidden": true,
+      "beardStayedHidden": true
+    }
+  },
+  {
+    "painting": {
+      "painted": true,
+      "cachedGroomUntinted": true
+    }
+  },
+  {
+    "timing": {
+      "averageSynchronizedFrameMs": 0.21000000089406967,
+      "hairTriangles": 1331754,
+      "geometryCacheSize": 2
+    }
+  }
+]

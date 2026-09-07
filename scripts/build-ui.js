@@ -881,6 +881,8 @@ ${SPRITE}
 <script src="js/vendor/OBJLoader.js"></script>
 <script src="js/vendor/GLBLoader.js"></script>
 <script src="js/AssetLoadTracker.js"></script>
+<script src="js/StrandShading.js"></script>
+<script src="js/HairStrands.js"></script>
 <script src="js/BaseFaceGeometry.js"></script>
 <script src="js/FaceMorpher.js"></script>
 <script src="js/OBJMorpher.js"></script>

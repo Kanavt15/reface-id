@@ -1,450 +1,311 @@
 /**
- * StrandShading.js
- * Hair shading: the strand maps that give a hair card its silhouette and its
- * internal variation, and the scattering model that lights it.
- *
- * THE PROBLEM THIS SOLVES
- * -----------------------
- * HairSystem records why the hair and beard were made fully opaque: the styles
- * are solid card geometry with no alpha map, triangles are not sorted within a
- * mesh, and blending them produced blocky see-through patches in arbitrary
- * order. That reasoning is correct — but the consequence is a polygonal
- * silhouette, which is one of the loudest CG tells on a head.
- *
- * `alphaTest` resolves the tradeoff rather than trading back into it. A cutout
- * material still writes depth and still needs no sorting, so none of the
- * artefacts that forced opacity can return; it just gets a strand-shaped edge
- * instead of a card-shaped one.
- *
- * WHAT THE CUTOUT ALONE DID NOT FIX
- * ---------------------------------
- * A cutout gives the mass a hair-shaped outline and stops there. Everything
- * inside the outline was still a flat card taking a single Lambert value, so
- * the hair photographed as hard black and khaki slabs with a step between
- * neighbouring cards and no gradient across any one of them. Three separate
- * things were missing, and the silhouette work could not supply any of them:
- *
- *   - Variation WITHIN a card. Real hair is thousands of strands at slightly
- *     different tones, darker at the root and lighter at the tip. One flat
- *     albedo across a card cannot read as that no matter how it is lit.
- *   - A strand-shaped normal. A card is geometrically flat, so its highlight
- *     is a flat wash. Each strand is a cylinder, and it is the cylinders that
- *     break light into the fine streaks the eye reads as hair.
- *   - A hair response to light. Hair is not a rough dielectric surface. It has
- *     no point highlight; it has bands, it scatters forward through the mass,
- *     and its second reflection comes back carrying the hair's own colour.
- *     Lambert-plus-GGX cannot produce any of that.
- *
- * So the maps below are generated as a matched set from ONE strand layout —
- * coverage, tone and normal in register, because a tip that tapers in the
- * cutout has to be the same tip that lightens in the tone and rounds off in
- * the normal — and `attachSheen` replaces the standard direct-lighting term
- * with a hair one rather than adding a highlight on top of it.
- *
- * Eyebrows and eyelashes are a different case: those assets are real strand
- * geometry (35k and 42k vertices of individual hairs) and carry no UVs at all,
- * so there is nothing to map a strand texture onto. What they needed was to
- * stop being semi-transparent — overlapping strands blended in arbitrary order
- * is exactly what made them read as a fuzzy decal floating over the brow. They
- * take the same lighting model, minus the parts that need a UV; see the
- * fallback in `attachSheen`.
+ * Matched, style-specific hair-card textures and directional strand lighting.
+ * All channels are authored from the same fibres, so coverage, pigment,
+ * roughness and normals remain in register. No external service is needed.
  */
-
 class StrandShading {
-
-  /** Encoding headroom for the tone channel: strands may run 27% over mid. */
-  static get TONE_SCALE() { return 200; }
-
-  /**
-   * One irregular run of strand centres across u, shared by every map.
-   *
-   * The maps have to agree strand for strand. Generating them from separate
-   * random walks would put a tone boundary in the middle of a coverage strand
-   * and a normal ridge in the gap between two others, and the result reads as
-   * three unrelated noises rather than as one set of hairs.
-   *
-   * Hair card UVs conventionally run u across the card's width and v along its
-   * length, so strands are vertical bands here, tapering toward v=1 where the
-   * tips are. Widths and gaps vary because evenly spaced strands read as a
-   * comb rather than as hair.
-   */
-  static _buildLayout(width) {
-    let seed = 20260826;
-    const rnd = () => {
-      seed = (seed * 16807) % 2147483647;
-      return (seed - 1) / 2147483646;
+  static get PROFILES() {
+    return {
+      hair1: { seed: 1103, wave: 1.4, taper: 0.76 },
+      hair2: { seed: 2207, wave: 3.2, taper: 0.66 },
+      hair3: { seed: 3301, wave: 0.8, taper: 0.85 },
+      hair4: { seed: 4409, wave: 1.8, taper: 0.79 },
+      hair5: { seed: 5501, wave: 2.8, taper: 0.71 },
+      hair6: { seed: 6607, wave: 2.1, taper: 0.77 },
+      hair7: { seed: 7703, wave: 1.2, taper: 0.82 },
+      hair8: { seed: 8803, wave: 0.7, taper: 0.88 },
+      hair9: { seed: 9901, wave: 1.1, taper: 0.86 },
+      hair10: { seed: 10103, wave: 1.6, taper: 0.81 },
+      hair11: { seed: 11113, wave: 2.5, taper: 0.72 },
+      hair12: { seed: 12101, wave: 3.5, taper: 0.64 },
+      hair13: { seed: 13103, wave: 2.4, taper: 0.75 },
+      hair14: { seed: 14107, wave: 1.5, taper: 0.80 },
+      beard1: { seed: 15101, wave: 3.2, taper: 0.76, coarse: true },
+      beard2: { seed: 16103, wave: 4.2, taper: 0.65, coarse: true },
+      beard3: { seed: 17107, wave: 3.6, taper: 0.69, coarse: true },
+      beard4: { seed: 18119, wave: 3.9, taper: 0.64, coarse: true },
+      beard5: { seed: 19121, wave: 4.0, taper: 0.70, coarse: true },
+      beard6: { seed: 20107, wave: 4.4, taper: 0.62, coarse: true },
+      moustache1: { seed: 21101, wave: 2.4, taper: 0.79, coarse: true },
     };
-
-    /* Wide strands, narrow gaps.
-     *
-     * The job here is to feather the SILHOUETTE of a hair card, not to punch
-     * it full of holes. A first pass used thin strands with wide gaps and cut
-     * away so much of every card that the hair mass went transparent and lit
-     * up as pale wisps — a worse result than the solid blob it replaced.
-     * Coverage stays high; the variation lives at the card's edges and tips,
-     * which is the part the eye actually reads as hair. */
-    const strands = [];
-    let x = 0;
-    while (x < width) {
-      const w = 3.0 + rnd() * 7.0;
-      strands.push({
-        x: x + w * 0.5,
-        w: w,
-        // Most strands run nearly the full card; a few stop short so the tip
-        // edge is ragged rather than cut straight across.
-        len: 0.66 + rnd() * 0.34,
-        /* Per-strand tone. Real hair reads as a mass precisely because its
-           strands do not share a value — a few catch the light, most sit mid,
-           some are nearly black. The spread is deliberately wide; at a narrow
-           one the card goes straight back to looking painted. */
-        tone: 0.55 + rnd() * 0.62,
-        // Free per-strand random, carried through so the lighting can shift
-        // and glint each strand differently. See shiftR and glint.
-        id: rnd(),
-        // A slow lengthwise waver, so strands are not perfectly parallel bars.
-        wave: (rnd() - 0.5) * 2.2,
-        phase: rnd() * 6.283,
-      });
-      x += w + rnd() * 1.1;
-    }
-    return strands;
   }
 
-  /**
-   * Coverage, tone and strand id — three channels of one texture.
-   *
-   * They ride together rather than in separate maps because three samples
-   * `alphaMap.g` for the cutout and ignores the rest, which leaves exactly the
-   * two channels this needs free, and because a second texture sampled at the
-   * same UV would only be a slower way of guaranteeing the register that one
-   * texture gives for nothing.
-   *
-   *   r — per-strand tone: how light this particular strand is
-   *   g — coverage; this is the channel three's alphamap_fragment reads
-   *   b — a per-strand random constant, for specular shift and glint
-   *
-   * All three vary across u and are constant along v, because a hair card's
-   * strands run along v. Nothing here ramps root to tip; see the note at the
-   * assignment for why that cannot live in a texture on an atlased asset.
-   *
-   * Alpha is held at 255 on purpose. A 2D canvas stores its pixels
-   * premultiplied, so any channel written under a low alpha comes back
-   * quantised toward zero — the tone and id channels would be destroyed in the
-   * gaps between strands and, worse, at the tapering tips where they matter
-   * most. Nothing reads this texture's alpha channel, so keeping it opaque
-   * costs nothing and keeps the other three intact.
-   */
-  static buildStrandMap(size) {
-    const W = size || 512;
-    const H = size || 512;
-    const canvas = document.createElement('canvas');
-    canvas.width = W;
-    canvas.height = H;
-    const ctx = canvas.getContext('2d');
-
-    const strands = StrandShading._buildLayout(W);
-    const img = ctx.createImageData(W, H);
-    const d = img.data;
-    let toneSum = 0, toneKept = 0;
-
-    for (let y = 0; y < H; y++) {
-      const v = y / (H - 1);
-      for (let px = 0; px < W; px++) {
-        let cov = 0, tone = 0.85, id = 0.5;
-
+  /** Four widths of tuft in one atlas; narrow cards must not carry 64 hairs. */
+  static buildStyleTextures(style) {
+    const cfg = StrandShading.PROFILES[style] || StrandShading.PROFILES.hair1;
+    const W = 1024, H = 1024, tile = W / 4;
+    let seed = cfg.seed;
+    const rnd = () => { seed = seed * 16807 % 2147483647; return (seed - 1) / 2147483646; };
+    const packed = new Uint8ClampedArray(W * H * 4);
+    const normals = new Uint8ClampedArray(W * H * 4);
+    const coverage = new Float32Array(W * H);
+    for (let i = 0; i < packed.length; i += 4) {
+      packed[i] = 180; packed[i + 2] = 128; packed[i + 3] = 255;
+      normals[i] = normals[i + 1] = 128; normals[i + 2] = normals[i + 3] = 255;
+    }
+    for (let col = 0; col < 4; col++) {
+      const count = 8 * (2 ** col);
+      const spacing = (tile - 18) / count;
+      const strands = Array.from({ length: count }, (_, i) => ({
+        x: 9 + (i + 0.22 + rnd() * 0.56) * spacing,
+        width: spacing * (0.62 + rnd() * 0.48),
+        length: cfg.taper + rnd() * (0.985 - cfg.taper),
+        tone: 0.70 + rnd() * 0.43,
+        id: rnd(), phase: rnd() * Math.PI * 2,
+        wave: cfg.wave * (0.35 + rnd() * 0.65) * Math.max(1,spacing*0.12),
+      }));
+      for (let y = 0; y < H; y++) {
+        // DataTexture-style orientation, also used for the exported PNGs.
+        const v = y / (H - 1);
         for (const st of strands) {
-          // Wrap the distance so the strip tiles horizontally.
-          const cx = st.x + Math.sin(v * 3.1 + st.phase) * st.wave;
-          let dx = px - cx;
-          if (dx > W * 0.5) dx -= W;
-          if (dx < -W * 0.5) dx += W;
-          const half = st.w * 0.5;
-          if (Math.abs(dx) > half) continue;
-
-          // Soft edge across the strand, so it does not cut as a hard bar.
-          const edge = 1 - Math.pow(Math.abs(dx) / half, 3.0);
-          // Strand ends: coverage falls away past its own length.
-          const tip = 1 - Math.max(0, (v - st.len) / Math.max(0.05, 1 - st.len));
-          const a = edge * tip;
-          if (a > cov) {
-            cov = a;
-            /* Strand to strand only — deliberately nothing along v.
-             *
-             * A root-to-tip ramp belongs here in principle, and it was here,
-             * and it had to come out. These assets are atlased: one card owns
-             * v 0..0.333 and its neighbour owns 0.667..1.0, so a ramp in
-             * texture space is not a ramp along a strand — it is a constant
-             * offset per card, and the hair photographed with the cards
-             * outlined in it as visible rectangles. The atlas defeats the
-             * shader and the texture equally; there is no v anywhere that
-             * means "distance along this strand".
-             *
-             * What the ramp was really standing in for is that hair is dark
-             * inside the mass and light on the outside, and that IS available
-             * — from the geometry, not from any UV. See computeStrandDepth. */
-            tone = st.tone;
-            id = st.id;
+          if (v >= st.length) continue;
+          const tip = Math.min(1, (st.length - v) / 0.18);
+          const root = Math.min(1, v / (cfg.coarse ? 0.10 : 0.05));
+          const half = Math.max(0.1, st.width * 0.5 * Math.sqrt(tip));
+          // Endpoints stay within the card, with a few independent flyaways.
+          const bend = Math.sin(v * 8 + st.phase) - Math.sin(st.phase);
+          const cx = st.x + bend * st.wave * Math.sin(v * Math.PI);
+          const lo = Math.max(2, Math.floor(cx - half - 1));
+          const hi = Math.min(tile - 3, Math.ceil(cx + half + 1));
+          for (let x = lo; x <= hi; x++) {
+            const dx = (x - cx) / half;
+            const cov = Math.min(1, Math.max(0, half + 0.5 - Math.abs(x - cx))) * Math.min(1, root * 1.5) * Math.min(1, tip * 3);
+            const pixel = y * W + col * tile + x;
+            if (cov <= coverage[pixel]) continue;
+            coverage[pixel] = cov;
+            const i = pixel * 4;
+            // Warmth is supplied by the user's colour, not baked highlights.
+            packed[i] = Math.min(255, Math.round(200 * st.tone * (0.82 + 0.18 * v)));
+            packed[i + 1] = Math.round(cov * 255);
+            packed[i + 2] = Math.round(st.id * 255);
+            const nx = Math.max(-0.8, Math.min(0.8, dx * 0.65));
+            const ny = Math.cos(v * 8 + st.phase) * st.wave * 0.014;
+            normals[i] = Math.round((nx * 0.5 + 0.5) * 255);
+            normals[i + 1] = Math.round((ny * 0.5 + 0.5) * 255);
+            normals[i + 2] = Math.round((Math.sqrt(Math.max(0.1, 1 - nx * nx - ny * ny)) * 0.5 + 0.5) * 255);
           }
         }
-
-        const i = (y * W + px) * 4;
-        d[i]     = Math.min(255, (tone * StrandShading.TONE_SCALE) | 0);
-        d[i + 1] = (Math.min(1, cov * 1.35) * 255) | 0;
-        d[i + 2] = (id * 255) | 0;
-        d[i + 3] = 255;
-
-        // Mean over the pixels that survive the cutout — the ones in the gaps
-        // are never shaded, so averaging them in would bias the figure dark.
-        if (cov > 0.25) { toneSum += tone; toneKept++; }
       }
     }
-
-    ctx.putImageData(img, 0, 0);
-
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.ClampToEdgeWrapping;
-    tex.colorSpace = THREE.NoColorSpace;
-    tex.anisotropy = 8;
-    tex.needsUpdate = true;
-    /* Measured, not assumed.
-     *
-     * The shader divides the sampled tone by this to get a multiplier that
-     * averages 1.0, so per-strand variation lightens and darkens around the
-     * albedo the user picked instead of quietly shifting it. Writing the
-     * figure down as a literal would be a landmine: it depends on the tone
-     * spread and the root-to-tip ramp above, so any retune of those would
-     * silently start darkening or blowing out every head of hair in the app. */
-    tex.userData.toneMean = (toneKept ? toneSum / toneKept : 1) *
-      (StrandShading.TONE_SCALE / 255);
-    return tex;
+    const texture = (data, suffix) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      canvas.getContext('2d').putImageData(new ImageData(data, W, H), 0, 0);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.name = style + '-' + suffix + '-v2';
+      tex.flipY = false;
+      tex.colorSpace = THREE.NoColorSpace;
+      tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.anisotropy = 8;
+      return tex;
+    };
+    let toneSum = 0, kept = 0;
+    for (let i = 0; i < packed.length; i += 4) {
+      if (packed[i + 1] > 80) { toneSum += packed[i] / 255; kept++; }
+    }
+    const map = texture(packed, 'strands');
+    map.userData.toneMean = toneSum / Math.max(1, kept);
+    map.userData.style = style;
+    return { map, normal: texture(normals, 'normal'), profile: cfg };
   }
 
-  /**
-   * A tangent-space normal that bows across every strand.
-   *
-   * This is the map that stops a card from lighting as a card. Each strand is
-   * a cylinder, so its normal sweeps from one side to the other across the
-   * strand's width; laid side by side, that is what splits a single broad
-   * highlight into the fine parallel streaks hair actually shows. Built from
-   * the same layout as the coverage above, so every ridge sits on a strand and
-   * every crease lands in a gap.
-   */
-  static buildStrandNormal(size) {
-    const W = size || 512;
-    const H = size || 512;
-    const canvas = document.createElement('canvas');
-    canvas.width = W;
-    canvas.height = H;
-    const ctx = canvas.getContext('2d');
+  static getStyleTextures(style) {
+    const cache = StrandShading._styles || (StrandShading._styles = new Map());
+    if (cache.has(style)) {
+      const value = cache.get(style);
+      cache.delete(style); cache.set(style, value);
+      return value;
+    }
+    const value = StrandShading.buildStyleTextures(style);
+    value.source = 'procedural-fallback';
+    // Load the authored fibre atlas locally. The deterministic set above
+    // keeps first display and offline/missing-asset operation immediate.
+    value.ready = new Promise(resolve => {
+      new THREE.ImageLoader().load('../../assets/textures/hair/' + style + '-fibres-v2.png', image => {
+        if (value.disposed) { resolve(); return; }
+        StrandShading.readFibreAtlas(value, image);
+        value.source = 'generated-fibres-v2';
+        resolve();
+      }, undefined, () => resolve());
+    });
+    cache.set(style, value);
+    // A hairstyle and a beard are visible together. Four entries bound GPU
+    // memory while retaining the most recently compared alternatives.
+    if (cache.size > 4) {
+      const candidates = [...cache.keys()];
+      const oldest = candidates.find(key => !StrandShading._activeStyles?.has(key));
+      if (oldest) {
+        const old = cache.get(oldest);
+        old.disposed = true;
+        old.map.dispose(); old.normal.dispose(); cache.delete(oldest);
+      }
+    }
+    return value;
+  }
 
-    const strands = StrandShading._buildLayout(W);
-    const img = ctx.createImageData(W, H);
-    const d = img.data;
-
-    for (let y = 0; y < H; y++) {
-      const v = y / (H - 1);
-      for (let px = 0; px < W; px++) {
-        let nx = 0, ny = 0, best = -1;
-
-        for (const st of strands) {
-          const cx = st.x + Math.sin(v * 3.1 + st.phase) * st.wave;
-          let dx = px - cx;
-          if (dx > W * 0.5) dx -= W;
-          if (dx < -W * 0.5) dx += W;
-          const half = st.w * 0.5;
-          if (Math.abs(dx) > half) continue;
-
-          const t = dx / half;           // -1 at one edge, +1 at the other
-          const w = 1 - Math.abs(t);     // nearest strand wins the pixel
-          if (w <= best) continue;
-          best = w;
-          // Cylinder cross-section, flattened: a full hemisphere of normal
-          // over a few pixels aliases into a hard rim, so the sweep is capped.
-          nx = Math.sin(t * 1.15);
-          // The lengthwise waver tilts the strand slightly off vertical.
-          ny = Math.sin(v * 3.1 + st.phase) * st.wave * 0.035;
+  /** Derive registered material channels from the authored monochrome fibres. */
+  static readFibreAtlas(textures, image) {
+    const W = 1024, H = 1024;
+    const layout = textures.map.image.getContext('2d').getImageData(0,0,W,H).data;
+    const layoutNormal = textures.normal.image.getContext('2d').getImageData(0,0,W,H).data;
+    const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d'); ctx.drawImage(image, 0, 0, W, H);
+    const source = ctx.getImageData(0,0,W,H).data;
+    const fitted = document.createElement('canvas'); fitted.width = W; fitted.height = H;
+    const fit = fitted.getContext('2d');
+    // Generated atlases can contain far more fibres than requested. Fit the
+    // measured fibre count to each card width, otherwise a short beard card
+    // compresses hundreds of hairs into a blurred, semi-transparent patch.
+    for (let col=0;col<4;col++) {
+      const counts = [];
+      for (const y of [180,320,460]) {
+        let peaks = 0;
+        for (let x=col*256+4;x<(col+1)*256-4;x++) {
+          const i=(y*W+x)*4, h=source[i];
+          if (h>45 && h>source[i-4]+5 && h>=source[i+4]) peaks++;
         }
-
-        const nz = Math.sqrt(Math.max(0.04, 1 - nx * nx - ny * ny));
-        const i = (y * W + px) * 4;
-        d[i]     = ((nx * 0.5 + 0.5) * 255) | 0;
-        d[i + 1] = ((ny * 0.5 + 0.5) * 255) | 0;
-        d[i + 2] = ((nz * 0.5 + 0.5) * 255) | 0;
-        d[i + 3] = 255;
+        counts.push(peaks);
       }
+      counts.sort((a,b)=>a-b);
+      const fraction = Math.min(1,(8*(2**col))/Math.max(8,counts[1]));
+      const crop = 256*fraction;
+      fit.drawImage(canvas,col*256+(256-crop)*0.5,0,crop,H,col*256,0,256,H);
     }
-
-    ctx.putImageData(img, 0, 0);
-
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.ClampToEdgeWrapping;
-    tex.colorSpace = THREE.NoColorSpace;
-    tex.anisotropy = 8;
-    tex.needsUpdate = true;
-    return tex;
+    const pixels = fit.getImageData(0,0,W,H).data;
+    const heights = new Float32Array(W*H);
+    for (let i=0;i<heights.length;i++) heights[i] = pixels[i*4]/255;
+    const packed = ctx.createImageData(W,H), normal = ctx.createImageData(W,H);
+    let mean = 0, count = 0;
+    for (let y=0;y<H;y++) for (let x=0;x<W;x++) {
+      const p = y*W+x, i = p*4, h = heights[p];
+      // Keep resolvable, continuous fibre silhouettes from the authored
+      // layout. Photograph-level subpixel gaps must not turn short cards
+      // into stochastic dust. The generated image supplies cuticle detail
+      // and pigment variation within those same opaque fibre bodies.
+      const tone = (layout[i]/200) * (0.78 + Math.sqrt(h)*0.44);
+      const cov = (layout[i+1]/255) * (0.86 + Math.min(1,h*2)*0.14);
+      packed.data[i] = Math.min(255,Math.round(tone*200));
+      packed.data[i+1] = Math.round(cov*255);
+      packed.data[i+2] = layout[i+2];
+      packed.data[i+3] = 255;
+      const dx = heights[y*W+Math.max(0,x-1)] - heights[y*W+Math.min(W-1,x+1)];
+      const dy = heights[Math.max(0,y-1)*W+x] - heights[Math.min(H-1,y+1)*W+x];
+      const nx = dx*1.4, ny = dy*0.5, invLength = 1/Math.sqrt(nx*nx+ny*ny+1);
+      normal.data[i] = Math.round(layoutNormal[i]*0.8 + (nx*invLength*0.5+0.5)*255*0.2);
+      normal.data[i+1] = Math.round(layoutNormal[i+1]*0.8 + (ny*invLength*0.5+0.5)*255*0.2);
+      normal.data[i+2] = Math.round(layoutNormal[i+2]*0.8 + (invLength*0.5+0.5)*255*0.2);
+      normal.data[i+3] = 255;
+      if (cov > 0.30) { mean += packed.data[i]/255; count++; }
+    }
+    textures.map.image.getContext('2d').putImageData(packed,0,0);
+    textures.normal.image.getContext('2d').putImageData(normal,0,0);
+    textures.map.userData.toneMean = mean/Math.max(1,count);
+    textures.map.needsUpdate = textures.normal.needsUpdate = true;
   }
 
   /**
-   * Tile periods of the strand map across a mesh's bounding diagonal.
-   *
-   * Measured off Hair 3, which is the style the shading was tuned on: its kept
-   * mesh has a diagonal of 44.8 model units and 0.0608 UV units per model
-   * unit, so the `repeat: 3` that looked right there works out to 3 x 44.8 x
-   * 0.0608. Every other style is scaled to hit the same figure, which is the
-   * only way one shared material can give fourteen differently-unwrapped
-   * assets the same physical strand width. See normalizeStrandUv.
+   * Unwrap each connected card independently. Atlas-wide UV scaling put
+   * arbitrary texture fragments on every card and never feathered its edges.
+   * Authored UV flow is retained; collapsed cards use their local long axis.
+   * Positions, vertex order and indices stay intact for case/tint painting.
    */
-  static get TARGET_TILES() { return 8.2; }
-
-  /** UV area per unit of surface area — how densely a mesh is unwrapped. */
-  static _uvDensity(geometry) {
-    const uvAttr = geometry.attributes.uv;
-    const pos = geometry.attributes.position;
-    if (!uvAttr || !pos) return 0;
-    const uv = uvAttr.array, p = pos.array, idx = geometry.index;
-    const triCount = idx ? idx.count / 3 : pos.count / 3;
-    let uvArea = 0, modelArea = 0;
-    for (let t = 0; t < triCount; t++) {
-      const a = idx ? idx.getX(t * 3) : t * 3;
-      const b = idx ? idx.getX(t * 3 + 1) : t * 3 + 1;
-      const c = idx ? idx.getX(t * 3 + 2) : t * 3 + 2;
-      const ux = p[b * 3] - p[a * 3], uy = p[b * 3 + 1] - p[a * 3 + 1], uz = p[b * 3 + 2] - p[a * 3 + 2];
-      const vx = p[c * 3] - p[a * 3], vy = p[c * 3 + 1] - p[a * 3 + 1], vz = p[c * 3 + 2] - p[a * 3 + 2];
-      const cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx;
-      modelArea += 0.5 * Math.sqrt(cx * cx + cy * cy + cz * cz);
-      uvArea += 0.5 * Math.abs(
-        (uv[b * 2] - uv[a * 2]) * (uv[c * 2 + 1] - uv[a * 2 + 1]) -
-        (uv[c * 2] - uv[a * 2]) * (uv[b * 2 + 1] - uv[a * 2 + 1]));
-    }
-    return modelArea > 1e-12 ? Math.sqrt(uvArea / modelArea) : 0;
-  }
-
-  /**
-   * Give a mesh usable strand UVs when the asset shipped without any.
-   *
-   * Hair7.glb and Hair14.glb carry a TEXCOORD_0 whose every vertex is the same
-   * point, (0, 1). That is not a poor unwrap, it is no unwrap: the whole mesh
-   * samples a single texel of the strand map, and the texel at (0, 1) happens
-   * to be a gap between two strands, so the cutout discarded every triangle
-   * and both styles rendered as a bald head with a few shards floating round
-   * it. Nothing in the shading model can recover from that — there is no
-   * direction to run strands along and no coverage to vary.
-   *
-   * The substitute is polar about the centre of the hair mass: u is the
-   * azimuth, and v is the angle down from straight up — 0 at the crown, 1 at
-   * whatever hangs lowest. Since the strand map runs its strands along v, that
-   * makes them flow radially outward from the crown and then down the sides,
-   * which is how hair grows out of a whorl and how it then falls.
-   *
-   * A cylinder was the obvious first choice — u around, v by height — and it
-   * is wrong in exactly one place, which happens to be the place you look at.
-   * Height barely changes across the top of a skull, so over the crown the
-   * strand direction goes undefined and the map smears into vertical bars: the
-   * head renders as though behind a picket fence. Taking v as the polar angle
-   * instead is what makes it vary fastest precisely where height varies least.
-   *
-   * Two artefacts remain, both narrow. Triangles crossing the +/-pi azimuth
-   * seam get a u jump of about 1, so a compressed strip of texture and an
-   * unreliable tangent; and u still collapses at the pole itself, thinning the
-   * strands over a small patch at the very top. Both are local, where the
-   * cylinder's failure was not. A seamless parameterisation needs connectivity
-   * analysis this does not justify for two assets out of fourteen.
-   */
-  static ensureStrandUv(geometries) {
+  static prepareStrandGeometry(geometries, style = 'hair1') {
     const geos = (Array.isArray(geometries) ? geometries : [geometries]).filter(Boolean);
-    if (!geos.length) return;
-
     const box = new THREE.Box3();
+    for (const g of geos) { g.computeBoundingBox(); box.union(g.boundingBox); }
+    const span = Math.max(box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z, 1e-6);
     for (const g of geos) {
-      g.computeBoundingBox();
-      box.union(g.boundingBox);
-    }
-    const cx = (box.min.x + box.max.x) * 0.5;
-    const cy = (box.min.y + box.max.y) * 0.5;
-    const cz = (box.min.z + box.max.z) * 0.5;
-
-    for (const g of geos) {
-      // A real unwrap has area; a collapsed one has none. This is the same
-      // test either way, so a mesh with no attribute at all also lands here.
-      if (StrandShading._uvDensity(g) > 1e-9) continue;
-
-      const p = g.attributes.position.array;
-      const n = g.attributes.position.count;
-      const uv = new Float32Array(n * 2);
-      for (let i = 0; i < n; i++) {
-        const x = p[i * 3] - cx, y = p[i * 3 + 1] - cy, z = p[i * 3 + 2] - cz;
-        const r = Math.max(1e-9, Math.hypot(x, y, z));
-        uv[i * 2] = Math.atan2(z, x) / (Math.PI * 2) + 0.5;
-        // 0 straight up at the crown, 1 straight down — so v increases the way
-        // hair grows, and the map's tip taper lands at the hanging ends.
-        uv[i * 2 + 1] = Math.acos(Math.max(-1, Math.min(1, y / r))) / Math.PI;
+      if (g.userData.strandCardVersion === 2) continue;
+      const pos = g.attributes.position, oldUV = g.attributes.uv;
+      const parent = Int32Array.from({ length: pos.count }, (_, i) => i);
+      const root = i => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
+      const idx = g.index;
+      for (let t = 0; t < (idx ? idx.count : pos.count); t += 3) {
+        const a = root(idx ? idx.getX(t) : t);
+        parent[root(idx ? idx.getX(t + 1) : t + 1)] = a;
+        parent[root(idx ? idx.getX(t + 2) : t + 2)] = a;
       }
-      g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-      g.userData.strandUvSynthesized = true;
+      const cards = new Map();
+      for (let i = 0; i < pos.count; i++) {
+        const key = root(i);
+        if (!cards.has(key)) cards.set(key, []);
+        cards.get(key).push(i);
+      }
+      const uv = new Float32Array(pos.count * 2);
+      let synthesized = 0;
+      for (const verts of cards.values()) {
+        const centre = new THREE.Vector3();
+        const p = new THREE.Vector3();
+        for (const i of verts) centre.add(p.fromBufferAttribute(pos, i));
+        centre.divideScalar(verts.length);
+        let minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
+        if (oldUV) for (const i of verts) {
+          minU = Math.min(minU, oldUV.getX(i)); maxU = Math.max(maxU, oldUV.getX(i));
+          minV = Math.min(minV, oldUV.getY(i)); maxV = Math.max(maxV, oldUV.getY(i));
+        }
+        const valid = oldUV && maxU - minU > 1e-6 && maxV - minV > 1e-6;
+        const coords = [];
+        if (valid) {
+          for (const i of verts) coords.push([(oldUV.getX(i) - minU) / (maxU - minU), (oldUV.getY(i) - minV) / (maxV - minV)]);
+        } else {
+          synthesized++;
+          // Principal direction of this card, not a projection of the head.
+          const covariance = new THREE.Matrix3().set(0,0,0,0,0,0,0,0,0);
+          const e = covariance.elements;
+          for (const i of verts) {
+            p.fromBufferAttribute(pos, i).sub(centre);
+            const a = p.toArray();
+            for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) e[c * 3 + r] += a[r] * a[c];
+          }
+          const axis = new THREE.Vector3(e[0] >= e[4] && e[0] >= e[8] ? 1 : 0, e[4] > e[0] && e[4] >= e[8] ? 1 : 0, e[8] > e[0] && e[8] > e[4] ? 1 : 0);
+          for (let k = 0; k < 12; k++) axis.applyMatrix3(covariance).normalize();
+          const normal = new THREE.Vector3();
+          if (g.attributes.normal) for (const i of verts) normal.add(p.fromBufferAttribute(g.attributes.normal, i));
+          normal.normalize();
+          const cross = new THREE.Vector3().crossVectors(axis, normal).normalize();
+          if (cross.lengthSq() < 0.1) cross.crossVectors(axis, Math.abs(axis.y) < 0.9 ? new THREE.Vector3(0,1,0) : new THREE.Vector3(1,0,0)).normalize();
+          minU = minV = Infinity; maxU = maxV = -Infinity;
+          for (const i of verts) {
+            p.fromBufferAttribute(pos, i).sub(centre);
+            const u = p.dot(cross), v = p.dot(axis);
+            coords.push([u,v]);
+            minU = Math.min(minU,u); maxU = Math.max(maxU,u); minV = Math.min(minV,v); maxV = Math.max(maxV,v);
+          }
+          for (const c of coords) { c[0] = (c[0] - minU) / Math.max(1e-8,maxU-minU); c[1] = (c[1] - minV) / Math.max(1e-8,maxV-minV); }
+        }
+        const extent = dimension => {
+          const a = new THREE.Vector3(), b = new THREE.Vector3(); let na = 0, nb = 0;
+          coords.forEach((c,j) => {
+            if (c[dimension] < 0.12) { a.add(p.fromBufferAttribute(pos,verts[j])); na++; }
+            if (c[dimension] > 0.88) { b.add(p.fromBufferAttribute(pos,verts[j])); nb++; }
+          });
+          a.divideScalar(Math.max(1,na)); b.divideScalar(Math.max(1,nb));
+          return { a,b,length: a.distanceTo(b) };
+        };
+        let across = extent(0), along = extent(1);
+        if (across.length > along.length * 1.35) {
+          for (const c of coords) [c[0],c[1]] = [c[1],c[0]];
+          [across,along] = [along,across];
+        }
+        // Roots generally sit nearer the centre of the mass than free tips.
+        const massCentre = box.getCenter(new THREE.Vector3());
+        const reverse = along.a.distanceToSquared(massCentre) > along.b.distanceToSquared(massCentre);
+        const fibres = across.length / span * (style.startsWith('hair') ? 1000 : 500);
+        const col = Math.max(0,Math.min(3,Math.round(Math.log2(Math.max(8,fibres)/8))));
+        coords.forEach((c,j) => {
+          const i = verts[j];
+          uv[i*2] = (col + 0.005 + c[0]*0.99)/4;
+          uv[i*2+1] = 0.002 + (reverse ? 1-c[1] : c[1])*0.996;
+        });
+      }
+      g.setAttribute('uv',new THREE.BufferAttribute(uv,2));
+      // Imported tangents would refer to the previous UVs.
+      g.deleteAttribute('tangent');
+      g.userData.strandCardVersion = 2;
+      g.userData.strandCards = cards.size;
+      g.userData.strandUvSynthesized = synthesized > 0;
     }
-  }
-
-  /**
-   * Scale each mesh's u so every style gets the same physical strand width.
-   *
-   * The strand map tiles across u, and how many times it tiles over a given
-   * piece of hair depends entirely on how the artist unwrapped it. Measured
-   * across the fourteen styles that ratio spans more than a factor of four —
-   * Hair 3 and Hair 4 are modelled at roughly quadruple the unit scale of the
-   * rest — so the single `repeat` value tuned on Hair 3 would have left most
-   * of the others with strands three to five times too wide, reading as
-   * painted bands rather than hair.
-   *
-   * It goes into the geometry rather than the material because there is only
-   * one hair material and fourteen styles share it; a texture transform is
-   * per-material and cannot express a per-mesh correction. These assets carry
-   * no textures of their own — every hair GLB in the set has zero images — so
-   * the UV channel is free to rewrite for our own use.
-   *
-   * Only u is touched. v runs along the strand, where the map is nearly
-   * constant apart from the taper at the tip; rescaling it would repeat that
-   * taper down the length of every card as periodic banding.
-   */
-  static normalizeStrandUv(geometries) {
-    const geos = (Array.isArray(geometries) ? geometries : [geometries])
-      .filter(g => g && g.attributes.uv && !g.userData.strandUvNormalized);
-    if (!geos.length) return;
-
-    const box = new THREE.Box3();
-    for (const g of geos) {
-      g.computeBoundingBox();
-      box.union(g.boundingBox);
-    }
-    const diag = Math.hypot(box.max.x - box.min.x, box.max.y - box.min.y,
-                            box.max.z - box.min.z);
-    if (!(diag > 1e-9)) return;
-
-    for (const g of geos) {
-      const density = StrandShading._uvDensity(g);
-      if (!(density > 1e-9)) continue;
-      // Clamped only as a guard against a degenerate mesh driving the scale to
-      // an absurd value — the measured styles all land between about 3 and 14.
-      const scale = Math.max(0.5, Math.min(24,
-        StrandShading.TARGET_TILES / (diag * density)));
-      const uv = g.attributes.uv.array;
-      for (let i = 0; i < uv.length; i += 2) uv[i] *= scale;
-      g.attributes.uv.needsUpdate = true;
-      g.userData.strandUvNormalized = true;
-      g.userData.strandUvScale = scale;
-    }
-  }
-
-  /**
-   * Everything a hair style's geometry needs before it can be shaded, in the
-   * one order that works: synthesise UVs where there are none, then scale
-   * them (which has to measure the UVs that now exist), then measure the mass.
-   */
-  static prepareStrandGeometry(geometries) {
-    StrandShading.ensureStrandUv(geometries);
-    StrandShading.normalizeStrandUv(geometries);
-    StrandShading.computeStrandDepth(geometries);
+    StrandShading.computeStrandDepth(geos);
   }
 
   /**
@@ -464,7 +325,7 @@ class StrandShading {
    *
    * The attribute is named so that a MISSING one means "not occluded": WebGL
    * feeds absent attributes as zero, and zero has to be the harmless value.
-   * The eyebrow and beard materials run the same shader without ever calling
+   * The eyebrow and eyelash materials run the same shader without ever calling
    * this, and if the polarity were the other way round they would silently
    * render black.
    *
@@ -566,64 +427,28 @@ class StrandShading {
     }
   }
 
-  static getStrandMap() {
-    if (!StrandShading._map) StrandShading._map = StrandShading.buildStrandMap(512);
-    return StrandShading._map;
-  }
-
-  static getStrandNormal() {
-    if (!StrandShading._normal) StrandShading._normal = StrandShading.buildStrandNormal(512);
-    return StrandShading._normal;
-  }
-
-  /**
-   * Turn a solid hair-card material into a cutout one, and give it the strand
-   * normal that goes with the cutout.
-   *
-   * `transparent` stays false on purpose. A cutout material is opaque as far as
-   * the renderer is concerned — it writes depth, sorts by depth like any other
-   * solid, and so cannot reproduce the arbitrary-order blending that made the
-   * original transparent version unusable.
-   *
-   * `alphaToCoverage` is what takes the jaggedness off that cutout. It resolves
-   * the strand edge through the MSAA samples the scene is already rendering
-   * with (PostFX's scene target is 4x, and the default framebuffer is
-   * antialiased for the passes that bypass it), so the edge softens without
-   * anything entering the alpha pass and without any sorting. Where there is
-   * no MSAA it degenerates silently to the hard cutout, which is where this
-   * started — so it can only help.
-   *
-   * The repeat arguments stay at 1 for the hair. Strand density is a per-style
-   * quantity and this is a per-material setting, so it cannot live here; the
-   * scale is baked into each geometry's u instead. See normalizeStrandUv.
-   */
-  static applyCardAlpha(material, repeatU, repeatV) {
-    if (!material) return material;
-    const ru = repeatU || 1, rv = repeatV || 1;
-
-    const tex = StrandShading.getStrandMap().clone();
-    tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.ClampToEdgeWrapping;
-    tex.repeat.set(ru, rv);
-    tex.needsUpdate = true;
-
-    const nrm = StrandShading.getStrandNormal().clone();
-    nrm.wrapS = THREE.RepeatWrapping;
-    nrm.wrapT = THREE.ClampToEdgeWrapping;
-    nrm.repeat.set(ru, rv);
-    nrm.needsUpdate = true;
-
-    material.alphaMap = tex;
-    material.normalMap = nrm;
-    /* Strong enough to break the card into strands, well short of the value
-       that turns the highlight into noise: the map already sweeps a full 1.15
-       radians across a strand a few pixels wide, so it does not need help. */
-    material.normalScale = new THREE.Vector2(0.55, 0.55);
-    material.alphaTest = 0.32;
+  /** Bind a distinct matched texture set when a style is selected. */
+  static applyStyle(material, style) {
+    const active = StrandShading._activeStyles || (StrandShading._activeStyles = new Set());
+    if (material.userData.strandStyle) active.delete(material.userData.strandStyle);
+    active.add(style);
+    const textures = StrandShading.getStyleTextures(style);
+    material.alphaMap = textures.map;
+    material.normalMap = textures.normal;
+    material.normalScale.set(0.38, 0.38);
+    material.alphaTest = 0.30;
     material.alphaToCoverage = true;
     material.transparent = false;
+    material.opacity = 1;
     material.depthWrite = true;
     material.side = THREE.DoubleSide;
+    if (window.HairStrands) material.defines = { ...material.defines, HAIR_FIBRES: 1 };
+    material.userData.strandStyle = style;
+    const uniforms = material.userData.strandSheen?.uniforms;
+    if (uniforms) uniforms.uToneMean.value = textures.map.userData.toneMean;
+    material.userData.strandTexturesReady = textures.ready.then(() => {
+      if (material.alphaMap === textures.map && uniforms) uniforms.uToneMean.value = textures.map.userData.toneMean;
+    });
     material.needsUpdate = true;
     return material;
   }
@@ -719,8 +544,15 @@ class StrandShading {
       uToneStrength: { value: cfg.toneStrength },
       // Filled in at compile time from the map itself; see below.
       uToneMean: { value: 1.0 },
+      uHairViewport: { value: new THREE.Vector2(800, 900) },
+      uHairDensity: { value: 1.0 },
     };
     material.userData.strandSheen = { uniforms };
+    const priorRender = material.onBeforeRender;
+    material.onBeforeRender = function(renderer, ...args) {
+      if (typeof priorRender === 'function') priorRender.call(this, renderer, ...args);
+      renderer.getDrawingBufferSize(uniforms.uHairViewport.value);
+    };
 
     /* Chain rather than replace.
      *
@@ -740,12 +572,30 @@ class StrandShading {
          this defines as "not occluded", so the materials that never run
          computeStrandDepth are unaffected. */
       shader.vertexShader =
+        (window.HairStrands ? '#ifdef HAIR_FIBRES\n' + HairStrands.layerVertexGLSL() + '\n#endif\n' : '') +
+        '#ifdef HAIR_FIBRES\nattribute vec3 aHairTangent;\nattribute vec3 aHairFiber;\nattribute float aHairWidth;\nuniform vec2 uHairViewport;\nvarying vec3 vHairTangent;\nvarying vec3 vHairFiber;\n#endif\n' +
         'attribute float aStrandDepth;\n' +
         'varying float vStrandDepth;\n' +
         shader.vertexShader.replace(
           '#include <begin_vertex>',
-          'vStrandDepth = aStrandDepth;\n#include <begin_vertex>'
+          'vStrandDepth = aStrandDepth;\n#include <begin_vertex>\n#ifdef HAIR_FIBRES\nvHairTangent = normalize(mat3(modelViewMatrix) * aHairTangent);\nvHairFiber = aHairFiber;\nvHairFiber.z = fract(aHairFiber.z + aHairLayer * 0.381966);\nvHairLayer = aHairLayer;\ntransformed += hairLayerOffset(aHairTangent, normal, aHairFiber.z, aHairWidth);\n#endif'
         );
+      shader.vertexShader = shader.vertexShader.replace('#include <project_vertex>', [
+        '#ifdef HAIR_FIBRES',
+        'vec3 hairAcross = normalize(cross(aHairTangent, objectNormal));',
+        'vec3 hairCentre = transformed - hairAcross * aHairWidth * aHairFiber.x;',
+        'vec4 mvPosition = modelViewMatrix * vec4(hairCentre, 1.0);',
+        'vec2 screenAcross = vec2(vHairTangent.y, -vHairTangent.x);',
+        'screenAcross /= max(length(screenAcross), 0.0001);',
+        'float actualWidth = length(mat3(modelViewMatrix) * hairAcross) * aHairWidth;',
+        'float endTaper = sqrt(min(1.0, (1.0 - aHairFiber.y) * 10.0)) * sqrt(min(1.0, aHairFiber.y * 28.0));',
+        'float pixelWidth = 0.72 * max(0.01, -mvPosition.z) / (projectionMatrix[1][1] * uHairViewport.y) * endTaper;',
+        'mvPosition.xy += screenAcross * max(actualWidth, pixelWidth) * aHairFiber.x;',
+        'gl_Position = projectionMatrix * mvPosition;',
+        '#else',
+        '#include <project_vertex>',
+        '#endif',
+      ].join('\n'));
 
       /* Read the map here rather than in the constructor: attachSheen and
          applyCardAlpha are two independent calls in either order, and only by
@@ -761,6 +611,7 @@ class StrandShading {
        * A file-scope variable written in main() before that loop runs is the
        * only channel into it. */
       shader.fragmentShader =
+        '#ifdef HAIR_FIBRES\nuniform float uHairDensity;\nvarying float vHairLayer;\nvarying vec3 vHairTangent;\nvarying vec3 vHairFiber;\n#endif\n' +
         'uniform float uSheenStrength;\n' +
         'uniform vec3 uSheenTint;\n' +
         'uniform float uSheenExp;\n' +
@@ -804,7 +655,14 @@ class StrandShading {
           // level where the user's colour put it and leaves uToneStrength as
           // a pure variation control rather than a hidden exposure.
           '  float tone = mix( 1.0, packed.r / uToneMean, uToneStrength );',
+          '#ifndef HAIR_FIBRES',
           '  diffuseColor.rgb *= tone;',
+          '#endif',
+          '#ifdef HAIR_FIBRES',
+          '  diffuseColor.rgb *= 0.86 + 0.28 * packed.r;',
+          '  gStrandId = vHairFiber.z;',
+          '  diffuseColor.rgb *= (0.78 + 0.44 * gStrandId) * mix(0.72, 1.0, smoothstep(0.0, 0.35, vHairFiber.y));',
+          '#endif',
           '}',
           '#else',
           '#ifndef FLAT_SHADED',
@@ -855,6 +713,16 @@ class StrandShading {
           // denominator is the usual energy correction, so widening the wrap
           // spreads the light rather than adding more of it.
           '  float wrapped = clamp( ( ndl + uScatter ) / ( ( 1.0 + uScatter ) * ( 1.0 + uScatter ) ), 0.0, 1.0 );',
+          '#ifdef USE_ALPHAMAP',
+          // A fibre is cylindrical: its diffuse response follows its axis.
+          // Flat card normals otherwise expose every quad as a separate slab.
+          '  float tl = dot(gStrandT, L);',
+          '  float cylinder = sqrt(max(0.0, 1.0 - tl * tl)) * 0.40;',
+          '  wrapped = mix(wrapped, cylinder, 0.55);',
+          '#ifdef HAIR_FIBRES',
+          '  wrapped = cylinder;',
+          '#endif',
+          '#endif',
           '  reflectedLight.directDiffuse += directLight.color * wrapped * BRDF_Lambert( material.diffuseColor );',
           '',
           /* Both bands are scaled by the same wrapped term as the diffuse.
@@ -935,6 +803,47 @@ class StrandShading {
          map, and after lights_physical_fragment, so nothing later overwrites
          it. */
       shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <roughnessmap_fragment>',
+        '#include <roughnessmap_fragment>\n#ifdef USE_ALPHAMAP\n' +
+        'roughnessFactor = clamp(roughnessFactor + (gStrandId - 0.5) * 0.16, 0.32, 0.72);\n#endif'
+      );
+
+      // Three r160 only discards alpha below the threshold. Remap the narrow
+      // edge to MSAA coverage so tapered fibres keep a soft, stable outline.
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <alphamap_fragment>',
+        '#ifdef HAIR_FIBRES\n' +
+        'diffuseColor.a *= smoothstep(0.0, 0.025, vHairFiber.y);\n' +
+        '#else\n#include <alphamap_fragment>\n#endif'
+      );
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <normal_fragment_maps>',
+        '#ifdef HAIR_FIBRES\n' +
+        'vec3 fibreT = normalize(vHairTangent);\n' +
+        'vec3 fibreV = normalize(vViewPosition);\n' +
+        'normal = normalize(fibreV - fibreT * dot(fibreT, fibreV));\n' +
+        '#else\n#include <normal_fragment_maps>\n#endif'
+      );
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <alphatest_fragment>',
+        '#ifdef HAIR_FIBRES\n' +
+        'if (vHairFiber.z < max(0.0, alphaTest - 0.14) * 0.8) discard;\n' +
+        'if (vHairLayer > 0.5 && vHairFiber.z >= uHairDensity - vHairLayer) discard;\n' +
+        '#elif defined(USE_ALPHATEST)\n' +
+        'float strandAA = max(fwidth(diffuseColor.a), 0.025);\n' +
+        'diffuseColor.a = smoothstep(alphaTest - strandAA, alphaTest + strandAA, diffuseColor.a);\n' +
+        'if (diffuseColor.a <= 0.001) discard;\n#endif'
+      );
+
+      // r160's OPAQUE chunk resets alpha to 1 even with alphaToCoverage on.
+      // Preserve the fibre coverage through that final output assignment.
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <opaque_fragment>',
+        'float strandCoverage = diffuseColor.a;\n#include <opaque_fragment>\n' +
+        '#ifdef USE_ALPHAMAP\ngl_FragColor.a = strandCoverage;\n#endif'
+      );
+
+      shader.fragmentShader = shader.fragmentShader.replace(
         '#include <lights_fragment_begin>',
         [
           '#ifdef USE_ALPHAMAP',
@@ -963,6 +872,9 @@ class StrandShading {
           // strand direction. See the class comment.
           '  gStrandT = normalize( normal + vec3( 0.0, 0.55, 0.0 ) );',
           '#endif',
+          '#ifdef HAIR_FIBRES',
+          '  gStrandT = normalize(vHairTangent);',
+          '#endif',
           '#include <lights_fragment_begin>',
         ].join('\n')
       );
@@ -975,6 +887,11 @@ class StrandShading {
         '#include <aomap_fragment>',
         [
           '#include <aomap_fragment>',
+          '#ifdef USE_ALPHAMAP',
+          // Keep ambient fill, but suppress the isotropic plastic reflection
+          // inherited from MeshStandardMaterial. Directional lobes supply it.
+          'reflectedLight.indirectSpecular *= 0.45;',
+          '#endif',
           '#ifndef FLAT_SHADED',
           '{',
           '  vec3 sV = normalize( vViewPosition );',
@@ -989,7 +906,7 @@ class StrandShading {
     // Likewise for the cache key: two materials whose programs differ must not
     // collide on one key, or the second renders with the first's shader.
     material.customProgramCacheKey = () =>
-      'strand' + (typeof priorKey === 'function' ? '|' + priorKey.call(material) : '');
+      'strand-v4' + (typeof priorKey === 'function' ? '|' + priorKey.call(material) : '');
     material.needsUpdate = true;
     return material;
   }
@@ -1011,8 +928,5 @@ class StrandShading {
     if (params.sheenTint !== undefined) s.uniforms.uSheenTint.value.set(params.sheenTint);
   }
 }
-
-StrandShading._map = null;
-StrandShading._normal = null;
 
 window.StrandShading = StrandShading;
