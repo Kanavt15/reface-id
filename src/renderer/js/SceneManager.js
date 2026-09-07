@@ -48,20 +48,9 @@ class SceneManager {
     });
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.VSMShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    /* Exposure dropped from 1.2 when the studio IBL below started contributing
-       real energy that had previously been faked with a hot key light, and
-       again to 0.92 once the four-light rig went in.
-       ACES desaturates as it rolls off, so an over-exposed face does not just
-       read as bright — it reads as pale and colourless, which is most of what
-       made this head look like a wax model. Holding the forehead and the
-       cheekbones below the shoulder of the curve is what lets the melanin and
-       haemoglobin variation in the diffuse map survive to the screen at all.
-       Down again to 0.84 with the loop key: the face was sitting at a median
-       of 151 and a 90th percentile of 172 out of 255, which is most of the way
-       up the curve where ACES is flattest, so the new shading gradient would
-       have been compressed away as fast as the key created it. */
+    // Preserve complexion variation in highlights; PostFX shares this exposure.
     this.renderer.toneMappingExposure = 0.88;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
@@ -149,20 +138,29 @@ class SceneManager {
    */
   static get SKIN() {
     return {
-      clearcoat: 0.10,
-      /* Multiplied by clearcoatRoughnessMap, which SkinTextureSystem binds to
-         the skin roughness map — so this is the top of the range, not a flat
-         value. A T-zone texel lands near 0.11 (a tight wet highlight) and a dry
-         cheek near 0.33 (broad and soft). At the old constant 0.22 every part
-         of the face had an identically tight sheen, which is the plastic look. */
-      clearcoatRoughness: 0.55,
-      /* Eased from 0.9. The studio IBL is four broad softboxes, so it fills
-         from every direction at once — exactly what a face needs for its
-         specular to look real, and exactly what flattens its diffuse shading
-         if it is doing too much of the lighting. This keeps the reflections
-         and hands the shading gradients back to the key. */
-      envMapIntensity: 0.88,
+      roughness: 0.62,
+      specularIntensity: 0.55,
+      // Restrained oil and fuzz layers over the broad skin reflection.
+      clearcoat: 0.025,
+      clearcoatRoughness: 0.85,
+      envMapIntensity: 0.60,
+      sheen: 0.06,
+      sheenRoughness: 0.90,
+      sheenColor: 0xffeee0,
     };
+  }
+
+  /** Keep surface settings consistent after a slider, restore or mode switch. */
+  static applySkinSurface(material, photoreal) {
+    const skin = SceneManager.SKIN;
+    material.envMapIntensity = photoreal ? skin.envMapIntensity : 0;
+    if (!material.isMeshPhysicalMaterial) return;
+    material.specularIntensity = photoreal ? skin.specularIntensity : 0.25;
+    material.clearcoat = photoreal ? skin.clearcoat : 0;
+    material.clearcoatRoughness = skin.clearcoatRoughness;
+    material.sheen = photoreal ? skin.sheen : 0;
+    material.sheenRoughness = skin.sheenRoughness;
+    material.sheenColor.set(skin.sheenColor);
   }
 
   /**
@@ -179,13 +177,16 @@ class SceneManager {
   _createSkinMaterial() {
     const mat = new THREE.MeshPhysicalMaterial({
       color: 0xcb9a78,
-      roughness: 0.45,
+      roughness: SceneManager.SKIN.roughness,
       metalness: 0.0,
       ior: 1.4,
-      specularIntensity: 1.0,
+      specularIntensity: SceneManager.SKIN.specularIntensity,
       clearcoat: SceneManager.SKIN.clearcoat,
       clearcoatRoughness: SceneManager.SKIN.clearcoatRoughness,
       envMapIntensity: SceneManager.SKIN.envMapIntensity,
+      sheen: SceneManager.SKIN.sheen,
+      sheenRoughness: SceneManager.SKIN.sheenRoughness,
+      sheenColor: new THREE.Color(SceneManager.SKIN.sheenColor),
       side: THREE.FrontSide,
     });
 
@@ -699,56 +700,20 @@ class SceneManager {
     this._lipWeights = null;
   }
 
-  /**
-   * Setup studio lighting.
-   *
-   * LOOP LIGHTING — FORM WITHOUT DRAMA
-   * ----------------------------------
-   * Two earlier placements, and this is the third. The key began at (2,3,3),
-   * 45 degrees off axis and 45 up — Rembrandt. That throws the nose shadow
-   * clear across the cheek and hides the nasolabial fold and the cheekbone,
-   * which are exactly the features an identification is made on. So it was
-   * pulled in to 18 degrees off axis and 27 up, the passport-photo placement.
-   *
-   * That over-corrected. Measured off a rendered front view, the left and
-   * right cheeks came out within 3% of each other — a 1.03:1 ratio across the
-   * face, which is not low-contrast lighting, it is no lighting: nothing in
-   * the image tells the eye the head is round. Combined with the IBL and the
-   * two rims all filling from their own directions, the whole face sat inside
-   * an 80-level band with no shadow anywhere in it. A head lit that evenly
-   * reads as a drawing of a head, and no amount of skin detail survives it.
-   *
-   * The key now sits at about 33 degrees off axis and 32 up. That is loop
-   * lighting — the standard flattering portrait key, and the one placement
-   * that buys real modelling without the Rembrandt cost: the nose shadow
-   * stays a short wedge angled down and out, and never reaches the cheek
-   * shadow to close the loop. Both sides of the face stay readable, which is
-   * the constraint that matters here, but they are no longer the same value.
-   */
+  /** Neutral portrait lighting with a gentle key-to-fill difference. */
   setupStudioLighting() {
     this.clearLights();
 
-    // Intensities are roughly halved from the pre-IBL values, and the ambient
-    // and hemisphere lights are cut hard. The studio environment now supplies
-    // the fill that those were faking, and leaving them at the old levels
-    // double-counts it — which washes the face out and flattens exactly the
-    // shading gradients the IBL was added to restore.
-    /* Up from 0.95 with the dome halved. The old number was set against an
-       environment that was doing much of the lighting on its own; against a
-       dark studio the key has to actually light the face. Raising it rather
-       than lifting exposure or the fill is deliberate — it is the one source
-       with a direction, so every unit of it adds modelling instead of
-       averaging it away. */
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.25);
+    // A moderate key shapes the face without overpowering the skin detail.
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.10);
     keyLight.position.set(1.95, 2.15, 3.05);
     keyLight.castShadow = true;
-    this._configureShadow(keyLight);
+    this._configureShadow(keyLight, true);
     this.scene.add(keyLight);
 
-    /* Fill — opposite side, and low, so it lifts the shadowed cheek and the
-       underside of the jaw without adding a second catchlight or a second set
-       of shadows. Cool, because a real fill card is bouncing skylight. */
-    const fillLight = new THREE.DirectionalLight(0xd6e2f5, 0.20);
+    // A neutral fill keeps skin colour and pores legible on the shadowed cheek.
+    // It casts no second shadow and remains weaker than the modelling key.
+    const fillLight = new THREE.DirectionalLight(0xf4f5f7, 0.70);
     fillLight.position.set(-2.7, 0.65, 2.3);
     this.scene.add(fillLight);
 
@@ -756,18 +721,18 @@ class SceneManager {
        axis rims the nose and the ears equally, which reads as a halo; offset
        pairs catch the jawline and the far cheek instead, which is what
        separates a head from its background. */
-    const rimLight = new THREE.DirectionalLight(0xffffff, 0.30);
+    const rimLight = new THREE.DirectionalLight(0xffffff, 0.08);
     rimLight.position.set(-1.9, 1.5, -2.4);
     this.scene.add(rimLight);
 
-    const rimLight2 = new THREE.DirectionalLight(0xf6f9ff, 0.16);
+    const rimLight2 = new THREE.DirectionalLight(0xf6f9ff, 0.04);
     rimLight2.position.set(2.1, 1.2, -2.2);
     this.scene.add(rimLight2);
 
-    const ambientLight = new THREE.AmbientLight(0x404050, 0.12);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.18);
     this.scene.add(ambientLight);
 
-    const hemiLight = new THREE.HemisphereLight(0x9fb4c2, 0x2b2a2a, 0.10);
+    const hemiLight = new THREE.HemisphereLight(0xf0f2f5, 0x77736d, 0.14);
     this.scene.add(hemiLight);
 
     /* Named so setRenderMode() can put the fill back for Structure mode, which
@@ -780,41 +745,16 @@ class SceneManager {
     this.updateShadowFrustums();
   }
 
-  /**
-   * Shadow settings shared by every shadow-casting light.
-   *
-   * Two bugs lived here, and between them they produced every grey smudge on
-   * the face.
-   *
-   * 1. THE FRUSTUM WAS TOO SMALL FOR THE SUBJECT. The orthographic shadow
-   *    camera was pinned at +/-1.6 x +/-1.8. The head with its neck measures
-   *    1.9 x 3.1 x 2.2, and seen from a light 45 degrees up its silhouette is
-   *    about 3.8 tall — so the bottom of the neck fell outside. three's shadow
-   *    lookup treats anything outside the frustum as fully lit, so the boundary
-   *    landed on the neck as a dead-straight diagonal line with shadow on one
-   *    side and none on the other. Hardcoded extents cannot be right for a mesh
-   *    the morph sliders resize, so updateShadowFrustums() now fits them to the
-   *    real bounding sphere and this function only sets what is scale-free.
-   *
-   * 2. DEPTH BIAS AT GRAZING INCIDENCE. `bias` is in normalised depth, so over
-   *    a near 0.5 / far 12 range -0.0005 was pushing the comparison ~5.8mm
-   *    through the surface. Where the light rakes along a cheek that offset
-   *    converts to a lateral slide of the shadow by bias/tan(angle) — which is
-   *    how the nose shadow ended up as a detached oval floating on the cheek.
-   *    `normalBias` is the right tool: it offsets along the surface normal in
-   *    world units and scales with the angle by construction, so peter-panning
-   *    stays bounded. Depth bias drops to a hair above nothing, and the tighter
-   *    near/far below buys back the precision that pays for it.
-   *
-   * `radius` is deliberately absent: it is ignored under PCFSoftShadowMap, so
-   * the 3 that used to sit here did nothing at all.
+  /** Fit shadows to the head and blur the studio key as a broad source.
+   * VSM filters the cast-shadow boundary itself, preventing a sharp diagonal
+   * jaw shadow across the neck. Outdoor lighting retains a narrow filter.
    */
-  _configureShadow(light) {
-    // 2048 over a frustum fitted to the head is ~0.15mm per texel — finer than
-    // the geometry can express. 4096 quadrupled the cost to render the same
-    // shadow.
-    light.shadow.mapSize.width = 2048;
-    light.shadow.mapSize.height = 2048;
+  _configureShadow(light, soft = false) {
+    // A smaller map with a wide filter gives the studio shadow a smooth falloff.
+    light.shadow.mapSize.width = soft ? 1024 : 2048;
+    light.shadow.mapSize.height = soft ? 1024 : 2048;
+    light.shadow.radius = soft ? 48 : 2;
+    light.shadow.blurSamples = soft ? 24 : 8;
     light.shadow.bias = -0.00005;
     light.shadow.normalBias = 0.018;
     this._shadowLights = this._shadowLights || [];
@@ -897,11 +837,7 @@ class SceneManager {
         if (!child.isMesh || !child.material) return;
         const mat = child.material;
         if (window.SkinShader) SkinShader.setEnabled(mat, photo);
-        mat.envMapIntensity = photo ? SceneManager.SKIN.envMapIntensity : 0.0;
-        if (mat.isMeshPhysicalMaterial) {
-          mat.clearcoat = photo ? SceneManager.SKIN.clearcoat : 0.0;
-          mat.clearcoatRoughness = SceneManager.SKIN.clearcoatRoughness;
-        }
+        SceneManager.applySkinSurface(mat, photo);
         mat.needsUpdate = true;
       });
     }
@@ -912,27 +848,12 @@ class SceneManager {
     return this.renderMode;
   }
 
-  /**
-   * Ambient and hemisphere levels depend on whether the environment is lit.
-   *
-   * Photoreal keeps them near zero because the studio IBL already supplies
-   * that fill, and running both double-counts it — which washes the face out
-   * and flattens the very shading gradients the environment was added to
-   * restore. Structure has no environment at all, so those two lights are the
-   * only fill there is; at the photoreal levels the shadow side of the head
-   * goes to near black and the mode becomes useless for judging form.
-   */
+  /** Keep shadow detail visible; Structure needs more fill without the environment. */
   _applyModeLighting() {
     const photo = this.renderMode === 'photoreal';
-    /* Photoreal values cut again (0.12/0.10). Both of these are perfectly
-       directionless — they add the same light to a texel facing the key and a
-       texel facing away from it, so every unit of them is subtracted straight
-       from the modelling the key is there to create. The IBL already fills the
-       shadow side from real directions; these two only need to keep it off the
-       floor. Structure mode is unchanged: it has no environment, so they are
-       the only fill it has. */
-    if (this._ambientLight) this._ambientLight.intensity = photo ? 0.06 : 0.55;
-    if (this._hemiLight) this._hemiLight.intensity = photo ? 0.06 : 0.45;
+    // Use restrained neutral bounce in Photoreal and stronger fill in Structure.
+    if (this._ambientLight) this._ambientLight.intensity = photo ? 0.18 : 0.55;
+    if (this._hemiLight) this._hemiLight.intensity = photo ? 0.14 : 0.45;
   }
 
   /** Cycle Photoreal → Structure → Photoreal. Returns the new mode label. */
@@ -952,10 +873,7 @@ class SceneManager {
     sunLight.position.set(3, 5, 2);
     sunLight.castShadow = true;
     this._configureShadow(sunLight);
-    /* Direct sun is a small source, so its shadow should be harder than the
-       studio key's. It already is: `shadow.radius` is ignored under
-       PCFSoftShadowMap, so the assignment that used to sit here changed
-       nothing, and both presets get the same filter width either way. */
+    // The outdoor preset uses a narrow shadow filter for direct sunlight.
     this.scene.add(sunLight);
 
     const skyLight = new THREE.HemisphereLight(0x87CEEB, 0x362d20, 0.35);

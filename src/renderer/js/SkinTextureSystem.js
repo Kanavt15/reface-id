@@ -2,8 +2,8 @@
  * SkinTextureSystem.js
  * Procedural skin texture generator with aging effects for Three.js face models.
  *
- * KEY DESIGN: Builds a UV→3D position map by splatting mesh vertices onto the
- * texture grid. This means all facial zone effects (cheeks, forehead, wrinkles)
+ * KEY DESIGN: Rasterizes UV triangles into a continuous 3D position map, with
+ * padded island borders. Facial zone effects (cheeks, forehead, wrinkles)
  * are placed based on ACTUAL 3D anatomy — not assumed UV coordinates.
  *
  * Uses fast interpolated value noise for real-time slider performance.
@@ -18,17 +18,14 @@ class SkinTextureSystem {
     /* Macro map resolution, tied to the quality tier by setResolution().
        512 on Low and Medium, 1024 on High.
 
-       These maps only carry low-frequency content — anatomical colour zones,
-       freckles, age spots and wrinkle creases. Pore-scale detail deliberately
+       These maps carry anatomical colour zones, freckles, age spots and
+       painted wrinkles. Pore-scale detail deliberately
        does NOT live here: at any resolution a pore is sub-texel across a whole
        head, so it comes from the tiled detail normal in SkinShader instead,
        which is resolution-independent.
 
-       That is what settles the tradeoff. Measured on this machine, a full
-       regenerate costs ~19ms at 512 and ~65ms at 1024, and it runs on every
-       slider tick. 1024 sharpens wrinkle creases and nothing else, which is
-       not worth tripling the cost of dragging a slider for most work — so it
-       is available on High rather than being the default. */
+       High increases the macro-map resolution at extra regeneration cost.
+       The authored anatomy fields are shared 2048px maps at every tier. */
     this.RES = 512;
 
     // Noise fields keyed by generation parameters. None of them depend on any
@@ -46,7 +43,7 @@ class SkinTextureSystem {
     this._diffuseCanvas = null;
     this._normalCanvas = null;
     this._roughnessCanvas = null;
-    this._thicknessCanvas = null;
+
     this.diffuseTexture = null;
     this.normalTexture = null;
     this.roughnessTexture = null;
@@ -56,6 +53,13 @@ class SkinTextureSystem {
     // This is the key to placing facial zones correctly regardless of UV layout
     this._posMap = null;   // Float32Array(R*R*3) — xyz per pixel
     this._hasPosMap = false;
+
+    /* Per-texel UV stretch and tangent frame, built alongside the position
+       map from the index buffer. See _buildPositionMap(). */
+    this._uvDensity = null;   // Float32Array(R*R): log2(local mm-per-UV / mean), encoded 0..1
+    this._tanMap = null;      // Float32Array(R*R*6): object-space T (+u) and B (+v)
+    this._mmPerUV = 450;      // millimetres of skin per UV unit, whole-mesh mean
+    this._thicknessData = null;
 
     // Model bounds for normalizing positions
     this._modelYMin = -1;
@@ -79,8 +83,9 @@ class SkinTextureSystem {
      down to an empty object instead of restoring them. */
   static get DEFAULT_PARAMS() {
     return {
-      age: 20, roughness: 50, freckles: 0,
-      poreDetail: 0, wrinkleDepth: 30, skinOiliness: 0, sunDamage: 10,
+      age: 30, roughness: 50, freckles: 0,
+      poreDetail: 0, wrinkleDepth: 100, skinOiliness: 0, sunDamage: 10,
+      underEyeEnabled: false, underEyeIntensity: 50,
       /* Depth of the tiled pore normal in SkinShader — the orange-peel
          bumpiness that only resolves when the camera is close. Kept here
          rather than in SkinShader so it saves and restores with the rest of
@@ -178,6 +183,14 @@ class SkinTextureSystem {
     return v;
   }
 
+  /** A field derived from the noise fields by a pure per-texel function. */
+  _cachedDerived(name, R, build) {
+    const key = 'd' + R + '_' + name;
+    let v = this._noiseCache.get(key);
+    if (!v) { v = build(); this._noiseCache.set(key, v); }
+    return v;
+  }
+
   _cachedValue(R, gridSize, seed) {
     const key = 'v' + R + '_' + gridSize + '_' + seed;
     let v = this._noiseCache.get(key);
@@ -196,9 +209,8 @@ class SkinTextureSystem {
   }
 
   // ─── UV → 3D Position Map ────────────────────────────────────────────────
-  // Scatter mesh vertex positions onto the UV texture grid.
-  // For each vertex, write its world-space XYZ to the UV pixel it maps to.
-  // Then flood-fill gaps so every pixel has a valid 3D position.
+  // Seed vertices, interpolate triangle interiors, then pad UV-island borders.
+  // Positions stay in the same local frame as the authored anatomy zones.
 
   _buildPositionMap() {
     const R = this.RES;
@@ -208,6 +220,25 @@ class SkinTextureSystem {
     let yMin = 1e9, yMax = -1e9;
     let cx = 0, cy = 0, cz = 0, cnt = 0;
 
+    /* UV stretch and tangent frame, per vertex, from the index buffer.
+
+       The detail tiles in SkinShader repeat a fixed number of times per UV
+       unit. Where the unwrap squeezes a lot of surface into little UV — the
+       nose on the shipped head — each tile then covers several times more
+       skin, and pores came out several times larger there than on the cheek.
+       That was the polygonal blotching on the nose tip. sqrt(area3D/areaUV)
+       per triangle is exactly the correction factor; the shader multiplies the
+       tile repeat by it.
+
+       The tangent frame (dP/du, dP/dv) is what turns "horizontal on the
+       forehead" into a direction on the tile: the oriented-ridge field is
+       rotated into it by _generateThicknessMap(). Both are derived from the
+       triangles rather than from finite differences of the flood-filled
+       position map, which is constant inside every filled patch. */
+    const densRaw = new Float32Array(R * R);
+    const tanRaw = new Float32Array(R * R * 6);
+    let sumA3D = 0, sumAUV = 0;
+
     this.meshGroup.traverse((child) => {
       if (!child.isMesh || !child.geometry) return;
       const pos = child.geometry.attributes.position;
@@ -215,6 +246,39 @@ class SkinTextureSystem {
       if (!pos || !uv) return;
 
       const N = pos.count;
+      const vRatio = new Float32Array(N);
+      const vW = new Float32Array(N);
+      const vT = new Float32Array(N * 3);
+      const vB = new Float32Array(N * 3);
+      const index = child.geometry.index;
+      if (index) {
+        const idx = index.array;
+        for (let t = 0; t < idx.length; t += 3) {
+          const i0 = idx[t], i1 = idx[t + 1], i2 = idx[t + 2];
+          const e1x = pos.getX(i1) - pos.getX(i0), e1y = pos.getY(i1) - pos.getY(i0), e1z = pos.getZ(i1) - pos.getZ(i0);
+          const e2x = pos.getX(i2) - pos.getX(i0), e2y = pos.getY(i2) - pos.getY(i0), e2z = pos.getZ(i2) - pos.getZ(i0);
+          const du1 = uv.getX(i1) - uv.getX(i0), dv1 = uv.getY(i1) - uv.getY(i0);
+          const du2 = uv.getX(i2) - uv.getX(i0), dv2 = uv.getY(i2) - uv.getY(i0);
+          const nx = e1y * e2z - e1z * e2y, ny = e1z * e2x - e1x * e2z, nz = e1x * e2y - e1y * e2x;
+          const a3d = Math.sqrt(nx * nx + ny * ny + nz * nz) * 0.5;
+          const det = du1 * dv2 - du2 * dv1;
+          const auv = Math.abs(det) * 0.5;
+          if (a3d < 1e-12 || auv < 1e-12) continue;
+          sumA3D += a3d; sumAUV += auv;
+          const ratio = Math.sqrt(a3d / auv);
+          const inv = 1 / det;
+          let tx = (e1x * dv2 - e2x * dv1) * inv, ty = (e1y * dv2 - e2y * dv1) * inv, tz = (e1z * dv2 - e2z * dv1) * inv;
+          let bx = (e2x * du1 - e1x * du2) * inv, by = (e2y * du1 - e1y * du2) * inv, bz = (e2z * du1 - e1z * du2) * inv;
+          const tl = Math.sqrt(tx * tx + ty * ty + tz * tz) || 1, bl = Math.sqrt(bx * bx + by * by + bz * bz) || 1;
+          tx /= tl; ty /= tl; tz /= tl; bx /= bl; by /= bl; bz /= bl;
+          for (const vi of [i0, i1, i2]) {
+            vRatio[vi] += ratio * a3d; vW[vi] += a3d;
+            vT[vi * 3] += tx * a3d; vT[vi * 3 + 1] += ty * a3d; vT[vi * 3 + 2] += tz * a3d;
+            vB[vi * 3] += bx * a3d; vB[vi * 3 + 1] += by * a3d; vB[vi * 3 + 2] += bz * a3d;
+          }
+        }
+      }
+
       for (let i = 0; i < N; i++) {
         const px = pos.getX(i), py = pos.getY(i), pz = pos.getZ(i);
         const u = uv.getX(i), v = uv.getY(i);
@@ -224,17 +288,70 @@ class SkinTextureSystem {
         const ty = Math.floor(v * (R - 1));
         if (tx < 0 || tx >= R || ty < 0 || ty >= R) continue;
 
-        const pi = (ty * R + tx) * 3;
+        const ti = ty * R + tx;
+        const pi = ti * 3;
         this._posMap[pi] = px;
         this._posMap[pi + 1] = py;
         this._posMap[pi + 2] = pz;
-        hasData[ty * R + tx] = 1;
+        hasData[ti] = 1;
+
+        if (vW[i] > 0) {
+          densRaw[ti] = vRatio[i] / vW[i];
+          const t6 = ti * 6;
+          tanRaw[t6] = vT[i * 3]; tanRaw[t6 + 1] = vT[i * 3 + 1]; tanRaw[t6 + 2] = vT[i * 3 + 2];
+          tanRaw[t6 + 3] = vB[i * 3]; tanRaw[t6 + 4] = vB[i * 3 + 1]; tanRaw[t6 + 5] = vB[i * 3 + 2];
+        }
 
         if (py < yMin) yMin = py;
         if (py > yMax) yMax = py;
         cx += px; cy += py; cz += pz; cnt++;
       }
+
+      // Interpolate inside UV triangles. Vertex splats alone leave nearest-
+      // vertex patches across the face, which show through as polygonal tints
+      // and specular zones. The flood fill below is now only island padding.
+      const indices = index ? index.array : null;
+      const count = indices ? indices.length : N;
+      const invR = 1 / (R - 1);
+      for (let t = 0; t + 2 < count; t += 3) {
+        const a = indices ? indices[t] : t;
+        const b = indices ? indices[t + 1] : t + 1;
+        const c = indices ? indices[t + 2] : t + 2;
+        const ax = uv.getX(a), ay = uv.getY(a);
+        const bx = uv.getX(b), by = uv.getY(b);
+        const cxUV = uv.getX(c), cyUV = uv.getY(c);
+        const det = (by - cyUV) * (ax - cxUV) + (cxUV - bx) * (ay - cyUV);
+        if (Math.abs(det) < 1e-12) continue;
+        const x0 = Math.max(0, Math.ceil(Math.min(ax, bx, cxUV) * (R - 1)));
+        const x1 = Math.min(R - 1, Math.floor(Math.max(ax, bx, cxUV) * (R - 1)));
+        const y0 = Math.max(0, Math.ceil(Math.min(ay, by, cyUV) * (R - 1)));
+        const y1 = Math.min(R - 1, Math.floor(Math.max(ay, by, cyUV) * (R - 1)));
+        const wa = vW[a] || 1, wb = vW[b] || 1, wc = vW[c] || 1;
+        for (let y = y0; y <= y1; y++) {
+          for (let x = x0; x <= x1; x++) {
+            const u = x * invR, v = y * invR;
+            const w0 = ((by - cyUV) * (u - cxUV) + (cxUV - bx) * (v - cyUV)) / det;
+            const w1 = ((cyUV - ay) * (u - cxUV) + (ax - cxUV) * (v - cyUV)) / det;
+            const w2 = 1 - w0 - w1;
+            if (Math.min(w0, w1, w2) < -1e-6) continue;
+            const i = y * R + x, p = i * 3, ti = i * 6;
+            this._posMap[p] = pos.getX(a) * w0 + pos.getX(b) * w1 + pos.getX(c) * w2;
+            this._posMap[p + 1] = pos.getY(a) * w0 + pos.getY(b) * w1 + pos.getY(c) * w2;
+            this._posMap[p + 2] = pos.getZ(a) * w0 + pos.getZ(b) * w1 + pos.getZ(c) * w2;
+            densRaw[i] = vRatio[a] / wa * w0 + vRatio[b] / wb * w1 + vRatio[c] / wc * w2;
+            for (let k = 0; k < 3; k++) {
+              tanRaw[ti + k] = vT[a * 3 + k] / wa * w0 + vT[b * 3 + k] / wb * w1 + vT[c * 3 + k] / wc * w2;
+              tanRaw[ti + k + 3] = vB[a * 3 + k] / wa * w0 + vB[b * 3 + k] / wb * w1 + vB[c * 3 + k] / wc * w2;
+            }
+            hasData[i] = 1;
+          }
+        }
+      }
     });
+
+    const meanRatio = sumAUV > 0 ? Math.sqrt(sumA3D / sumAUV) : 4.5;
+    // Model units are ~100mm per unit (a 2.2-unit head is ~220mm).
+    this._mmPerUV = meanRatio * 100;
 
     if (cnt > 0) {
       this._modelCenter = [cx / cnt, cy / cnt, cz / cnt];
@@ -274,15 +391,45 @@ class SkinTextureSystem {
         this._posMap[dst]     = this._posMap[src];
         this._posMap[dst + 1] = this._posMap[src + 1];
         this._posMap[dst + 2] = this._posMap[src + 2];
+        densRaw[ni] = densRaw[idx];
+        const s6 = idx * 6, d6 = ni * 6;
+        for (let k = 0; k < 6; k++) tanRaw[d6 + k] = tanRaw[s6 + k];
         hasData[ni] = 1;
         queue[qTail++] = ni;
       }
     }
 
+    /* Density: log ratio to the mean, 5x5 box-blurred so the per-vertex
+       steps left by the flood fill do not become visible tile-scale jumps,
+       then clamped to ±1.5 octaves and encoded 0..1 with 0.5 at the mean. */
+    const logD = new Float32Array(R * R);
+    for (let i = 0; i < R * R; i++) {
+      const r = densRaw[i] > 0 ? densRaw[i] : meanRatio;
+      logD[i] = Math.log2(r / meanRatio);
+    }
+    const tmp = new Float32Array(R * R);
+    for (let y = 0; y < R; y++) {
+      for (let x = 0; x < R; x++) {
+        let s = 0;
+        for (let k = -2; k <= 2; k++) s += logD[y * R + Math.min(R - 1, Math.max(0, x + k))];
+        tmp[y * R + x] = s / 5;
+      }
+    }
+    this._uvDensity = new Float32Array(R * R);
+    for (let y = 0; y < R; y++) {
+      for (let x = 0; x < R; x++) {
+        let s = 0;
+        for (let k = -2; k <= 2; k++) s += tmp[Math.min(R - 1, Math.max(0, y + k)) * R + x];
+        const v = Math.max(-1.5, Math.min(1.5, s / 5));
+        this._uvDensity[y * R + x] = v / 3 + 0.5;
+      }
+    }
+    this._tanMap = tanRaw;
+
     this._hasPosMap = true;
     this._zoneCache = null;
     this._regionBoundsCache = null;
-    console.log(`[SkinTexture] Position map built: Y range [${yMin.toFixed(2)}, ${yMax.toFixed(2)}], ${cnt} vertices`);
+    console.log(`[SkinTexture] Position map built: Y range [${yMin.toFixed(2)}, ${yMax.toFixed(2)}], ${cnt} vertices, ${this._mmPerUV.toFixed(0)}mm per UV unit`);
   }
 
   // ─── Anatomical zone cache ───────────────────────────────────────────────
@@ -409,11 +556,6 @@ class SkinTextureSystem {
     this._normalCanvas.width = R; this._normalCanvas.height = R;
     this._roughnessCanvas = document.createElement('canvas');
     this._roughnessCanvas.width = R; this._roughnessCanvas.height = R;
-    // Thickness is anatomy, not a slider result, so it is generated once at
-    // init and never touched again by regenerate().
-    this._thicknessCanvas = document.createElement('canvas');
-    this._thicknessCanvas.width = R; this._thicknessCanvas.height = R;
-
     this.diffuseTexture = new THREE.CanvasTexture(this._diffuseCanvas);
     this.diffuseTexture.colorSpace = THREE.SRGBColorSpace;
     this.diffuseTexture.flipY = false;
@@ -421,20 +563,23 @@ class SkinTextureSystem {
     this.normalTexture.flipY = false;
     this.roughnessTexture = new THREE.CanvasTexture(this._roughnessCanvas);
     this.roughnessTexture.flipY = false;
-    this.thicknessTexture = new THREE.CanvasTexture(this._thicknessCanvas);
-    this.thicknessTexture.flipY = false;
-    this.thicknessTexture.colorSpace = THREE.NoColorSpace;
 
     this._ensureUVs();
     this._buildPositionMap();
-    this._generateThicknessMap();
-    this.thicknessTexture.needsUpdate = true;
+    // Thickness and the surface-control channels are anatomy, not a slider
+    // result, so they are generated once here and never touched by regenerate().
+    this._buildThicknessTexture();
     this._initialized = true;
 
     setTimeout(() => {
       this.regenerate();
       console.log('[SkinTexture] Initial textures generated');
     }, 100);
+    if (window.SkinShader && SkinShader._anatomyReady) {
+      SkinShader._anatomyReady.then(ready => {
+        if (ready && this._initialized) this.regenerate();
+      });
+    }
   }
 
   _ensureUVs() {
@@ -470,8 +615,7 @@ class SkinTextureSystem {
 
     if (!this._initialized) return this.RES;
 
-    for (const c of [this._diffuseCanvas, this._normalCanvas,
-                     this._roughnessCanvas, this._thicknessCanvas]) {
+    for (const c of [this._diffuseCanvas, this._normalCanvas, this._roughnessCanvas]) {
       if (c) { c.width = r; c.height = r; }
     }
 
@@ -480,8 +624,7 @@ class SkinTextureSystem {
     this._zoneCache = null;
 
     this._buildPositionMap();
-    this._generateThicknessMap();
-    this.thicknessTexture.needsUpdate = true;
+    this._buildThicknessTexture();
 
     // The painters hold their own R-sized buffers keyed to the old resolution.
     if (this.wrinklePainter && typeof this.wrinklePainter.resize === 'function') {
@@ -501,11 +644,27 @@ class SkinTextureSystem {
     if (this.params[key] === undefined) return;
     // Boolean params are toggles; clamping them to 0-100 would coerce them
     // to numbers and break the strict checks in the generators.
-    if (typeof this.params[key] === 'boolean') { this.params[key] = !!value; return; }
+    if (typeof this.params[key] === 'boolean') {
+      this.params[key] = !!value;
+      if (key === 'underEyeEnabled') this.applyWrinkleControls();
+      return;
+    }
     this.params[key] = Math.max(0, Math.min(100, value));
     /* Micro relief is a shader uniform, not a texel — it needs no map rebuild,
        so apply it here instead of waiting on the caller's regenerate(). */
     if (key === 'microRelief') this.applyMicroRelief();
+    if (key === 'wrinkleDepth' || key === 'underEyeIntensity') this.applyWrinkleControls();
+  }
+
+  applyWrinkleControls() {
+    this.meshGroup?.traverse(child => {
+      if (child.isMesh && window.SkinShader) SkinShader.setParams(child.material, {
+        wrinkleStrength: this.params.wrinkleDepth / 100,
+        underEyeStrength: this.params.underEyeEnabled ? this.params.underEyeIntensity / 100 : 0,
+      });
+    });
+    // The missing-asset fallback has no anatomy sampler to adjust.
+    if (this._initialized && !(window.SkinShader && SkinShader._anatomyMaps?.ready)) this.regenerate();
   }
 
   /** Push the current micro relief onto every skin material's pore normal. */
@@ -524,6 +683,7 @@ class SkinTextureSystem {
   getParams() { return { ...this.params }; }
   loadState(state) {
     if (!state) return;
+    this.params = { ...SkinTextureSystem.DEFAULT_PARAMS };
     Object.keys(state).forEach(k => { if (this.params[k] !== undefined) this.params[k] = state[k]; });
     if (state.skinColor) this._skinColorHex = state.skinColor;
     this.applyMicroRelief();
@@ -548,7 +708,7 @@ class SkinTextureSystem {
   _generateDiffuseMap() {
     const R = this.RES;
     const ctx = this._diffuseCanvas.getContext('2d');
-    const { age, freckles, sunDamage, poreDetail, cheekFlush } = this.params;
+    const { age, freckles, sunDamage, cheekFlush } = this.params;
     const baseColor = this._hexToRgb(this._skinColorHex);
 
     ctx.fillStyle = this._skinColorHex;
@@ -570,14 +730,38 @@ class SkinTextureSystem {
     const melVar    = this._cachedFractal(R, 920, 4, 0.50);
     const colorVar  = this._cachedFractal(R, 200, 4, 0.55);
     const largeVar  = this._cachedFractal(R, 400, 2, 0.5);
-    const poreNoise = this._cachedFractal(R, 100, 5, 0.5);
     const freckleN  = this._cachedFractal(R, 350, 3, 0.45);
     const ageSpotN  = this._cachedValue(R, 12, 450);
     const microVar  = this._cachedFractal(R, 777, 4, 0.6);
+    /* Two fields the old map lacked entirely, and whose absence is most of
+       why it read as an airbrush: melanin SPECKLE — pigment is made in
+       clusters a fraction of a millimetre across, so real skin colour is
+       grainy at every scale, not a smooth gradient — and a capillary field,
+       the fine red network that shows through on the nose wings and cheeks
+       and thickens with sun damage and age. Both are cached: only the
+       compositing runs per slider tick. */
+    const speckle   = this._cachedDerived('speckleSharp', R, () => {
+      const f = this._cachedFractal(R, 930, 7, 0.55), o = new Float32Array(R * R);
+      for (let i = 0; i < R * R; i++) { const v = (f[i] - 0.5) * 2; o[i] = Math.sign(v) * Math.pow(Math.abs(v), 0.7); }
+      return o;
+    });
+    const capillary = this._cachedDerived('capillary', R, () => {
+      const f = this._cachedFractal(R, 950, 5, 0.5), o = new Float32Array(R * R);
+      for (let i = 0; i < R * R; i++) { const c = 1 - Math.abs(f[i] * 2 - 1); const c3 = c * c * c; o[i] = c3 * c3; }
+      return o;
+    });
 
     const ageFactor = Math.max(0, (age - 20) / 80);
     const freckleFactor = freckles / 100;
     const sunFactor = sunDamage / 100;
+
+    /* Pigment offsets scale with the base tone. The same +7 of red is a
+       whisper on pale skin and a shout on dark skin, and worse, additive
+       offsets on a dark base pull it toward grey. Scaling by luminance keeps
+       the RATIO of variation constant across the eight swatches, so a dark
+       complexion stays saturated in its shadows instead of going muddy. */
+    const baseL = (0.299 * baseColor.r + 0.587 * baseColor.g + 0.114 * baseColor.b) / 255;
+    const tone = 0.30 + 0.70 * Math.min(1.3, baseL / 0.62);
 
     const Z = this._zones();
     const INV255 = 1 / 255;
@@ -598,24 +782,35 @@ class SkinTextureSystem {
            to neutral leaves them doing what they are for — broad tonal
            variation — and lets the two pigment fields below own the colour,
            which drops the coupling to r=0.69. */
-        const cv = (colorVar[ni] - 0.5) * 28;
+        const cv = (colorVar[ni] - 0.5) * 36 * tone;
         r += cv * 1.15; g += cv * 1.0; b += cv * 0.80;
-        const lv = (largeVar[ni] - 0.5) * 18;
+        const lv = (largeVar[ni] - 0.5) * 18 * tone;
         r += lv * 1.05; g += lv * 1.0; b += lv * 0.88;
-        const mv = (microVar[ni] - 0.5) * 10;
+        const mv = (microVar[ni] - 0.5) * 10 * tone;
         r += mv; g += mv * 0.5; b -= mv * 0.3;
 
         // Haemoglobin: perfusion blotches. Red up, green and blue down.
-        const hv = (hemoVar[ni] - 0.5) * 2;
-        r += hv * 7.0; g -= hv * 3.4; b -= hv * 2.2;
+        const hv = (hemoVar[ni] - 0.5) * 2 * tone;
+        r += hv * 16.0; g -= hv * 8.0; b -= hv * 5.0;
 
         /* Melanin: darkens and yellows. Scaled by sun damage because that is
            physically what sun exposure does — it drives melanin production,
            and unevenly. */
-        const melAmt = ((melVar[ni] - 0.5) * 2) * (5.5 + sunFactor * 5.0);
+        const melAmt = ((melVar[ni] - 0.5) * 2) * (6.0 + sunFactor * 5.0) * tone;
         r -= melAmt * 0.55; g -= melAmt * 0.75; b -= melAmt * 1.05;
 
+        // Melanin speckle: sharpened so it is grain, not haze.
+        const sp = speckle[ni] * 20 * tone * (1 + sunFactor * 0.6);
+        r -= sp * 0.9; g -= sp * 1.0; b -= sp * 1.15;
+
+        // Capillaries: ridged noise, thin bright lines, red.
+        const cap = capillary[ni];
+
         if (hasPos) {
+          const capW = (Z.nose[ni] * INV255) * 0.9 + (Z.cheek[ni] * INV255) * 0.45;
+          const capAmt = cap * capW * (0.5 + sunFactor * 0.8 + ageFactor * 0.6) * 26 * tone;
+          r += capAmt; g -= capAmt * 0.55; b -= capAmt * 0.45;
+
           /* Zone weights come from the cache rather than a dozen Math.exp
              calls per texel — see _buildZoneCache(). Identical values, none of
              the per-slider cost. */
@@ -660,14 +855,7 @@ class SkinTextureSystem {
              a lipstick red — this has to be right for a male subject with no
              lip colour selected, which is the default an operator sees. */
           const lipW = Z.lip[ni] * INV255;
-          r += lipW * 14; g -= lipW * 16; b -= lipW * 10;
-        }
-
-        // ── Pore texture ──
-        const poreVal = poreNoise[ni];
-        if (poreVal < 0.4) {
-          const pd = (0.4 - poreVal) * 20 * (poreDetail / 100);
-          r -= pd; g -= pd * 0.9; b -= pd * 0.7;
+          r += lipW * 26 * tone; g -= lipW * 30 * tone; b -= lipW * 16 * tone;
         }
 
         // ── Freckles ──
@@ -733,28 +921,23 @@ class SkinTextureSystem {
     const pm = this._posMap;
     const hasPos = this._hasPosMap;
 
-    // Pore detail
-    const poreN = this._cachedFractal(R, 500, 4, 0.55);
-    const poreFine = this._cachedFractal(R, 501, 3, 0.5);
-    const poreMicro = this._cachedValue(R, 128, 502);
-    const pStr = (poreDetail / 100) * 0.6;
+    /* No pore-scale content here any more. At ~1mm per texel a "pore" layer
+       in this map was just bumpiness at the wrong scale, and it fought the
+       properly sized detail tiles in SkinShader. This map carries only the
+       large forms: a soft skin undulation, the wrinkle creases, and whatever
+       the operator paints. */
+    const undul = this._cachedFractal(R, 500, 3, 0.5);
+    const uStr = 0.02 + (poreDetail / 100) * 0.03;
     for (let i = 0, n = R*R; i < n; i++) {
-      hm[i] = (poreN[i]-0.5)*pStr + (poreFine[i]-0.5)*pStr*0.4 + (poreMicro[i]-0.5)*pStr*0.15;
+      hm[i] = (undul[i] - 0.5) * uStr;
     }
 
-    // 3D-position-based wrinkles
-    if (hasPos) {
-      const ageFactor = Math.max(0, (age - 15) / 85);
-      const wStr = (wrinkleDepth / 100) * ageFactor;
-      if (wStr > 0.01) {
-        const regions = SkinTextureSystem.WRINKLE_REGIONS_3D;
-        const bounds = this._regionBounds();
-        for (const [name, rgn] of Object.entries(regions)) {
-          if (age < rgn.onset) continue;
-          const rAge = (age - rgn.onset) / (100 - rgn.onset);
-          const lStr = rAge * rgn.str * wStr;
-          if (lStr > 0.01) this._drawWrinkles3D(hm, R, pm, rgn, lStr, bounds[name]);
-        }
+    // Only the opt-in under-eye preset falls back to procedural folds.
+    if (hasPos && this.params.underEyeEnabled && !(window.SkinShader && SkinShader._anatomyMaps?.ready)) {
+      const bounds = this._regionBounds();
+      for (const name of ['underEyeL', 'underEyeR']) {
+        this._drawWrinkles3D(hm, R, pm, SkinTextureSystem.WRINKLE_REGIONS_3D[name],
+          this.params.underEyeIntensity / 100 * .3, bounds[name]);
       }
     }
 
@@ -923,43 +1106,78 @@ class SkinTextureSystem {
        roughness and pigment are not the same thing. */
     const rBlotch = this._cachedFractal(R, 640, 2, 0.65);
     const rFine   = this._cachedFractal(R, 660, 4, 0.45);
+    const dNoise  = this._cachedFractal(R, 680, 3, 0.55);
     const Z = this._zones();
     const INV255 = 1 / 255;
+
+    /* Pore density and line gain ride in the R and B channels of this map
+       (three reads roughness from G). They are the per-region controls for
+       the detail tiles in SkinShader: the tile carries every pore with a
+       rank, and a pore is drawn only where its rank is under the density
+       here — so the nose is densely pored and an eyelid nearly bare from the
+       same tile, without fading the pores into blur. */
+    const poreF = this.params.poreDetail / 100;
+    const densGain = 0.70 + 0.30 * poreF;
+    const lineBase = 0.38 + ageFactor * 0.30 + poreF * 0.15;
 
     for (let y = 0; y < R; y++) {
       for (let x = 0; x < R; x++) {
         const ni = y * R + x;
         let rough = baseR + (rNoise[ni] - 0.5) * 0.15
-                  + (rBlotch[ni] - 0.5) * 0.18
-                  + (rFine[ni] - 0.5) * 0.07;
+                  + (rBlotch[ni] - 0.5) * 0.22
+                  + (rFine[ni] - 0.5) * 0.09;
+
+        // Base pore density: mid-face default, then anatomy.
+        let dens = 0.55 + (dNoise[ni] - 0.5) * 0.30;
+        let lineG = lineBase;
 
         if (hasPos) {
           /* T-zone oilier (forehead, nose, chin). Oiliness has to work within
              a narrower roughness band now, so it gets more authority over it —
              this is the gradient that makes a forehead read as skin rather
              than as painted plastic. */
-          rough -= (Z.tzone[ni] * INV255) * (0.18 + oil * 0.45);
+          const tz = Z.tzone[ni] * INV255;
+          rough -= tz * (0.18 + oil * 0.45);
 
           // Cheeks rougher
-          rough += (Z.roughCheek[ni] * INV255) * 0.08;
+          const ck = Z.roughCheek[ni] * INV255;
+          rough += ck * 0.08;
 
           /* Lips are wet; they are the glossiest part of a face by a wide
              margin, and reading as matte is instantly wrong. */
-          rough -= (Z.roughLip[ni] * INV255) * 0.34;
+          const lp = Z.roughLip[ni] * INV255;
+          rough -= lp * 0.34;
+
+          // Pores: dense on the nose and T-zone, medium on the cheeks,
+          // almost none on the lips, eyelids and ears.
+          const nose = Z.nose[ni] * INV255;
+          const ue = Z.underEye[ni] * INV255;
+          const ear = Z.ear[ni] * INV255;
+          const fh = Z.forehead[ni] * INV255;
+          dens += nose * 0.55 + tz * 0.30 + ck * 0.12 + fh * 0.10;
+          dens *= (1 - lp * 0.95) * (1 - ue * 0.85) * (1 - ear * 0.8);
+
+          // Lines: the vermilion is heavily furrowed; forehead and eye corners
+          // gain with age; the nose has few.
+          lineG += lp * 0.45 + fh * 0.15 * ageFactor + ue * 0.2 * ageFactor - nose * 0.2;
         }
 
         rough += ageFactor * 0.12;
 
-        /* Compress into the range skin actually occupies. The slider's 0-100
-           mapped straight onto 0-1 roughness, so the default sat near 0.5 and
-           aging pushed it past 0.7 — fully matte, no specular lobe at all,
-           which is a large part of why the face read as clay. Measured skin
-           sits around 0.30 (a shiny nose) to 0.62 (a dry cheek). */
-        rough = 0.28 + rough * 0.36;
-        rough = rough < 0.18 ? 0.18 : rough > 0.72 ? 0.72 : rough;
-        const val = (rough * 255) | 0;
+        // Keep a soft surface highlight at the default setting while retaining
+        // the difference between an oily nose, dry cheeks and the vermilion.
+        rough = 0.48 + rough * 0.26;
+        rough = rough < 0.42 ? 0.42 : rough > 0.86 ? 0.86 : rough;
+
+        dens *= densGain;
+        dens = dens < 0 ? 0 : dens > 1 ? 1 : dens;
+        lineG = lineG < 0 ? 0 : lineG > 1 ? 1 : lineG;
+
         const idx = ni * 4;
-        dd[idx] = val; dd[idx+1] = val; dd[idx+2] = val; dd[idx+3] = 255;
+        dd[idx]   = (dens * 255) | 0;
+        dd[idx+1] = (rough * 255) | 0;
+        dd[idx+2] = (lineG * 255) | 0;
+        dd[idx+3] = 255;
       }
     }
     ctx.putImageData(imgData, 0, 0);
@@ -979,27 +1197,103 @@ class SkinTextureSystem {
    * 3D coordinates of the ears, nose and lips are already established in this
    * file for the diffuse zones, and _gw3d() already blends between them.
    */
+  /**
+   * (Re)create the thickness/control DataTexture at the current resolution.
+   *
+   * A DataTexture rather than a CanvasTexture because two of its channels are
+   * a direction vector and one is a UV-stretch factor: canvas 2D premultiplies
+   * RGB by alpha on putImageData, and un-premultiplying on upload would have
+   * quantised the thickness wherever the direction vector's alpha was low.
+   * DataTextures cannot be resized, so a resolution change makes a new one;
+   * _applyToMesh rebinds it on the next regenerate.
+   */
+  _buildThicknessTexture() {
+    const R = this.RES;
+    if (this.thicknessTexture) this.thicknessTexture.dispose();
+    this._thicknessData = new Uint8Array(R * R * 4);
+    this._generateThicknessMap();
+    const tex = new THREE.DataTexture(this._thicknessData, R, R, THREE.RGBAFormat, THREE.UnsignedByteType);
+    tex.flipY = false;
+    tex.colorSpace = THREE.NoColorSpace;
+    tex.generateMipmaps = true;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.needsUpdate = true;
+    this.thicknessTexture = tex;
+    this._tanMap = null; // only needed while the direction field is written
+  }
+
+  /**
+   * Channel layout: R = thickness, G = UV density (log2 over mean, 0.5 = mean),
+   * B/A = line direction as a doubled angle (cos 2θ, sin 2θ) scaled by weight,
+   * encoded 0..1.
+   *
+   * The direction is doubled so that a furrow running "left" and one running
+   * "right" are the same vector — a line has no sign — and so that bilinear
+   * filtering between two regions with different directions shrinks the
+   * vector toward zero (isotropic) instead of swinging through a wrong
+   * direction. The weight lives in the length for the same reason.
+   */
   _generateThicknessMap() {
     const R = this.RES;
-    const ctx = this._thicknessCanvas.getContext('2d');
-    const imgData = ctx.createImageData(R, R);
-    const d = imgData.data;
+    const d = this._thicknessData;
     const pm = this._posMap;
 
     if (!this._hasPosMap) {
       for (let i = 0, n = R * R; i < n; i++) {
         const idx = i * 4;
-        d[idx] = d[idx+1] = d[idx+2] = 0; d[idx+3] = 255;
+        d[idx] = 0; d[idx+1] = 128; d[idx+2] = 128; d[idx+3] = 128;
       }
-      ctx.putImageData(imgData, 0, 0);
       return;
     }
+
+    const Z = this._zones();
+    const tan = this._tanMap;
+    const dens = this._uvDensity;
+    const INV255 = 1 / 255;
+
+    // Direction field entries: [weight, dirX, dirY, dirZ] in object space, or
+    // a function of position for the radial (crow's feet) case.
+    const H = [1, 0, 0], V = [0, 1, 0];
+    const nasL = [-0.45, -1, 0], nasR = [0.45, -1, 0];
 
     for (let y = 0; y < R; y++) {
       for (let x = 0; x < R; x++) {
         const ni = y * R + x;
         const pi3 = ni * 3;
         const px = pm[pi3], py = pm[pi3+1], pz = pm[pi3+2];
+
+        // ── Line direction ──
+        const t6 = ni * 6;
+        const Tx = tan[t6], Ty = tan[t6+1], Tz = tan[t6+2];
+        const Bx = tan[t6+3], By = tan[t6+4], Bz = tan[t6+5];
+        let vx = 0, vy = 0;
+        const add = (w, dx, dy, dz) => {
+          if (w < 0.01) return;
+          const tu = dx * Tx + dy * Ty + dz * Tz;
+          const tv = dx * Bx + dy * By + dz * Bz;
+          const th = Math.atan2(tv, tu);
+          vx += w * Math.cos(2 * th);
+          vy += w * Math.sin(2 * th);
+        };
+        add((Z.forehead[ni] * INV255) * 0.60, H[0], H[1], H[2]);
+        add((Z.underEye[ni] * INV255) * 0.45, H[0], H[1], H[2]);
+        add((Z.lip[ni] * INV255) * 1.0, V[0], V[1], V[2]);
+        add(this._gw3d(px, py, pz, 0, 0.38, 1.08, 0.09, 0.11, 0.2) * 0.6, V[0], V[1], V[2]);
+        add(this._gw3d(px, py, pz, 0, -0.70, 0.80, 0.42, 0.14, 0.4) * 0.5, H[0], H[1], H[2]);
+        add(this._gw3d(px, py, pz, -0.20, -0.15, 1.10, 0.10, 0.20, 0.2) * 0.5, nasL[0], nasL[1], nasL[2]);
+        add(this._gw3d(px, py, pz, 0.20, -0.15, 1.10, 0.10, 0.20, 0.2) * 0.5, nasR[0], nasR[1], nasR[2]);
+        // Crow's feet radiate from the outer eye corner.
+        for (const sx of [-1, 1]) {
+          const w = this._gw3d(px, py, pz, sx * 0.46, 0.22, 0.95, 0.14, 0.13, 0.2) * 0.7;
+          if (w > 0.01) {
+            const rx = px - sx * 0.36, ry = py - 0.20;
+            const rl = Math.sqrt(rx * rx + ry * ry) || 1;
+            add(w, rx / rl, ry / rl, 0);
+          }
+        }
+        const vl = Math.sqrt(vx * vx + vy * vy);
+        if (vl > 1) { vx /= vl; vy /= vl; }
 
         // Ears — the thinnest part of a head by a wide margin.
         const ear = Math.max(
@@ -1025,12 +1319,13 @@ class SkinTextureSystem {
         let t = Math.max(ear * 1.0, nose * 0.85, lip * 0.75, lid * 0.7, cheek * 0.22);
         t = t < 0 ? 0 : t > 1 ? 1 : t;
 
-        const val = (t * 255) | 0;
         const idx = ni * 4;
-        d[idx] = val; d[idx+1] = val; d[idx+2] = val; d[idx+3] = 255;
+        d[idx]   = (t * 255) | 0;
+        d[idx+1] = (dens[ni] * 255) | 0;
+        d[idx+2] = ((vx * 0.5 + 0.5) * 255) | 0;
+        d[idx+3] = ((vy * 0.5 + 0.5) * 255) | 0;
       }
     }
-    ctx.putImageData(imgData, 0, 0);
   }
 
   // ─── Apply to mesh ────────────────────────────────────────────────────────
@@ -1051,40 +1346,33 @@ class SkinTextureSystem {
       mat.normalScale = new THREE.Vector2(0.85, 0.85);
 
       mat.roughnessMap = this.roughnessTexture;
-      /* roughness multiplies the map, so it must stay at 1.0 for the map's
-         own values (now compressed into skin's real 0.28-0.62 band by
-         _generateRoughnessMap) to survive unscaled. */
+      // Preserve the per-pixel roughness values without another multiplier.
       mat.roughness = 1.0;
       mat.metalness = 0.0;
 
-      /* Drive the oily epidermal lobe from the same map.
-         The clearcoat had no map at all, so the second specular layer was
-         perfectly uniform across the whole face — one glossy veneer of
-         constant tightness over forehead, cheek and jaw alike. Nothing on a
-         real face is uniform like that, and a constant sheen is read as
-         moulded plastic no matter how good the diffuse underneath is.
-         Reusing the roughness map (clearcoat samples green; the map is grey,
-         so the channel does not matter) makes the T-zone carry a tight wet
-         highlight while the cheeks stay broad and soft, which is the actual
-         difference between the two on skin. */
-      mat.clearcoatRoughnessMap = this.roughnessTexture;
+      /* The oily epidermal lobe is varied per texel by SkinShader, which
+         reads the roughness texel already in scope and adds the pore/furrow
+         micro-roughness on top — so no clearcoatRoughnessMap is bound here.
+         Binding it a second time cost a texture unit for a value the shader
+         already had. */
+      mat.clearcoatRoughnessMap = null;
 
-      /* Was 0.4, which quietly halved the contribution of the studio IBL —
-         the single most important light in the scene — every time the skin
-         textures regenerated, overriding what SceneManager had set. Read from
-         SceneManager now rather than repeating the number, because this
-         assignment runs last on every slider tick and so wins any disagreement:
-         a literal here silently overrides the material definition. */
-      mat.envMapIntensity = window.SceneManager
-        ? SceneManager.SKIN.envMapIntensity : 0.9;
+      // Regeneration must retain the active render mode and shared surface settings.
+      const photoreal = this.scene.renderMode !== 'structure';
+      if (window.SceneManager) SceneManager.applySkinSurface(mat, photoreal);
+      else mat.envMapIntensity = photoreal ? 0.6 : 0;
 
       mat.vertexColors = false;
 
       if (window.SkinShader) {
+        SkinShader.setEnabled(mat, photoreal);
         SkinShader.setThicknessMap(mat, this.thicknessTexture);
         SkinShader.setParams(mat, {
           poreScale: SkinTextureSystem.microReliefToPoreScale(this.params.microRelief),
+          wrinkleStrength: this.params.wrinkleDepth / 100,
+          underEyeStrength: this.params.underEyeEnabled ? this.params.underEyeIntensity / 100 : 0,
         });
+        if (this.wrinklePainter) SkinShader.setWrinkleMap(mat, this.wrinklePainter.texture);
       }
 
       mat.needsUpdate = true;

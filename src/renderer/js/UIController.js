@@ -50,6 +50,7 @@ class UIController {
     // Sync skin texture params to case manager so undo/redo has initial state
     if (this.skinTextureSystem) {
       this.caseManager.updateAppearance('skinTextureParams', this.skinTextureSystem.getParams());
+      this._syncSkinTextureUI(this.skinTextureSystem.getParams());
     }
 
     // Initial state
@@ -1207,7 +1208,23 @@ class UIController {
       slider.addEventListener('mousedown', () => {
         document.addEventListener('mouseup', onMouseUp);
       });
+      slider.addEventListener('keydown', (event) => {
+        if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key) && !isDragging) {
+          isDragging = true;
+          this.caseManager.beginAction(`Changed skin ${cfg.param}`);
+        }
+      });
+      slider.addEventListener('change', onMouseUp);
     }
+
+    const underEyeToggle = document.getElementById('underEyeWrinklesToggle');
+    underEyeToggle?.addEventListener('change', () => {
+      this.caseManager.pushState('Changed under-eye wrinkle preset');
+      this.skinTextureSystem.setParam('underEyeEnabled', underEyeToggle.checked);
+      this.caseManager.updateAppearance('skinTextureParams', this.skinTextureSystem.getParams());
+      this._syncSkinTextureUI(this.skinTextureSystem.getParams());
+      this.addHistory(underEyeToggle.checked ? 'Enabled under-eye wrinkles' : 'Disabled under-eye wrinkles');
+    });
 
     // ── Cheek flush toggle ──
     // Not a slider: it changes the diffuse map, so it rebuilds once on change
@@ -1251,7 +1268,8 @@ class UIController {
   static get SKIN_TEXTURE_UI() {
     return {
       sliderSkinAge:       { param: 'age',          valId: 'valSkinAge' },
-      sliderWrinkleDepth:  { param: 'wrinkleDepth', valId: 'valWrinkleDepth' },
+      sliderWrinkleDepth:  { param: 'wrinkleDepth', valId: 'valWrinkleDepth', shaderOnly: true },
+      sliderUnderEyeIntensity: { param: 'underEyeIntensity', valId: 'valUnderEyeIntensity', shaderOnly: true },
       sliderSkinRoughness: { param: 'roughness',    valId: 'valSkinRoughness' },
       sliderPoreDetail:    { param: 'poreDetail',   valId: 'valPoreDetail' },
       // shaderOnly: a uniform, not a texel — no map rebuild, so it lands on
@@ -1263,7 +1281,7 @@ class UIController {
 
   /** Push skin texture params into the sliders and the cheek flush toggle. */
   _syncSkinTextureUI(params) {
-    const p = params || SkinTextureSystem.DEFAULT_PARAMS;
+    const p = { ...SkinTextureSystem.DEFAULT_PARAMS, ...params };
     for (const [sliderId, cfg] of Object.entries(UIController.SKIN_TEXTURE_UI)) {
       if (p[cfg.param] === undefined) continue;
       const slider = document.getElementById(sliderId);
@@ -1273,6 +1291,10 @@ class UIController {
     }
     const flushEl = document.getElementById('cheekFlushToggle');
     if (flushEl) flushEl.checked = !!p.cheekFlush;
+    const underEyeToggle = document.getElementById('underEyeWrinklesToggle');
+    if (underEyeToggle) underEyeToggle.checked = !!p.underEyeEnabled;
+    const underEyeIntensity = document.getElementById('sliderUnderEyeIntensity');
+    if (underEyeIntensity) underEyeIntensity.disabled = !p.underEyeEnabled;
   }
 
   // ─── Age Progression Controls ────────────────────────────────────────────
@@ -1559,16 +1581,14 @@ class UIController {
 
       const defaults = {
         scale: 59, posX: 51, posY: 47, posZ: 15,
-        rotX: 50, rotY: 50, rotZ: 50, curl: 50, thickness: 65,
-        length: 50, opacity: 95,
+        rotX: 50, rotY: 50, rotZ: 50, curl: 50, thickness: 45, length: 32, opacity: 100,
       };
       Object.entries(defaults).forEach(([key, val]) => this.eyeSystem.setEyelashParam(key, val));
       this.eyeSystem.setEyelashColor('#0a0a0a');
 
       const paramToDefault = {
         eyelashScale: 59, eyelashPosX: 51, eyelashPosY: 47, eyelashPosZ: 15,
-        eyelashRotX: 50, eyelashRotY: 50, eyelashRotZ: 50, eyelashCurl: 50, eyelashThickness: 65,
-        eyelashLength: 50, eyelashOpacity: 95,
+        eyelashRotX: 50, eyelashRotY: 50, eyelashRotZ: 50, eyelashCurl: 50, eyelashThickness: 45, eyelashLength: 32, eyelashOpacity: 100,
       };
       document.querySelectorAll('.eyelash-slider').forEach(slider => {
         const param = slider.closest('.slider-control')?.dataset.param;
@@ -3669,6 +3689,14 @@ class UIController {
     const sizeValue = document.getElementById('wrinkleBrushSizeValue');
     const strengthSlider = document.getElementById('wrinkleBrushStrength');
     const strengthValue = document.getElementById('wrinkleBrushStrengthValue');
+    painter.onSettingsChanged = () => {
+      sizeSlider.value = painter.brushSize;
+      sizeValue.textContent = painter.brushSize;
+      strengthSlider.value = Math.round(painter.brushStrength * 100);
+      strengthValue.textContent = Math.round(painter.brushStrength * 100);
+      btnErase.classList.toggle('active', painter.eraseMode);
+    };
+    painter.onSettingsChanged();
 
     const togglePainter = () => {
       // Disable other edit modes (mutual exclusion)
@@ -3757,17 +3785,20 @@ class UIController {
 
     // Undo
     btnUndo?.addEventListener('click', () => {
+      this.caseManager.pushState('Undo wrinkle stroke');
       painter.undo();
       this.addHistory('Undo wrinkle stroke');
     });
 
     // Clear
     btnClear?.addEventListener('click', () => {
+      this.caseManager.pushState('Clear drawn wrinkles');
       painter.clearAll();
       this.addHistory('Cleared all manual wrinkles');
     });
 
     // Persist changes
+    painter.onBeforeStrokeCommit = () => this.caseManager.pushState('Draw or erase wrinkle');
     painter.onChanged = () => {
       this.caseManager.updateAppearance('wrinklePaintData', painter.exportState());
     };
@@ -4311,12 +4342,9 @@ class UIController {
         /* Restore skin texture parameters. This called scene.setSkinTextureParam,
            which does not exist on SceneManager — loading a case with saved skin
            params threw here and abandoned the rest of the restore. */
-        if (data.appearance?.skinTextureParams && this.skinTextureSystem) {
-          Object.entries(data.appearance.skinTextureParams).forEach(([key, value]) => {
-            this.skinTextureSystem.setParam(key, value);
-          });
-          this.skinTextureSystem.regenerate();
-          this._syncSkinTextureUI(data.appearance.skinTextureParams);
+        if (this.skinTextureSystem) {
+          this.skinTextureSystem.loadState(data.appearance?.skinTextureParams || SkinTextureSystem.DEFAULT_PARAMS);
+          this._syncSkinTextureUI(this.skinTextureSystem.getParams());
         }
         // Restore skin marks
         if (data.skinMarks && this.skinMarkSystem) {
@@ -4328,9 +4356,7 @@ class UIController {
           this._refreshDecalGallery();
         }
         // Restore manual wrinkle painting
-        if (data.appearance?.wrinklePaintData && this.wrinklePainter) {
-          this.wrinklePainter.loadState(data.appearance.wrinklePaintData);
-        }
+        this.wrinklePainter?.loadState(data.appearance?.wrinklePaintData);
         // Restore manual lip painting
         if (data.appearance?.lipPaintData && this.lipPainter) {
           this.lipPainter.loadState(data.appearance.lipPaintData);
@@ -4665,14 +4691,14 @@ class UIController {
     // Reset eyelashes
     if (this.eyeSystem) {
       const lashDefaults = { scale: 59, posX: 51, posY: 47, posZ: 15,
-        rotX: 50, rotY: 50, rotZ: 50, curl: 50, thickness: 65 };
+        rotX: 50, rotY: 50, rotZ: 50, curl: 50, thickness: 45, length: 32, opacity: 100 };
       Object.entries(lashDefaults).forEach(([key, val]) => this.eyeSystem.setEyelashParam(key, val));
       this.eyeSystem.setEyelashColor('#0a0a0a');
       this.eyeSystem.generateEyelashes();
     }
     const lashParamDefaults = {
       eyelashScale: 59, eyelashPosX: 51, eyelashPosY: 47, eyelashPosZ: 15,
-      eyelashRotX: 50, eyelashRotY: 50, eyelashRotZ: 50, eyelashCurl: 50, eyelashThickness: 65,
+      eyelashRotX: 50, eyelashRotY: 50, eyelashRotZ: 50, eyelashCurl: 50, eyelashThickness: 45, eyelashLength: 32, eyelashOpacity: 100,
     };
     document.querySelectorAll('.eyelash-slider').forEach(s => {
       const param = s.closest('.slider-control')?.dataset.param;
@@ -4782,6 +4808,8 @@ class UIController {
     if (this.skinTextureSystem) {
       this.skinTextureSystem.params = { ...SkinTextureSystem.DEFAULT_PARAMS };
       this.skinTextureSystem.regenerate();
+      this.caseManager.updateAppearance('skinTextureParams', this.skinTextureSystem.getParams());
+      this._syncSkinTextureUI(this.skinTextureSystem.getParams());
     }
 
     this.updatePropertyPanel();
@@ -4790,6 +4818,11 @@ class UIController {
 
   newCase() {
     this.caseManager.newCase();
+    this.wrinklePainter?.loadState(null);
+    if (this.skinTextureSystem) {
+      this.skinTextureSystem.loadState(SkinTextureSystem.DEFAULT_PARAMS);
+      this._syncSkinTextureUI(this.skinTextureSystem.getParams());
+    }
     this.morpher.resetAll();
     this.hair.setStyle('hair1');
     this.hair.setColor('#2c1b0e');
@@ -4880,14 +4913,14 @@ class UIController {
     // Reset eyelashes
     if (this.eyeSystem) {
       const lashDefaults = { scale: 59, posX: 51, posY: 47, posZ: 15,
-        rotX: 50, rotY: 50, rotZ: 50, curl: 50, thickness: 65 };
+        rotX: 50, rotY: 50, rotZ: 50, curl: 50, thickness: 45, length: 32, opacity: 100 };
       Object.entries(lashDefaults).forEach(([key, val]) => this.eyeSystem.setEyelashParam(key, val));
       this.eyeSystem.setEyelashColor('#0a0a0a');
       this.eyeSystem.generateEyelashes();
     }
     const lashParamDefaults = {
       eyelashScale: 59, eyelashPosX: 51, eyelashPosY: 47, eyelashPosZ: 15,
-      eyelashRotX: 50, eyelashRotY: 50, eyelashRotZ: 50, eyelashCurl: 50, eyelashThickness: 65,
+      eyelashRotX: 50, eyelashRotY: 50, eyelashRotZ: 50, eyelashCurl: 50, eyelashThickness: 45, eyelashLength: 32, eyelashOpacity: 100,
     };
     document.querySelectorAll('.eyelash-slider').forEach(s => {
       const param = s.closest('.slider-control')?.dataset.param;
@@ -4944,8 +4977,10 @@ class UIController {
         this._refreshDecalGallery();
       }
       // Restore manual wrinkle painting
-      if (data.appearance?.wrinklePaintData && this.wrinklePainter) {
-        this.wrinklePainter.loadState(data.appearance.wrinklePaintData);
+      this.wrinklePainter?.loadState(data.appearance?.wrinklePaintData);
+      if (this.skinTextureSystem) {
+        this.skinTextureSystem.loadState(data.appearance?.skinTextureParams || SkinTextureSystem.DEFAULT_PARAMS);
+        this._syncSkinTextureUI(this.skinTextureSystem.getParams());
       }
       // Restore manual lip painting
       if (data.appearance?.lipPaintData && this.lipPainter) {
@@ -5173,7 +5208,7 @@ class UIController {
         if (state.appearance.wrinklePaintData) {
           this.wrinklePainter.loadState(state.appearance.wrinklePaintData);
         } else {
-          this.wrinklePainter.clearAll();
+          this.wrinklePainter.loadState(null);
         }
       }
 
@@ -5260,22 +5295,10 @@ class UIController {
         const params = state.appearance.skinTextureParams;
         console.log('[restoreState] skinTextureParams:', params);
         
-        if (params) {
-          Object.entries(params).forEach(([key, val]) => {
-            this.skinTextureSystem.setParam(key, val);
-          });
-        } else {
-          // Reset to defaults if no skin texture params in state
-          console.log('[restoreState] No skinTextureParams, resetting to defaults');
-          const defaults = SkinTextureSystem.DEFAULT_PARAMS;
-          Object.entries(defaults).forEach(([key, val]) => {
-            this.skinTextureSystem.setParam(key, val);
-          });
-        }
-        this.skinTextureSystem.regenerate();
+        this.skinTextureSystem.loadState(params || SkinTextureSystem.DEFAULT_PARAMS);
         
         // Update skin texture sliders and the cheek flush toggle
-        this._syncSkinTextureUI(params);
+        this._syncSkinTextureUI(this.skinTextureSystem.getParams());
       }
     }
 

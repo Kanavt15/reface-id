@@ -32,8 +32,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
 
-const PROFILE = path.join(os.tmpdir(), 'reface-probe-profile');
-fs.rmSync(PROFILE, { recursive: true, force: true });
+const PROFILE = fs.mkdtempSync(path.join(os.tmpdir(), 'reface-probe-'));
 
 const app = await electron.launch({
   executablePath: bin,
@@ -92,6 +91,7 @@ await waitFor('editor mounted', () =>
 // debounced behind the first morph — shooting before both land photographs a
 // half-built material and wastes the run.
 await sleep(3500);
+await page.evaluate(() => window.SkinShader && SkinShader._detailReady);
 
 /* ── Scene graph report ──────────────────────────────────────────────── */
 const report = await page.evaluate(() => {

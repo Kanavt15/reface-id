@@ -4374,7 +4374,7 @@
             {
               "kind": "subgroup",
               "id": null,
-              "title": "Age & Wrinkles",
+              "title": "Age & Surface",
               "icon": "hourglass-half",
               "actions": [],
               "collapsed": false,
@@ -4394,32 +4394,10 @@
                     "min": "0",
                     "max": "100",
                     "step": null,
-                    "value": "20",
-                    "valueText": "20",
-                    "data": {
-                      "data-param": "skinAge"
-                    }
-                  }
-                },
-                {
-                  "kind": "block",
-                  "block": {
-                    "type": "slider",
-                    "param": "skinWrinkleDepth",
-                    "label": "Wrinkle Depth",
-                    "id": "sliderWrinkleDepth",
-                    "controlId": null,
-                    "valueId": "valWrinkleDepth",
-                    "sliderClass": [
-                      "skin-texture-slider"
-                    ],
-                    "min": "0",
-                    "max": "100",
-                    "step": null,
                     "value": "30",
                     "valueText": "30",
                     "data": {
-                      "data-param": "skinWrinkleDepth"
+                      "data-param": "skinAge"
                     }
                   }
                 },
@@ -4450,7 +4428,7 @@
             {
               "kind": "subgroup",
               "id": null,
-              "title": "Manual Wrinkle Painting",
+              "title": "Draw Wrinkles",
               "icon": "paint-brush",
               "actions": [],
               "collapsed": false,
@@ -4472,9 +4450,38 @@
                 {
                   "kind": "block",
                   "block": {
+                    "type": "label",
+                    "text": "Drag to draw a soft skin fold. Width and strength apply to new strokes."
+                  }
+                },
+                {
+                  "kind": "block",
+                  "block": {
+                    "type": "slider",
+                    "param": "skinWrinkleDepth",
+                    "label": "Drawn Wrinkle Intensity",
+                    "id": "sliderWrinkleDepth",
+                    "controlId": null,
+                    "valueId": "valWrinkleDepth",
+                    "sliderClass": [
+                      "skin-texture-slider"
+                    ],
+                    "min": "0",
+                    "max": "100",
+                    "step": null,
+                    "value": "100",
+                    "valueText": "100",
+                    "data": {
+                      "data-param": "skinWrinkleDepth"
+                    }
+                  }
+                },
+                {
+                  "kind": "block",
+                  "block": {
                     "type": "slider",
                     "param": null,
-                    "label": "Brush Size",
+                    "label": "Fold Width",
                     "id": "wrinkleBrushSize",
                     "controlId": null,
                     "valueId": "wrinkleBrushSizeValue",
@@ -4500,8 +4507,8 @@
                     "min": "5",
                     "max": "100",
                     "step": null,
-                    "value": "20",
-                    "valueText": "20",
+                    "value": "55",
+                    "valueText": "55",
                     "data": {}
                   }
                 },
@@ -4516,6 +4523,48 @@
                     "id": null,
                     "known": true,
                     "html": "<div class=\"rf-btn-wrap\">\n                    <button class=\"btn-small\" id=\"btnWrinkleErase\" title=\"Toggle eraser mode\">\n                      <i class=\"fas fa-eraser\"></i> Eraser\n                    </button>\n                    <button class=\"btn-small\" id=\"btnWrinkleUndo\" title=\"Undo last stroke\">\n                      <i class=\"fas fa-undo\"></i> Undo\n                    </button>\n                    <button class=\"btn-small\" id=\"btnWrinkleClear\" title=\"Clear all manual wrinkles\">\n                      <i class=\"fas fa-trash\"></i> Clear\n                    </button>\n                  </div>"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "subgroup",
+              "id": null,
+              "title": "Under-eye Wrinkle Preset",
+              "icon": "eye",
+              "actions": [],
+              "collapsed": false,
+              "children": [
+                {
+                  "kind": "block",
+                  "block": {
+                    "type": "checkbox",
+                    "id": "underEyeWrinklesToggle",
+                    "label": "Enable under-eye wrinkles",
+                    "checked": false,
+                    "data": {}
+                  }
+                },
+                {
+                  "kind": "block",
+                  "block": {
+                    "type": "slider",
+                    "param": "underEyeIntensity",
+                    "label": "Under-eye Intensity",
+                    "id": "sliderUnderEyeIntensity",
+                    "controlId": null,
+                    "valueId": "valUnderEyeIntensity",
+                    "sliderClass": [
+                      "skin-texture-slider"
+                    ],
+                    "min": "0",
+                    "max": "100",
+                    "step": null,
+                    "value": "50",
+                    "valueText": "50",
+                    "data": {
+                      "data-param": "underEyeIntensity"
+                    }
                   }
                 }
               ]

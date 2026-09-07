@@ -51,10 +51,10 @@ class EnvironmentSystem {
     // on skin. A metre-wide softbox at portrait distance subtends a broad, soft
     // highlight with a falloff, which is what these radii reproduce.
     this.SOFTBOXES = [
-      { dir: [1.95, 2.15, 3.05], radius: 250, intensity: 1.00, warmth: 0.008 }, // key
-      { dir: [-2.7, 0.65, 2.3], radius: 300, intensity: 0.44, warmth: -0.10 },  // fill
-      { dir: [-1.9, 1.5, -2.4], radius: 165, intensity: 0.34, warmth: 0.02 },   // rim
-      { dir: [2.1, 1.2, -2.2], radius: 150, intensity: 0.22, warmth: -0.06 },   // rim 2
+      { dir: [1.95, 2.15, 3.05], radius: 320, intensity: 0.55, warmth: 0.0 },   // key
+      { dir: [-2.7, 0.65, 2.3], radius: 360, intensity: 0.28, warmth: -0.015 }, // fill
+      { dir: [-1.9, 1.5, -2.4], radius: 180, intensity: 0.10, warmth: 0.0 },   // rim
+      { dir: [2.1, 1.2, -2.2], radius: 180, intensity: 0.07, warmth: 0.0 },    // rim 2
     ];
   }
 

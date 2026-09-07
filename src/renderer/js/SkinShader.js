@@ -1,39 +1,16 @@
 /**
- * SkinShader.js
- * Turns a MeshPhysicalMaterial into a skin material.
+ * Skin shading for Three.js r160 MeshPhysicalMaterial.
  *
- * WHY
- * ---
- * A standard PBR material models an opaque dielectric. Skin is not opaque: light
- * enters the epidermis, bounces around in the dermis, and leaves somewhere else.
- * Red light travels furthest, which is why a real face glows warm where the
- * light grazes it and why ear rims go orange against a lamp. None of that is
- * expressible with `roughness` and `metalness`, and its absence is precisely the
- * "waxy plastic mannequin" look this file exists to remove.
+ * Original generated cheek detail is imported once into two linear data tiles:
+ * A = normal XY, pore depression, spare; B = relative RGB complexion, pigment.
+ * A deterministic procedural tile remains available while loading or on failure.
+ * Rest-position triplanar sampling keeps detail continuous across UV seams and
+ * attached during morphs, without the derivative distortion of UV * density(UV).
+ * Macro anatomy, ageing, painted marks and skin tone remain in SkinTextureSystem.
+ * The generated image is synthetic surface detail, not a measured identity map.
  *
- * WHAT IT ADDS
- * ------------
- *  1. Pre-integrated subsurface scattering (Penner & Borshukov 2011). The
- *     expensive part — convolving the diffuse falloff with a skin diffusion
- *     profile — is precomputed once into a 2D lookup indexed by (N·L, surface
- *     curvature). At runtime the direct diffuse term becomes one texture fetch.
- *  2. Back-scatter through thin parts (ears, nose wings, lips), driven by a
- *     thickness map.
- *  3. A tiled pore/microdetail normal. The macro texture is ~1mm per texel on a
- *     whole head, so pores physically cannot resolve there; they have to come
- *     from a high-frequency map tiled many times over the UVs.
- *  4. Cavity occlusion from a per-vertex attribute, darkening creases.
- *
- * HOW IT ATTACHES
- * ---------------
- * Via `onBeforeCompile`, not a custom ShaderMaterial, so three's shadow, IBL,
- * decal, vertex-colour and fog paths keep working untouched. The injection
- * points were read off three r160's chunks directly — `RE_Direct` is a #define
- * alias, so redefining it after `lights_physical_pars_fragment` is enough to
- * take over the diffuse term while leaving specular, clearcoat and sheen alone.
- *
- * Everything is gated on a `uSkinEnabled` uniform rather than a #define so the
- * Photoreal/Structure toggle costs no shader recompile.
+ * Scattering LUT, thin-region transmission and cavity shading extend the stock
+ * physical shader, preserving Three's lighting, shadow and environment paths.
  */
 
 class SkinShader {
@@ -150,203 +127,554 @@ class SkinShader {
     return SkinShader._lut;
   }
 
-  // ── Pore / microdetail normal ────────────────────────────────────────────
+  // ── Tile-building primitives ─────────────────────────────────────────────
+
   /**
-   * A seamlessly tileable pore normal map.
-   *
-   * Pores are cellular, not fractal — skin is a packed field of small pits, so
-   * the height field is built from distance-to-nearest-feature-point (Worley)
-   * rather than value noise. Fine fractal noise is layered under it for the
-   * microtexture between pores.
-   *
-   * Tileability comes from wrapping the feature-point lookup at the grid edges,
-   * which matters because this gets repeated ~14x across the face.
+   * Deterministic per-cell hash rather than a running generator.
+   * Consecutive draws of a Lehmer LCG fall on a coarse lattice, and any pores
+   * jittered by them inherit that lattice and line up in rows. A hash of the
+   * cell index has no sequence to correlate along, and being a pure function of
+   * (x, y) it keeps the tile wrap exact.
    */
-  static buildPoreNormal(size) {
-    const R = size || 512;
-    const canvas = document.createElement('canvas');
-    canvas.width = R;
-    canvas.height = R;
-    const ctx = canvas.getContext('2d');
-    const img = ctx.createImageData(R, R);
-    const d = img.data;
+  static _hash2(ix, iy, salt) {
+    let h = Math.imul(ix + 374761393, 2246822519)
+          ^ Math.imul(iy + 668265263, 3266489917)
+          ^ Math.imul(salt + 1, 374761393);
+    h = Math.imul(h ^ (h >>> 15), 2246822519);
+    h = Math.imul(h ^ (h >>> 13), 3266489917);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  }
 
-    /* Deterministic per-cell hash rather than a running generator.
-       Each feature point's jitter used to be two consecutive draws of a Lehmer
-       LCG, which is the textbook case where consecutive tuples fall on a
-       coarse lattice — the pores inherited that lattice and lined up in rows.
-       A hash of the cell index has no sequence to correlate along, and being a
-       pure function of (x, y) it keeps the wrap below exact. */
-    const hash2 = (ix, iy, salt) => {
-      let h = Math.imul(ix + 374761393, 2246822519)
-            ^ Math.imul(iy + 668265263, 3266489917)
-            ^ Math.imul(salt + 1, 374761393);
-      h = Math.imul(h ^ (h >>> 15), 2246822519);
-      h = Math.imul(h ^ (h >>> 13), 3266489917);
-      return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-    };
+  static _fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
 
-    const fade = (t) => t * t * t * (t * (t * 6 - 15) + 10);
-
-    /* Pore density in patches. One pore per cell forever is the single most
-       artificial thing about a Worley pore map — real pores cluster, and leave
-       stretches of bare skin between the clusters. This is a wrapped value
-       noise at DGRID cycles per tile that gates whether a cell gets a pore at
-       all. Kept at a fairly high frequency on purpose: the tile repeats 32x
-       across a face, so a low-frequency field here would repeat 32 times and
-       read as a pattern of its own. */
-    const DGRID = 7;
-    const dGrid = new Float32Array(DGRID * DGRID);
-    for (let i = 0; i < DGRID * DGRID; i++) {
-      dGrid[i] = hash2(i % DGRID, (i / DGRID) | 0, 9);
+  /**
+   * Tileable value noise: `grid` cells across the tile, lattice values from the
+   * hash, quintic fade, integer wrap so the tile edges meet exactly.
+   */
+  static _tileNoise(R, grid, salt) {
+    const out = new Float32Array(R * R);
+    const fade = SkinShader._fade;
+    const hash2 = SkinShader._hash2;
+    const lattice = new Float32Array(grid * grid);
+    for (let j = 0; j < grid; j++)
+      for (let i = 0; i < grid; i++) lattice[j * grid + i] = hash2(i, j, salt);
+    for (let y = 0; y < R; y++) {
+      const gy = (y / R) * grid, iy = Math.floor(gy), fy = fade(gy - iy);
+      const j0 = iy % grid, j1 = (iy + 1) % grid;
+      for (let x = 0; x < R; x++) {
+        const gx = (x / R) * grid, ix = Math.floor(gx), fx = fade(gx - ix);
+        const i0 = ix % grid, i1 = (ix + 1) % grid;
+        const top = lattice[j0 * grid + i0] + (lattice[j0 * grid + i1] - lattice[j0 * grid + i0]) * fx;
+        const bot = lattice[j1 * grid + i0] + (lattice[j1 * grid + i1] - lattice[j1 * grid + i0]) * fx;
+        out[y * R + x] = top + (bot - top) * fy;
+      }
     }
-    const density = (u, v) => {
-      const gx = u * DGRID, gy = v * DGRID;
-      const ix = Math.floor(gx), iy = Math.floor(gy);
-      const fx = fade(gx - ix), fy = fade(gy - iy);
-      const i0 = ix % DGRID, i1 = (ix + 1) % DGRID;
-      const j0 = iy % DGRID, j1 = (iy + 1) % DGRID;
-      const top = dGrid[j0 * DGRID + i0] + (dGrid[j0 * DGRID + i1] - dGrid[j0 * DGRID + i0]) * fx;
-      const bot = dGrid[j1 * DGRID + i0] + (dGrid[j1 * DGRID + i1] - dGrid[j1 * DGRID + i0]) * fx;
-      return top + (bot - top) * fy;
-    };
+    return out;
+  }
 
-    /* Per-pore attributes, all keyed on the wrapped cell index so the tile
-       stays seamless. CELLS is unchanged: it sets the physical pore spacing,
-       which was already tuned against poreRepeat, and the irregularity below
-       comes from varying the pores rather than from moving them. */
-    const CELLS = 48;
+  /** Wrapped 3x3 box blur, in place via a scratch buffer. */
+  static _blur3(src, R) {
+    const out = new Float32Array(R * R);
+    for (let y = 0; y < R; y++) {
+      const ym = ((y - 1 + R) % R) * R, y0 = y * R, yp = ((y + 1) % R) * R;
+      for (let x = 0; x < R; x++) {
+        const xm = (x - 1 + R) % R, xp = (x + 1) % R;
+        out[y0 + x] = (src[ym + xm] + src[ym + x] + src[ym + xp]
+                     + src[y0 + xm] + src[y0 + x] + src[y0 + xp]
+                     + src[yp + xm] + src[yp + x] + src[yp + xp]) / 9;
+      }
+    }
+    return out;
+  }
+
+  /** Wrapped height → tangent-space normal xy, unit-normalised, as [-1,1]. */
+  static _heightToNormal(h, R, strength) {
+    const nx = new Float32Array(R * R);
+    const ny = new Float32Array(R * R);
+    for (let y = 0; y < R; y++) {
+      for (let x = 0; x < R; x++) {
+        const l = h[y * R + ((x - 1 + R) % R)];
+        const r = h[y * R + ((x + 1) % R)];
+        const u = h[((y - 1 + R) % R) * R + x];
+        const dn = h[((y + 1) % R) * R + x];
+        let vx = (l - r) * strength, vy = (u - dn) * strength;
+        const inv = 1 / Math.sqrt(vx * vx + vy * vy + 1);
+        nx[y * R + x] = vx * inv;
+        ny[y * R + x] = vy * inv;
+      }
+    }
+    return { nx, ny };
+  }
+
+  // ── Detail tiles ─────────────────────────────────────────────────────────
+  /**
+   * Two seamlessly tileable RGBA detail maps, each covering 16mm of skin.
+   *
+   *   Tile A:  xy = pore normal      z = pore pit mask     w = rank of nearest pore
+   *   Tile B:  xy = line-net normal  z = oriented ridge slope (along tile v)
+   *                                   w = pigment speckle (0.5 = none)
+   *
+   * Pores are cellular, not fractal — skin is a packed field of small pits —
+   * so they come from a jittered Worley field with per-pore radius and depth.
+   * Every pore also carries a RANK (a per-pore hash) in .w; the shader shows a
+   * pore only when its rank is below the region's density. That is what lets
+   * the nose carry dense pores and the eyelid almost none from ONE tile,
+   * rather than fading every pore evenly, which just reads as blur.
+   *
+   * The primary line network is the part no earlier version had. Skin is not a
+   * bumpy surface with holes in it; it is a surface scored by fine furrows at
+   * roughly ±35° that cross into a diamond mesh, with a finer secondary set
+   * between. Each family is a wave with an INTEGER wave-vector, so it is
+   * periodic on the tile by construction, then phase-wobbled and amplitude-
+   * modulated by tileable noise so no two furrows are alike.
+   *
+   * The oriented ridge is a single family of broader furrows along the tile's
+   * u axis. The shader rotates it per fragment to the region's line direction.
+   */
+  static buildDetailTiles(size) {
+    const R = size || 512;
+    const N = R * R;
+    const hash2 = SkinShader._hash2;
+    const noise = (grid, salt) => SkinShader._tileNoise(R, grid, salt);
+    const TAU = Math.PI * 2;
+
+    // ── Pores ──
+    // 64 cells per 16mm tile → 0.25mm spacing, the follicular density of a
+    // cheek. Radius 0.35-0.7 of a cell → 0.09-0.17mm.
+    const CELLS = 56;
     const cellSize = R / CELLS;
     const pJx = new Float32Array(CELLS * CELLS);
     const pJy = new Float32Array(CELLS * CELLS);
     const pRad = new Float32Array(CELLS * CELLS);
     const pDepth = new Float32Array(CELLS * CELLS);
-    const pOn = new Uint8Array(CELLS * CELLS);
-
+    const pRank = new Float32Array(CELLS * CELLS);
+    // Clustered density: pores are not a uniform lattice. A wrapped noise at
+    // a fairly high frequency biases the rank so patches of skin are pore-rich
+    // and other patches bare, without the pattern itself repeating visibly.
+    const clusterN = noise(7, 9);
     for (let cy = 0; cy < CELLS; cy++) {
       for (let cx = 0; cx < CELLS; cx++) {
         const i = cy * CELLS + cx;
-        pJx[i] = hash2(cx, cy, 1);
-        pJy[i] = hash2(cx, cy, 2);
-        /* One size variable drives both width and depth, because on skin they
-           go together — a wide follicular opening is a deep one. Drawn
-           independently they combine into narrow-but-deep pits, which render
-           as hard black specks rather than pores. A smaller independent term
-           keeps the relationship from being exactly linear.
-
-           Radius, 0.55x to 1.45x, divides the distance falloff, so a wide pore
-           claims more of the surrounding area as well as being wide — a
-           multiplicatively weighted Worley. Uniform-radius pits were the other
-           half of why the old map read as a machined pattern. Depth averages
-           1.0 so the overall relief matches what poreScale was tuned against;
-           only its spread is new. */
-        const sz = hash2(cx, cy, 4);
-        pRad[i] = 0.55 + sz * 0.90;
-        pDepth[i] = 0.55 + sz * 0.55 + hash2(cx, cy, 5) * 0.35;
-        const d = density((cx + 0.5) / CELLS, (cy + 0.5) / CELLS);
-        pOn[i] = hash2(cx, cy, 3) < (0.30 + d * 0.62) ? 1 : 0;
+        pJx[i] = 0.15 + hash2(cx, cy, 1) * 0.7;
+        pJy[i] = 0.15 + hash2(cx, cy, 2) * 0.7;
+        /* One size variable drives both width and depth: on skin a wide
+           follicular opening is a deep one. Drawn independently they combine
+           into narrow-but-deep pits, which render as hard black specks. */
+        // Skewed small: most pores are tiny, a few are the visible ones.
+        const sz = Math.pow(hash2(cx, cy, 4), 1.6);
+        pRad[i] = 0.16 + sz * 0.30;
+        pDepth[i] = 0.35 + sz * 0.65 + hash2(cx, cy, 5) * 0.2;
+        const cl = clusterN[Math.floor((cy + 0.5) * cellSize) * R + Math.floor((cx + 0.5) * cellSize)];
+        pRank[i] = Math.min(1, Math.max(0, hash2(cx, cy, 3) * 0.75 + (1 - cl) * 0.35));
       }
     }
 
-    const height = new Float32Array(R * R);
-
+    const poreH = new Float32Array(N);
+    const pitMask = new Float32Array(N);
+    const rankMap = new Float32Array(N);
     for (let y = 0; y < R; y++) {
       for (let x = 0; x < R; x++) {
-        const cx = Math.floor(x / cellSize);
-        const cy = Math.floor(y / cellSize);
-
-        let best = 1e9, bestDepth = 1;
+        const cx = Math.floor(x / cellSize), cy = Math.floor(y / cellSize);
+        let best = 1e9, bestDepth = 1, bestRank = 1;
         for (let oy = -1; oy <= 1; oy++) {
           for (let ox = -1; ox <= 1; ox++) {
-            // Wrap so the pattern tiles with no seam.
             const gx = ((cx + ox) % CELLS + CELLS) % CELLS;
             const gy = ((cy + oy) % CELLS + CELLS) % CELLS;
             const pi = gy * CELLS + gx;
-            if (!pOn[pi]) continue;
-
             const px = (cx + ox + pJx[pi]) * cellSize;
             const py = (cy + oy + pJy[pi]) * cellSize;
             const dx = x - px, dy = y - py;
             const dist = Math.sqrt(dx * dx + dy * dy) / (cellSize * pRad[pi]);
-            if (dist < best) { best = dist; bestDepth = pDepth[pi]; }
+            if (dist < best) { best = dist; bestDepth = pDepth[pi]; bestRank = pRank[pi]; }
           }
         }
-
-        /* Normalised distance to the nearest pore centre → a shallow pit.
-           0.65 is the flat skin level; a pore cuts down from it by its own
-           depth, so cells with no pore and cells far from one both sit flat. */
+        // A rounded pit: flat outside radius 1, smoothly cupped inside.
         const h = best > 1 ? 1 : best;
-        height[y * R + x] = 0.65 * (1 - bestDepth * (1 - h * h));
+        const cup = 1 - h * h;
+        const pit = cup * cup * bestDepth;
+        poreH[y * R + x] = -pit;
+        pitMask[y * R + x] = pit;
+        rankMap[y * R + x] = bestRank;
       }
     }
-
-    /* Fine grain between the pores. Hashed per texel rather than drawn in
-       scanline order from a running generator, for the same reason as the
-       jitter above. */
-    for (let y = 0; y < R; y++) {
-      for (let x = 0; x < R; x++) {
-        height[y * R + x] += (hash2(x, y, 77) - 0.5) * 0.12;
+    // Between the pores the skin is not flat: a soft, broad undulation (the
+    // orange-peel relief at 1-2mm) plus fine grain, blurred so it is texture
+    // rather than pixel noise.
+    {
+      const und1 = noise(9, 71), und2 = noise(19, 72);
+      for (let i = 0; i < N; i++) {
+        const y = (i / R) | 0, x = i - y * R;
+        poreH[i] += (und1[i] - 0.5) * 0.30 + (und2[i] - 0.5) * 0.16 + (hash2(x, y, 77) - 0.5) * 0.08;
       }
     }
+    const poreHb = SkinShader._blur3(poreH, R);
+    const poreN = SkinShader._heightToNormal(poreHb, R, 3.4 * (R / 512));
 
-    // Blur the grain slightly so it becomes texture rather than pixel noise.
-    const blurred = new Float32Array(R * R);
-    for (let y = 0; y < R; y++) {
-      for (let x = 0; x < R; x++) {
-        let sum = 0;
-        for (let oy = -1; oy <= 1; oy++) {
-          for (let ox = -1; ox <= 1; ox++) {
-            const nx = (x + ox + R) % R;
-            const ny = (y + oy + R) % R;
-            sum += height[ny * R + nx];
-          }
+    // ── Primary line network ──
+    // Wave-vectors are integers (cycles per tile) so each family tiles.
+    // (29, 20) is 35.2 cycles at 34.6° → 0.45mm furrow spacing.
+    const families = [
+      { kx: 29, ky: 20, depth: 1.00, salt: 21 },
+      { kx: 29, ky: -20, depth: 0.95, salt: 22 },
+      { kx: 66, ky: 46, depth: 0.40, salt: 23 },
+      { kx: 66, ky: -46, depth: 0.38, salt: 24 },
+    ];
+    const lineH = new Float32Array(N);
+    for (const f of families) {
+      /* Two phase fields: a coarse one that bends whole furrows and a fine
+         one, at roughly the furrow spacing, that kinks them — so the network
+         is a mesh of irregular polygons, not ruled hatching. The amplitude
+         gate is thresholded so runs of each furrow vanish entirely, which is
+         what real primary lines do: they stop and restart. */
+      const phase = noise(7, f.salt);
+      const kink = noise(23, f.salt + 20);
+      const amp = noise(13, f.salt + 40);
+      const width = noise(9, f.salt + 80);
+      for (let y = 0; y < R; y++) {
+        const v = y / R;
+        for (let x = 0; x < R; x++) {
+          const u = x / R, i = y * R + x;
+          const t = TAU * (f.kx * u + f.ky * v) + (phase[i] - 0.5) * 5.0 + (kink[i] - 0.5) * 2.6;
+          const s = Math.abs(Math.sin(t));
+          const p = 2.5 + width[i] * 4.0;
+          const groove = Math.pow(1 - s, p);
+          const gate = Math.max(0, amp[i] * 1.7 - 0.35);
+          lineH[i] -= groove * f.depth * gate;
         }
-        blurred[y * R + x] = sum / 9;
+      }
+    }
+    const lineN = SkinShader._heightToNormal(lineH, R, 5.0 * (R / 512));
+
+    // ── Oriented ridge, along u ──
+    // 8 cycles per tile → 2mm furrows: forehead lines, lip lines, crow's
+    // feet, once the shader rotates them into the region's direction.
+    const ridgeSlope = new Float32Array(N);
+    {
+      const wob = noise(5, 31), amp = noise(4, 32), wid = noise(6, 33);
+      const rh = new Float32Array(N);
+      for (let y = 0; y < R; y++) {
+        const v = y / R;
+        for (let x = 0; x < R; x++) {
+          const i = y * R + x;
+          const t = TAU * (8 * v + (wob[i] - 0.5) * 0.45);
+          const s = Math.abs(Math.sin(t));
+          rh[i] = -Math.pow(1 - s, 1.6 + wid[i] * 2.0) * (0.35 + amp[i] * 0.8);
+        }
+      }
+      const str = 5.0 * (R / 512);
+      for (let y = 0; y < R; y++) {
+        for (let x = 0; x < R; x++) {
+          const u = rh[((y - 1 + R) % R) * R + x], dn = rh[((y + 1) % R) * R + x];
+          const sl = (u - dn) * str;
+          ridgeSlope[y * R + x] = sl < -1 ? -1 : sl > 1 ? 1 : sl;
+        }
       }
     }
 
-    // ── Height → normal ──
-    const STRENGTH = 2.4;
-    for (let y = 0; y < R; y++) {
-      for (let x = 0; x < R; x++) {
-        const l = blurred[y * R + ((x - 1 + R) % R)];
-        const r = blurred[y * R + ((x + 1) % R)];
-        const u = blurred[((y - 1 + R) % R) * R + x];
-        const dn = blurred[((y + 1) % R) * R + x];
-
-        let nx = (l - r) * STRENGTH;
-        let ny = (u - dn) * STRENGTH;
-        let nz = 1.0;
-        const inv = 1 / Math.sqrt(nx * nx + ny * ny + nz * nz);
-        nx *= inv; ny *= inv; nz *= inv;
-
-        const i = (y * R + x) * 4;
-        d[i]     = ((nx * 0.5 + 0.5) * 255) | 0;
-        d[i + 1] = ((ny * 0.5 + 0.5) * 255) | 0;
-        d[i + 2] = ((nz * 0.5 + 0.5) * 255) | 0;
-        d[i + 3] = 255;
+    // ── Pigment speckle ──
+    // Melanin is produced in clusters a fraction of a millimetre across. A
+    // sharpened high-frequency noise, so it is spots rather than a haze.
+    const speck = new Float32Array(N);
+    {
+      const s1 = noise(96, 51), s2 = noise(200, 52), gate = noise(11, 53);
+      for (let i = 0; i < N; i++) {
+        let v = (s1[i] - 0.5) * 2;
+        v = Math.sign(v) * Math.pow(Math.abs(v), 0.6);
+        speck[i] = v * (0.55 + gate[i] * 0.6) * 0.8 + (s2[i] - 0.5) * 0.5;
       }
     }
 
-    ctx.putImageData(img, 0, 0);
+    // ── Pack ──
+    // Raw RGBA bytes, not a canvas: canvas 2D premultiplies by alpha on
+    // putImageData, and both tiles carry data in alpha (pore rank, speckle).
+    // A rank of 0.05 would have crushed that texel's normal to 12 levels.
+    const q = (v) => { const t = ((v * 0.5 + 0.5) * 255) | 0; return t < 0 ? 0 : t > 255 ? 255 : t; };
+    const q01 = (v) => { const t = (v * 255) | 0; return t < 0 ? 0 : t > 255 ? 255 : t; };
 
-    const tex = new THREE.CanvasTexture(canvas);
+    const da = new Uint8Array(N * 4), db = new Uint8Array(N * 4);
+    for (let i = 0; i < N; i++) {
+      const o = i * 4;
+      da[o] = q(poreN.nx[i]); da[o + 1] = q(poreN.ny[i]);
+      da[o + 2] = q01(pitMask[i]); da[o + 3] = q01(rankMap[i]);
+      db[o] = q(lineN.nx[i]); db[o + 1] = q(lineN.ny[i]);
+      db[o + 2] = q(ridgeSlope[i]); db[o + 3] = q(speck[i]);
+    }
+    return { a: da, b: db, size: R };
+  }
+
+  static _tileTexture(data, R) {
+    const tex = new THREE.DataTexture(data, R, R, THREE.RGBAFormat, THREE.UnsignedByteType);
     tex.wrapS = THREE.RepeatWrapping;
     tex.wrapT = THREE.RepeatWrapping;
     tex.flipY = false;
     tex.colorSpace = THREE.NoColorSpace;
+    tex.generateMipmaps = true;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.anisotropy = 8;
     tex.needsUpdate = true;
     return tex;
   }
 
-  /** Cached pore map, shared by every skin material. */
-  static getPoreNormal() {
-    if (!SkinShader._pore) {
-      const t0 = performance.now();
-      SkinShader._pore = SkinShader.buildPoreNormal(512);
-      console.log('[SkinShader] Pore map built in ' + (performance.now() - t0).toFixed(1) + 'ms');
+  /** Wrapped separable box filter; runs once when importing the detail asset. */
+  static _blurField(src, R, radius) {
+    const tmp = new Float32Array(src.length), out = new Float32Array(src.length);
+    const width = radius * 2 + 1;
+    for (let y = 0; y < R; y++) {
+      let sum = 0;
+      for (let k = -radius; k <= radius; k++) sum += src[y * R + (k + R) % R];
+      for (let x = 0; x < R; x++) {
+        tmp[y * R + x] = sum / width;
+        sum += src[y * R + (x + radius + 1) % R] - src[y * R + (x - radius + R) % R];
+      }
     }
-    return SkinShader._pore;
+    for (let x = 0; x < R; x++) {
+      let sum = 0;
+      for (let k = -radius; k <= radius; k++) sum += tmp[((k + R) % R) * R + x];
+      for (let y = 0; y < R; y++) {
+        out[y * R + x] = sum / width;
+        sum += tmp[((y + radius + 1) % R) * R + x] - tmp[((y - radius + R) % R) * R + x];
+      }
+    }
+    return out;
+  }
+
+  /** Import synthetic surface contrast, without baking its beige tone onto a face.
+   * Height inferred from contrast is an artistic approximation, not scan depth.
+   * Half-tile crossfades make the field periodic even if the image edges differ.
+   */
+  static buildImageDetailTiles(source, R = 1024) {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = R;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(source, 0, 0, R, R);
+    const pixels = ctx.getImageData(0, 0, R, R).data;
+    const raw = new Float32Array(R * R), field = new Float32Array(R * R);
+    const complexion = new Float32Array(R * R * 3);
+    const mean = [0, 0, 0];
+    for (let i = 0; i < raw.length; i++) {
+      const o = i * 4;
+      raw[i] = (pixels[o] * 0.2126 + pixels[o + 1] * 0.7152 + pixels[o + 2] * 0.0722) / 255;
+      for (let c = 0; c < 3; c++) mean[c] += pixels[o + c] / (255 * raw.length);
+    }
+    const edgeWeight = (x) => {
+      const t = Math.min(1, Math.min(x, R - x) / (R * 0.12));
+      return t * t * (3 - 2 * t);
+    };
+    for (let y = 0; y < R; y++) {
+      const wy = edgeWeight(y), sy = (y + R / 2) % R;
+      for (let x = 0; x < R; x++) {
+        const wx = edgeWeight(x), sx = (x + R / 2) % R;
+        const a = raw[y * R + x] * wx + raw[y * R + sx] * (1 - wx);
+        const b = raw[sy * R + x] * wx + raw[sy * R + sx] * (1 - wx);
+        field[y * R + x] = a * wy + b * (1 - wy);
+        for (let c = 0; c < 3; c++) {
+          const top = pixels[(y * R + x) * 4 + c] * wx + pixels[(y * R + sx) * 4 + c] * (1 - wx);
+          const bottom = pixels[(sy * R + x) * 4 + c] * wx + pixels[(sy * R + sx) * 4 + c] * (1 - wx);
+          complexion[(y * R + x) * 3 + c] = (top * wy + bottom * (1 - wy)) / 255;
+        }
+      }
+    }
+    const local = SkinShader._blurField(field, R, 12);
+    // Keep the source's millimetre-scale variation as well as individual pores.
+    // This band survives portrait-size mip levels without enlarging the pores.
+    const broad = SkinShader._blurField(field, R, Math.max(1, Math.round(R / 24)));
+    const height = new Float32Array(R * R);
+    for (let i = 0; i < height.length; i++) {
+      height[i] = Math.max(-0.3, Math.min(0.3, (field[i] - local[i]) * 3.0));
+    }
+    const smooth = SkinShader._blur3(height, R);
+    const pore = SkinShader._heightToNormal(smooth, R, 5.5 * R / 1024);
+    const a = new Uint8Array(R * R * 4), b = new Uint8Array(a.length);
+    const q = (v) => Math.round(Math.max(0, Math.min(1, v)) * 255);
+    for (let i = 0; i < height.length; i++) {
+      const o = i * 4;
+      a[o] = q(pore.nx[i] * 0.5 + 0.5);
+      a[o + 1] = q(pore.ny[i] * 0.5 + 0.5);
+      a[o + 2] = q(Math.max(0, -height[i]) * 2.5);
+      a[o + 3] = q(0.5 + Math.max(-0.9, Math.min(0.9, (local[i] - broad[i]) * 18.0)) * 0.5);
+      for (let c = 0; c < 3; c++) {
+        const relative = (complexion[i * 3 + c] - mean[c]) / Math.max(mean[c], 0.01);
+        b[o + c] = q(0.5 + relative * 1.5);
+      }
+      b[o + 3] = q(0.5 + height[i] * 1.8);
+    }
+    return { a, b, size: R };
+  }
+
+  static getDetailTiles() {
+    if (!SkinShader._tiles) {
+      const c = SkinShader.buildDetailTiles(512);
+      SkinShader._tiles = {
+        a: SkinShader._tileTexture(c.a, 512), b: SkinShader._tileTexture(c.b, 512),
+        res: 512, mm: 16, imageDetail: 0, source: 'procedural-fallback',
+      };
+      SkinShader._detailReady = new Promise((resolve) => {
+        const source = new Image();
+        source.onload = () => {
+          const upgrade = () => {
+            try {
+              const hi = SkinShader.buildImageDetailTiles(source);
+              const old = SkinShader._tiles;
+              SkinShader._tiles = {
+                a: SkinShader._tileTexture(hi.a, hi.size), b: SkinShader._tileTexture(hi.b, hi.size),
+                res: hi.size, mm: 48, imageDetail: 1, source: 'generated-cheek-v2',
+              };
+              for (const u of SkinShader._tileUsers) {
+                u.uDetailA.value = SkinShader._tiles.a;
+                u.uDetailB.value = SkinShader._tiles.b;
+                u.uDetailMM.value = SkinShader._tiles.mm;
+                u.uImageDetail.value = 1;
+              }
+              old.a.dispose(); old.b.dispose();
+              console.log('[SkinShader] Original cheek detail ready: ' + hi.size + 'px');
+              resolve(true);
+            } catch (error) {
+              console.warn('[SkinShader] Detail import failed; using procedural fallback.', error);
+              resolve(false);
+            }
+          };
+          if (typeof requestIdleCallback === 'function') requestIdleCallback(upgrade, { timeout: 1500 });
+          else setTimeout(upgrade, 0);
+        };
+        source.onerror = () => {
+          console.warn('[SkinShader] Detail asset unavailable; using procedural fallback.');
+          resolve(false);
+        };
+        source.src = new URL('../../assets/textures/skin/cheek-skin-v2.png', document.baseURI).href;
+      });
+    }
+    return SkinShader._tiles;
+  }
+
+  /** Original anatomy fields authored in Blender; shared across skin materials. */
+  static getAnatomyMaps() {
+    if (SkinShader._anatomyMaps) return SkinShader._anatomyMaps;
+    const neutral = new THREE.DataTexture(new Uint8Array([128, 128, 0, 0]), 1, 1);
+    neutral.needsUpdate = true;
+    SkinShader._anatomyMaps = { fine: neutral, age: neutral, ready: 0 };
+    const load = name => new Promise(resolve => {
+      new THREE.TextureLoader().load(
+        new URL('../../assets/textures/skin/' + name, document.baseURI).href,
+        texture => {
+          texture.colorSpace = THREE.NoColorSpace;
+          texture.anisotropy = 8;
+          resolve(texture);
+        }, undefined, () => resolve(null));
+    });
+    SkinShader._anatomyReady = Promise.all([
+      load('anatomy-fine-v1.png'), load('anatomy-age-v1.png'),
+    ]).then(([fine, age]) => {
+      if (!fine || !age) {
+        fine?.dispose(); age?.dispose();
+        return false;
+      }
+      SkinShader._anatomyMaps = { fine, age, ready: 1 };
+      for (const u of SkinShader._tileUsers) {
+        u.uAnatomyFine.value = fine;
+        u.uAnatomyAge.value = age;
+        u.uAnatomyReady.value = 1;
+      }
+      neutral.dispose();
+      return true;
+    });
+    return SkinShader._anatomyMaps;
+  }
+
+  /** Fine skin folds complement the follicular pore tile at a lower strength. */
+  static getMicrofoldTile() {
+    if (SkinShader._microfoldTile) return SkinShader._microfoldTile;
+    const neutral = SkinShader._tileTexture(new Uint8Array([128, 128, 0, 255]), 1);
+    SkinShader._microfoldTile = { texture: neutral, ready: 0 };
+    SkinShader._microfoldReady = new Promise(resolve => {
+      const source = new Image();
+      source.onload = () => {
+        try {
+          const data = SkinShader.buildImageDetailTiles(source);
+          const texture = SkinShader._tileTexture(data.a, data.size);
+          SkinShader._microfoldTile = { texture, ready: 1 };
+          for (const u of SkinShader._tileUsers) {
+            u.uMicrofoldMap.value = texture;
+            u.uMicrofoldReady.value = 1;
+          }
+          neutral.dispose();
+          resolve(true);
+        } catch (_) { resolve(false); }
+      };
+      source.onerror = () => resolve(false);
+      source.src = new URL('../../assets/textures/skin/microfold-skin-v1.png', document.baseURI).href;
+    });
+    return SkinShader._microfoldTile;
+  }
+
+  /** Remove broad illumination from the generated face before re-lighting it. */
+  static buildFaceColourMap(source, R = 1024) {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = R;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(source, 0, 0, R, R);
+    const pixels = ctx.getImageData(0, 0, R, R).data;
+    const linear = new Float32Array(256);
+    for (let i = 0; i < 256; i++) {
+      const v = i / 255;
+      linear[i] = v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    }
+    const luminance = new Float32Array(R * R);
+    const mean = [0, 0, 0];
+    let count = 0;
+    for (let i = 0; i < luminance.length; i++) {
+      const o = i * 4;
+      const rgb = [linear[pixels[o]], linear[pixels[o + 1]], linear[pixels[o + 2]]];
+      luminance[i] = rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722;
+      const x = (i % R) / R, y = Math.floor(i / R) / R;
+      if (x > 0.32 && x < 0.68 && y > 0.15 && y < 0.80 && luminance[i] > 0.08) {
+        for (let c = 0; c < 3; c++) mean[c] += rgb[c] / luminance[i];
+        count++;
+      }
+    }
+    for (let c = 0; c < 3; c++) mean[c] /= Math.max(1, count);
+    const broad = SkinShader._blurField(luminance, R, Math.round(R / 28));
+    const data = new Uint8Array(R * R * 4);
+    const encode = v => Math.round(Math.max(0, Math.min(1, v * 0.5 + 0.5)) * 255);
+    for (let y = 0; y < R; y++) for (let x = 0; x < R; x++) {
+      const i = y * R + x, src = i * 4;
+      // DataTexture rows are explicitly inverted to conventional bottom-up UVs.
+      const dst = ((R - 1 - y) * R + x) * 4;
+      const detail = Math.max(-0.35, Math.min(0.35, luminance[i] / Math.max(0.02, broad[i]) - 1));
+      for (let c = 0; c < 3; c++) {
+        const chroma = linear[pixels[src + c]] / Math.max(0.02, luminance[i]);
+        const variation = (chroma / Math.max(0.01, mean[c]) - 1) * 0.9 + detail * 0.75;
+        data[dst + c] = encode(Math.max(-0.4, Math.min(0.4, variation)));
+      }
+      data[dst + 3] = encode(detail);
+    }
+    const texture = SkinShader._tileTexture(data, R);
+    texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+    return texture;
+  }
+
+  static getFaceColourMap() {
+    if (SkinShader._faceColourMap) return SkinShader._faceColourMap;
+    const neutral = SkinShader._tileTexture(new Uint8Array([128, 128, 128, 128]), 1);
+    SkinShader._faceColourMap = { texture: neutral, ready: 0 };
+    SkinShader._faceColourReady = new Promise(resolve => {
+      const source = new Image();
+      source.onload = () => {
+        try {
+          const texture = SkinShader.buildFaceColourMap(source);
+          SkinShader._faceColourMap = { texture, ready: 1 };
+          for (const u of SkinShader._tileUsers) {
+            u.uFaceColourMap.value = texture;
+            u.uFaceColourReady.value = 1;
+          }
+          neutral.dispose();
+          resolve(true);
+        } catch (_) { resolve(false); }
+      };
+      source.onerror = () => resolve(false);
+      source.src = new URL('../../assets/textures/skin/face-colour-v1.png', document.baseURI).href;
+    });
+    return SkinShader._faceColourMap;
   }
 
   // ── Cavity occlusion ─────────────────────────────────────────────────────
@@ -386,6 +714,10 @@ class SkinShader {
       if (!geo || !geo.attributes.position) continue;
 
       const pos = geo.attributes.position;
+      // Keep the undeformed surface coordinates: pores move with the face.
+      if (!geo.attributes.aSkinPosition || geo.attributes.aSkinPosition.count !== pos.count) {
+        geo.setAttribute('aSkinPosition', pos.clone());
+      }
       const nrm = geo.attributes.normal;
       if (!nrm) continue;
       const N = pos.count;
@@ -450,9 +782,7 @@ class SkinShader {
       const smoothed = src;
 
       // Only concavity occludes; convex vertices get zero. The scale maps the
-      // typical concavity range of a head mesh onto a usable 0-1. Lower than
-      // the previous 7.0 because smoothing no longer leaves spikes that needed
-      // clamping away, so the gain can serve the real features instead.
+      // typical concavity range of a head mesh onto a usable 0-1.
       let attr = geo.attributes.aCavity;
       if (!attr || attr.count !== N) {
         attr = new THREE.BufferAttribute(new Float32Array(N), 1);
@@ -521,11 +851,22 @@ class SkinShader {
       // scatters nothing visible, but a face has subsurface structure the
       // curvature estimate cannot see, and zero wrap there reads as plastic.
       curvatureBias: 0.03,
-      // A pore is ~0.3mm. At 14 tiles the cells landed nearer 2mm, which reads
-      // as orange peel or stucco rather than skin — visible texture at the
-      // wrong scale is worse than none.
-      poreRepeat: 32.0,
+      // Depth of the pore relief. Driven by the Micro Relief slider.
       poreScale: 0.30,
+      // Line depth for the procedural fallback; the image supplies its own relief.
+      lineScale: 0.18,
+      // Albedo modulation from speckle and pore pits, as a fraction.
+      albedoDetail: 0.50,
+      // Broader complexion detail remains readable at full-face framing.
+      complexionDetail: 0.10,
+      wrinkleStrength: 1.0,
+      underEyeStrength: 0.0,
+      fineCreaseStrength: 1.0,
+      faceColourStrength: 0.65,
+      // Roughness modulation from pits and ridges.
+      roughDetail: 0.10,
+      // How far the oil layer follows the perturbed normal (0 = stock three).
+      clearcoatFollow: 0.65,
       cavityStrength: 0.55,
       translucency: 0.5,
     };
@@ -539,22 +880,47 @@ class SkinShader {
     if (!material || material.userData.skinShader) return material;
 
     const cfg = Object.assign({}, SkinShader.DEFAULTS, options || {});
+    const tiles = SkinShader.getDetailTiles();
+    const anatomy = SkinShader.getAnatomyMaps();
+    const microfold = SkinShader.getMicrofoldTile();
+    const faceColour = SkinShader.getFaceColourMap();
 
     const uniforms = {
       uSSSLut: { value: SkinShader.getSSSLUT() },
-      uPoreMap: { value: SkinShader.getPoreNormal() },
+      uDetailA: { value: tiles.a },
+      uDetailB: { value: tiles.b },
+      uDetailMM: { value: tiles.mm },
+      uImageDetail: { value: tiles.imageDetail },
+      uAnatomyFine: { value: anatomy.fine },
+      uAnatomyAge: { value: anatomy.age },
+      uAnatomyReady: { value: anatomy.ready },
+      uWrinkleStrength: { value: cfg.wrinkleStrength },
+      uUnderEyeStrength: { value: cfg.underEyeStrength },
+      uPaintedWrinkles: { value: SkinShader.getEmptyWrinkleMap() },
+      uFineCreaseStrength: { value: cfg.fineCreaseStrength },
+      uMicrofoldMap: { value: microfold.texture },
+      uMicrofoldReady: { value: microfold.ready },
+      uFaceColourMap: { value: faceColour.texture },
+      uFaceColourReady: { value: faceColour.ready },
+      uFaceColourStrength: { value: cfg.faceColourStrength },
       uThicknessMap: { value: null },
       uSSSStrength: { value: cfg.sssStrength },
       uCurvatureScale: { value: cfg.curvatureScale },
       uCurvatureBias: { value: cfg.curvatureBias },
-      uPoreRepeat: { value: cfg.poreRepeat },
       uPoreScale: { value: cfg.poreScale },
+      uLineScale: { value: cfg.lineScale },
+      uAlbedoDetail: { value: cfg.albedoDetail },
+      uComplexionDetail: { value: cfg.complexionDetail },
+      uRoughDetail: { value: cfg.roughDetail },
+      uClearcoatFollow: { value: cfg.clearcoatFollow },
       uCavityStrength: { value: cfg.cavityStrength },
       uTranslucency: { value: cfg.translucency },
       uSkinEnabled: { value: 1.0 },
     };
 
     material.userData.skinShader = { uniforms, hasThickness: false };
+    SkinShader._tileUsers.add(uniforms);
+    material.addEventListener('dispose', () => SkinShader._tileUsers.delete(uniforms));
 
     material.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, uniforms);
@@ -571,25 +937,47 @@ class SkinShader {
       shader.vertexShader =
         'varying vec2 vSkinUv;\n' +
         'attribute float aCavity;\n' +
+        'attribute vec3 aSkinPosition;\n' +
+        'varying vec3 vSkinPosition;\n' +
         'varying float vCavity;\n' +
         shader.vertexShader;
 
       shader.vertexShader = shader.vertexShader.replace(
         '#include <begin_vertex>',
-        '#include <begin_vertex>\n\tvSkinUv = uv;\n\tvCavity = aCavity;'
+        '#include <begin_vertex>\n\tvSkinUv = uv;\n\tvCavity = aCavity;\n\tvSkinPosition = aSkinPosition;'
       );
 
       // ── Fragment prelude ──
       shader.fragmentShader =
         defines +
         'uniform sampler2D uSSSLut;\n' +
-        'uniform sampler2D uPoreMap;\n' +
+        'uniform sampler2D uDetailA;\n' +
+        'uniform sampler2D uDetailB;\n' +
+        'uniform float uDetailMM;\n' +
+        'uniform float uImageDetail;\n' +
+        'uniform sampler2D uAnatomyFine;\n' +
+        'uniform sampler2D uAnatomyAge;\n' +
+        'uniform float uAnatomyReady;\n' +
+        'uniform float uWrinkleStrength;\n' +
+        'uniform float uUnderEyeStrength;\n' +
+        'uniform sampler2D uPaintedWrinkles;\n' +
+        'uniform float uFineCreaseStrength;\n' +
+        'uniform sampler2D uMicrofoldMap;\n' +
+        'uniform float uMicrofoldReady;\n' +
+        'uniform sampler2D uFaceColourMap;\n' +
+        'uniform float uFaceColourReady;\n' +
+        'uniform float uFaceColourStrength;\n' +
+        'varying vec3 vSkinPosition;\n' +
         '#ifdef USE_SKIN_THICKNESS\nuniform sampler2D uThicknessMap;\n#endif\n' +
         'uniform float uSSSStrength;\n' +
         'uniform float uCurvatureScale;\n' +
         'uniform float uCurvatureBias;\n' +
-        'uniform float uPoreRepeat;\n' +
         'uniform float uPoreScale;\n' +
+        'uniform float uLineScale;\n' +
+        'uniform float uAlbedoDetail;\n' +
+        'uniform float uComplexionDetail;\n' +
+        'uniform float uRoughDetail;\n' +
+        'uniform float uClearcoatFollow;\n' +
         'uniform float uCavityStrength;\n' +
         'uniform float uTranslucency;\n' +
         'uniform float uSkinEnabled;\n' +
@@ -597,36 +985,156 @@ class SkinShader {
         'varying float vCavity;\n' +
         'float skinCurvature = 0.0;\n' +
         'float skinThickness = 0.0;\n' +
+        'vec3 skinDetailGradient = vec3( 0.0 );\n' +
+        'vec3 skinAnatomyGradient = vec3( 0.0 );\n' +
+        'float skinPhotoHeight = 0.0;\n' +
+        'vec2 skinPaintGradient = vec2( 0.0 );\n' +
+        'float skinCcRough = 0.0;\n' +
+        'float skinRoughTexel = 1.0;\n' +
+        'vec3 skinMacroNormal = vec3( 0.0, 0.0, 1.0 );\n' +
         shader.fragmentShader;
 
-      // ── Pore detail normal ──
-      // The tangent frame is derived here from screen-space derivatives rather
-      // than reusing three's `tbn`, which is only declared when a normal map is
-      // bound. Mikkelsen's construction; also automatically correct after a
-      // morph, since nothing is baked.
+      // Three projections in rest space: a fixed physical scale, no UV seams.
+      // The pore samples are shared across colour, roughness and surface relief;
+      // regional anatomy, microfold and facial colour layers add separate detail.
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <roughnessmap_fragment>',
+        `#include <roughnessmap_fragment>
+        {
+          float density = 0.55;
+          float lineGain = 0.5;
+          #ifdef USE_ROUGHNESSMAP
+            density = texelRoughness.r;
+            lineGain = texelRoughness.b;
+            skinRoughTexel = texelRoughness.g;
+          #endif
+          #ifdef USE_SKIN_THICKNESS
+            skinThickness = texture2D( uThicknessMap, vSkinUv ).r;
+          #endif
+          vec3 restDx = dFdx( vSkinPosition );
+          vec3 restDy = dFdy( vSkinPosition );
+          vec3 restN = cross( restDx, restDy );
+          restN /= max( length( restN ), 1e-8 );
+          vec3 w = pow( abs( restN ), vec3( 4.0 ) );
+          w /= max( w.x + w.y + w.z, 1e-6 );
+          vec3 p = vSkinPosition * ( 100.0 / uDetailMM );
+          vec4 ax = texture2D( uDetailA, p.yz + vec2( 0.17, 0.41 ) );
+          vec4 ay = texture2D( uDetailA, p.xz + vec2( 0.53, 0.09 ) );
+          vec4 az = texture2D( uDetailA, p.xy );
+          vec4 bx = texture2D( uDetailB, p.yz + vec2( 0.17, 0.41 ) );
+          vec4 by = texture2D( uDetailB, p.xz + vec2( 0.53, 0.09 ) );
+          vec4 bz = texture2D( uDetailB, p.xy );
+          float poreGain = clamp( density * 1.45, 0.0, 1.0 );
+          lineGain *= 1.0 - uImageDetail;
+          vec2 nx = ( ax.xy * 2.0 - 1.0 ) * poreGain * uPoreScale
+                  + ( bx.xy * 2.0 - 1.0 ) * lineGain * uLineScale;
+          vec2 ny = ( ay.xy * 2.0 - 1.0 ) * poreGain * uPoreScale
+                  + ( by.xy * 2.0 - 1.0 ) * lineGain * uLineScale;
+          vec2 nz = ( az.xy * 2.0 - 1.0 ) * poreGain * uPoreScale
+                  + ( bz.xy * 2.0 - 1.0 ) * lineGain * uLineScale;
+          skinDetailGradient = vec3( 0.0, nx.x, nx.y ) * w.x
+                             + vec3( ny.x, 0.0, ny.y ) * w.y
+                             + vec3( nz.x, nz.y, 0.0 ) * w.z;
+          // Fade by pixel footprint, so zoom, quality and screen DPI agree.
+          float footprint = max( length( dFdx( p ) ), length( dFdy( p ) ) );
+          float resolved = 1.0 - smoothstep( 0.008, 0.055, footprint );
+          skinDetailGradient *= resolved;
+          vec2 foldX = texture2D( uMicrofoldMap, p.yz + vec2( 0.17, 0.41 ) ).xy * 2.0 - 1.0;
+          vec2 foldY = texture2D( uMicrofoldMap, p.xz + vec2( 0.53, 0.09 ) ).xy * 2.0 - 1.0;
+          vec2 foldZ = texture2D( uMicrofoldMap, p.xy ).xy * 2.0 - 1.0;
+          vec3 foreheadP = ( vSkinPosition - vec3( 0.0, 0.68, 1.03 ) ) / vec3( 0.52, 0.32, 0.42 );
+          vec3 eyeP = ( vec3( abs( vSkinPosition.x ), vSkinPosition.yz ) - vec3( 0.34, 0.18, 0.99 ) ) / vec3( 0.21, 0.10, 0.22 );
+          float foldRegion = max( exp( -dot( foreheadP, foreheadP ) ), exp( -dot( eyeP, eyeP ) ) );
+          float foldStrength = mix( 0.10, 0.32, foldRegion ) * poreGain * uPoreScale * uMicrofoldReady * resolved;
+          skinDetailGradient += ( vec3( 0.0, foldX.x, foldX.y ) * w.x
+            + vec3( foldY.x, 0.0, foldY.y ) * w.y + vec3( foldZ, 0.0 ) * w.z ) * foldStrength;
+          float pit = ( ax.z * w.x + ay.z * w.y + az.z * w.z ) * poreGain;
+          float pigment = ( bx.w * w.x + by.w * w.y + bz.w * w.z ) * 2.0 - 1.0;
+          vec3 variation = pigment * vec3( 0.55, 0.46, 0.36 ) - pit * 0.24;
+          vec3 complexion = ( bx.rgb * w.x + by.rgb * w.y + bz.rgb * w.z ) * 2.0 - 1.0;
+          variation = mix( variation, complexion - pit * 0.12, uImageDetail );
+          float meso = ( ax.w * w.x + ay.w * w.y + az.w * w.z ) * 2.0 - 1.0;
+          // The extra band is source colour variation, not relief: the face
+          // retains its smooth silhouette and soft highlights at every zoom.
+          vec3 portraitVariation = meso * vec3( 0.85, 1.0, 1.12 ) * uComplexionDetail
+            * mix( 0.35, 1.0, poreGain ) * uImageDetail;
+          diffuseColor.rgb *= 1.0 + ( variation * uAlbedoDetail + portraitVariation ) * uSkinEnabled;
+          float rd = pit * 0.45 - pigment * 0.12;
+          roughnessFactor = clamp( roughnessFactor + ( rd * uRoughDetail
+            + ( 1.0 - resolved ) * uPoreScale * 0.045 ) * uSkinEnabled, 0.0, 1.0 );
+          skinCcRough = rd * uRoughDetail;
+          vec2 anatomyUv = ( vSkinPosition.xy - vec2( -1.05, -1.80 ) ) / vec2( 2.10, 3.25 );
+          vec4 fineCrease = texture2D( uAnatomyFine, anatomyUv );
+          vec4 ageCrease = texture2D( uAnatomyAge, anatomyUv );
+          float anatomyMask = smoothstep( 0.10, 0.60, vSkinPosition.z ) * uAnatomyReady;
+          float eyeRegion = smoothstep( 0.10, 0.16, abs( vSkinPosition.x ) )
+            * ( 1.0 - smoothstep( 0.48, 0.54, abs( vSkinPosition.x ) ) )
+            * smoothstep( 0.015, 0.065, vSkinPosition.y )
+            * ( 1.0 - smoothstep( 0.20, 0.245, vSkinPosition.y ) );
+          float lipRegion = 1.0 - smoothstep( -0.12, -0.06, vSkinPosition.y );
+          float fineStrength = lipRegion * uFineCreaseStrength + eyeRegion * uUnderEyeStrength;
+          float ageStrength = eyeRegion * uUnderEyeStrength;
+          // Forehead and other age folds are drawn by the operator. Only the
+          // separately enabled under-eye preset samples the old anatomy field.
+          vec2 creaseGradient = ( fineCrease.xy - vec2( 128.0 / 255.0 ) ) * 2.0 * fineStrength
+            + ( ageCrease.xy - vec2( 128.0 / 255.0 ) ) * 2.0 * ageStrength;
+          skinAnatomyGradient = vec3( creaseGradient, 0.0 ) * anatomyMask;
+          float creaseDepth = fineCrease.z * fineStrength + ageCrease.z * ageStrength;
+          // A restrained contact term keeps fine folds readable under diffuse fill.
+          diffuseColor.rgb *= 1.0 - clamp( creaseDepth * 0.32, 0.0, 0.22 ) * anatomyMask * uSkinEnabled;
+          vec3 painted = texture2D( uPaintedWrinkles, vSkinUv ).rgb;
+          skinPaintGradient = ( painted.rg * 255.0 - 128.0 ) / 127.0 * 8.0 * uWrinkleStrength;
+          diffuseColor.rgb *= 1.0 - clamp( painted.b * uWrinkleStrength * 0.32, 0.0, 0.22 ) * uSkinEnabled;
+          // Projection from the fixed authoring camera, evaluated in rest space.
+          // This remains attached when the live camera moves or the head morphs.
+          vec2 faceUv = 0.5 + ( vSkinPosition.xy - vec2( 0.0, 0.124098 ) )
+            * 1.585797 / max( 0.1, 4.5 - vSkinPosition.z );
+          vec4 faceColour = texture2D( uFaceColourMap, faceUv );
+          float faceMask = smoothstep( 0.20, 0.80, restN.z ) * smoothstep( 0.45, 0.80, vSkinPosition.z );
+          // Exclude baked forehead/eye lines from the source colour image.
+          float noBakedFolds = 1.0 - max( eyeRegion, smoothstep( 0.28, 0.42, vSkinPosition.y ) );
+          float faceAmount = faceMask * uFaceColourReady * uFaceColourStrength * noBakedFolds;
+          diffuseColor.rgb *= 1.0 + ( faceColour.rgb * 2.0 - 1.0 ) * faceAmount * uSkinEnabled;
+          skinPhotoHeight = ( faceColour.a * 2.0 - 1.0 ) * faceAmount * 0.0008;
+        }`
+      );
+
+      // Transform the rest-space surface gradient into the current surface.
+      // This follows morphs, mesh rotation and mirrored UVs without a tangent map.
       shader.fragmentShader = shader.fragmentShader.replace(
         '#include <normal_fragment_maps>',
+        `#include <normal_fragment_maps>
+        skinMacroNormal = normal;
+        {
+          vec3 dp1 = dFdx( -vViewPosition );
+          vec3 dp2 = dFdy( -vViewPosition );
+          vec3 r1 = cross( dp2, normal );
+          vec3 r2 = cross( normal, dp1 );
+          float determinant = dot( dp1, r1 );
+          float invDet = sign( determinant ) / max( abs( determinant ), 1e-10 );
+          float ah1 = dot( skinAnatomyGradient, dFdx( vSkinPosition ) ) + dot( skinPaintGradient, dFdx( vSkinUv ) );
+          float ah2 = dot( skinAnatomyGradient, dFdy( vSkinPosition ) ) + dot( skinPaintGradient, dFdy( vSkinUv ) );
+          vec3 anatomyOffset = ( r1 * ah1 + r2 * ah2 ) * invDet;
+          // Millimetre-scale folds shape diffuse light; only pore relief is softened by SSS.
+          skinMacroNormal = normalize( normal + anatomyOffset * uSkinEnabled );
+          float dh1 = dot( skinDetailGradient, dFdx( vSkinPosition ) ) - dFdx( skinPhotoHeight );
+          float dh2 = dot( skinDetailGradient, dFdy( vSkinPosition ) ) - dFdy( skinPhotoHeight );
+          normal = normalize( normal + ( anatomyOffset + ( r1 * dh1 + r2 * dh2 ) * invDet ) * uSkinEnabled );
+        }`
+      );
+
+      // ── Clearcoat follows the surface ──
+      // three evaluates the clearcoat lobe on the unperturbed normal, so the
+      // oil sheen ignored every wrinkle and pore and slid over the face as one
+      // continuous highlight. Skin oil sits IN the furrows and ON the pores;
+      // the lobe has to see them.
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <clearcoat_normal_fragment_begin>',
         [
-          '#include <normal_fragment_maps>',
-          '{',
-          '  vec3 sp = - vViewPosition;',
-          '  vec3 dp1 = dFdx( sp );',
-          '  vec3 dp2 = dFdy( sp );',
-          '  vec2 duv1 = dFdx( vSkinUv );',
-          '  vec2 duv2 = dFdy( vSkinUv );',
-          '  vec3 dp2perp = cross( dp2, normal );',
-          '  vec3 dp1perp = cross( normal, dp1 );',
-          '  vec3 skinT = dp2perp * duv1.x + dp1perp * duv2.x;',
-          '  vec3 skinB = dp2perp * duv1.y + dp1perp * duv2.y;',
-          '  float invmax = inversesqrt( max( dot( skinT, skinT ), dot( skinB, skinB ) ) );',
-          // Pores are sub-millimetre. Held at full strength when the camera is
-          // close, faded out as it pulls back, or they alias into crawling
-          // noise that looks worse than no detail at all.
-          '  float poreFade = 1.0 - smoothstep( 3.5, 10.0, length( vViewPosition ) );',
-          '  vec3 dN = texture2D( uPoreMap, vSkinUv * uPoreRepeat ).xyz * 2.0 - 1.0;',
-          '  float poreAmt = uPoreScale * poreFade * uSkinEnabled;',
-          '  normal = normalize( normal + ( skinT * dN.x + skinB * dN.y ) * invmax * poreAmt );',
-          '}',
+          '#include <clearcoat_normal_fragment_begin>',
+          '#ifdef USE_CLEARCOAT',
+          '  clearcoatNormal = normalize( mix( nonPerturbedNormal, normal, uClearcoatFollow * uSkinEnabled ) );',
+          '#endif',
         ].join('\n')
       );
 
@@ -645,10 +1153,29 @@ class SkinShader {
           '  skinCurvature = clamp( ( dN / dP ) * uCurvatureScale + uCurvatureBias, 0.0, 1.0 );',
           '}',
           '#endif',
-          '#ifdef USE_SKIN_THICKNESS',
-          'skinThickness = texture2D( uThicknessMap, vSkinUv ).r;',
-          '#endif',
           '#include <lights_fragment_begin>',
+        ].join('\n')
+      );
+
+      // ── Per-texel clearcoat roughness and mode-gated sheen ──
+      // The clearcoat roughness map used to be the roughness map bound a
+      // second time; the same value is already in scope, so it is applied
+      // here with the micro-detail on top, and one texture unit is freed.
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <lights_physical_fragment>',
+        [
+          '#include <lights_physical_fragment>',
+          '#ifdef USE_CLEARCOAT',
+          '  material.clearcoatRoughness = clamp( clearcoatRoughness * mix( 0.70, 1.0, skinRoughTexel ) + geometryRoughness + skinCcRough * uSkinEnabled, 0.35, 1.0 );',
+          // The oil film is a T-zone thing. A uniform clearcoat over cheek,
+          // jaw and forehead alike was the single loudest plastic cue left;
+          // here it follows the roughness map, so the dry cheek has a quarter
+          // of the nose's oil.
+          '  material.clearcoat *= mix( 1.0, mix( 0.25, 1.0, ( 1.0 - smoothstep( 0.32, 0.60, skinRoughTexel ) ) ), uSkinEnabled );',
+          '#endif',
+          '#ifdef USE_SHEEN',
+          '  material.sheenColor *= uSkinEnabled;',
+          '#endif',
         ].join('\n')
       );
 
@@ -677,7 +1204,12 @@ class SkinShader {
           // scatter. Only the diffuse lobe goes through the skin.
           '  reflectedLight.directSpecular += irradiance * BRDF_GGX( directLight.direction, geometryViewDir, geometryNormal, material );',
           '',
-          '  vec3 sssIrradiance = texture2D( uSSSLut, vec2( dotNL * 0.5 + 0.5, skinCurvature ) ).rgb * directLight.color;',
+          // Scattering blurs the micro-relief: light entering a furrow leaves
+          // from the ridge beside it. The LUT is fed a normal part-way back to
+          // the macro surface, or every furrow shades as a hard Lambert edge.
+          '  vec3 sssN = normalize( mix( skinMacroNormal, geometryNormal, 0.4 ) );',
+          '  float dotNLs = dot( sssN, directLight.direction );',
+          '  vec3 sssIrradiance = texture2D( uSSSLut, vec2( dotNLs * 0.5 + 0.5, skinCurvature ) ).rgb * directLight.color;',
           '  vec3 diffuseIrradiance = mix( irradiance, sssIrradiance, uSSSStrength * uSkinEnabled );',
           '  reflectedLight.directDiffuse += diffuseIrradiance * BRDF_Lambert( material.diffuseColor );',
           '',
@@ -718,7 +1250,7 @@ class SkinShader {
     // programs; without this they would share one and the second would render
     // with the first's shader.
     material.customProgramCacheKey = () =>
-      'skin' + (material.userData.skinShader.uniforms.uThicknessMap.value ? '-thick' : '');
+      'skin6-painted-folds' + (material.userData.skinShader.uniforms.uThicknessMap.value ? '-thick' : '');
 
     material.needsUpdate = true;
     return material;
@@ -739,8 +1271,16 @@ class SkinShader {
       sssStrength: 'uSSSStrength',
       curvatureScale: 'uCurvatureScale',
       curvatureBias: 'uCurvatureBias',
-      poreRepeat: 'uPoreRepeat',
       poreScale: 'uPoreScale',
+      lineScale: 'uLineScale',
+      albedoDetail: 'uAlbedoDetail',
+      complexionDetail: 'uComplexionDetail',
+      wrinkleStrength: 'uWrinkleStrength',
+      underEyeStrength: 'uUnderEyeStrength',
+      fineCreaseStrength: 'uFineCreaseStrength',
+      faceColourStrength: 'uFaceColourStrength',
+      roughDetail: 'uRoughDetail',
+      clearcoatFollow: 'uClearcoatFollow',
       cavityStrength: 'uCavityStrength',
       translucency: 'uTranslucency',
     };
@@ -751,9 +1291,9 @@ class SkinShader {
   }
 
   /**
-   * Bind a thickness map. Triggers one recompile, because the back-scatter
-   * branch is a #define — it is a per-pixel texture fetch that should not run
-   * at all when there is no map to fetch from.
+   * Bind a thickness/control map. Triggers one recompile, because the
+   * back-scatter branch is a #define — it is a per-pixel texture fetch that
+   * should not run at all when there is no map to fetch from.
    */
   static setThicknessMap(material, texture) {
     const s = material && material.userData && material.userData.skinShader;
@@ -762,10 +1302,31 @@ class SkinShader {
     s.uniforms.uThicknessMap.value = texture || null;
     if (had !== !!texture) material.needsUpdate = true;
   }
+
+  static getEmptyWrinkleMap() {
+    if (!SkinShader._emptyWrinkleMap) {
+      SkinShader._emptyWrinkleMap = new THREE.DataTexture(new Uint8Array([128, 128, 0, 255]), 1, 1);
+      SkinShader._emptyWrinkleMap.needsUpdate = true;
+    }
+    return SkinShader._emptyWrinkleMap;
+  }
+
+  static setWrinkleMap(material, texture) {
+    const s = material?.userData?.skinShader;
+    if (s) s.uniforms.uPaintedWrinkles.value = texture || SkinShader.getEmptyWrinkleMap();
+  }
 }
 
 SkinShader._lut = null;
-SkinShader._pore = null;
+SkinShader._tiles = null;
+SkinShader._tileUsers = new Set();
+SkinShader._detailReady = null;
+SkinShader._anatomyMaps = null;
+SkinShader._anatomyReady = null;
+SkinShader._microfoldTile = null;
+SkinShader._microfoldReady = null;
+SkinShader._faceColourMap = null;
+SkinShader._faceColourReady = null;
 SkinShader._cavityTimer = null;
 
 window.SkinShader = SkinShader;

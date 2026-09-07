@@ -2778,7 +2778,7 @@
           <div class="feature-sub-group">
             <div class="sub-group-header collapsed">
               
-              <span>Age &amp; Wrinkles</span>
+              <span>Age &amp; Surface</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
@@ -2787,19 +2787,10 @@
             <div class="slider-control" data-param="skinAge">
               <label>
                 <span>Age</span>
-                <span class="slider-value" id="valSkinAge">20</span>
+                <span class="slider-value" id="valSkinAge">30</span>
               </label>
               <div class="slider-row">
-                <input type="range" id="sliderSkinAge" class="skin-texture-slider" min="0" max="100" value="20" />
-              </div>
-            </div>
-            <div class="slider-control" data-param="skinWrinkleDepth">
-              <label>
-                <span>Wrinkle Depth</span>
-                <span class="slider-value" id="valWrinkleDepth">30</span>
-              </label>
-              <div class="slider-row">
-                <input type="range" id="sliderWrinkleDepth" class="skin-texture-slider" min="0" max="100" value="30" />
+                <input type="range" id="sliderSkinAge" class="skin-texture-slider" min="0" max="100" value="30" />
               </div>
             </div>
             <div class="slider-control" data-param="skinSunDamage">
@@ -2817,16 +2808,26 @@
           <div class="feature-sub-group">
             <div class="sub-group-header collapsed">
               <svg class="i" aria-hidden="true"><use href="#i-brush"/></svg>
-              <span>Manual Wrinkle Painting</span>
+              <span>Draw Wrinkles</span>
               
               <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
             </div>
             <div class="sub-group-body collapsed">
               <div class="k-sub-inner">
             <div class="k-btn-row"><button type="button" id="btnToggleWrinklePaint" class="btn-small"><svg class="i" aria-hidden="true"><use href="#i-brush"/></svg><span>Enable Wrinkle Painting</span></button></div>
+            <p class="k-note">Drag to draw a soft skin fold. Width and strength apply to new strokes.</p>
+            <div class="slider-control" data-param="skinWrinkleDepth">
+              <label for="sliderWrinkleDepth">
+                <span>Drawn Wrinkle Intensity</span>
+                <span class="slider-value" id="valWrinkleDepth">100</span>
+              </label>
+              <div class="slider-row">
+                <input type="range" id="sliderWrinkleDepth" class="skin-texture-slider" min="0" max="100" value="100" />
+              </div>
+            </div>
             <div class="slider-control">
               <label>
-                <span>Brush Size</span>
+                <span>Fold Width</span>
                 <span class="slider-value" id="wrinkleBrushSizeValue">8</span>
               </label>
               <div class="slider-row">
@@ -2836,10 +2837,10 @@
             <div class="slider-control">
               <label>
                 <span>Brush Strength</span>
-                <span class="slider-value" id="wrinkleBrushStrengthValue">20</span>
+                <span class="slider-value" id="wrinkleBrushStrengthValue">55</span>
               </label>
               <div class="slider-row">
-                <input type="range" id="wrinkleBrushStrength" class="" min="5" max="100" value="20" />
+                <input type="range" id="wrinkleBrushStrength" class="" min="5" max="100" value="55" />
               </div>
             </div>
             <div class="k-verbatim">
@@ -2855,6 +2856,32 @@
                     </button>
                   </div>
             </div>
+              </div>
+            </div>
+          </div>
+          <div class="feature-sub-group">
+            <div class="sub-group-header collapsed">
+              <svg class="i" aria-hidden="true"><use href="#i-droplet"/></svg>
+              <span>Under-eye Wrinkle Preset</span>
+              <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+            </div>
+            <div class="sub-group-body collapsed">
+              <div class="k-sub-inner">
+                <div class="input-control">
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="underEyeWrinklesToggle" />
+                    <span>Enable under-eye wrinkles</span>
+                  </label>
+                </div>
+                <div class="slider-control" data-param="underEyeIntensity">
+                  <label for="sliderUnderEyeIntensity">
+                    <span>Under-eye Intensity</span>
+                    <span class="slider-value" id="valUnderEyeIntensity">50</span>
+                  </label>
+                  <div class="slider-row">
+                    <input type="range" id="sliderUnderEyeIntensity" class="skin-texture-slider" min="0" max="100" value="50" disabled />
+                  </div>
+                </div>
               </div>
             </div>
           </div>

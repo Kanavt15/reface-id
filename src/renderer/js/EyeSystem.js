@@ -109,8 +109,8 @@ class EyeSystem {
          the sclera the brightest object in the frame no matter how far the
          diffuse term was pushed down. A tear film is a sheen at a glancing
          angle, not a mirror across the whole eyeball. */
-      clearcoat: 0.15,
-      clearcoatRoughness: 0.26,
+      clearcoat: 0.05,
+      clearcoatRoughness: 0.35,
       envMapIntensity: 0.14,
       side: THREE.FrontSide,
     });
@@ -161,7 +161,7 @@ class EyeSystem {
        * sRGB, so a mid-grey here is only ~0.05 linear. That is why the first
        * two passes at this rendered nothing: 0x2b3138 looks like a reasonable
        * dark reflection and is in fact 2% of the light. */
-      color: 0xeef3f8,
+      color: 0x858b92,
       metalness: 1.0,
       roughness: 0.11,
       /* Low, and the catchlight comes from the direct lights instead.
@@ -219,8 +219,8 @@ class EyeSystem {
       rotY: 50,
       rotZ: 50,
       curl: 50,
-      thickness: 65,
-      length: 50,
+      thickness: 45,
+      length: 32,
       opacity: 100,
     };
 

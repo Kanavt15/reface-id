@@ -1,0 +1,17 @@
+{
+  "bounds": [
+    -1.05,
+    1.05,
+    -1.8,
+    1.45
+  ],
+  "resolution": 2048,
+  "channels": {
+    "r": "negative dHeight/dX, encoded 0..1",
+    "g": "negative dHeight/dY, encoded 0..1",
+    "b": "crease depth / 0.006 model units",
+    "a": "opaque"
+  },
+  "coordinates": "original head Y-up positions; image bottom = y minimum",
+  "source": "Original authored curved surface fields; cosmetic, not a subject scan."
+}

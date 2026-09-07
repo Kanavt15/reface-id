@@ -11,13 +11,9 @@
  * files. The pipeline needed here is two render targets and three shader
  * passes — less code than the conversion would be.
  *
- * WHY IT MATTERS FOR REALISM
- * --------------------------
- * A render is "too clean" in ways people detect without being able to name.
- * Photographs have sensor grain, lens falloff at the corners, a little colour
- * fringing, and highlights that bleed. A perfectly clean frame is read as CG
- * before any conscious analysis of the face happens at all. Grain and vignette
- * in particular are nearly free and do a disproportionate amount of the work.
+ * Default tiers preserve facial detail with no bloom and a subtle vignette.
+ * Grain and chromatic aberration remain available as shader parameters but
+ * default to zero so they do not obscure pores or alter feature edges.
  *
  * Tone mapping moves here from the renderer, because bloom has to be gathered
  * in linear light — bloom applied after tone mapping blooms the compressed
@@ -36,8 +32,9 @@ class PostFX {
    */
   static get TIERS() {
     return {
-      medium: { bloomStrength: 0.22, grain: 0.022, vignette: 0.30, aberration: 0.0 },
-      high:   { bloomStrength: 0.28, grain: 0.027, vignette: 0.36, aberration: 0.0022 },
+      // Keep pores and feature edges free of animated grain and colour fringing.
+      medium: { bloomStrength: 0.0, grain: 0.0, vignette: 0.06, aberration: 0.0 },
+      high:   { bloomStrength: 0.0, grain: 0.0, vignette: 0.06, aberration: 0.0 },
     };
   }
 
@@ -72,7 +69,7 @@ class PostFX {
       grain: PostFX.TIERS.medium.grain,
       vignette: PostFX.TIERS.medium.vignette,
       aberration: PostFX.TIERS.medium.aberration,
-      contrast: 1.06,
+      contrast: 1.0,
       /* 1.0 — no chroma boost.
          This was 1.09. A global saturation lift is a normal look-development
          move, but it lands hardest on whatever is already most saturated, and

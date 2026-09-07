@@ -40,8 +40,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
 
-const PROFILE = path.join(os.tmpdir(), 'reface-verify-profile');
-fs.rmSync(PROFILE, { recursive: true, force: true });
+const PROFILE = fs.mkdtempSync(path.join(os.tmpdir(), 'reface-verify-'));
+// Unique test profile keeps verification independent of previous runs.
 
 const app = await electron.launch({
   executablePath: bin,
@@ -92,11 +92,98 @@ await waitFor('editor', () =>
   !!document.querySelector('#viewport canvas')?.width);
 await sleep(3500);
 
+const skinDetail = await page.evaluate(async () => {
+  const loaded = await SkinShader._detailReady;
+  const anatomyLoaded = await SkinShader._anatomyReady;
+  const microfoldLoaded = await SkinShader._microfoldReady;
+  const faceColourLoaded = await SkinShader._faceColourReady;
+  const sm = window.rfApp.sceneManager;
+  const sts = window.rfApp.ui.skinTextureSystem;
+  let mesh;
+  sm.headMesh.traverse(c => { if (c.isMesh && !mesh) mesh = c; });
+  const initialRest = mesh.geometry.attributes.aSkinPosition;
+  const initial = initialRest.array.slice();
+  SkinShader.computeCavity(mesh);
+  const restStable = initial.every((v, i) => v === mesh.geometry.attributes.aSkinPosition.array[i]);
+  const uniforms = mesh.material.userData.skinShader.uniforms;
+  const oldMaps = [sts.diffuseTexture, sts.normalTexture, sts.roughnessTexture];
+  const saved = sts.getParams();
+  const initialDefaultsMatch = JSON.stringify(saved) === JSON.stringify(window.rfApp.caseManager.currentCase.appearance.skinTextureParams);
+  const initialControlsMatch = Number(document.getElementById('sliderSkinAge').value) === saved.age &&
+    Number(document.getElementById('sliderWrinkleDepth').value) === saved.wrinkleDepth;
+  sts.setParam('wrinkleDepth', 0); sts.regenerate();
+  const wrinklesOff = uniforms.uWrinkleStrength.value === 0;
+  sts.setParam('age', 65); sts.setParam('wrinkleDepth', 80); sts.regenerate();
+  const agedWrinkles = uniforms.uWrinkleStrength.value;
+  sts.setParam('underEyeEnabled', true); sts.setParam('underEyeIntensity', 75);
+  sts.setParam('age', 20); sts.regenerate();
+  const independentControls = agedWrinkles === uniforms.uWrinkleStrength.value && uniforms.uUnderEyeStrength.value === .75;
+  sts.setParam('underEyeEnabled', false);
+  const presetOff = uniforms.uUnderEyeStrength.value === 0 && uniforms.uWrinkleStrength.value === .8;
+  sts.loadState(saved);
+  sts.setParam('microRelief', 0);
+  const reliefOff = uniforms.uPoreScale.value === 0;
+  sts.setParam('microRelief', 100);
+  const reliefOn = uniforms.uPoreScale.value === 0.6;
+  const noRebuild = oldMaps[0] === sts.diffuseTexture && oldMaps[1] === sts.normalTexture && oldMaps[2] === sts.roughnessTexture;
+  sts.loadState(saved);
+  const users = SkinShader._tileUsers.size;
+  const temp = new THREE.MeshPhysicalMaterial();
+  SkinShader.attach(temp);
+  temp.dispose();
+  return {
+    loaded, source: SkinShader._tiles.source, resolution: SkinShader._tiles.res,
+    anatomyLoaded, microfoldLoaded, faceColourLoaded, initialDefaultsMatch, initialControlsMatch, wrinklesOff, independentControls, presetOff,
+    faceColourBound: uniforms.uFaceColourMap.value === SkinShader._faceColourMap.texture,
+    anatomyBound: uniforms.uAnatomyFine.value === SkinShader._anatomyMaps.fine &&
+      uniforms.uAnatomyAge.value === SkinShader._anatomyMaps.age,
+    bindings: uniforms.uDetailA.value === SkinShader._tiles.a && uniforms.uDetailB.value === SkinShader._tiles.b,
+    restStable, reliefOff, reliefOn, noRebuild, released: SkinShader._tileUsers.size === users,
+  };
+});
+
 const results = [];
 const record = (name, pass, detail) => {
   results.push({ name, pass, detail });
   console.log((pass ? '  ok   ' : '  FAIL ') + name + (detail ? '  ' + detail : ''));
 };
+
+record('original generated skin detail loads', skinDetail.loaded && skinDetail.source === 'generated-cheek-v2');
+record('detail textures are bound at 1024', skinDetail.bindings && skinDetail.resolution === 1024);
+record('cavity updates preserve pore coordinates', skinDetail.restStable);
+record('micro-relief slider reaches both extremes without rebuilding maps',
+  skinDetail.reliefOff && skinDetail.reliefOn && skinDetail.noRebuild);
+record('disposed materials release their detail subscriptions', skinDetail.released);
+record('authored facial crease maps and microfold detail load', skinDetail.anatomyLoaded && skinDetail.microfoldLoaded && skinDetail.anatomyBound);
+record('facial colour detail is loaded and bound', skinDetail.faceColourLoaded && skinDetail.faceColourBound);
+record('new-case skin, saved state and visible controls agree', skinDetail.initialDefaultsMatch && skinDetail.initialControlsMatch);
+record('drawn intensity and opt-in under-eye folds are independent of age', skinDetail.wrinklesOff && skinDetail.independentControls && skinDetail.presetOff);
+
+// Exercise the actual controls, including keyboard edits and their saved state.
+await page.click('.panel-tab[data-panel="appearance"]');
+await page.getByText('Skin Texture & Aging', {exact:true}).click();
+await page.getByText('Under-eye Wrinkle Preset', {exact:true}).click();
+record('under-eye preset starts off', !(await page.isChecked('#underEyeWrinklesToggle')) && await page.isDisabled('#sliderUnderEyeIntensity'));
+await page.check('#underEyeWrinklesToggle');
+await page.focus('#sliderUnderEyeIntensity');
+await page.keyboard.press('End');
+const eyeControl = await page.evaluate(() => {
+  const ui=rfApp.ui, p=ui.skinTextureSystem.getParams();
+  return p.underEyeEnabled && p.underEyeIntensity===100 &&
+    rfApp.caseManager.currentCase.appearance.skinTextureParams.underEyeIntensity===100;
+});
+record('under-eye toggle and keyboard intensity persist', eyeControl);
+await page.uncheck('#underEyeWrinklesToggle');
+await page.check('#underEyeWrinklesToggle');
+record('under-eye toggle retains the selected intensity', await page.inputValue('#sliderUnderEyeIntensity') === '100');
+await page.locator('#k-sheet').screenshot({path:path.join(OUT,'wrinkle-controls.png')});
+await page.click('#btnResetSkinTexture');
+record('skin reset restores an optional under-eye preset', !(await page.isChecked('#underEyeWrinklesToggle')) && await page.inputValue('#sliderUnderEyeIntensity') === '50');
+await page.getByText('Draw Wrinkles', {exact:true}).click();
+await page.click('#btnToggleWrinklePaint');
+record('replacement brush activates through the UI', await page.evaluate(()=>rfApp.ui.wrinklePainter.enabled && rfApp.ui.wrinklePainter.brushStrength === .55));
+await page.click('#btnToggleWrinklePaint');
+await page.locator('#k-sheet').screenshot({path:path.join(OUT,'wrinkle-brush-controls.png')});
 
 /* ── 1. Regenerate timing ────────────────────────────────────────────────── */
 console.log('\n── skin texture regenerate ──');
@@ -104,8 +191,7 @@ const timing = await page.evaluate(async () => {
   const sts = window.rfApp.ui.skinTextureSystem;
   if (!sts) return { error: 'no SkinTextureSystem' };
 
-  // Exercise the wrinkle path: at the default age of 20 most regions are below
-  // their onset and the loop this optimised barely runs.
+  // Exercise the aged complexion and stronger macro surface-detail paths.
   sts.params.age = 60;
   sts.params.wrinkleDepth = 80;
   sts.params.poreDetail = 60;
@@ -143,10 +229,12 @@ if (!timing.error) {
   record('caching beats the uncached path it replaced',
     timing.cold > timing.warm * 2,
     `uncached ${timing.cold}ms vs cached ${timing.warm}ms`);
-  record('a slider drag stays interactive', timing.warm < 30, timing.warm + 'ms');
-  // High is the explicit "sharper, slower" tier — it buys crisper wrinkle
-  // creases for roughly 4x the regenerate cost. The bar is that a drag stays
-  // usable, not that it matches the default.
+  /* 45 rather than 30 since the roughness pass also writes the pore-density
+     and line-gain control channels for the detail tiles. UIController
+     debounces slider regeneration by 150ms, so this runs once on the
+     trailing edge of a drag, not per tick. */
+  record('a slider drag stays interactive', timing.warm < 45, timing.warm + 'ms');
+  // High rebuilds larger macro maps; drawing uses its independent detail map.
   record('high tier stays within its budget', timing.warmHigh < 130, timing.warmHigh + 'ms');
 }
 
@@ -211,6 +299,8 @@ const modes = await page.evaluate(() => {
       grid: sm.grid.visible,
       ground: sm.ground.visible,
       clearcoat: mat.clearcoat,
+      sheen: mat.sheen,
+      specularIntensity: mat.specularIntensity,
       envMapIntensity: mat.envMapIntensity,
       skinEnabled: mat.userData.skinShader
         ? mat.userData.skinShader.uniforms.uSkinEnabled.value : null,
@@ -220,9 +310,13 @@ const modes = await page.evaluate(() => {
   const photoreal = snap();
   sm.setRenderMode('structure');
   const structure = snap();
+  sm.skinTextureSystem.regenerate();
+  const structureAfterEdit = snap();
   sm.setRenderMode('photoreal');
   const back = snap();
-  return { photoreal, structure, back };
+  sm.skinTextureSystem.regenerate();
+  const photoAfterEdit = snap();
+  return { photoreal, structure, structureAfterEdit, back, photoAfterEdit };
 });
 
 record('structure mode drops the environment', modes.structure.env === false);
@@ -234,6 +328,14 @@ record('structure mode turns post off', modes.structure.post === false);
 record('photoreal restores every one of them',
   modes.back.env && !modes.back.grid && modes.back.skinEnabled === 1 && modes.back.post,
   JSON.stringify(modes.back));
+record('editing skin in structure mode keeps reflections and detail disabled',
+  modes.structureAfterEdit.envMapIntensity === 0 &&
+  modes.structureAfterEdit.clearcoat === 0 && modes.structureAfterEdit.sheen === 0 &&
+  modes.structureAfterEdit.skinEnabled === 0);
+const surfaceKeys = ['clearcoat', 'sheen', 'specularIntensity', 'envMapIntensity', 'skinEnabled'];
+record('mode changes and skin edits preserve the photoreal surface',
+  surfaceKeys.every(key => modes.photoreal[key] === modes.back[key] &&
+    modes.photoreal[key] === modes.photoAfterEdit[key]));
 
 /* ── 4. Quality tiers ────────────────────────────────────────────────────── */
 console.log('\n── quality tiers ──');
@@ -259,9 +361,9 @@ const tiers = await page.evaluate(() => {
 });
 
 record('low bypasses post entirely', tiers.low.enabled === false);
-record('high enables chromatic aberration', tiers.high.aberration > 0);
+record('high preserves feature edges without colour fringing', tiers.high.aberration === 0);
 record('medium has no visible fringing', tiers.medium.aberration === 0);
-record('medium still applies grain', tiers.medium.grain > 0);
+record('skin detail is stable without animated grain', tiers.medium.grain === 0 && tiers.high.grain === 0);
 record('resize rebuilds render targets', tiers.recreatesTargets === true);
 
 /* ── Summary ─────────────────────────────────────────────────────────────── */
