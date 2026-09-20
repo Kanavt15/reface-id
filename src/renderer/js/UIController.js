@@ -3023,6 +3023,8 @@ class UIController {
         await this.apiKeys.refresh();
         const provider = err.provider || this.apiKeys.defaultProvider || 'anthropic';
         if (!(await this.apiKeys.open(provider, { error: err.message }))) throw err;
+        const select = document.getElementById('aiProviderSelect');
+        if (select) [picker.provider, picker.model] = select.value.split(':');
         return run();
       }
     };
@@ -3038,11 +3040,16 @@ class UIController {
       // A candidate set is an AI call like any other. The key is asked for
       // before the picker opens, so a dismissed dialog does not leave an empty
       // grid sitting on screen.
-      const provider = this.apiKeys?.defaultProvider || 'anthropic';
-      if (this.apiKeys && !(await this.apiKeys.ensure(provider))) {
+      const picked = () => (document.getElementById('aiProviderSelect')?.value
+        || `${this.apiKeys?.defaultProvider || 'anthropic'}:`).split(':');
+      if (this.apiKeys && !(await this.apiKeys.ensure(picked()[0]))) {
         this.showNotification('An API key is needed to generate candidates', 'info');
         return;
       }
+
+      // Read again: the key dialog offers every provider, and the picker has
+      // followed whichever one was keyed.
+      [picker.provider, picker.model] = picked();
 
       modal.style.display = 'flex';
       grid.innerHTML = '';

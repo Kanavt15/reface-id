@@ -218,6 +218,49 @@
 
 .k-modal-box.k-modal-slim { width: min(460px, 100%); }
 
+/* Every provider the backend knows, always visible: the key that is wanted
+   right now is one of three, and an operator who holds a different one should
+   see that it is accepted rather than closing the dialog. */
+.ai-key-tabs {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 16px;
+}
+
+.ai-key-tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 11px;
+  background: var(--k-sunken);
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-2);
+  font-size: var(--s-sm);
+  color: var(--t-lo);
+  cursor: pointer;
+  transition: border-color var(--t-1) var(--e), color var(--t-1) var(--e),
+              background var(--t-1) var(--e);
+}
+
+.ai-key-tab:hover { color: var(--t-hi); border-color: var(--k-edge); }
+
+.ai-key-tab.is-active {
+  background: var(--k-lift);
+  border-color: var(--sig-line);
+  color: var(--t-hi);
+}
+
+/* Lit when that provider holds a key — the one piece of state worth carrying
+   on a tab, so the strip doubles as the answer to "which of these am I set
+   up for". */
+.ai-key-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--k-strong);
+}
+
+.ai-key-tab.has-key .ai-key-dot { background: var(--sig); }
+
 .ai-key-label {
   display: block;
   margin-bottom: 6px;

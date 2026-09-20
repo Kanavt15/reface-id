@@ -28,7 +28,8 @@ class ApiKeyGate {
 
     this.modal = null;
     this._resolve = null;       // settles the promise handed to the current caller
-    this._provider = null;      // provider the open dialog is asking about
+    this._provider = null;      // provider whose tab is showing
+    this._wanted = null;        // provider the caller was blocked on
     this._busy = false;
   }
 
@@ -39,6 +40,7 @@ class ApiKeyGate {
     this.inputEl = document.getElementById('aiKeyInput');
     this.revealEl = document.getElementById('aiKeyReveal');
     this.statusEl = document.getElementById('aiKeyStatus');
+    this.tabsEl = document.getElementById('aiKeyProviders');
     this.linkEl = document.getElementById('aiKeyConsoleLink');
     this.savedEl = document.getElementById('aiKeySaved');
     this.saveBtn = document.getElementById('aiKeySaveBtn');
@@ -154,28 +156,43 @@ class ApiKeyGate {
 
   /**
    * Open the dialog for a provider. `note` explains why it appeared, `error`
-   * carries a backend rejection to show in red. Resolves true once a key has
+   * carries a backend rejection to show in red. Resolves true once any key has
    * been saved, false if the dialog was dismissed.
+   *
+   * "Any key" rather than this provider's: all three providers are on the
+   * strip, and an operator who holds a Groq key when Claude was asked for has
+   * answered the question. The model picker follows whichever key was saved.
    */
   open(provider, { note, error } = {}) {
     if (!this.modal) return Promise.resolve(false);
 
     // A second feature asking while the dialog is up joins the same answer
     // rather than stacking another copy of it.
-    if (this._isOpen() && this._provider === provider) {
-      return this._pending;
-    }
+    if (this._isOpen() && this._wanted === provider) return this._pending;
     if (this._isOpen()) this._close(false);
 
+    this._wanted = provider;
+    this._note = note;
+    this._showProvider(provider, error);
+
+    this.modal.classList.add('open');
+    setTimeout(() => this.inputEl?.focus(), 0);
+
+    this._pending = new Promise((resolve) => { this._resolve = resolve; });
+    return this._pending;
+  }
+
+  /** Point every field in the dialog at one provider. */
+  _showProvider(provider, error) {
     this._provider = provider;
     const info = this.info(provider) || {};
     const label = info.label || provider;
 
     if (this.titleEl) this.titleEl.textContent = `${label} API key`;
     if (this.noteEl) {
-      this.noteEl.textContent = note || (info.available
-        ? `Replace the ${label} key this app uses. It is stored on this machine only.`
-        : `The AI features need a ${label} API key. It is stored on this machine only, and you will not be asked again.`);
+      this.noteEl.textContent = this._note || (info.available
+        ? `Replace or remove the ${label} key. Keys are stored on this machine only.`
+        : `Paste a ${label} key below, or pick a different provider. Keys are stored on this machine only, and you are asked once.`);
     }
     if (this.linkEl && info.console) {
       this.linkEl.textContent = info.console;
@@ -191,15 +208,45 @@ class ApiKeyGate {
     }
     if (this.revealEl) this.revealEl.checked = false;
 
+    this._renderTabs();
     this._paintSaved(info);
     this._setStatus(error || '', error ? 'error' : '');
     this._setBusy(false);
+  }
 
-    this.modal.classList.add('open');
-    setTimeout(() => this.inputEl?.focus(), 0);
+  /**
+   * Draw one tab per provider the backend knows about, lit where a key is
+   * already held. Built from the backend's own list rather than hard-coded,
+   * so a provider added there shows up here without a second edit.
+   */
+  _renderTabs() {
+    if (!this.tabsEl) return;
+    this.tabsEl.innerHTML = '';
 
-    this._pending = new Promise((resolve) => { this._resolve = resolve; });
-    return this._pending;
+    for (const [provider, info] of Object.entries(this.providers || {})) {
+      const tab = document.createElement('button');
+      tab.type = 'button';
+      tab.className = 'ai-key-tab';
+      tab.dataset.provider = provider;
+      if (provider === this._provider) tab.classList.add('is-active');
+      if (info.available) tab.classList.add('has-key');
+      tab.title = info.available
+        ? `${info.label} key set${info.source === 'env' ? ` (${info.envVar})` : ''}`
+        : `No ${info.label} key yet`;
+
+      const dot = document.createElement('span');
+      dot.className = 'ai-key-dot';
+      tab.append(dot, document.createTextNode(info.label || provider));
+
+      tab.addEventListener('click', () => {
+        if (this._busy || provider === this._provider) return;
+        this._note = null;   // the reason the dialog opened belongs to its own tab
+        this._showProvider(provider);
+        this.inputEl?.focus();
+      });
+
+      this.tabsEl.appendChild(tab);
+    }
   }
 
   _paintSaved(info) {
@@ -297,6 +344,7 @@ class ApiKeyGate {
       if (data?.error) throw new Error(data.error);
       this.providers = data.providers || this.providers;
       this._announce();
+      this._renderTabs();
       this._paintSaved(this.info(this._provider) || {});
       this._setStatus('Key removed.', '');
     } catch (err) {
@@ -308,6 +356,7 @@ class ApiKeyGate {
 
   _close(saved) {
     this.modal?.classList.remove('open');
+    this._note = null;
     if (this.inputEl) this.inputEl.value = '';
     const resolve = this._resolve;
     this._resolve = null;

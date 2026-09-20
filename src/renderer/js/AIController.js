@@ -193,8 +193,7 @@ class AIController {
     const text = this.chatInput?.value?.trim();
     if ((!text && this.referenceImages.length === 0) || this.isProcessing) return;
 
-    const selected = this.providerSelect?.value || 'anthropic:claude-opus-5';
-    const [provider, model] = selected.split(':');
+    let [provider, model] = (this.providerSelect?.value || 'anthropic:claude-opus-5').split(':');
 
     // Nothing is sent until the provider has a key. Asked here rather than at
     // startup so an operator who never opens this panel is never asked at all,
@@ -204,6 +203,11 @@ class AIController {
       this._addMessage('assistant', 'No API key entered, so nothing was sent.');
       return;
     }
+
+    // The dialog offers every provider, so the key that came back may belong
+    // to a different one — the picker has already moved to it, and this
+    // request follows rather than going out on a provider with no key.
+    [provider, model] = (this.providerSelect?.value || `${provider}:${model}`).split(':');
 
     // Show user message
     const hasImages = this.referenceImages.length > 0;

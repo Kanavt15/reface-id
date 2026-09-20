@@ -210,6 +210,11 @@ class VariantPicker {
     this.shared = null;        // non-morph face data applied across the whole set
 
     this.onUpdate = null;      // () => void, fired when the set changes
+    // Provider and model for the candidate call, set by UIController from the
+    // assist panel's picker before a session opens.
+    this.provider = null;
+    this.model = null;
+
     // (shared) => void — applies hair/colouring/accessories to the live face.
     // Injected rather than built in: the picker holds only the morpher and the
     // renderer, and the builder's apply path already handles every block.
@@ -265,6 +270,11 @@ class VariantPicker {
       count: VariantPicker.COUNT,
       avoid: this.rejected,
       referenceImages: this.referenceImages,
+      // Set from the assist panel's model picker. Left unset the backend falls
+      // back to its own default provider, which is the wrong one to reach for
+      // on a machine that only holds a key for another.
+      provider: this.provider,
+      model: this.model,
     });
     if (res?.error) {
       // needsKey means the call failed for want of a usable API key, which is
