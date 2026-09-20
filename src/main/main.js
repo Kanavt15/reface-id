@@ -2,6 +2,15 @@ const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 
+/* Electron 28 still defaults macOS to ANGLE's OpenGL backend, which reports
+   itself as "OpenGL 4.1" — a translation layer over an API Apple deprecated.
+   Metal is the supported path and measurably the faster one here. Must be set
+   before the app is ready, and scoped to darwin: Windows has its own default
+   (D3D11) that this would override for no reason. */
+if (process.platform === 'darwin') {
+  app.commandLine.appendSwitch('use-angle', 'metal');
+}
+
 let mainWindow;
 let pythonProcess;
 

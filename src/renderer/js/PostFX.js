@@ -118,8 +118,24 @@ class PostFX {
       stencilBuffer: false,
     };
 
+    /* Multisampling a half-float target is the most bandwidth-hungry thing in
+       this chain, and on Apple silicon that bandwidth is shared with the CPU —
+       at devicePixelRatio 2 it was half the frame budget on its own.
+
+       Dropping it altogether is not an option: the brows and hair are drawn as
+       individual strands, each one thinner than a pixel at the tail, and with
+       no samples to catch them they break into a dotted stipple. That is the
+       one thing on this face that must not degrade. Halving the samples keeps
+       the strands continuous — indistinguishable from 4x at this density —
+       for most of the saving, because the buffer above 1.25 is already
+       supersampled relative to CSS pixels and doing part of the work.
+
+       At or below 1.25, where the displays this app already ran smoothly on
+       sit, the full 4x is untouched. */
+    const samples = this.renderer.getPixelRatio() > 1.25 ? 2 : 4;
+
     this.sceneRT = new THREE.WebGLRenderTarget(width, height,
-      Object.assign({}, opts, { samples: 4 }));
+      Object.assign({}, opts, { samples }));
 
     const bw = Math.max(1, Math.floor(width / 2));
     const bh = Math.max(1, Math.floor(height / 2));

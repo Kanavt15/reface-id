@@ -35,6 +35,14 @@ class SceneManager {
     // Skin texture system reference (set externally)
     this.skinTextureSystem = null;
 
+    /* Governs the post chain, the procedural map resolution and the pixel
+       ratio cap below. Tracked here rather than read back off PostFX so the
+       cap still has a tier to consult when post is bypassed entirely. */
+    this.qualityTier = 'medium';
+
+    // Countdown to the next shadow map rebuild; see _refreshShadows().
+    this._shadowFrame = 0;
+
     this.init();
   }
 
@@ -46,9 +54,18 @@ class SceneManager {
       alpha: true,
       preserveDrawingBuffer: true, // For screenshots
     });
-    this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer.setPixelRatio(this._targetPixelRatio());
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.VSMShadowMap;
+
+    /* The hair alone is ~950k triangles, and by default three.js re-rasterises
+       every shadow caster into the shadow map on every single frame. Orbiting
+       the camera does not move the light, so for a head that is only being
+       looked at that is the most expensive redundant work in the app — it cost
+       more than the post chain and the resolution put together.
+       _refreshShadows() below drives the updates instead. */
+    this.renderer.shadowMap.autoUpdate = false;
+    this.renderer.shadowMap.needsUpdate = true;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     // Preserve complexion variation in highlights; PostFX shares this exposure.
     this.renderer.toneMappingExposure = 0.88;
@@ -123,6 +140,67 @@ class SceneManager {
 
     // Start render loop
     this.animate();
+  }
+
+  /**
+   * Shadows are recomputed on demand rather than every frame.
+   *
+   * Callers that change the scene should say so via invalidateShadows(). The
+   * periodic refresh is the safety net behind that: the scene is mutated from
+   * a dozen systems (hair, glasses, masks, piercings, morphs, marks…) and a
+   * scheme that depended on every one of them remembering to call would fail
+   * silently — and invisibly, since a stale shadow still renders. Refreshing
+   * on a fixed interval means a missed call costs a fraction of a second of
+   * staleness instead of a wrong image, and adding a fourteenth system to the
+   * scene needs no knowledge of any of this.
+   *
+   * Six frames is ~100ms — below the threshold where a shadow lagging a slider
+   * drag is noticeable, and still a ~6x cut in shadow work.
+   */
+  static get SHADOW_REFRESH_FRAMES() {
+    return 6;
+  }
+
+  /** Force the shadow map to rebuild on the next frame. */
+  invalidateShadows() {
+    this._shadowFrame = 0;
+    if (this.renderer) this.renderer.shadowMap.needsUpdate = true;
+  }
+
+  _refreshShadows() {
+    if (!this.renderer.shadowMap.enabled) return;
+    if (this._shadowFrame-- <= 0) {
+      this.renderer.shadowMap.needsUpdate = true;
+      this._shadowFrame = SceneManager.SHADOW_REFRESH_FRAMES;
+    }
+  }
+
+  /**
+   * Per-tier ceiling on the render resolution.
+   *
+   * A Retina panel reports devicePixelRatio 2, so the uncapped renderer drew
+   * four times the fragments of the 1.0 that most non-Retina displays report.
+   * The scene that holds a steady 60fps on those displays landed just past the
+   * 16.7ms vsync deadline here and juddered between 60 and 30 — read as "low
+   * fps" rather than as lag, because the frames that did land were on time.
+   *
+   * Capping costs a little edge sharpness and buys a stable frame. Nothing
+   * changes on a display already at or below its tier's cap, so this is inert
+   * on the 1.0 and 1.25 displays the app already ran well on; 'high' opts back
+   * into full native density for operators who would rather have the pixels.
+   *
+   * Medium stops at 1.25 rather than 1.5 for a reason worth keeping: it is the
+   * last step where PostFX still affords the full 4x multisampling the hair
+   * and brow strands need, so it is both faster AND sharper on strands than
+   * 1.5 turned out to be. Raising it is not a free quality win.
+   */
+  static get PIXEL_RATIO_CAP() {
+    return { low: 1.0, medium: 1.25, high: 2.0 };
+  }
+
+  _targetPixelRatio() {
+    const cap = SceneManager.PIXEL_RATIO_CAP[this.qualityTier] ?? 1.5;
+    return Math.min(window.devicePixelRatio || 1, cap);
   }
 
   /**
@@ -939,6 +1017,9 @@ class SceneManager {
    */
   cycleLighting() {
     this.lightingMode = (this.lightingMode + 1) % 3;
+    /* Moving the light is the one change that invalidates every shadow at
+       once, so it is worth not waiting for the periodic refresh here. */
+    this.invalidateShadows();
     switch (this.lightingMode) {
       case 0: this.setupStudioLighting(); return 'Studio';
       case 1: this.setupOutdoorLighting(); return 'Outdoor';
@@ -1083,9 +1164,21 @@ class SceneManager {
        regenerated on the main thread on every slider tick, so their resolution
        belongs to the same control the operator uses to trade quality for
        responsiveness. */
+    this.qualityTier = tier;
     if (this.skinTextureSystem) {
       this.skinTextureSystem.setResolution(tier === 'high' ? 1024 : 512);
     }
+
+    /* The tier moves the resolution ceiling, so the renderer and every post
+       target have to be rebuilt against the new ratio. resize() is what owns
+       that, and PostFX._buildTargets() re-reads the ratio to decide whether
+       MSAA is still worth paying for at the new density. */
+    const pr = this._targetPixelRatio();
+    if (this.renderer.getPixelRatio() !== pr) {
+      this.renderer.setPixelRatio(pr);
+      this.resize();
+    }
+
     if (!this.postFX) return 'low';
     const active = this.postFX.setTier(tier);
     // Low disables post, which also hands tone mapping back to the renderer;
@@ -1121,6 +1214,7 @@ class SceneManager {
     requestAnimationFrame(() => this.animate());
     this.controls.update();
     if (this.postFX) this.postFX.tick();
+    this._refreshShadows();
     this.renderFrame();
   }
 }

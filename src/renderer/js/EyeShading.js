@@ -576,9 +576,13 @@ class EyeShading {
           '',
           '  float pupilFrac = clamp( uPupilSin / limbusSin, 0.10, 0.85 );',
           '  float mel = uIrisMelanin;',
-          // Pigment hides structure. Blue irides show all of the stroma; dark
-          // brown ones show a fraction of it.
-          '  eyeIrisStructure = mix( 1.0, 0.42, mel ) * uTexAmount;',
+          /* Pigment hides structure — but a dark brown iris is not a smooth
+             one. Melanin buries the stroma's *colour* variation, which is why
+             brown eyes look more uniform than blue; the crypts, furrows and
+             collarette are openings and folds in the tissue and they read at
+             macro on any iris in the palette. At 0.42 the dark half of the
+             palette rendered as a plain disc. */
+          '  eyeIrisStructure = mix( 1.0, 0.62, mel ) * uTexAmount;',
           '',
           /* Into the baked map.
            *
@@ -604,13 +608,19 @@ class EyeShading {
           '  float t = clamp( ( rr - pupilFrac ) / max( 1.0 - pupilFrac, 0.05 ), 0.0, 1.0 );',
           '',
           /* The stroma is a cone, thickest at the collarette and thinning to
-             the pupil, so the pupillary zone reads darker and browner. The
-             two zones wanting visibly different values is most of what makes
-             an iris look like tissue rather than a tinted disc, so this is
-             the one gradient worth running hard. */
-          '  c *= mix( 0.62, 1.26, smoothstep( 0.0, 0.55, t ) );',
-          '  c = mix( c, c * vec3( 1.14, 0.84, 0.58 ),',
-          '    ( 1.0 - smoothstep( 0.0, 0.42, t ) ) * mix( 0.35, 0.62, mel ) );',
+             the pupil, so the pupillary zone reads darker and browner.
+             
+             Narrower and shallower than it was. At 0.62..1.26 over the first
+             half of the annulus this was a two-stop airbrushed ramp, and it
+             did two things wrong: it buried the baked structure under a
+             gradient nothing could compete with, and it merged visually with
+             the pupil, so the black disc read half again as wide as the pupil
+             actually is. A real pupillary zone is darker than the ciliary one
+             and the boundary between them is the collarette — a line, not a
+             fade across the whole iris. */
+          '  c *= mix( 0.78, 1.16, smoothstep( 0.02, 0.34, t ) );',
+          '  c = mix( c, c * vec3( 1.12, 0.86, 0.62 ),',
+          '    ( 1.0 - smoothstep( 0.0, 0.30, t ) ) * mix( 0.26, 0.46, mel ) );',
           '',
           // Trabeculae, crypts, collarette, furrows, ruff and pigment, all
           // out of the baked map; and the light their own pits keep out,
@@ -624,14 +634,34 @@ class EyeShading {
           '  float crenel = 0.008 * sin( ang * 29.0 + 0.4 ) + 0.006 * sin( ang * 41.0 - 1.9 )',
           '    + 0.005 * sin( ang * 11.0 + 2.2 );',
           '  float pupilR = pupilFrac * ( 1.0 + crenel );',
-          '  eyePupilMask = 1.0 - smoothstep( pupilR - 0.018, pupilR + 0.014, rr );',
-          '  c = mix( c, vec3( 0.004, 0.004, 0.005 ), eyePupilMask );',
+          '  eyePupilMask = 1.0 - smoothstep( pupilR - 0.014, pupilR + 0.010, rr );',
+          /* A pupil is not a disc of paint, and painting it as one is what
+             makes a rendered eye read as a doll's. What comes back through
+             the aperture is a little light off the retina and the underside
+             of the iris, so it is darkest dead centre and lifts very slightly
+             — and warmly — toward the margin, more so on a pale iris that
+             passes light through its own root. The values are tiny on
+             purpose: this is the difference between #000 and #0a0605, and at
+             that scale it is the whole difference between a hole and a
+             sticker. */
+          '  vec3 pupil = vec3( 0.0035, 0.0032, 0.0036 ) + vec3( 0.030, 0.017, 0.011 )',
+          '    * smoothstep( pupilR * 0.35, pupilR, rr ) * mix( 1.0, 0.45, mel );',
+          '  c = mix( c, pupil, eyePupilMask );',
           '',
           /* The limbal ring, keyed to the true geometry rather than to the
              refracted pattern, so it stays welded to the edge of the iris
              instead of sliding off it at a glancing angle. A strong real-eye
-             cue, and one people notice missing without knowing why. */
-          '  c *= 1.0 - smoothstep( 0.86, 1.0, rGeo ) * 0.62;',
+             cue, and one people notice missing without knowing why.
+             
+             It is also a band and not a fade. Ramped from 0.86 it was a
+             seventh of the iris radius spent going gradually dark, which
+             reads as the iris being out of focus at the edge rather than as a
+             ring — the limbus on a real eye is the sharpest boundary on the
+             whole eyeball. And it is a blue-grey: what shows there is the
+             corneal stroma over the iris root, not more iris. */
+          '  float limbal = smoothstep( 0.90, 1.01, rGeo );',
+          '  c *= 1.0 - limbal * 0.66;',
+          '  c = mix( c, c * vec3( 0.82, 0.90, 1.06 ), limbal * 0.55 );',
           '',
           '#if NUM_DIR_LIGHTS > 0',
           '  {',
@@ -769,7 +799,7 @@ class EyeShading {
           // Denser along the fissure: the sclera above and below it is under
           // a lid, and vessels drawn there are vessels nobody can see.
           '  float fissure = mix( 0.30, 1.0, 1.0 - smoothstep( 0.18, 0.72, abs( pl.y ) ) );',
-          '  c *= mix( vec3( 1.0 ), bed, exposed * 0.8 );',
+          '  c *= mix( vec3( 1.0 ), bed, exposed * 0.95 );',
           '',
           // Under the discrete vessels, the diffuse wash of the bed they sit
           // in: a millimetre of collagen over choroid is never neutral.

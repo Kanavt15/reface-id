@@ -55,8 +55,14 @@ class EyeTextures {
    *  Past this the eyeball has turned into the orbit and is not visible. */
   static get SCLERA_POLAR_SPAN() { return 1.65; }
 
-  /** How steeply the baked height field tilts the normal. */
-  static get IRIS_RELIEF() { return 4.0; }
+  /** How steeply the baked height field tilts the normal.
+   *
+   * Halved when the bake moved from analytic profiles to strokes. A cosine
+   * ridge evaluated per pixel has a gentle gradient by construction; a
+   * stroked one has an antialiased edge two pixels wide, and differentiating
+   * that at the old figure turned every strand into a chrome wire and the
+   * whole iris into tree bark. */
+  static get IRIS_RELIEF() { return 2.1; }
 
   // ── Public ───────────────────────────────────────────────────────────────
 
@@ -151,184 +157,450 @@ class EyeTextures {
 
   // ── Iris ─────────────────────────────────────────────────────────────────
 
-  /**
-   * Trabeculae, laid out as individual fibres rather than as a noise field.
+  /** A 2D context at the map's own size, flood-filled and set up for strokes.
    *
-   * Each slot around the circle holds one fibre with its own angular offset,
-   * width, span and brightness, and a slight drift so it is not a perfect
-   * radius. A pixel only ever consults the three slots nearest its own angle,
-   * which keeps this O(1) per pixel while still letting neighbouring fibres
-   * overlap the way real ones do.
+   * Deliberately without willReadFrequently. These canvases are read exactly
+   * once, at the end, and the hint pins the context to Chromium's software
+   * rasteriser — which for the tens of thousands of strokes the iris is drawn
+   * from was the difference between a 700ms bake and an eight-second freeze
+   * on the main thread. One readback off the GPU is far cheaper than
+   * rasterising the whole map on the CPU to avoid it. */
+  static _ctx(N, fill) {
+    const canvas = document.createElement('canvas');
+    canvas.width = N; canvas.height = N;
+    const g = canvas.getContext('2d');
+    g.fillStyle = fill;
+    g.fillRect(0, 0, N, N);
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    return g;
+  }
+
+  /** Blur one context in place, through a scratch canvas. Canvas2D has no
+   *  in-place filter, and drawing a canvas onto itself under a filter reads
+   *  and writes the same backing store. */
+  static _blur(g, px) {
+    const N = g.canvas.width;
+    const tmp = document.createElement('canvas');
+    tmp.width = N; tmp.height = N;
+    const t = tmp.getContext('2d');
+    t.filter = 'blur(' + px.toFixed(2) + 'px)';
+    t.drawImage(g.canvas, 0, 0);
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalCompositeOperation = 'copy';
+    g.filter = 'none';
+    g.drawImage(tmp, 0, 0);
+    g.restore();
+  }
+
+  /**
+   * The iris, drawn as anatomy rather than evaluated as a field.
+   *
+   * The version this replaces sampled a bank of analytic fibre profiles per
+   * pixel. Every fibre in it therefore had to be a smooth function of angle
+   * and radius, which meant a smooth cosine ridge running the width of the
+   * annulus — and a few hundred of those, however jittered, is a starburst.
+   * That is what it rendered as: a brown disc with a sunburst on it and a
+   * dozen dark smudges.
+   *
+   * Strokes are a better instrument for the same job. A stroke can start
+   * anywhere, stop short, fork, curve, cross its neighbours and taper at both
+   * ends, none of which a per-pixel profile can do, and the raster comes back
+   * antialiased for free. It is also an order of magnitude cheaper: a
+   * thousand paths against a million pixels times thirty profile
+   * evaluations.
+   *
+   * Three inks are painted from the same walks so they cannot drift out of
+   * register with each other:
+   *
+   *   tone   — the colour modulation, mid grey meaning "leave the operator's
+   *            iris colour alone". Painted in colour, not in grey, so a
+   *            strand can be warmer than the stroma around it and a crypt can
+   *            be browner than either.
+   *   relief — the height field the normal map is differentiated from.
+   *   cavity — how much light a pit keeps out.
    */
-  static _fibreBank(count, seed, cfg) {
-    const rnd = EyeTextures._rng(seed);
-    const step = Math.PI * 2 / count;
-    const bank = {
-      count, step,
-      offset: new Float32Array(count),
-      width: new Float32Array(count),
-      inner: new Float32Array(count),
-      outer: new Float32Array(count),
-      amp: new Float32Array(count),
-      drift: new Float32Array(count),
-      wave: new Float32Array(count),
-      phase: new Float32Array(count),
-    };
-    for (let i = 0; i < count; i++) {
-      bank.offset[i] = (i + 0.5 + (rnd() - 0.5) * cfg.jitter) * step;
-      bank.width[i] = step * (cfg.width + rnd() * cfg.widthVary);
-      bank.inner[i] = cfg.inner + rnd() * cfg.innerVary;
-      bank.outer[i] = cfg.outer - rnd() * cfg.outerVary;
-      bank.amp[i] = cfg.amp * (0.45 + rnd() * 0.55);
-      bank.drift[i] = (rnd() - 0.5) * cfg.drift;
-      bank.wave[i] = cfg.wave * (0.5 + rnd());
-      bank.phase[i] = rnd() * Math.PI * 2;
-    }
-    return bank;
-  }
-
-  static _fibreAt(bank, theta, t) {
-    // Three nearest slots: a fibre that has drifted can reach past its own.
-    let sum = 0;
-    const base = Math.floor(theta / bank.step);
-    for (let k = -1; k <= 1; k++) {
-      let i = (base + k) % bank.count;
-      if (i < 0) i += bank.count;
-      const span = EyeTextures._smooth(bank.inner[i], bank.inner[i] + 0.10, t)
-        * (1 - EyeTextures._smooth(bank.outer[i] - 0.16, bank.outer[i], t));
-      if (span <= 0) continue;
-      const centre = bank.offset[i] + bank.drift[i] * t;
-      const d = EyeTextures._wrap(theta - centre) / bank.width[i];
-      const d2 = d * d;
-      if (d2 > 1) continue;
-      /* Bipolar cross-section, and that is the point of it.
-       *
-       * A purely additive profile makes every fibre a bright spoke on a flat
-       * ground, which is what the first bake looked like: a starburst. Real
-       * trabeculae are ridges with grooves between them, so the profile has
-       * to go negative before it dies — positive in the core, negative in a
-       * ring around it, zero at the boundary so neighbouring fibres meet
-       * without a seam. */
-      /* Beading along the fibre's length.
-       *
-       * Without it every fibre is a smooth ray running the width of the
-       * annulus, and a few hundred smooth rays is a sunburst, not a stroma.
-       * Real trabeculae thicken and thin and break along their run, and one
-       * modulation per fibre is what turns the bake from a diagram into
-       * tissue. */
-      const bead = 0.5 + 0.5 * Math.sin(t * bank.wave[i] + bank.phase[i]);
-      sum += bank.amp[i] * (1 - d2) * (1 - 3.0 * d2) * span * (0.35 + 0.65 * bead);
-    }
-    return sum;
-  }
-
   static _buildIris() {
     const N = EyeTextures.SIZE;
+    const C = N / 2;
     const PUPIL = EyeTextures.IRIS_PUPIL_FRACTION;
     const rnd = EyeTextures._rng(90210);
 
-    /* Coarse trabeculae carry the read at portrait distance; the fine layer
-       only shows under the macro framing, which is why it is half the height
-       and twice the count. Both spans are wide open: fibres that all run the
-       full width of the annulus draw a starburst, and a real iris is a mat of
-       fibres of every length, most of them stopping well short of the pupil. */
-    /* Three scales, and the coarsest one is the reason this works at all.
-     *
-     * An iris fills about 150 pixels in the framing the operator works in, so
-     * a bank of 380 fibres is a fibre per pixel and the mip chain averages a
-     * symmetric ridge-and-groove profile to exactly nothing — the first bake
-     * at that density rendered as a smooth brown dome. Trabeculae come in
-     * bundles on a real iris, and it is the bundles that survive minification
-     * and carry the radial read at portrait distance; the finer banks are
-     * there for the macro framing and are expected to average out before it. */
-    const bundles = EyeTextures._fibreBank(70, 5171, {
-      jitter: 0.85, width: 0.38, widthVary: 0.26,
-      inner: -0.10, innerVary: 0.55, outer: 1.06, outerVary: 0.40,
-      amp: 0.70, drift: 0.10, wave: 4,
-    });
-    const coarse = EyeTextures._fibreBank(200, 7717, {
-      jitter: 0.75, width: 0.32, widthVary: 0.22,
-      inner: -0.06, innerVary: 0.72, outer: 1.04, outerVary: 0.50,
-      amp: 0.55, drift: 0.12, wave: 7,
-    });
-    const fine = EyeTextures._fibreBank(520, 3391, {
-      jitter: 0.9, width: 0.28, widthVary: 0.20,
-      inner: 0.02, innerVary: 0.85, outer: 1.04, outerVary: 0.55,
-      amp: 0.30, drift: 0.18, wave: 13,
-    });
+    const tone = EyeTextures._ctx(N, '#808080');
+    const relief = EyeTextures._ctx(N, '#808080');
+    const cavity = EyeTextures._ctx(N, '#ffffff');
 
-    // Crypts of Fuchs: lacunae in the stroma, clustered on the collarette and
-    // stretched along the fibres.
-    /* Spread across the annulus, not piled inside the collarette.
-     *
-     * Confined to the pupillary zone they stopped reading as individual
-     * lacunae: fifteen of them at random angles in a narrow band overlapped
-     * into one continuous dark collar around the pupil, which no eye has. */
-    const CRYPTS = 13;
-    const crypts = [];
-    for (let i = 0; i < CRYPTS; i++) {
-      crypts.push({
-        theta: rnd() * Math.PI * 2,
-        t: 0.05 + rnd() * 0.70,
-        halfAngle: 0.05 + rnd() * 0.11,
-        halfT: 0.05 + rnd() * 0.13,
-        depth: 0.45 + rnd() * 0.55,
-        ragged: 2 + Math.floor(rnd() * 3),
-        phase: rnd() * Math.PI * 2,
-      });
-    }
-
-    // Contraction furrows: concentric folds in the ciliary zone, broken into
-    // arcs rather than closed rings.
-    const FURROWS = 5;
-    const furrows = [];
-    for (let i = 0; i < FURROWS; i++) {
-      furrows.push({
-        t: 0.52 + i * 0.10 + (rnd() - 0.5) * 0.05,
-        halfT: 0.018 + rnd() * 0.016,
-        depth: 0.35 + rnd() * 0.4,
-        wobble: 0.02 + rnd() * 0.03,
-        phase: rnd() * Math.PI * 2,
-        freq: 3 + Math.floor(rnd() * 5),
-      });
-    }
-
-    // Ragged rings and sector variation, as sums of sines. Periodic by
-    // construction, so they close on themselves with no seam at the wrap.
-    const ring = (n, scale, from) => {
-      const h = [];
-      for (let i = 0; i < n; i++) {
-        h.push({ f: from + i * 2 + Math.floor(rnd() * 3), a: scale / (i + 1), p: rnd() * Math.PI * 2 });
-      }
-      return h;
+    /* Annulus coordinates. `t` is 0 at the pupil margin and 1 at the limbus,
+       which is the coordinate every measurement of an iris is quoted in, and
+       the one the shader rescales into when the eyeball's real pupil differs
+       from the fraction this is baked at. */
+    const at = (theta, t) => {
+      const r = (PUPIL + t * (1 - PUPIL)) * C;
+      return [C + Math.cos(theta) * r, C + Math.sin(theta) * r];
     };
-    const collarWave = ring(4, 0.030, 3);
-    // Real irides are not rotationally uniform: they have wedges of heavier
-    // and lighter pigment, and without them a bake this regular reads as a
-    // machined part.
-    const sectorWave = ring(3, 0.11, 2);
+    // One unit of t in pixels, so widths can be quoted in annulus fractions
+    // and stay proportionate at any map resolution.
+    const TPX = (1 - PUPIL) * C;
 
-    /* Anything that depends only on the angle is tabulated.
+    /**
+     * Walk a path through the annulus, painting every ink from the one walk.
      *
-     * The furrow break-up in particular was an fbm call inside a loop over
-     * five furrows, evaluated per pixel — forty hash lookups a pixel for a
-     * value that is the same for all five and constant down every radius. */
-    const TAB = 4096;
-    const collarTab = new Float32Array(TAB);
-    const breakTab = new Float32Array(TAB);
-    const sectorTab = new Float32Array(TAB);
-    for (let i = 0; i < TAB; i++) {
-      const a = i / TAB * Math.PI * 2;
-      let cr = 0.30;
-      for (const w of collarWave) cr += Math.sin(a * w.f + w.p) * w.a;
-      collarTab[i] = cr;
-      let sc = 0;
-      for (const w of sectorWave) sc += Math.sin(a * w.f + w.p) * w.a;
-      sectorTab[i] = sc;
-      breakTab[i] = EyeTextures._smooth(0.30, 0.70, EyeTextures._fbm(
-        Math.cos(a) * 3.5 + 11, Math.sin(a) * 3.5 + 11, 611, 2));
+     * `path` returns [theta, t] for a parameter running 0..1; `inks` are
+     * [context, 'r,g,b', alpha, widthScale] rows. Taper is applied to width
+     * and alpha together — a stroke that ends at full width and full opacity
+     * reads as a drawn line, which is the tell that separates a diagram of an
+     * iris from an iris.
+     */
+    const paint = (path, width, steps, inks) => {
+      let px = 0, py = 0;
+      for (let i = 0; i <= steps; i++) {
+        const f = i / steps;
+        const [theta, t] = path(f);
+        const [x, y] = at(theta, t);
+        if (i > 0) {
+          const taper = Math.sqrt(Math.sin(Math.PI * f));
+          for (let k = 0; k < inks.length; k++) {
+            const ink = inks[k];
+            const g = ink[0];
+            g.beginPath();
+            g.moveTo(px, py);
+            g.lineTo(x, y);
+            g.lineWidth = Math.max(0.6, width * TPX * ink[3] * (0.30 + 0.70 * taper));
+            g.strokeStyle = 'rgba(' + ink[1] + ',' + (ink[2] * taper).toFixed(3) + ')';
+            g.stroke();
+          }
+        }
+        px = x; py = y;
+      }
+    };
+
+    /** A closed wobbling curve — the collarette, the furrows and the ruff are
+     *  all one of these. `radius(theta)` gives t. */
+    const ring = (radius, from, to, width, steps, inks) => {
+      let px = 0, py = 0;
+      for (let i = 0; i <= steps; i++) {
+        const f = i / steps;
+        const theta = from + (to - from) * f;
+        const [x, y] = at(theta, radius(theta));
+        if (i > 0) {
+          const taper = Math.sqrt(Math.sin(Math.PI * f));
+          for (let k = 0; k < inks.length; k++) {
+            const ink = inks[k];
+            const g = ink[0];
+            g.beginPath();
+            g.moveTo(px, py);
+            g.lineTo(x, y);
+            g.lineWidth = Math.max(0.6, width * TPX * ink[3] * (0.35 + 0.65 * taper));
+            g.strokeStyle = 'rgba(' + ink[1] + ',' + (ink[2] * taper).toFixed(3) + ')';
+            g.stroke();
+          }
+        }
+        px = x; py = y;
+      }
+    };
+
+    /* Ink colours. The tone map multiplies the operator's iris colour, so a
+       warm ink is one whose red exceeds its blue rather than one that is
+       brown in absolute terms — a literally brown ink would drag every iris
+       in the palette toward brown, which is the decal tell this whole file
+       exists to avoid. */
+    const RIDGE = '255,250,238';   // stroma catching light: warm, near white
+    const GROOVE = '52,40,28';     // the shadow between two bundles
+    const PIT = '62,44,30';        // a crypt: an opening, not a stain
+    const RUFF = '30,16,8';        // posterior pigment, the warmest dark here
+
+    /* Where the collarette runs, as a function of angle. Declared up here
+       because three layers need to know: the crypts open along it, the
+       bundles change character across it, and it is drawn itself further
+       down. A sum of harmonics rather than noise, so it closes on itself with
+       no seam at the wrap. */
+    const cH = [];
+    for (let i = 0; i < 5; i++) {
+      cH.push({ f: 2 + i + Math.floor(rnd() * 3), a: 0.045 / (i * 0.7 + 1), p: rnd() * 6.283 });
     }
-    const TAB_SCALE = TAB / (Math.PI * 2);
+    const collar = (th) => {
+      let r = 0.32;
+      for (const h of cH) r += Math.sin(th * h.f + h.p) * h.a;
+      return r;
+    };
+
+    /* ── Sector wedges ──────────────────────────────────────────────────
+     *
+     * The most important layer at the distance the eye is actually seen at.
+     * An iris fills about 150 pixels in portrait framing, by which point every
+     * individual strand below has averaged into the mip chain and vanished —
+     * a symmetric ridge and groove average to exactly nothing, which is why
+     * the previous bake minified to a smooth dome. Real irides have sectors
+     * of heavier and lighter pigment several millimetres across, and those
+     * are what survives minification and reads as an iris from across a room.
+     *
+     * Drawn very blurred, so nothing but the low frequency gets through. */
+    tone.save();
+    tone.filter = 'blur(' + (N * 0.040).toFixed(1) + 'px)';
+    const WEDGES = 16;
+    for (let i = 0; i < WEDGES; i++) {
+      const a0 = (i + rnd() * 0.6) / WEDGES * Math.PI * 2;
+      const a1 = a0 + (0.45 + rnd() * 1.15) / WEDGES * Math.PI * 2;
+      const lift = rnd() - 0.42;
+      tone.beginPath();
+      tone.moveTo(C, C);
+      tone.arc(C, C, C * 1.05, a0, a1);
+      tone.closePath();
+      tone.fillStyle = lift > 0
+        ? 'rgba(255,246,226,' + (lift * 0.62).toFixed(3) + ')'
+        : 'rgba(46,34,24,' + (-lift * 0.54).toFixed(3) + ')';
+      tone.fill();
+    }
+    tone.restore();
+
+    /* ── Trabecular bundles ─────────────────────────────────────────────
+     *
+     * Between the wedges and the individual strands: a hundred-odd bundles a
+     * few tenths of a millimetre across, most of them stopping well short of
+     * both ends of the annulus. Their lengths are what stop the layer reading
+     * as a sunburst — on a real iris hardly any fibre runs the full width,
+     * and a bank where most of them do is a starburst however finely it is
+     * jittered. */
+    for (let i = 0; i < 130; i++) {
+      const theta = (i + rnd()) / 130 * Math.PI * 2;
+      const t0 = -0.08 + rnd() * 0.34;
+      const t1 = Math.min(1.04, t0 + 0.45 + rnd() * 0.60);
+      const bow = (rnd() - 0.5) * 0.16;
+      const light = rnd() < 0.52;
+      const a = 0.040 + rnd() * 0.065;
+      paint((f) => [theta + bow * f * f, t0 + (t1 - t0) * f],
+        0.020 + rnd() * 0.032, 10, [
+          [tone, light ? RIDGE : GROOVE, a, 1],
+          [relief, light ? '255,255,255' : '0,0,0', a * 0.85, 1],
+        ]);
+    }
+
+    /* ── Strands ────────────────────────────────────────────────────────
+     *
+     * A ridge with its own groove around it: the groove is stroked first at
+     * twice the width, then the ridge over the top of it, so every strand
+     * sits in a shadow of its own and neighbouring strands meet without a
+     * seam. That pairing is what makes the layer read as a mat of fibres
+     * rather than as scratches on a disc. */
+    for (let i = 0; i < 720; i++) {
+      // Stratified rather than scattered. Uniform random angles clump, and a
+      // clump of strands with a bare patch beside it reads as damage.
+      const theta = (i + rnd()) / 720 * Math.PI * 2;
+      const t0 = -0.04 + rnd() * 0.58;
+      const t1 = Math.min(1.05, t0 + 0.26 + rnd() * 0.62);
+      const bow = (rnd() - 0.5) * 0.16;
+      const phase = rnd() * 6.283;
+      const w = 0.007 + rnd() * 0.012;
+      // The same wander for both passes, or the ridge walks out of its groove.
+      const path = (f) => [
+        theta + bow * f * f + Math.sin(f * 3.4 + phase) * 0.014,
+        t0 + (t1 - t0) * f,
+      ];
+      paint(path, w * 2.4, 10, [
+        [tone, GROOVE, 0.062, 1],
+        [relief, '0,0,0', 0.10, 1],
+      ]);
+      paint(path, w, 10, [
+        [tone, RIDGE, 0.10 + rnd() * 0.07, 1],
+        [relief, '255,255,255', 0.17, 1],
+      ]);
+    }
+
+    /* ── Crypts of Fuchs ────────────────────────────────────────────────
+     *
+     * Openings through the stroma to the pigment layer behind it, so they are
+     * dark, sharply outlined and radially elongated — the previous bake drew
+     * them as soft round blobs, which read as dirt on a lens rather than as
+     * holes in tissue. Most of them open along the collarette, which is where
+     * the stroma is thinnest; a few sit further out.
+     *
+     * Drawn as a ragged polygon rather than an ellipse, with a lit lip on the
+     * near rim: the edge of a hole catches light, and that lip is most of
+     * what makes it read as depth.
+     *
+     * Drawn here, between the strands and the fine stroma, rather than last.
+     * Painted over a finished iris they read as spots of dirt on a lens — a
+     * dark shape with no fibre crossing it belongs to a different picture
+     * than the one under it. Half the fine layer runs over them instead, and
+     * the shape stops being a stain and starts being a hole with stroma
+     * hanging into it. */
+    const crypt = (theta, t, halfA, halfT, depth) => {
+      const M = 15;
+      const pts = [];
+      for (let i = 0; i < M; i++) {
+        const a = (i / M) * Math.PI * 2;
+        const wob = 0.55 + 0.45 * rnd();
+        pts.push(at(theta + Math.cos(a) * halfA * wob, t + Math.sin(a) * halfT * wob));
+      }
+      for (const [g, fill, alpha] of [
+        [tone, PIT, depth * 0.46], [relief, '0,0,0', depth * 0.55],
+        [cavity, '0,0,0', depth * 0.40],
+      ]) {
+        g.save();
+        g.filter = 'blur(' + (N * 0.0012).toFixed(2) + 'px)';
+        g.beginPath();
+        g.moveTo(pts[0][0], pts[0][1]);
+        for (let i = 1; i < M; i++) g.lineTo(pts[i][0], pts[i][1]);
+        g.closePath();
+        g.fillStyle = 'rgba(' + fill + ',' + alpha.toFixed(3) + ')';
+        g.fill();
+        g.restore();
+      }
+      // The lit rim, on the side away from the pupil.
+      relief.save();
+      relief.filter = 'blur(' + (N * 0.0016).toFixed(2) + 'px)';
+      relief.beginPath();
+      const lip = Math.round(M * 0.72);
+      relief.moveTo(pts[Math.round(M * 0.14)][0], pts[Math.round(M * 0.14)][1]);
+      for (let i = Math.round(M * 0.14); i <= lip; i++) relief.lineTo(pts[i % M][0], pts[i % M][1]);
+      relief.lineWidth = Math.max(1, N * 0.0030);
+      relief.strokeStyle = 'rgba(255,255,255,' + (depth * 0.26).toFixed(3) + ')';
+      relief.stroke();
+      relief.restore();
+    };
+
+    /* Elongated along the fibres, roughly three to one. A crypt that is as
+       wide as it is long is a spot; the radial stretch is what makes it read
+       as an opening between two bundles, which is what it is. */
+    for (let i = 0; i < 12; i++) {
+      const theta = (i + rnd() * 0.8) / 12 * Math.PI * 2;
+      // Straddling the collarette, where the stroma is thinnest.
+      crypt(theta, collar(theta) + 0.02 + rnd() * 0.14,
+        0.018 + rnd() * 0.026, 0.055 + rnd() * 0.095, 0.45 + rnd() * 0.40);
+    }
+    for (let i = 0; i < 9; i++) {
+      const theta = rnd() * Math.PI * 2;
+      crypt(theta, 0.54 + rnd() * 0.36,
+        0.011 + rnd() * 0.020, 0.035 + rnd() * 0.070, 0.20 + rnd() * 0.24);
+    }
+
+    /* ── Fine stroma ────────────────────────────────────────────────────
+     *
+     * Short, thin and half of them dark: the layer that only shows under the
+     * macro framing, and the one that keeps the surface from going smooth
+     * between the strands above. */
+    for (let i = 0; i < 1400; i++) {
+      const theta = (i + rnd()) / 1400 * Math.PI * 2;
+      const t0 = 0.0 + rnd() * 0.84;
+      const t1 = Math.min(1.05, t0 + 0.10 + rnd() * 0.32);
+      const light = rnd() < 0.5;
+      const bow = (rnd() - 0.5) * 0.12;
+      paint((f) => [theta + bow * f, t0 + (t1 - t0) * f],
+        0.003 + rnd() * 0.006, 4, [
+          [tone, light ? RIDGE : GROOVE, 0.070 + rnd() * 0.065, 1],
+          [relief, light ? '255,255,255' : '0,0,0', 0.10, 1],
+        ]);
+    }
+
+    /* ── Contraction furrows ────────────────────────────────────────────
+     *
+     * Concentric folds in the outer ciliary zone, where the iris crumples as
+     * the pupil dilates. Broken into arcs, never closed rings: a complete
+     * circle at this radius reads as a machined groove. Each is a dark crease
+     * with a lit lip on its outer side, which is what a fold is. */
+    for (let i = 0; i < 5; i++) {
+      const base = 0.54 + i * 0.095 + (rnd() - 0.5) * 0.05;
+      const wob = 0.014 + rnd() * 0.018;
+      const freq = 3 + Math.floor(rnd() * 4);
+      const phase = rnd() * 6.283;
+      const radius = (th) => base + Math.sin(th * freq + phase) * wob;
+      let a = rnd() * 6.283;
+      while (a < 6.283 + rnd()) {
+        const span = 0.5 + rnd() * 1.5;
+        ring(radius, a, a + span, 0.016, Math.ceil(span * 16), [
+          [tone, GROOVE, 0.055 + rnd() * 0.04, 1],
+          [relief, '0,0,0', 0.10, 1],
+          [cavity, '0,0,0', 0.10, 1],
+        ]);
+        ring((th) => radius(th) + 0.016, a + 0.1, a + span - 0.1,
+          0.008, Math.ceil(span * 16), [
+            [tone, RIDGE, 0.05, 1],
+            [relief, '255,255,255', 0.08, 1],
+          ]);
+        a += span + 0.25 + rnd() * 0.9;
+      }
+    }
+
+    /* ── Collarette ─────────────────────────────────────────────────────
+     *
+     * The ridge dividing the pupillary zone from the ciliary one, and the
+     * single most recognisable thing on an iris: a wandering, distinctly
+     * scalloped line about a third of the way out, with the crypts opening
+     * along its outer edge. It runs as a lit ridge with its shadow on the
+     * pupil side. */
+    /* Broken into arcs of uneven strength, never stroked as one closed
+       curve. A continuous ring at a constant width and a constant alpha is a
+       gasket, and that is exactly what the first pass at this rendered as —
+       a hard wire circle sitting on the iris like the rim of a contact lens.
+       On a real iris the collarette fades out over some sectors entirely and
+       stands up sharply in others, and the crypts open along the strong
+       stretches. */
+    let ca = rnd() * 6.283;
+    while (ca < 6.283) {
+      const span = 0.35 + rnd() * 1.25;
+      const gain = 0.35 + rnd() * 0.65;
+      const steps = Math.ceil(span * 26);
+      ring((th) => collar(th) - 0.026, ca, ca + span, 0.026, steps, [
+        [tone, GROOVE, 0.085 * gain, 1],
+        [relief, '0,0,0', 0.13 * gain, 1],
+        [cavity, '0,0,0', 0.11 * gain, 1],
+      ]);
+      ring(collar, ca + 0.05, ca + span - 0.05, 0.018, steps, [
+        [tone, RIDGE, 0.105 * gain, 1],
+        [relief, '255,255,255', 0.20 * gain, 1],
+      ]);
+      ca += span + 0.08 + rnd() * 0.55;
+    }
+
+    /* ── Pupillary ruff ─────────────────────────────────────────────────
+     *
+     * The fringe of posterior pigment epithelium that wraps around the margin
+     * from behind, scalloped by the sphincter under it. Thin — about half a
+     * millimetre on a 12mm iris — and nearly black, and the darkest thing on
+     * the iris by a wide margin.
+     *
+     * Drawn clear of the margin, not on it. The shader paints the pupil as a
+     * disc whose edge lands a little outside the measured margin, so a ruff
+     * baked at the margin itself is entirely underneath it and the pupil
+     * renders as a hole cut in coloured paper — which is what it looked like.
+     * Standing it off by a few hundredths puts the whole fringe outside the
+     * black, where the thing it exists to do, softening the transition from
+     * stroma to aperture, can actually happen.
+     *
+     * Three frequencies, none a multiple of another. Two regular sines beat
+     * into a repeating scallop, and a pupil edge with a period reads as a cog
+     * wheel. */
+    const ruffR = (th) => 0.046
+      + 0.0055 * Math.sin(th * 23 + 1.1)
+      + 0.0036 * Math.sin(th * 37 - 0.4)
+      + 0.0028 * Math.sin(th * 13 + 2.7);
+    ring(ruffR, 0, 6.2832, 0.036, 320, [
+      [tone, RUFF, 0.46, 1],
+      [relief, '255,255,255', 0.12, 1],
+      [cavity, '0,0,0', 0.26, 1],
+    ]);
+    /* Everything inside the margin is behind the pupil and never sampled, but
+       the bilinear filter reaches across the edge, so it has to be dark too —
+       and it has to reach the ruff. Filled to the pupil radius alone it left
+       a ring of untouched mid-grey between the two, which rendered as a pale
+       halo around the pupil. */
+    tone.beginPath();
+    tone.arc(C, C, (PUPIL + 0.042 * (1 - PUPIL)) * C, 0, 6.2832);
+    tone.fillStyle = 'rgba(' + RUFF + ',0.62)';
+    tone.fill();
+
+    /* Soften the relief before differentiating it. Canvas strokes have hard
+       antialiased edges, and a central difference across one of them is a
+       spike — the normal map came out reading as glitter rather than as
+       fibre. Half a pixel is enough to make the gradient continuous without
+       costing the strands their definition. */
+    EyeTextures._blur(relief, N * 0.0007);
+    EyeTextures._blur(cavity, N * 0.0025);
+
+    const toneData = tone.getImageData(0, 0, N, N).data;
+    const reliefData = relief.getImageData(0, 0, N, N).data;
+    const cavityData = cavity.getImageData(0, 0, N, N).data;
 
     const detail = new Uint8ClampedArray(N * N * 4);
     const height = new Float32Array(N * N);
@@ -337,146 +609,36 @@ class EyeTextures {
       const dy = (y + 0.5) / N * 2 - 1;
       for (let x = 0; x < N; x++) {
         const dx = (x + 0.5) / N * 2 - 1;
-        const r = Math.sqrt(dx * dx + dy * dy);
         const i = y * N + x;
+        const o = i * 4;
+        const r = Math.sqrt(dx * dx + dy * dy);
         if (r > 1.06) {
-          detail[i * 4] = detail[i * 4 + 1] = detail[i * 4 + 2] = 128;
-          detail[i * 4 + 3] = 255;
+          detail[o] = detail[o + 1] = detail[o + 2] = 128;
+          detail[o + 3] = 255;
           continue;
         }
-        const theta = Math.atan2(dy, dx) + Math.PI;   // 0 .. 2pi
-        // Normalised across the annulus: 0 at the pupil margin, 1 at limbus.
-        const t = (r - PUPIL) / (1 - PUPIL);
-        let tab = (theta * TAB_SCALE) | 0;
-        if (tab >= TAB) tab = TAB - 1;
 
-        let h = 0;
-        let tint = 1.0;
-        let warm = 0;      // >0 pushes amber, <0 pushes cool
-        let ao = 1.0;
-
-        if (t > -0.20) {
-          const tc = t > 0 ? t : 0;
-          const cr = collarTab[tab];
-
-          // ── trabeculae ──
-          const fib = EyeTextures._fibreAt(bundles, theta, tc)
-            + EyeTextures._fibreAt(coarse, theta, tc)
-            + EyeTextures._fibreAt(fine, theta, tc);
-          // Muted inside the collarette, where the stroma is covered by the
-          // pupillary ruff's pigment rather than open fibre.
-          const fibZone = (0.75 + 0.25 * EyeTextures._smooth(cr - 0.14, cr + 0.26, tc))
-            * (1 + sectorTab[tab] * 2.2);
-          h += fib * fibZone * 0.9;
-          /* Measured, not chosen by eye.
-           *
-           * At 0.19 the fibre field varied by ten per cent along an arc
-           * through the ciliary zone, the shader's melanin factor took that
-           * to six, and seven-to-one minification took what was left below
-           * anything a viewer registers — the iris rendered as a smooth brown
-           * dome with crypts on it. */
-          tint += fib * fibZone * 0.26;
-
-          // ── collarette ──
-          // A ridge, with the shadow a ridge casts on its pupil side.
-          const dcr = tc - cr;
-          const ridge = Math.exp(-dcr * dcr * 121);
-          h += ridge * 0.55;
-          tint += ridge * 0.19;
-          const inner = Math.exp(-Math.pow(dcr + 0.055, 2) * 260);
-          tint -= inner * 0.09;
-          ao -= inner * 0.16;
-          /* No pupillary-zone darkening here.
-           *
-           * The shader already runs that gradient, and it has to: how much
-           * darker the pupillary zone goes depends on melanin, which is a
-           * property of the colour the operator picked and not of a map baked
-           * once. Doing it in both places compounded them into a near-black
-           * collar with a hard outer edge. This map carries structure; the
-           * shader carries tone. */
-
-          // ── crypts ──
-          for (let c = 0; c < CRYPTS; c++) {
-            const cy = crypts[c];
-            const dt = tc - cy.t;
-            if (dt > cy.halfT * 1.6 || dt < -cy.halfT * 1.6) continue;
-            const da = EyeTextures._wrap(theta - cy.theta);
-            if (da > cy.halfAngle * 1.6 || da < -cy.halfAngle * 1.6) continue;
-            // Ragged outline: the boundary radius wobbles with the angle
-            // around the crypt, so it is a lacuna and not an ellipse.
-            const wob = 1 + 0.16 * Math.sin(Math.atan2(dt, da) * cy.ragged + cy.phase);
-            const qa = da / (cy.halfAngle * wob), qt = dt / (cy.halfT * wob);
-            const q = Math.sqrt(qa * qa + qt * qt);
-            if (q < 1.4) {
-              const m = 1 - EyeTextures._smooth(0.55, 1.15, q);
-              h -= m * cy.depth * 1.15;
-              tint -= m * cy.depth * 0.30;
-              ao -= m * cy.depth * 0.42;
-              warm -= m * cy.depth * 0.20;
-            }
-          }
-
-          // ── contraction furrows ──
-          const broken = breakTab[tab];
-          if (broken > 0) {
-            for (let f = 0; f < FURROWS; f++) {
-              const fr = furrows[f];
-              const centre = fr.t + Math.sin(theta * fr.freq + fr.phase) * fr.wobble;
-              const dd = (tc - centre) / fr.halfT;
-              if (dd > 3 || dd < -3) continue;
-              const m = Math.exp(-dd * dd) * broken;
-              h -= m * fr.depth * 0.5;
-              tint -= m * fr.depth * 0.10;
-              ao -= m * fr.depth * 0.18;
-            }
-          }
-
-          // ── pupillary ruff ──
-          // The fringe of posterior pigment epithelium wrapping the margin,
-          // scalloped by the sphincter beneath it. Fine: at the amplitude
-          // this started at, the scalloping was as wide as the fringe and the
-          // whole thing bloomed into a flower.
-          /* Three frequencies, none a multiple of another. Two regular
-             sines beat into a repeating scallop, and a pupil edge with a
-             period reads as a cog wheel — which is exactly what two of them
-             here plus two more in the shader produced. */
-          const crenel = 0.007 * Math.sin(theta * 23 + 1.1)
-            + 0.005 * Math.sin(theta * 37 - 0.4)
-            + 0.004 * Math.sin(theta * 13 + 2.7);
-          const ruff = 1 - EyeTextures._smooth(0.008 + crenel, 0.048 + crenel, tc);
-          tint -= ruff * 0.46;
-          warm += ruff * 0.30;
-          h += ruff * 0.30;
-          ao -= ruff * 0.25;
-
-          // ── pigment ──
-          // Irregular patches that ignore the fibre direction, plus the fine
-          // grain of the stroma itself, plus the sector variation.
-          const blotch = EyeTextures._fbm(dx * 3.2 + 5, dy * 3.2 + 5, 4001, 3) - 0.47;
-          tint += blotch * 0.34 + sectorTab[tab] * 0.55;
-          warm += blotch * 0.55 + sectorTab[tab] * 0.9;
-          const grain = EyeTextures._fbm(dx * 46 + 2, dy * 46 + 2, 8123, 2) - 0.47;
-          tint += grain * 0.10;
-          h += grain * 0.18;
-        }
-
-        // Fade everything out past the limbus so the square's corners cannot
+        /* Two things the strokes cannot reach, both left analytic.
+         *
+         * The grain is finer than a path can be stroked at this resolution
+         * and is what stops the stroma reading as flat between the strands;
+         * the blotch is an irregular pigment patch that ignores the fibre
+         * direction entirely, weighted per channel so it shifts hue as well
+         * as value — a patch that only changes brightness reads as a stain. */
+        const grain = EyeTextures._fbm(dx * 52 + 2, dy * 52 + 2, 8123, 2) - 0.47;
+        const blotch = EyeTextures._fbm(dx * 3.4 + 5, dy * 3.4 + 5, 4001, 3) - 0.47;
+        // Fade to neutral past the limbus so the square's corners cannot
         // bleed pattern into the sclera through the bilinear filter.
         const edge = 1 - EyeTextures._smooth(0.97, 1.03, r);
-        tint = 1 + (tint - 1) * edge;
-        warm *= edge;
-        ao = 1 - (1 - ao) * edge;
-        height[i] = h * edge;
+        const hue = [0.26, 0.12, -0.02];
 
-        // Warmth is a hue shift about the tint, so the base colour the
-        // operator picked still decides what colour the iris is.
-        const rr = tint * (1 + warm * 0.22);
-        const gg = tint * (1 + warm * 0.02);
-        const bb = tint * (1 - warm * 0.26);
-        detail[i * 4] = Math.round(Math.min(2, Math.max(0, rr)) * 127.5);
-        detail[i * 4 + 1] = Math.round(Math.min(2, Math.max(0, gg)) * 127.5);
-        detail[i * 4 + 2] = Math.round(Math.min(2, Math.max(0, bb)) * 127.5);
-        detail[i * 4 + 3] = Math.round(Math.min(1, Math.max(0, ao)) * 255);
+        for (let c = 0; c < 3; c++) {
+          let v = toneData[o + c] / 127.5;
+          v *= 1 + grain * 0.055 + blotch * hue[c];
+          detail[o + c] = Math.round(Math.min(2, Math.max(0, 1 + (v - 1) * edge)) * 127.5);
+        }
+        detail[o + 3] = Math.round((1 - (1 - cavityData[o] / 255) * edge) * 255);
+        height[i] = ((reliefData[o] / 255 - 0.5) * 2 + grain * 0.14) * edge;
       }
     }
 
@@ -509,13 +671,24 @@ class EyeTextures {
   // ── Sclera ───────────────────────────────────────────────────────────────
 
   /**
-   * Episcleral vessels, grown as branching paths.
+   * The conjunctival bed: episcleral vessels, grown as branching paths, over
+   * a warm mottled ground.
    *
    * Thresholded noise cannot produce a vessel: a vessel starts somewhere,
-   * runs somewhere, tapers, and splits into children that are narrower than
-   * their parent. Growing them with a canvas stroke gets all of that plus
-   * free antialiasing, and multiply blending makes crossings darken the way
+   * runs somewhere, tapers, and splits into children narrower than their
+   * parent. Growing them with a canvas stroke gets all of that plus free
+   * antialiasing, and multiply blending makes crossings darken the way
    * overlapping vessels do.
+   *
+   * What changed from the first pass at this: density. Twenty-eight trunks
+   * branching three deep filled both canthi edge to edge, and a bed with no
+   * white left in it does not read as vessels — it reads as a graze. On a
+   * healthy eye the sclera between two vessels is the largest thing in the
+   * picture, the vessels are widely spaced and unequal, and there is a clear
+   * zone a millimetre wide inside the limbus. So: a third as many trunks,
+   * spaced rather than scattered, each one thicker and darker so it survives
+   * the shader's exposure terms, and the two canthi given different
+   * densities because the nasal side of a real eye is the redder one.
    *
    * Laid out azimuthally: the distance from the centre of the map is the
    * polar angle from the corneal pole, scaled by SCLERA_POLAR_SPAN. That
@@ -528,23 +701,41 @@ class EyeTextures {
     const canvas = document.createElement('canvas');
     canvas.width = N; canvas.height = N;
     const g = canvas.getContext('2d');
-    g.fillStyle = '#ffffff';
+    // Not white. Sclera is collagen with a fat pad behind it and it
+    // photographs warm; starting the bed at pure white is the same mistake as
+    // starting the sclera material there.
+    g.fillStyle = '#fffcf6';
     g.fillRect(0, 0, N, N);
-    g.globalCompositeOperation = 'multiply';
     g.lineCap = 'round';
     g.lineJoin = 'round';
 
     const C = N / 2;
-    // Where the limbus falls in this projection, for the perilimbal zone that
-    // stays comparatively clear on a healthy eye.
+    // Where the limbus falls in this projection.
     const limbus = 0.344 / EyeTextures.SCLERA_POLAR_SPAN;
+    /* The perilimbal clear zone. Vessels approach the cornea and stop about a
+       millimetre short of it, and that ring of clean sclera around the iris is
+       a strong cue — running them right up to the limbus is what makes a CG
+       eye look irritated. */
+    const clear = limbus * 1.34;
+
+    /* The orbital ground: a broad warm cast that deepens toward the far
+       periphery, where the sclera thins over the muscle insertions and the
+       orbital fat behind them. Painted before the vessels so they sit in it. */
+    const wash = g.createRadialGradient(C, C, C * clear, C, C, C);
+    wash.addColorStop(0, 'rgba(255,252,246,0)');
+    wash.addColorStop(0.55, 'rgba(246,231,206,0.30)');
+    wash.addColorStop(1, 'rgba(232,208,172,0.62)');
+    g.fillStyle = wash;
+    g.fillRect(0, 0, N, N);
+
+    g.globalCompositeOperation = 'multiply';
 
     const grow = (x, y, dir, width, alpha, depth) => {
       const pts = [[x, y]];
       // Many short steps with a gentle turn rate. The first pass took long
       // steps and swung hard at each one, which drew a net of straight lines
       // rather than vessels.
-      const steps = 8 + Math.floor(rnd() * 9);
+      const steps = 9 + Math.floor(rnd() * 10);
       let px = x, py = y, d = dir;
       for (let i = 0; i < steps; i++) {
         /* Wander, but be pulled back toward the limbus at every step.
@@ -555,63 +746,72 @@ class EyeTextures {
          * radiate: they meander, but they are all going the same way. The
          * bias is what turns a tangle into a bed. */
         const inward = Math.atan2(C - py, C - px);
-        d += EyeTextures._wrap(inward - d) * 0.20 + (rnd() - 0.5) * 0.55;
-        const len = N * (0.006 + rnd() * 0.011);
+        d += EyeTextures._wrap(inward - d) * 0.20 + (rnd() - 0.5) * 0.48;
+        const len = N * (0.007 + rnd() * 0.013);
         px += Math.cos(d) * len;
         py += Math.sin(d) * len;
         const rad = Math.hypot(px - C, py - C) / C;
-        // Stop at the limbus and at the far edge of what the map covers.
-        if (rad < limbus * 1.12 || rad > 0.99) break;
+        // Stop at the clear zone and at the far edge of what the map covers.
+        if (rad < clear || rad > 0.99) break;
         pts.push([px, py]);
       }
       if (pts.length < 2) return;
       // Taper: each segment a little narrower than the last.
       for (let i = 1; i < pts.length; i++) {
-        const w = width * (1 - 0.55 * (i / pts.length));
+        const w = width * (1 - 0.5 * (i / pts.length));
         g.beginPath();
         g.moveTo(pts[i - 1][0], pts[i - 1][1]);
         g.lineTo(pts[i][0], pts[i][1]);
-        g.lineWidth = Math.max(0.6, w);
-        g.strokeStyle = 'rgba(214, 92, 84, ' + alpha.toFixed(3) + ')';
+        g.lineWidth = Math.max(0.7, w);
+        g.strokeStyle = 'rgba(196, 74, 66, ' + alpha.toFixed(3) + ')';
         g.stroke();
       }
-      if (depth >= 3) return;
-      const kids = depth === 0 ? 2 + Math.floor(rnd() * 3) : 1 + Math.floor(rnd() * 2);
+      if (depth >= 2) return;
+      const kids = depth === 0 ? 1 + Math.floor(rnd() * 2) : 1;
       for (let k = 0; k < kids; k++) {
         const at = 1 + Math.floor(rnd() * (pts.length - 1));
         const [bx, by] = pts[Math.min(at, pts.length - 1)];
-        grow(bx, by, Math.atan2(by - C, bx - C) + Math.PI + (rnd() - 0.5) * 1.5,
-          width * (0.52 + rnd() * 0.22), alpha * 0.85, depth + 1);
+        grow(bx, by, Math.atan2(by - C, bx - C) + Math.PI + (rnd() - 0.5) * 1.3,
+          width * (0.50 + rnd() * 0.20), alpha * 0.82, depth + 1);
       }
     };
 
     /* Trunks enter from the periphery and run toward the limbus. Their start
        angles cluster on the horizontal meridian because that is where the
        palpebral fissure exposes sclera — the vessels over the top and bottom
-       of the ball are under the lids and would never be seen anyway. */
-    const TRUNKS = 28;
-    for (let i = 0; i < TRUNKS; i++) {
-      // Two lobes, at the medial and lateral canthus.
-      const lobe = rnd() < 0.5 ? 0 : Math.PI;
-      const a = lobe + (rnd() - 0.5) * 1.1;
-      const rad = 0.72 + rnd() * 0.26;
-      grow(C + Math.cos(a) * rad * C, C + Math.sin(a) * rad * C,
-        Math.atan2(-Math.sin(a), -Math.cos(a)) + (rnd() - 0.5) * 0.6,
-        N * (0.0022 + rnd() * 0.0026), 0.34 + rnd() * 0.20, 0);
+       of the ball are under the lids and would never be seen anyway.
+       Distributed across each lobe rather than sampled at random within it:
+       a random scatter clumps, and a clump of vessels is a haemorrhage. */
+    const lobes = [
+      { centre: 0, spread: 0.95, count: 8 },        // temporal
+      { centre: Math.PI, spread: 1.05, count: 11 }, // nasal, the redder side
+    ];
+    for (const lobe of lobes) {
+      for (let i = 0; i < lobe.count; i++) {
+        const a = lobe.centre + ((i + 0.5) / lobe.count - 0.5) * 2 * lobe.spread
+          + (rnd() - 0.5) * (lobe.spread / lobe.count);
+        const rad = 0.74 + rnd() * 0.24;
+        grow(C + Math.cos(a) * rad * C, C + Math.sin(a) * rad * C,
+          Math.atan2(-Math.sin(a), -Math.cos(a)) + (rnd() - 0.5) * 0.5,
+          N * (0.0030 + rnd() * 0.0040), 0.42 + rnd() * 0.24, 0);
+      }
     }
 
-    // A second, finer bed drawn softer: the deep vessels a millimetre of
-    // collagen sits over, which read as a wash rather than as lines.
-    g.filter = 'blur(' + (N / 340).toFixed(1) + 'px)';
-    for (let i = 0; i < 20; i++) {
-      const lobe = rnd() < 0.5 ? 0 : Math.PI;
-      const a = lobe + (rnd() - 0.5) * 1.7;
-      const rad = 0.62 + rnd() * 0.34;
+    // A second, finer bed drawn soft and wide: the deep vessels a millimetre
+    // of collagen sits over, which read as a diffuse flush rather than as
+    // lines. This is what carries the redness at portrait distance, where the
+    // discrete vessels above are a pixel wide and have averaged away.
+    g.filter = 'blur(' + (N / 90).toFixed(1) + 'px)';
+    for (let i = 0; i < 10; i++) {
+      const lobe = i < 4 ? 0 : Math.PI;
+      const a = lobe + (rnd() - 0.5) * 1.6;
+      const rad = 0.60 + rnd() * 0.34;
       grow(C + Math.cos(a) * rad * C, C + Math.sin(a) * rad * C,
-        Math.atan2(-Math.sin(a), -Math.cos(a)) + (rnd() - 0.5) * 0.9,
-        N * (0.0040 + rnd() * 0.0045), 0.13 + rnd() * 0.09, 1);
+        Math.atan2(-Math.sin(a), -Math.cos(a)) + (rnd() - 0.5) * 0.8,
+        N * (0.010 + rnd() * 0.012), 0.16 + rnd() * 0.10, 1);
     }
     g.filter = 'none';
+    g.globalCompositeOperation = 'source-over';
 
     // Mottle, and the fade that keeps the map's corners from bleeding.
     const img = g.getImageData(0, 0, N, N);
