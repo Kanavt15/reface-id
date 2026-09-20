@@ -229,8 +229,11 @@ overwritten.</sub></td>
 </tr>
 </table>
 
-Six models are selectable per request: **Claude Haiku 4.5, Sonnet 4.6, Opus 4.7,
-Sonnet 5, Opus 5**, and **Gemini Flash**.
+Eight models are selectable per request: **Claude Haiku 4.5, Sonnet 4.6, Opus
+4.7, Sonnet 5, Opus 5**, **Gemini 3.8 and 2.5 Flash**, and **GPT-OSS 120B** on
+**Groq**. Each provider holds its own key, asked for the first time you pick one of
+its models. The Groq models read text only — a reference photo needs Claude or
+Gemini.
 
 **Build with a witness** takes a different approach. Rather than asking someone
 to rate a nose from one to ten, which fights how face memory works, it shows a
@@ -320,9 +323,9 @@ assist itself, they need a network connection. Everything else runs offline.
                                       ▼                                     ▼
                             ┌──────────────────┐              ┌──────────────────────┐
                             │  Claude · Gemini │              │  Blender, headless   │
-                            │  (only on assist)│              │  EEVEE / Cycles      │
-                            └──────────────────┘              │  render · morph      │
-                                                              │  export · bake       │
+                            │  Groq            │              │  EEVEE / Cycles      │
+                            │  (only on assist)│              │  render · morph      │
+                            └──────────────────┘              │  export · bake       │
                                                               └──────────────────────┘
 ```
 
@@ -366,7 +369,8 @@ cp .env.example .env
 ```ini
 ANTHROPIC_API_KEY=sk-ant-...   # optional — the app will ask if this is unset
 GEMINI_API_KEY=...
-AI_PROVIDER=anthropic          # anthropic | gemini
+GROQ_API_KEY=gsk_...
+AI_PROVIDER=anthropic          # anthropic | gemini | groq
 ANTHROPIC_MODEL=claude-opus-5  # fallback when a request names no model
 ```
 

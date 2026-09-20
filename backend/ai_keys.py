@@ -35,6 +35,7 @@ from pathlib import Path
 
 import anthropic
 import google.generativeai as genai
+import requests
 
 import db
 
@@ -56,7 +57,18 @@ PROVIDERS = {
         'placeholder': 'AIza...',
         'console': 'https://aistudio.google.com/app/apikey',
     },
+    'groq': {
+        'label': 'Groq',
+        'env': 'GROQ_API_KEY',
+        'placeholder': 'gsk_...',
+        'console': 'https://console.groq.com/keys',
+    },
 }
+
+# Groq serves an OpenAI-shaped API and needs no SDK of its own; one POST per
+# completion through requests keeps the backend's dependency list short, which
+# is what a packaged build has to carry.
+GROQ_BASE_URL = 'https://api.groq.com/openai/v1'
 
 
 class UnknownProvider(ValueError):
@@ -216,6 +228,14 @@ def anthropic_client():
     return client
 
 
+def groq_headers():
+    """Authorization for a Groq call, or None when no key is set."""
+    key = get('groq')
+    if not key:
+        return None
+    return {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
+
+
 def gemini_model(model_name: str):
     """
     A Gemini model handle for the current key, or None when no key is set.
@@ -254,6 +274,16 @@ def validate(provider: str, key: str):
     try:
         if provider == 'anthropic':
             anthropic.Anthropic(api_key=key).models.list(limit=1)
+        elif provider == 'groq':
+            res = requests.get(
+                f'{GROQ_BASE_URL}/models',
+                headers={'Authorization': f'Bearer {key}'},
+                timeout=20,
+            )
+            if res.status_code in (401, 403):
+                return 'That key was rejected. Check that it was copied in full.'
+            if res.status_code != 200:
+                return f'Groq refused the key check ({res.status_code}).'
         else:
             genai.configure(api_key=key)
             next(iter(genai.list_models()), None)
@@ -263,6 +293,8 @@ def validate(provider: str, key: str):
         return 'That key is valid but not permitted to use the Messages API.'
     except anthropic.APIConnectionError:
         return 'Could not reach Anthropic. Check the network connection and try again.'
+    except requests.RequestException as e:
+        return f'Could not reach Groq: {e}'
     except Exception as e:
         if is_auth_error(e):
             return 'That key was rejected. Check that it was copied in full.'
@@ -286,5 +318,6 @@ def is_auth_error(exc: BaseException) -> bool:
     text = str(exc).lower()
     return any(
         marker in text for marker in
-        ('api key', 'api_key_invalid', 'unauthenticated', 'permission denied', 'invalid authentication')
+        ('api key', 'api_key_invalid', 'unauthenticated', 'permission denied',
+         'invalid authentication', 'invalid_api_key', 'error (401)', 'error (403)')
     )

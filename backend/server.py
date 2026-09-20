@@ -16,6 +16,7 @@ from pathlib import Path
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
+import requests
 import speech_recognition as sr
 
 import db
@@ -53,11 +54,18 @@ except Exception as _db_err:
 # import time would pin whichever key existed when the backend started and make
 # every key change need a restart — which a packaged build cannot offer.
 
-# Gemini model used when a request doesn't name one.
-DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash'
+# Models used when a request doesn't name one. The picker in the app sends a
+# model with every request; these only cover a caller that names none.
+DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash'
+DEFAULT_GROQ_MODEL = 'openai/gpt-oss-120b'
+
+# Groq hosts open-weight models, and the ones offered here read text only —
+# checked before a call so an operator with reference photos attached is told
+# to switch provider rather than watching the images be silently ignored.
+GROQ_VISION_MODELS = set()
 
 # Default AI provider (can be overridden per request)
-DEFAULT_AI_PROVIDER = os.getenv('AI_PROVIDER', 'anthropic')  # 'anthropic' or 'gemini'
+DEFAULT_AI_PROVIDER = os.getenv('AI_PROVIDER', 'anthropic')  # anthropic | gemini | groq
 
 # Claude model used when the request doesn't specify one
 DEFAULT_ANTHROPIC_MODEL = os.getenv('ANTHROPIC_MODEL', 'claude-opus-5')
@@ -1052,6 +1060,111 @@ def download_render(filename):
 
 # ─── AI Face Generation ───────────────────────────────────────────────────────
 
+def _groq_post(payload):
+    """
+    One Groq chat completion. Returns (text, problem); exactly one is set.
+
+    Groq speaks the OpenAI shape, so this is a plain POST rather than another
+    SDK in the environment — the backend already has to be installable on a
+    machine that only runs the app.
+    """
+    headers = ai_keys.groq_headers()
+    if not headers:
+        return None, 'No Groq API key set yet.'
+
+    try:
+        res = requests.post(
+            f'{ai_keys.GROQ_BASE_URL}/chat/completions',
+            headers=headers, json=payload, timeout=180,
+        )
+    except requests.RequestException as e:
+        return None, f'Could not reach Groq: {e}'
+
+    if res.status_code != 200:
+        try:
+            detail = res.json().get('error', {}).get('message', res.text[:300])
+        except ValueError:
+            detail = res.text[:300]
+        return None, f'Groq API error ({res.status_code}): {detail}'
+
+    try:
+        choices = res.json().get('choices') or []
+        text = (choices[0]['message'].get('content') or '').strip() if choices else ''
+    except (ValueError, KeyError, IndexError) as e:
+        return None, f'Groq returned an unreadable response: {e}'
+
+    if not text:
+        return None, 'Groq returned no text output. Try again.'
+    return text, None
+
+
+def _groq_complete(model, system_prompt, user_content, max_tokens, history=None):
+    """
+    Run one structured request through Groq and hand back the raw text.
+
+    Raises RuntimeError with the provider's own wording on failure, so the
+    endpoint's handler can tell a rejected key from anything else.
+    """
+    messages = [{"role": "system", "content": system_prompt}]
+
+    for msg in history or []:
+        content = msg.get('content')
+        if isinstance(content, list):
+            # Earlier turns may carry image blocks. Only their text is resent —
+            # the same economy the Anthropic path makes with its history.
+            content = ' '.join(
+                block.get('text', '') for block in content
+                if isinstance(block, dict) and block.get('type') == 'text'
+            ).strip()
+        if content:
+            messages.append({"role": msg.get('role', 'user'), "content": content})
+
+    messages.append({"role": "user", "content": user_content})
+
+    payload = {
+        "model": model,
+        "messages": messages,
+        "max_completion_tokens": max_tokens,
+        # Every caller parses this reply as JSON, and this is what stops the
+        # model wrapping it in prose or a fenced block.
+        "response_format": {"type": "json_object"},
+    }
+    # gpt-oss reasons before it answers; low is right for filling in a
+    # parameter set, and the field is rejected outright by models that do not
+    # reason at all — hence the retry below rather than a hard-coded list.
+    if model.startswith('openai/gpt-oss'):
+        payload["reasoning_effort"] = "low"
+
+    text, problem = _groq_post(payload)
+
+    # A model that supports neither switch should still answer: drop whichever
+    # one it named and ask again, leaving the reply to the fenced-block
+    # stripping every provider's output already goes through.
+    optional = ('response_format', 'reasoning_effort')
+    if problem and any(field in problem for field in optional):
+        for field in optional:
+            if field in problem:
+                payload.pop(field, None)
+        text, problem = _groq_post(payload)
+
+    if problem:
+        raise RuntimeError(problem)
+    return text
+
+
+def _text_only_provider_response(provider, model, image_payloads):
+    """Refuse reference images on a provider whose selected model cannot read them."""
+    if not image_payloads or provider != 'groq':
+        return None
+    if (model or DEFAULT_GROQ_MODEL) in GROQ_VISION_MODELS:
+        return None
+    return jsonify({
+        "error": "The Groq models here read text only. Use Claude or Gemini for reference photos, "
+                 "or send the description without them.",
+        "provider": provider,
+    }), 400
+
+
 def _missing_key_response(provider):
     """
     A `needsKey` reply for a provider with no key, or None when one is in force.
@@ -1177,10 +1290,15 @@ def ai_generate_face():
 
     # Validate the provider, then make sure it has a key to work with.
     if provider not in ai_keys.PROVIDERS:
-        return jsonify({"error": f"Invalid provider '{provider}'. Use 'anthropic' or 'gemini'"}), 400
+        return jsonify({
+            "error": f"Invalid provider '{provider}'. Use one of: {', '.join(ai_keys.PROVIDERS)}"
+        }), 400
     missing = _missing_key_response(provider)
     if missing:
         return missing
+    text_only = _text_only_provider_response(provider, model, image_payloads)
+    if text_only:
+        return text_only
 
     # Build user content with current state if available
     user_content = prompt
@@ -1316,6 +1434,15 @@ def ai_generate_face():
                 response = gemini_model.generate_content(full_prompt)
             ai_text = response.text.strip()
 
+        elif provider == 'groq':
+            ai_text = _groq_complete(
+                model or DEFAULT_GROQ_MODEL,
+                AI_SYSTEM_PROMPT,
+                user_content,
+                max_tokens=8192,
+                history=conversation_history,
+            )
+
         # Extract JSON from response (handle potential markdown wrapping)
         if ai_text.startswith('```'):
             lines = ai_text.split('\n')
@@ -1397,10 +1524,15 @@ def ai_variants():
         return jsonify({"error": str(e)}), 400
 
     if provider not in ai_keys.PROVIDERS:
-        return jsonify({"error": f"Invalid provider '{provider}'. Use 'anthropic' or 'gemini'"}), 400
+        return jsonify({
+            "error": f"Invalid provider '{provider}'. Use one of: {', '.join(ai_keys.PROVIDERS)}"
+        }), 400
     missing = _missing_key_response(provider)
     if missing:
         return missing
+    text_only = _text_only_provider_response(provider, model, image_payloads)
+    if text_only:
+        return text_only
 
     user_content = (
         f"Description of the person:\n{prompt or 'See the attached reference images.'}\n\n"
@@ -1474,6 +1606,16 @@ def ai_variants():
                     break
             if not ai_text:
                 return jsonify({"error": "The model returned no text output. Try again.", "provider": provider}), 500
+
+        elif provider == 'groq':
+            ai_text = _groq_complete(
+                model or DEFAULT_GROQ_MODEL,
+                AI_VARIANTS_PROMPT,
+                user_content,
+                # Several complete morph sets in one reply, like the
+                # Anthropic path above, need far more room than one face.
+                max_tokens=16384,
+            )
 
         else:
             full_prompt = f"{AI_VARIANTS_PROMPT}\n\nUser: {user_content}\n\nAssistant: "
