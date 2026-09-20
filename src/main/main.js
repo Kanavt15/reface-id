@@ -36,13 +36,13 @@ function startBackend() {
     env: { ...process.env, REFACE_DATA_DIR: dataDir }
   });
 
-  pythonProcess.stdout.on('data', (data) => {
-    console.log(`[Backend] ${data}`);
-  });
-
-  pythonProcess.stderr.on('data', (data) => {
-    console.error(`[Backend Error] ${data}`);
-  });
+  /* Both streams carry ordinary output. Flask writes its startup banner and
+     every request line to stderr, so tagging that stream "[Backend Error]"
+     labelled a console full of 200s as failures. A real traceback still reads
+     as one; the stream it arrived on never told us anything. */
+  const relay = (data) => console.log(`[Backend] ${data}`);
+  pythonProcess.stdout.on('data', relay);
+  pythonProcess.stderr.on('data', relay);
 
   pythonProcess.on('close', (code) => {
     console.log(`[Backend] Process exited with code ${code}`);
