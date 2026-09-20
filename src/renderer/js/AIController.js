@@ -14,6 +14,7 @@ class AIController {
     this.ui = uiController;
     this.skinMarkSystem = null;  // Will be set externally
     this.markPositionMapper = null;  // Will be set externally
+    this.keys = null;  // ApiKeyGate, set externally — owns the provider keys
 
     // Conversation history for refinement
     this.conversationHistory = [];
@@ -147,6 +148,19 @@ class AIController {
     // Provider selector
     this.providerSelect = document.getElementById('aiProviderSelect');
 
+    // Switching model can switch provider, and the two providers hold
+    // separate keys — relabel so "(no key)" follows the actual selection.
+    if (this.providerSelect) {
+      this.providerSelect.addEventListener('change', () => this._paintProviders());
+    }
+
+    // Reopening the key dialog on purpose: replacing a rotated key, or
+    // removing one, without having to wait for a request to fail first.
+    const keyBtn = document.getElementById('aiKeyBtn');
+    if (keyBtn) {
+      keyBtn.addEventListener('click', () => this.keys?.open(this._selectedProvider()));
+    }
+
     // Mark generation and handling controls
     const generateMarksCheckbox = document.getElementById('aiGenerateMarksCheckbox');
     if (generateMarksCheckbox) {
@@ -179,6 +193,18 @@ class AIController {
     const text = this.chatInput?.value?.trim();
     if ((!text && this.referenceImages.length === 0) || this.isProcessing) return;
 
+    const selected = this.providerSelect?.value || 'anthropic:claude-opus-5';
+    const [provider, model] = selected.split(':');
+
+    // Nothing is sent until the provider has a key. Asked here rather than at
+    // startup so an operator who never opens this panel is never asked at all,
+    // and asked before the prompt is echoed so a dismissed dialog leaves the
+    // description still sitting in the box.
+    if (this.keys && !(await this.keys.ensure(provider))) {
+      this._addMessage('assistant', 'No API key entered, so nothing was sent.');
+      return;
+    }
+
     // Show user message
     const hasImages = this.referenceImages.length > 0;
     const imageSummary = hasImages
@@ -198,9 +224,7 @@ class AIController {
     const currentState = this._getCurrentState();
 
     try {
-      const selected = this.providerSelect?.value || 'anthropic:claude-opus-5';
-      const [provider, model] = selected.split(':');
-      const response = await fetch(`${this.api.baseUrl}/api/ai/generate`, {
+      const send = () => fetch(`${this.api.baseUrl}/api/ai/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -215,7 +239,14 @@ class AIController {
         }),
       });
 
-      const data = await response.json();
+      let data = await (await send()).json();
+
+      // A key can be revoked, rotated or run out of credit between one prompt
+      // and the next. The backend says so with needsKey; ask for a current one
+      // and send the same request again rather than making them retype it.
+      if (data.needsKey && this.keys && await this.keys.handleResponse(data, provider)) {
+        data = await (await send()).json();
+      }
 
       if (data.error) {
         this._addMessage('assistant', `Error: ${data.error}`);
@@ -701,36 +732,45 @@ class AIController {
 
   // ─── Provider Detection ──────────────────────────────────────────────────
 
-  async _detectProviders() {
-    try {
-      const response = await fetch(`${this.api.baseUrl}/api/ai/providers`);
-      const data = await response.json();
-      if (data.providers && this.providerSelect) {
-        // Disable options whose provider isn't available
-        Array.from(this.providerSelect.options).forEach(opt => {
-          const providerKey = opt.value.split(':')[0];
-          const info = data.providers[providerKey];
-          if (info && !info.available) {
-            opt.disabled = true;
-            opt.textContent = `${opt.textContent} (no key)`;
-          }
-        });
-        // Auto-select the first available option only if current selection is unavailable
-        const currentOpt = Array.from(this.providerSelect.options).find(opt => opt.value === this.providerSelect.value);
-        if (!currentOpt || currentOpt.disabled) {
-          const firstAvailable = Array.from(this.providerSelect.options).find(opt => !opt.disabled);
-          if (firstAvailable) {
-            this.providerSelect.value = firstAvailable.value;
-          }
-        }
-        const available = Object.values(data.providers).filter(p => p.available);
-        if (available.length === 0) {
-          this._addMessage('assistant', 'Warning: No AI API keys configured. Add ANTHROPIC_API_KEY or GEMINI_API_KEY to backend/.env');
-        }
-      }
-    } catch (err) {
-      // Backend not running yet, will retry on first prompt
+  /** Provider half of the model picker's value — 'anthropic' or 'gemini'. */
+  _selectedProvider() {
+    return (this.providerSelect?.value || 'anthropic:claude-opus-5').split(':')[0];
+  }
+
+  /**
+   * Show which providers hold a key.
+   *
+   * Key state belongs to ApiKeyGate, so this only reflects it — and options
+   * without a key stay selectable, because choosing one is now how an operator
+   * asks to be prompted for that provider's key.
+   */
+  _paintProviders() {
+    const providers = this.keys?.providers;
+    if (!providers || !this.providerSelect) return;
+
+    Array.from(this.providerSelect.options).forEach(opt => {
+      // The pristine label is kept on the option: re-painting a label that
+      // already carries "(no key)" would keep appending to it.
+      if (!opt.dataset.label) opt.dataset.label = opt.textContent;
+      const info = providers[opt.value.split(':')[0]];
+      opt.textContent = info && !info.available
+        ? `${opt.dataset.label} (no key)`
+        : opt.dataset.label;
+    });
+
+    // A machine with only the other provider's key set should open on that
+    // provider rather than on a default the operator would have to change.
+    if (!providers[this._selectedProvider()]?.available) {
+      const ready = Array.from(this.providerSelect.options)
+        .find(opt => providers[opt.value.split(':')[0]]?.available);
+      if (ready) this.providerSelect.value = ready.value;
     }
+  }
+
+  _detectProviders() {
+    if (!this.keys) return;
+    this._paintProviders();
+    this.keys.subscribe(() => this._paintProviders());
   }
 
   // ─── Voice Recording (Web Audio → Backend Transcription) ─────────────────

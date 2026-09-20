@@ -266,7 +266,15 @@ class VariantPicker {
       avoid: this.rejected,
       referenceImages: this.referenceImages,
     });
-    if (res?.error) throw new Error(res.error);
+    if (res?.error) {
+      // needsKey means the call failed for want of a usable API key, which is
+      // the one failure the operator can fix on the spot — carried out on the
+      // error so the caller can put the key dialog up and try again.
+      const err = new Error(res.error);
+      err.needsKey = !!res.needsKey;
+      err.provider = res.provider;
+      throw err;
+    }
     if (!Array.isArray(res?.variants) || !res.variants.length) {
       throw new Error('No candidates were returned');
     }

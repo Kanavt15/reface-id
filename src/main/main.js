@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 
@@ -240,6 +240,15 @@ ipcMain.handle('file:read-binary', async (event, filePath) => {
   }
   const buffer = fs.readFileSync(filePath);
   return { data: buffer.toString('base64'), size: buffer.length };
+});
+
+/* The key dialog shows the provider's console URL. Opening it in the default
+   browser keeps the app window on the reconstruction; https only, so a URL
+   from anywhere but our own dialog cannot hand the OS something to run. */
+ipcMain.handle('shell:open-external', async (event, url) => {
+  if (typeof url !== 'string' || !url.startsWith('https://')) return false;
+  await shell.openExternal(url);
+  return true;
 });
 
 ipcMain.handle('window:minimize', () => mainWindow.minimize());

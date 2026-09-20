@@ -12,6 +12,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveFile: (filePath, base64Data) => ipcRenderer.invoke('file:save-buffer', filePath, base64Data),
   downloadExportedFile: (filename, sourcePath) => ipcRenderer.invoke('file:download-export', filename, sourcePath),
 
+  // External links (https only, checked in the main process)
+  openExternal: (url) => ipcRenderer.invoke('shell:open-external', url),
+
   // File operations
   readBinaryFile: (filePath) => ipcRenderer.invoke('file:read-binary', filePath),
 

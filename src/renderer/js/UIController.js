@@ -3010,11 +3010,37 @@ class UIController {
     // can put the whole face back — the restore point went in before start().
     picker.onRestore = () => this.undo();
 
+    /**
+     * Run an AI request for the picker, and if it fails for want of a key,
+     * ask for one and run it again. Both entry points below want this, and
+     * both would otherwise report a failure the operator could have fixed.
+     */
+    const withKey = async (run) => {
+      try {
+        return await run();
+      } catch (err) {
+        if (!err?.needsKey || !this.apiKeys) throw err;
+        await this.apiKeys.refresh();
+        const provider = err.provider || this.apiKeys.defaultProvider || 'anthropic';
+        if (!(await this.apiKeys.open(provider, { error: err.message }))) throw err;
+        return run();
+      }
+    };
+
     document.getElementById('btnStartVariantPicker')?.addEventListener('click', async () => {
       const description = (document.getElementById('aiChatInput')?.value || '').trim();
       const refs = this.aiController?.referenceImages || [];
       if (!description && refs.length === 0) {
         this.showNotification('Describe the face first, or attach a reference photo', 'info');
+        return;
+      }
+
+      // A candidate set is an AI call like any other. The key is asked for
+      // before the picker opens, so a dismissed dialog does not leave an empty
+      // grid sitting on screen.
+      const provider = this.apiKeys?.defaultProvider || 'anthropic';
+      if (this.apiKeys && !(await this.apiKeys.ensure(provider))) {
+        this.showNotification('An API key is needed to generate candidates', 'info');
         return;
       }
 
@@ -3029,7 +3055,7 @@ class UIController {
       this.caseManager.pushState('Witness variant session');
 
       try {
-        await picker.start(description, refs);
+        await withKey(() => picker.start(description, refs));
         this.addHistory('Variant picker: opened');
       } catch (err) {
         if (status) status.textContent = '';
@@ -3044,7 +3070,7 @@ class UIController {
       grid.innerHTML = '';
       if (acceptBtn) acceptBtn.disabled = true;
       try {
-        await picker.rejectAll();
+        await withKey(() => picker.rejectAll());
         this.addHistory('Variant picker: rejected a set');
       } catch (err) {
         this.showNotification(`Could not generate candidates: ${err.message}`, 'error');

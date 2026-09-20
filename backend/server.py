@@ -16,11 +16,10 @@ from pathlib import Path
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
-import anthropic
-import google.generativeai as genai
 import speech_recognition as sr
 
 import db
+import ai_keys
 
 # Windows gives a piped stdout the cp1252 codepage, and this file prints box
 # drawing and check/cross marks. Under Electron — which always pipes — the
@@ -49,27 +48,13 @@ except Exception as _db_err:
     print(f"[DB] FAILED to initialize: {_db_err}")
 
 # ─── AI Clients (Anthropic & Gemini) ─────────────────────────────────────────
-anthropic_client = None
-gemini_client = None
+# Both are built per request by ai_keys rather than once at import. Keys are
+# entered in the app and can change at any point in a session; a client made at
+# import time would pin whichever key existed when the backend started and make
+# every key change need a restart — which a packaged build cannot offer.
 
-# Initialize Anthropic client if API key exists
-anthropic_key = os.getenv('ANTHROPIC_API_KEY')
-if anthropic_key:
-    try:
-        anthropic_client = anthropic.Anthropic(api_key=anthropic_key)
-    except Exception as e:
-        print(f"Warning: Failed to initialize Anthropic client: {e}")
-
-# Initialize Gemini client if API key exists
-gemini_key = os.getenv('GEMINI_API_KEY')
-if gemini_key:
-    try:
-        genai.configure(api_key=gemini_key)
-        # Use gemini-1.5-flash (stable model) instead of experimental one
-        gemini_client = genai.GenerativeModel('gemini-1.5-flash')
-    except Exception as e:
-        print(f"Warning: Failed to initialize Gemini client: {e}")
-        gemini_client = None
+# Gemini model used when a request doesn't name one.
+DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash'
 
 # Default AI provider (can be overridden per request)
 DEFAULT_AI_PROVIDER = os.getenv('AI_PROVIDER', 'anthropic')  # 'anthropic' or 'gemini'
@@ -1067,16 +1052,100 @@ def download_render(filename):
 
 # ─── AI Face Generation ───────────────────────────────────────────────────────
 
+def _missing_key_response(provider):
+    """
+    A `needsKey` reply for a provider with no key, or None when one is in force.
+
+    Flagged rather than merely worded so the frontend can put its key dialog up
+    and retry the request. The old message told the operator to edit .env — a
+    file an installed build does not ship and they could not create.
+    """
+    if ai_keys.get(provider):
+        return None
+    label = ai_keys.PROVIDERS[provider]['label']
+    return jsonify({
+        "error": f"No {label} API key set yet.",
+        "provider": provider,
+        "needsKey": True,
+    }), 400
+
+
+def _rejected_key_response(provider, exc):
+    """
+    A `needsKey` reply when a call failed on the key itself, or None otherwise.
+
+    A key verified months ago can be revoked, rotated or run dry mid-session.
+    That is the one API failure the operator can actually fix, so it reopens
+    the dialog instead of leaving an SDK message in the chat.
+    """
+    if not ai_keys.is_auth_error(exc):
+        return None
+    label = ai_keys.PROVIDERS[provider]['label']
+    print(f"[AI Error - {provider}] key rejected: {exc}")
+    return jsonify({
+        "error": f"The {label} API key was rejected. Enter a current one.",
+        "provider": provider,
+        "needsKey": True,
+    }), 400
+
+
 @app.route('/api/ai/providers', methods=['GET'])
 def ai_providers():
-    """Return which AI providers are available (have API keys configured)."""
+    """Which providers have a key in force, and where that key came from."""
     return jsonify({
-        "providers": {
-            "anthropic": {"available": anthropic_client is not None, "label": "Claude"},
-            "gemini": {"available": gemini_client is not None, "label": "Gemini"},
-        },
+        "providers": ai_keys.status(),
         "default": DEFAULT_AI_PROVIDER,
     })
+
+
+@app.route('/api/ai/keys', methods=['POST'])
+def ai_save_key():
+    """
+    Store a key the operator entered in the app.
+
+    Verified against the provider before it is written, so a mistyped key is
+    reported in the dialog they are still looking at rather than surfacing
+    later as a failed generation they cannot attribute to it.
+    """
+    data = request.get_json(silent=True) or {}
+    try:
+        provider = ai_keys.normalize(data.get('provider'))
+    except ai_keys.UnknownProvider as e:
+        return jsonify({"error": str(e)}), 400
+
+    key = (data.get('apiKey') or '').strip()
+    if not key:
+        return jsonify({"error": "Enter a key.", "provider": provider}), 400
+
+    problem = ai_keys.validate(provider, key)
+    if problem:
+        return jsonify({"error": problem, "provider": provider, "needsKey": True}), 400
+
+    try:
+        ai_keys.save(provider, key)
+    except (OSError, ValueError) as e:
+        return jsonify({"error": f"Could not save the key: {e}", "provider": provider}), 500
+
+    print(f"[AI keys] {provider} key saved")
+    return jsonify({"success": True, "provider": provider, "providers": ai_keys.status()})
+
+
+@app.route('/api/ai/keys', methods=['DELETE'])
+def ai_clear_key():
+    """Forget a saved key. A key in the environment, if any, takes over again."""
+    data = request.get_json(silent=True) or {}
+    try:
+        provider = ai_keys.normalize(data.get('provider') or request.args.get('provider'))
+    except ai_keys.UnknownProvider as e:
+        return jsonify({"error": str(e)}), 400
+
+    try:
+        ai_keys.clear(provider)
+    except OSError as e:
+        return jsonify({"error": f"Could not clear the key: {e}", "provider": provider}), 500
+
+    print(f"[AI keys] {provider} key cleared")
+    return jsonify({"success": True, "provider": provider, "providers": ai_keys.status()})
 
 
 @app.route('/api/ai/generate', methods=['POST'])
@@ -1106,15 +1175,12 @@ def ai_generate_face():
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
 
-    # Validate provider and check if API key is available
-    if provider == 'anthropic':
-        if not anthropic_client:
-            return jsonify({"error": "Anthropic API key not set in .env file (ANTHROPIC_API_KEY)"}), 500
-    elif provider == 'gemini':
-        if not gemini_client:
-            return jsonify({"error": "Gemini API key not set in .env file (GEMINI_API_KEY)"}), 500
-    else:
+    # Validate the provider, then make sure it has a key to work with.
+    if provider not in ai_keys.PROVIDERS:
         return jsonify({"error": f"Invalid provider '{provider}'. Use 'anthropic' or 'gemini'"}), 400
+    missing = _missing_key_response(provider)
+    if missing:
+        return missing
 
     # Build user content with current state if available
     user_content = prompt
@@ -1204,7 +1270,7 @@ def ai_generate_face():
                 request_kwargs["thinking"] = {"type": "adaptive"}
                 request_kwargs["output_config"] = {"effort": "low"}
 
-            response = anthropic_client.messages.create(**request_kwargs)
+            response = ai_keys.anthropic_client().messages.create(**request_kwargs)
 
             if getattr(response, 'stop_reason', None) == 'refusal':
                 return jsonify({
@@ -1241,7 +1307,7 @@ def ai_generate_face():
             full_prompt += f"User: {user_content}\n\nAssistant: "
             
             # Generate response (use specified model or default)
-            gemini_model = genai.GenerativeModel(model) if model else gemini_client
+            gemini_model = ai_keys.gemini_model(model or DEFAULT_GEMINI_MODEL)
             if image_payloads:
                 parts = [full_prompt]
                 parts.extend({"mime_type": payload["mime_type"], "data": payload["raw_bytes"]} for payload in image_payloads)
@@ -1284,6 +1350,9 @@ def ai_generate_face():
             "provider": provider,
         }), 500
     except Exception as e:
+        rejected = _rejected_key_response(provider, e)
+        if rejected:
+            return rejected
         error_msg = f"{provider.capitalize()} API error: {str(e)}"
         print(f"[AI Error - {provider}] {error_msg}")
         import traceback
@@ -1327,12 +1396,11 @@ def ai_variants():
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
-    if provider == 'anthropic' and not anthropic_client:
-        return jsonify({"error": "Anthropic API key not set in .env file (ANTHROPIC_API_KEY)"}), 500
-    if provider == 'gemini' and not gemini_client:
-        return jsonify({"error": "Gemini API key not set in .env file (GEMINI_API_KEY)"}), 500
-    if provider not in ('anthropic', 'gemini'):
+    if provider not in ai_keys.PROVIDERS:
         return jsonify({"error": f"Invalid provider '{provider}'. Use 'anthropic' or 'gemini'"}), 400
+    missing = _missing_key_response(provider)
+    if missing:
+        return missing
 
     user_content = (
         f"Description of the person:\n{prompt or 'See the attached reference images.'}\n\n"
@@ -1392,7 +1460,7 @@ def ai_variants():
                 request_kwargs["thinking"] = {"type": "adaptive"}
                 request_kwargs["output_config"] = {"effort": "low"}
 
-            response = anthropic_client.messages.create(**request_kwargs)
+            response = ai_keys.anthropic_client().messages.create(**request_kwargs)
 
             if getattr(response, 'stop_reason', None) == 'refusal':
                 return jsonify({
@@ -1409,7 +1477,7 @@ def ai_variants():
 
         else:
             full_prompt = f"{AI_VARIANTS_PROMPT}\n\nUser: {user_content}\n\nAssistant: "
-            gemini_model = genai.GenerativeModel(model) if model else gemini_client
+            gemini_model = ai_keys.gemini_model(model or DEFAULT_GEMINI_MODEL)
             if image_payloads:
                 parts = [full_prompt]
                 parts.extend({"mime_type": p["mime_type"], "data": p["raw_bytes"]} for p in image_payloads)
@@ -1481,6 +1549,9 @@ def ai_variants():
         print(f"[AI Variants - JSON] {e}")
         return jsonify({"error": f"AI returned invalid JSON: {e}", "rawResponse": ai_text, "provider": provider}), 500
     except Exception as e:
+        rejected = _rejected_key_response(provider, e)
+        if rejected:
+            return rejected
         print(f"[AI Variants - {provider}] {e}")
         import traceback
         traceback.print_exc()
@@ -1613,7 +1684,9 @@ if __name__ == '__main__':
     print("  REface ID — Backend Server")
     print(f"  Blender: {'Found at ' + BLENDER_PATH if BLENDER_PATH else 'NOT FOUND'}")
     print(f"  AI Provider: {DEFAULT_AI_PROVIDER.upper()}")
-    print(f"  - Anthropic: {'✓ Ready' if anthropic_client else '✗ No API key'}")
-    print(f"  - Gemini: {'✓ Ready' if gemini_client else '✗ No API key'}")
+    for _p, _info in ai_keys.status().items():
+        _state = (f"✓ Ready (key from {_info['source']})" if _info['available']
+                  else '✗ No API key — enter one in the app')
+        print(f"  - {_info['label']}: {_state}")
     print("=" * 60)
     app.run(host='127.0.0.1', port=5001, debug=False)

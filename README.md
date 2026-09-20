@@ -350,12 +350,21 @@ pip install -r backend/requirements.txt
 
 Configuration is optional. Every control is editable by hand without a key.
 
+**The API key is asked for in the app**, the first time an AI feature is used —
+a dialog takes the key, checks it against the provider, and stores it in the
+user data directory beside the case database. Nothing about it is baked into a
+build, so a compiled copy is configured once per machine by the person running
+it, and the key button in the assist panel replaces or removes it later.
+
+A `.env` is still read, as a convenience for working on the source. A key
+entered in the app takes precedence over one in the environment.
+
 ```bash
 cp .env.example .env
 ```
 
 ```ini
-ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_API_KEY=sk-ant-...   # optional — the app will ask if this is unset
 GEMINI_API_KEY=...
 AI_PROVIDER=anthropic          # anthropic | gemini
 ANTHROPIC_MODEL=claude-opus-5  # fallback when a request names no model

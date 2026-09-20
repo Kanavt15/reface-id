@@ -212,6 +212,62 @@
 
 .k-modal-foot .k-spacer { margin-right: auto; }
 
+/* ══ Provider key sheet ══════════════════════════════════════════════════
+   Narrower than the picker. It asks for one thing, and it turns up in front
+   of an operator who was in the middle of something else. */
+
+.k-modal-box.k-modal-slim { width: min(460px, 100%); }
+
+.ai-key-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: var(--s-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--t-mute);
+}
+
+/* Monospaced: a key is read character by character when it is checked
+   against the one on the provider's console. */
+.ai-key-input {
+  font-family: var(--f-num);
+  font-size: var(--s-sm);
+  letter-spacing: 0.02em;
+}
+
+.ai-key-reveal { margin-top: 9px; }
+
+.ai-key-saved {
+  margin-top: 11px;
+  font-size: var(--s-sm);
+  color: var(--t-lo);
+}
+
+.ai-key-status {
+  margin-top: 9px;
+  min-height: 16px;
+  font-size: var(--s-sm);
+  color: var(--t-mute);
+}
+
+.ai-key-status.is-error { color: var(--rec); }
+
+.ai-key-source {
+  margin-top: 14px;
+  padding-top: 11px;
+  border-top: 1px solid var(--k-hair);
+  font-size: var(--s-sm);
+  color: var(--t-mute);
+}
+
+.ai-key-link {
+  color: var(--sig);
+  cursor: pointer;
+  word-break: break-all;
+}
+
+.ai-key-link:hover { color: var(--sig-hi); text-decoration: underline; }
+
 /* ══ Variant picker ══════════════════════════════════════════════════════
    A grid of candidate faces. Larger tiles than a style card because the
    operator is comparing likenesses, not picking an icon. */

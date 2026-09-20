@@ -919,6 +919,31 @@ ${SPRITE}
   </div>
 </div>
 
+<!-- AI provider key. Asked for the first time an AI feature is used, and
+     reopened from the key button in the assist panel. -->
+<div class="k-modal" id="aiKeyModal">
+  <div class="k-modal-box k-modal-slim">
+    <div class="k-modal-head">
+      <span class="k-modal-title" id="aiKeyTitle">API key</span>
+      <button type="button" class="k-ibtn" id="aiKeyCloseBtn">${icon('close')}</button>
+    </div>
+    <div class="k-modal-note" id="aiKeyNote">The AI features need a provider API key.</div>
+    <div class="k-modal-body">
+      <label class="ai-key-label" for="aiKeyInput">Key</label>
+      <input type="password" class="k-input ai-key-input" id="aiKeyInput" placeholder="Paste the key" autocomplete="off" spellcheck="false" />
+      <label class="ai-checkbox-label ai-key-reveal"><input type="checkbox" id="aiKeyReveal" /><span>Show key</span></label>
+      <div class="ai-key-saved rf-hidden" id="aiKeySaved"></div>
+      <div class="ai-key-status" id="aiKeyStatus"></div>
+      <div class="ai-key-source">Keys are issued at <span class="ai-key-link" id="aiKeyConsoleLink"></span></div>
+    </div>
+    <div class="k-modal-foot">
+      <button type="button" class="btn k-btn-danger k-spacer rf-hidden" id="aiKeyRemoveBtn">Remove saved key</button>
+      <button type="button" class="btn" id="aiKeyCancelBtn">Cancel</button>
+      <button type="button" class="btn k-btn-primary" id="aiKeySaveBtn">Save key</button>
+    </div>
+  </div>
+</div>
+
 <!-- Beard defaults -->
 <div class="k-modal" id="beardDefaultsModal">
   <div class="k-modal-box">
@@ -996,6 +1021,7 @@ ${SPRITE}
 <script src="js/SnapshotManager.js"></script>
 <script src="js/UIController.js"></script>
 <script src="js/BackendAPI.js"></script>
+<script src="js/ApiKeyGate.js"></script>
 <script src="js/CaseManager.js"></script>
 <script src="js/AIController.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>

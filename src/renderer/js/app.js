@@ -304,6 +304,13 @@
     // a ReferenceError that takes the rest of app.js down with it.
     window.rfApp = { ui, api, caseManager, sceneManager, snapshotManager };
 
+    // ── AI provider keys ──
+    // Built before the AI controller: every AI feature asks this for a key
+    // before it calls the backend, and it is what puts the key dialog up.
+    const apiKeys = new ApiKeyGate(api);
+    apiKeys.init();
+    ui.apiKeys = apiKeys;
+
     // ── Initialize AI Controller ──
     console.log('[App] Initializing AI Controller...');
     const aiController = new AIController(api, activeMorpher, hairSystem, caseManager, ui);
@@ -316,6 +323,7 @@
     aiController.scene = sceneManager;  // set scene reference for lip color
     aiController.skinMarkSystem = skinMarkSystem;  // set skin mark system reference
     aiController.markPositionMapper = new MarkPositionMapper(activeMorpher);  // set mark position mapper
+    aiController.keys = apiKeys;  // set before init(): the model picker reads it
     aiController.init();
     ui.aiController = aiController;  // expose for quick prompts etc.
     console.log('[App] AI Controller initialized');
