@@ -1,32 +1,4 @@
-"""
-ai_keys.py — the API keys an operator enters in the app, and the clients
-built from them.
-
-Keys used to arrive only through a .env file sitting beside the source. An
-installed build has no such file and no shell to create one, so every AI
-feature died the moment the app was compiled — and the only fix was to edit
-.env and compile again. Keys are therefore entered in the app and kept here,
-in the same user-data directory as reface.db: the one path that survives a
-reinstall and means the same thing for `npm start` as for a packaged build.
-
-Design notes:
-
-  * A key saved through the app outranks the environment. The app's dialog is
-    the only control an operator can see, so a key saved there must be the one
-    that takes effect — otherwise changing it would appear to do nothing.
-
-  * Clients are cached against the key that built them, so a key replaced
-    mid-session takes effect on the very next request with no restart, while
-    an unchanged key does not pay for a fresh client on every call.
-
-  * A key is verified against the provider before it is written. A typo that
-    is only discovered on the next face generation is a typo the operator has
-    no way to attribute to the key.
-
-  * The file is written 0600 with the key in clear — the same exposure as the
-    .env it replaces. Anything stronger needs an OS keychain, which this
-    process does not have.
-"""
+"""Stores the AI provider keys the operator enters in the app (in the user-data folder) and builds the API clients from them."""
 
 import os
 import json
@@ -42,8 +14,7 @@ import db
 
 # ─── Providers ────────────────────────────────────────────────────────────────
 
-# `console` is shown in the key dialog — an operator who has no key needs to be
-# told where keys come from, not just that one is missing.
+# `console` is the provider's key page, shown in the key dialog.
 PROVIDERS = {
     'anthropic': {
         'label': 'Claude',
@@ -65,9 +36,7 @@ PROVIDERS = {
     },
 }
 
-# Groq serves an OpenAI-shaped API and needs no SDK of its own; one POST per
-# completion through requests keeps the backend's dependency list short, which
-# is what a packaged build has to carry.
+# Groq has an OpenAI-style API, so plain requests calls are enough and no extra SDK is needed.
 GROQ_BASE_URL = 'https://api.groq.com/openai/v1'
 
 
@@ -76,7 +45,7 @@ class UnknownProvider(ValueError):
 
 
 def normalize(provider: str) -> str:
-    """Lower-case and verify a provider name, raising UnknownProvider if bogus."""
+    """Lower-cases and checks a provider name, raising UnknownProvider if it isn't known."""
     provider = (provider or '').lower().strip()
     if provider not in PROVIDERS:
         raise UnknownProvider(
@@ -89,8 +58,7 @@ def normalize(provider: str) -> str:
 
 _STORE_PATH: Path = db.DATA_DIR / 'ai_keys.json'
 
-# Every mutation goes through this: Flask serves on multiple threads, and two
-# saves landing together must not interleave a read-modify-write of the file.
+# Flask runs on several threads, so every change to the key file goes through this lock.
 _lock = threading.Lock()
 
 _saved = None          # provider -> key, mirror of the file; None until first read
@@ -98,6 +66,7 @@ _clients = {}          # provider -> (key, client), so a rebuild is only paid on
 
 
 def _load() -> dict:
+    """Reads the saved keys file once and caches it, ignoring a corrupt file."""
     global _saved
     if _saved is not None:
         return _saved
@@ -111,8 +80,7 @@ def _load() -> dict:
     except FileNotFoundError:
         _saved = {}
     except (OSError, ValueError) as e:
-        # A corrupt store must not take the backend down — the operator can
-        # always re-enter the key, and everything else in the app still works.
+        # A corrupt key file shouldn't stop the backend; the operator can re-enter the key.
         print(f"[AI keys] Ignoring unreadable {_STORE_PATH}: {e}")
         _saved = {}
 
@@ -120,6 +88,7 @@ def _load() -> dict:
 
 
 def _write(keys: dict) -> None:
+    """Writes the keys file safely: to a temp file first, owner-only permissions where possible, then swapped in."""
     db.DATA_DIR.mkdir(parents=True, exist_ok=True)
     tmp = _STORE_PATH.with_name(_STORE_PATH.name + '.tmp')
     tmp.write_text(json.dumps(keys, indent=2), encoding='utf-8')
@@ -127,13 +96,12 @@ def _write(keys: dict) -> None:
         os.chmod(tmp, 0o600)
     except OSError:
         pass  # Windows ACLs; the file is under the user's own profile either way
-    # Replace rather than truncate-and-write: a crash mid-save cannot leave a
-    # half-written key behind.
+    # Swap in the new file so a crash can't leave a half-written key.
     tmp.replace(_STORE_PATH)
 
 
 def get(provider: str):
-    """The key in force for a provider, or None. Saved keys beat the environment."""
+    """Returns the key in use for a provider, or None; a saved key beats the environment."""
     provider = normalize(provider)
     saved = _load().get(provider)
     if saved:
@@ -143,7 +111,7 @@ def get(provider: str):
 
 
 def source(provider: str):
-    """Where the key in force came from: 'saved', 'env', or None."""
+    """Says where the key in use came from: 'saved', 'env' or None."""
     provider = normalize(provider)
     if _load().get(provider):
         return 'saved'
@@ -153,7 +121,7 @@ def source(provider: str):
 
 
 def hint(provider: str):
-    """A masked tail of the key in force, for the UI. Never the key itself."""
+    """Returns the last few characters of the key for display, never the whole key."""
     key = get(provider)
     if not key:
         return None
@@ -162,7 +130,7 @@ def hint(provider: str):
 
 
 def status() -> dict:
-    """Per-provider availability, for /api/ai/providers and the key dialog."""
+    """Returns each provider's key status for the app."""
     return {
         provider: {
             'label': meta['label'],
@@ -178,7 +146,7 @@ def status() -> dict:
 
 
 def save(provider: str, key: str) -> None:
-    """Persist a key. Caller is expected to have run validate() first."""
+    """Saves a key; call validate() first."""
     provider = normalize(provider)
     key = (key or '').strip()
     if not key:
@@ -194,7 +162,7 @@ def save(provider: str, key: str) -> None:
 
 
 def clear(provider: str) -> None:
-    """Forget the saved key. An environment key, if any, takes over again."""
+    """Forgets the saved key, so any environment key takes over again."""
     provider = normalize(provider)
     with _lock:
         keys = dict(_load())
@@ -209,7 +177,7 @@ def clear(provider: str) -> None:
 # ─── Clients ──────────────────────────────────────────────────────────────────
 
 def anthropic_client():
-    """A client for the current Anthropic key, or None when no key is set."""
+    """Returns an Anthropic client for the current key, or None if there is no key."""
     key = get('anthropic')
     if not key:
         return None
@@ -229,7 +197,7 @@ def anthropic_client():
 
 
 def groq_headers():
-    """Authorization for a Groq call, or None when no key is set."""
+    """Returns the auth headers for a Groq call, or None if there is no key."""
     key = get('groq')
     if not key:
         return None
@@ -237,13 +205,7 @@ def groq_headers():
 
 
 def gemini_model(model_name: str):
-    """
-    A Gemini model handle for the current key, or None when no key is set.
-
-    genai keeps its credentials in module-level state, so the key is applied
-    on every call rather than once at import — that is what lets a key changed
-    in the app take effect without restarting the backend.
-    """
+    """Returns a Gemini model for the current key, or None; the key is applied on every call so a new key works without a restart."""
     key = get('gemini')
     if not key:
         return None
@@ -259,13 +221,7 @@ def gemini_model(model_name: str):
 # ─── Verification ─────────────────────────────────────────────────────────────
 
 def validate(provider: str, key: str):
-    """
-    Check a key against the provider before it is saved.
-
-    Returns None when the key works, or an operator-readable reason when it
-    does not. Both probes are metadata listings — no tokens are generated and
-    nothing is billed.
-    """
+    """Checks a key with the provider before saving it; returns None if it works, or a readable reason if not (no tokens are used)."""
     provider = normalize(provider)
     key = (key or '').strip()
     if not key:
@@ -304,15 +260,7 @@ def validate(provider: str, key: str):
 
 
 def is_auth_error(exc: BaseException) -> bool:
-    """
-    Whether a failed AI call failed because of the key.
-
-    A key can stop working long after it was verified — revoked, rotated, or
-    out of credit — and when it does the operator should be asked for a new
-    one rather than shown a raw SDK traceback. Anthropic raises a typed error;
-    Gemini reports the same condition as a generic exception, so its wording
-    is all there is to match on.
-    """
+    """Tells whether a failed AI call failed because of the key, so the app can ask for a new one."""
     if isinstance(exc, (anthropic.AuthenticationError, anthropic.PermissionDeniedError)):
         return True
     text = str(exc).lower()

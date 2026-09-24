@@ -1,47 +1,17 @@
-/**
- * BandanaSystem.js – GLB-based paisley bandana worn over the lower face.
- *
- * Fits the wrap to the live post-morph head: width comes from the measured
- * skull, the top edge rides the nose bridge and the front clears the nose tip,
- * so the bandana tracks faceWidth / jawWidth / noseSize instead of sitting at a
- * fixed offset. Mirrors GlassesSystem and FaceMaskSystem — HeadTracker
- * reparents bandanaGroup into the pivot group, so head tracking needs no extra
- * wiring.
- *
- * Model-space notes for assets/accessories/bandana_mask.glb:
- *   - One mesh, 360 verts, and 3MB of embedded textures. Almost all of the
- *     look lives in those textures, so unlike the mask OBJs this cannot be
- *     rendered as a flat colour. GLBLoader drops materials and never touches
- *     the image bufferViews, so _loadEmbeddedTextures decodes them here.
- *   - Already Y-up with +Z forward, matching the scene: its two ancestor
- *     rotations (-90 then +90 about X) cancel to identity. No axis fix.
- *   - The geometry is a closed loop that encircles the head, with the folded
- *     triangle hanging at the front and two knot tails trailing at the back.
- *     That is why it is not a FaceMaskSystem style: that system fits a flat
- *     panel from its bounding box, and 2.0 of this model's 2.0-deep box is
- *     back tails, which would throw its depth placement badly off.
- */
+// Fits a paisley bandana around the lower face, sized from the measured skull, nose and chin so it follows face changes.
 
-// ── Asset path constants ────────────────────────────────────────────────────
-// Update this path if the GLB is moved.
+// Bandana model path; update this if the file moves.
 const BANDANA_MODEL_PATH = '../../assets/accessories/bandana_mask.glb';
 
 class BandanaSystem {
-  /**
-   * Neutral slider values. Every key here is a valid `setParam` target.
-   */
+  // Neutral slider values.
   static get BASE_PARAMS() {
     return {
       scale: 100,  // 50..200  — uniform fit
       width: 100,  // 50..150  — X-only, how tightly the loop hugs the skull
-      // Z-only. The front face stays put when this changes: the depth solve
-      // pins the cloth to the same clearance over the binding contact point
-      // regardless of scaleZ, so this pulls the back of the loop and the knot
-      // in toward the skull without disturbing the view from the front.
+      // Depth only pulls the back of the loop and the knot in; the front stays where it is.
       depth: 100,  // 40..150
-      // Bends the lower cloth forward, off the neck, tapering to nothing at
-      // mid-height so the part already fitted over the nose and mouth does not
-      // move. A transform cannot do this — it would carry the whole piece.
+      // Bends the lower cloth forward off the neck without moving the part over the nose and mouth.
       hemFlare: 0, // -30..100
       posX: 0,     // -100..+100 — horizontal shift
       posY: 0,     // -100..+100 — vertical placement
@@ -55,8 +25,7 @@ class BandanaSystem {
   constructor(scene) {
     this.scene = scene;
 
-    // Scene group — HeadTracker.js looks for this.bandanaGroup by name to
-    // reparent into the head-tracking pivot, matching GlassesSystem.
+    // HeadTracker looks for this.bandanaGroup by name to move it into the tracking pivot.
     this.bandanaGroup = new THREE.Group();
     this.bandanaGroup.name = 'BandanaSystem';
     this.scene.add(this.bandanaGroup);
@@ -70,8 +39,7 @@ class BandanaSystem {
     // State
     this.enabled = false;
     this.currentStyle = 'paisley';
-    // Multiplied over the base colour texture, so white leaves the artwork
-    // untouched and anything else dyes the cloth.
+    // Multiplied over the print, so white leaves it unchanged.
     this.tint = '#ffffff';
     this.opacity = 100;
 
@@ -81,8 +49,7 @@ class BandanaSystem {
       paisley: {
         file: BANDANA_MODEL_PATH,
         label: 'Paisley',
-        // Hand-tuned against the stock head, same role as FaceMaskSystem's
-        // per-style defaults.
+        // Hand-tuned against the stock head.
         defaults: {
           scale: 105, width: 84, depth: 74, hemFlare: 100,
           posX: 0, posY: 0, posZ: -38,
@@ -101,14 +68,12 @@ class BandanaSystem {
     this._container = null;
     this._fitCache = null;
 
-    // Baselines captured on first refresh so the fit degrades gracefully if a
-    // landmark stops resolving mid-session.
+    // Starting bridge position, used as a fallback if the landmark stops resolving.
     this._initialBridge = null;
     this._initialChin = null;
     this._initialHeadWidth = null;
 
-    // Material. The map is attached once the GLB's textures decode; until then
-    // it renders as plain cloth rather than failing.
+    // Plain cloth until the model's own textures finish decoding.
     this._mat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(this.tint),
       roughness: 0.85,
@@ -121,9 +86,7 @@ class BandanaSystem {
     console.log('[BandanaSystem] Initialized');
   }
 
-  /**
-   * Full default state for a style, ready to hand to loadState().
-   */
+  // Returns a style's full default state.
   getStyleDefaults(style) {
     const name = this.bandanaModels[style] ? style : 'paisley';
     const d = this.bandanaModels[name].defaults || {};
@@ -139,6 +102,7 @@ class BandanaSystem {
 
   // ── Head binding ────────────────────────────────────────────────────────
 
+  // Connects the bandana to the head mesh and morpher.
   setHeadMesh(headGroup, regionData, morpher) {
     this._headGroup = headGroup;
     this._regionData = regionData;
@@ -149,6 +113,7 @@ class BandanaSystem {
     this._captureBaselines();
   }
 
+  // Records the starting bridge position and face measurements.
   _captureBaselines() {
     if (!this._morpher || typeof this._morpher.getCurrentLandmarkPosition !== 'function') return;
     const b = this._morpher.getCurrentLandmarkPosition('nose_bridge');
@@ -160,19 +125,7 @@ class BandanaSystem {
     }
   }
 
-  /**
-   * Measure the head directly: skull width, the true chin, and the nose tip.
-   *
-   * Two reasons this does not just read OBJMorpher.LANDMARKS. The `chin` entry
-   * resolves to y = -0.606 on head.glb while the mesh's actual chin is at
-   * -0.859 — a quarter of a unit high, which ends the drape above the mouth
-   * and leaves the jaw bare. And the bandana encircles the whole head, so the
-   * jaw-angle span FaceMaskSystem uses to size a flat panel is too narrow: the
-   * loop has to clear the cheekbones and the back of the skull.
-   *
-   * `loY`/`hiY` bound the band the width is taken from; the chin and nose tip
-   * are always measured over the whole head.
-   */
+  // Measures the skull width, the real chin and the nose tip from the mesh, since the landmark table's chin is too high.
   _measureFace(loY, hiY) {
     const group = this._headGroup;
     if (!group) return null;
@@ -183,8 +136,7 @@ class BandanaSystem {
     let seen = 0;
     const v = new THREE.Vector3();
 
-    // Front-surface profile: how far forward the face reaches at each height.
-    // Used to push the cloth clear of the chin and lips — see _frontClearance.
+    // How far forward the face reaches at each height, used to keep the cloth off the chin and lips.
     const BANDS = BandanaSystem.PROFILE_BANDS;
     const pLo = loY !== undefined ? loY : -1.2;
     const pHi = hiY !== undefined ? hiY : 0.6;
@@ -203,14 +155,11 @@ class BandanaSystem {
           const ax = Math.abs(v.x);
           if (ax > maxAbsX) maxAbsX = ax;
         }
-        // Chin: the lowest point that is still well forward, so the neck and
-        // the back of the head cannot win.
+        // The chin is the lowest point that is still well forward.
         if (v.z > 0.6 && v.y < chinY) chinY = v.y;
         if (v.z > noseTipZ) { noseTipZ = v.z; noseTipY = v.y; }
 
-        // Only the front half matters, and only near the midline: the cloth
-        // spans across the face, so a cheekbone out at the side should not
-        // decide how far forward it sits.
+        // Only the front, near the midline, decides how far forward the cloth sits.
         if (v.z > 0 && Math.abs(v.x) < BandanaSystem.PROFILE_HALF_WIDTH && pSpan > 1e-6) {
           const b = Math.floor((v.y - pLo) / pSpan * BANDS);
           if (b >= 0 && b < BANDS && v.z > profile[b]) profile[b] = v.z;
@@ -228,45 +177,16 @@ class BandanaSystem {
     };
   }
 
-  /** Number of height bands used for both front-surface profiles. */
+  // Number of height bands used for the front-surface profiles.
   static get PROFILE_BANDS() { return 24; }
 
-  /**
-   * Half-width of the midline strip both front profiles are sampled over.
-   *
-   * Both sides must use the same strip in world units. Sampling the cloth
-   * wider than the face pulls its profile down — out at the cheeks the wrap
-   * has already curved backwards — which reads as a collision and pushes the
-   * whole bandana forward off the face.
-   */
+  // Half-width of the strip down the middle of the face that both profiles are sampled over.
   static get PROFILE_HALF_WIDTH() { return 0.35; }
 
-  /**
-   * The cloth's half of that strip, as a fraction of model width.
-   *
-   * Expressed in model space rather than world so the set of vertices tested
-   * never changes with scale. 0.21 of this model's width lands on roughly the
-   * same real-world strip as PROFILE_HALF_WIDTH at the tuned fit.
-   */
+  // The cloth's share of that strip, as a fraction of model width, so the tested vertices never change with scale.
   static get PROFILE_MODEL_FRACTION() { return 0.21; }
 
-  /**
-   * Bend the bottom of the cloth forward, off the neck.
-   *
-   * The model's triangle hangs almost straight down, so once the wrap is
-   * fitted the point buries itself in the throat. Rotating or shifting the
-   * whole piece would drag the nose and mouth coverage with it, so this shears
-   * the geometry instead: every vertex below the halfway line moves forward in
-   * proportion to how far down it is, which leaves the fitted upper half
-   * untouched and lets the hem stand off like real cloth.
-   *
-   * Runs on each fit, which is free here — the mesh is 360 vertices.
-   *
-   * Normals are corrected analytically rather than recomputed. The shear
-   * z' = z + k(p - y) has a constant Jacobian in the affected region, so the
-   * inverse transpose is just n_y += k * n_z. That keeps the authored smooth
-   * normals intact instead of replacing them with averaged face normals.
-   */
+  // Bends the bottom of the cloth forward off the neck, leaving the fitted upper half untouched.
   _applyHemFlare(offsetGroup, minY, pivotY) {
     const amount = (this.params.hemFlare || 0) / 100 * BandanaSystem.HEM_FLARE_RANGE;
     const drop = pivotY - minY;
@@ -306,39 +226,16 @@ class BandanaSystem {
     });
   }
 
-  /** Model-space Z the hem moves at hemFlare = 100. */
+  // How far the hem moves forward at full flare, in model units.
   static get HEM_FLARE_RANGE() { return 0.35; }
 
-  /**
-   * How far forward the cloth has to sit to stay off the face.
-   *
-   * Aligning the model's foremost point to the nose tip is not enough: the
-   * model's surface falls away going down faster than this head's does, so the
-   * lips and chin punch straight through and the render shows bare skin in an
-   * arch over the mouth. Comparing the two front profiles band by band and
-   * taking the worst case pushes the cloth just clear everywhere, and keeps
-   * doing so when a morph changes the jaw.
-   *
-   * Returns the container Z that satisfies every band.
-   */
+  // Works out how far forward the cloth must sit so no part of the face pokes through.
   _frontClearance(offsetGroup, headProfile, pLo, pHi, modelHalfWidth, scaleY, scaleZ, centreY, clearance) {
     const BANDS = BandanaSystem.PROFILE_BANDS;
     const headSpan = pHi - pLo;
     if (!(headSpan > 1e-6) || !(scaleY > 1e-9)) return -Infinity;
 
-    // Build the cloth's profile in the head's own world bands, so the two are
-    // directly comparable. Cheap: this mesh is a few hundred vertices, and it
-    // has to happen here rather than in the fit cache because the midline
-    // strip is only meaningful once the scale is known.
-    // Read the head's profile at any height, interpolating between band
-    // centres.
-    //
-    // Binning the *cloth* into these same bands is what made scale jitter the
-    // depth: as scaleY changes, vertices migrate across band boundaries, the
-    // winning band flips, and the solved Z lurches by over 0.1 for a one-unit
-    // scale step — non-monotonically, so it looked random. Testing each vertex
-    // against an interpolated head height instead keeps the constraint set
-    // fixed and every term continuous, so the result moves smoothly.
+    // Compare each cloth vertex with the head's height-interpolated profile, so the result changes smoothly with scale.
     const headZAt = (y) => {
       const f = (y - pLo) / headSpan * BANDS - 0.5;   // band centres sit at i+0.5
       const i0 = Math.floor(f);
@@ -349,11 +246,7 @@ class BandanaSystem {
       return a + (b - a) * (f - i0);
     };
 
-    // Sampled from the pristine baseline, not the live attribute, so the hem
-    // flare cannot feed back into the depth solve. Otherwise flaring the hem
-    // would relieve whichever point was binding and let the whole bandana
-    // slide back toward the face — moving the nose and mouth fit the flare is
-    // supposed to leave alone.
+    // Use the untouched mesh so the hem flare can't change the depth fit.
     let need = -Infinity;
     offsetGroup.traverse(m => {
       if (!m.isMesh) return;
@@ -364,9 +257,7 @@ class BandanaSystem {
         const y = base ? base[i * 3 + 1] : pos.getY(i);
         const z = base ? base[i * 3 + 2] : pos.getZ(i);
         if (z <= 0) continue;
-        // Model-space, deliberately: testing the scaled X would let vertices
-        // drift out of the strip as the piece grows, dropping whichever one
-        // was binding and lurching the depth. A fixed set keeps it continuous.
+        // Test in model space so the set of vertices checked stays fixed as the piece grows.
         if (Math.abs(x) > modelHalfWidth) continue;
         const headZ = headZAt(centreY + y * scaleY);
         if (!isFinite(headZ)) continue;
@@ -377,9 +268,7 @@ class BandanaSystem {
     return need;
   }
 
-  /**
-   * Called by app.js on every morph update so the wrap tracks facial changes.
-   */
+  // Refits the bandana after every face change.
   refreshFromMesh(morphValues) {
     if (morphValues) this._faceMorphValues = morphValues;
     if (this._container && this.enabled) {
@@ -389,6 +278,7 @@ class BandanaSystem {
 
   // ── Public API ──────────────────────────────────────────────────────────
 
+  // Shows or hides the bandana, loading it on first use.
   setEnabled(enabled) {
     this.enabled = !!enabled;
     if (this.enabled) {
@@ -403,6 +293,7 @@ class BandanaSystem {
     }
   }
 
+  // Switches to another bandana style and applies its tuned defaults.
   setStyle(style) {
     const config = this.bandanaModels[style];
     if (!config) {
@@ -423,12 +314,13 @@ class BandanaSystem {
     if (this.enabled) this.generate();
   }
 
-  /** Multiplied over the base colour texture; white leaves the print as authored. */
+  // Tints the print; white leaves it as designed.
   setTint(hex) {
     this.tint = hex;
     this._mat.color.set(hex);
   }
 
+  // Sets the bandana's opacity.
   setOpacity(value) {
     this.opacity = Math.max(0, Math.min(100, value));
     const o = this.opacity / 100;
@@ -436,12 +328,14 @@ class BandanaSystem {
     this._mat.transparent = o < 0.999;
   }
 
+  // Sets one fit value and refits the bandana.
   setParam(param, value) {
     if (this.params[param] === undefined) return;
     this.params[param] = value;
     if (this._container && this.enabled) this._alignAndAdjust();
   }
 
+  // Returns the current bandana settings.
   getParams() {
     return {
       ...this.params,
@@ -452,19 +346,9 @@ class BandanaSystem {
     };
   }
 
-  // ── Texture decoding ────────────────────────────────────────────────────
+  // Texture decoding
 
-  /**
-   * Pull the base colour, normal and metallic-roughness maps out of the GLB.
-   *
-   * GLBLoader hands back geometry only: it ignores glTF materials and never
-   * looks at the image bufferViews. This asset is 360 vertices and 3MB of
-   * texture, so without this the bandana renders as a blank sheet and loses
-   * the entire paisley print.
-   *
-   * Applied asynchronously — the mesh shows in plain cloth for the frame or
-   * two the decode takes, rather than blocking the fit.
-   */
+  // Pulls the colour, normal and roughness textures out of the GLB, since the shared loader ignores them and the print would be lost.
   _loadEmbeddedTextures(buffer) {
     try {
       const dv = new DataView(buffer);
@@ -492,8 +376,7 @@ class BandanaSystem {
                               { type: img.mimeType || 'image/png' });
         return createImageBitmap(blob).then(bitmap => {
           const t = new THREE.Texture(bitmap);
-          // glTF UVs put the origin at the top-left, the opposite of three's
-          // default, so the flip has to be off or the print lands upside down.
+          // glTF UVs start at the top-left, so don't flip the texture.
           t.flipY = false;
           t.wrapS = THREE.RepeatWrapping;
           t.wrapT = THREE.RepeatWrapping;
@@ -508,8 +391,7 @@ class BandanaSystem {
         decode(imageIndexOf(pbr.baseColorTexture), true).then(t => {
           if (!t) return;
           this._mat.map = t;
-          // The texture carries the colour, so the material tint must start
-          // neutral or it would double-darken the print.
+          // The texture carries the colour, so reset the material tint to white.
           this._mat.needsUpdate = true;
         }),
         decode(imageIndexOf(material.normalTexture), false).then(t => {
@@ -519,8 +401,7 @@ class BandanaSystem {
         }),
         decode(imageIndexOf(pbr.metallicRoughnessTexture), false).then(t => {
           if (!t) return;
-          // glTF packs roughness in G and metalness in B of one image; three
-          // reads the right channel from each slot when both point at it.
+          // glTF packs roughness and metalness into one image; three reads each from the right channel.
           this._mat.roughnessMap = t;
           this._mat.metalnessMap = t;
           this._mat.roughness = 1.0;
@@ -535,13 +416,7 @@ class BandanaSystem {
     }
   }
 
-  /**
-   * Accumulate each mesh's world matrix down the glTF node tree.
-   *
-   * This asset's transforms live on ancestors, not on the mesh node, so a flat
-   * reader would miss them. They happen to cancel to identity here, but the
-   * walk keeps that a measured fact rather than an assumption.
-   */
+  // Collects each mesh's world transform by walking the glTF node tree.
   _readWorldTransforms(buffer) {
     try {
       const dv = new DataView(buffer);
@@ -595,6 +470,7 @@ class BandanaSystem {
 
   // ── Generation ──────────────────────────────────────────────────────────
 
+  // Loads the bandana model (or uses the cached one) and fits it to the face.
   generate() {
     this._clearGroup(this.bandanaGroup);
     this._container = null;
@@ -649,11 +525,12 @@ class BandanaSystem {
       .finally(() => this._loads.end());
   }
 
-  /** Resolves once no bandana model is mid-load. See AssetLoadTracker. */
+  // Resolves once the bandana model has finished loading.
   whenIdle() {
     return this._loads.whenIdle();
   }
 
+  // Places a cached bandana model in the scene with its own copy of the geometry.
   _showCached(style) {
     this._clearGroup(this.bandanaGroup);
     const cached = this._modelCache[style];
@@ -667,8 +544,7 @@ class BandanaSystem {
     cached.traverse(child => {
       if (!child.isMesh) return;
       const mesh = child.clone();
-      // The hem flare rewrites vertices, so this instance needs its own copy
-      // and a pristine baseline to re-derive from each time the slider moves.
+      // The hem flare rewrites vertices, so this copy needs its own geometry and an untouched baseline.
       mesh.geometry = child.geometry.clone();
       const pos = mesh.geometry.attributes.position;
       const nrm = mesh.geometry.attributes.normal;
@@ -689,6 +565,7 @@ class BandanaSystem {
     this._alignAndAdjust();
   }
 
+  // Fits the bandana to the skull, brow, nose and chin, then applies the user's settings.
   _alignAndAdjust() {
     if (!this._container || !this._headGroup) return;
 
@@ -696,8 +573,7 @@ class BandanaSystem {
     const offsetGroup = container.children[0];
     if (!offsetGroup) return;
 
-    // Measure the raw model once, with the container reset so the numbers are
-    // model-space rather than whatever the last fit left behind.
+    // Measure the raw model once, with the container reset.
     if (!this._fitCache) {
       container.scale.set(1, 1, 1);
       container.position.set(0, 0, 0);
@@ -724,10 +600,7 @@ class BandanaSystem {
 
     const { size, center, max } = this._fitCache;
 
-    // ── Live measurement of the current post-morph head ──
-    // The chin and nose tip come off the mesh; only the brow line still uses a
-    // landmark, because `nose_bridge` does land where it should and there is no
-    // clean geometric extremum for it.
+    // Chin and nose tip come from the mesh; only the brow line uses a landmark.
     let bridgeY = this._initialBridge ? this._initialBridge.y : null;
     if (this._morpher && typeof this._morpher.getCurrentLandmarkPosition === 'function') {
       const b = this._morpher.getCurrentLandmarkPosition('nose_bridge');
@@ -755,19 +628,10 @@ class BandanaSystem {
     if (noseTipZ === null) noseTipZ = 1.30;
     if (noseTipY === null) noseTipY = 0.02;
     if (!headWidth) headWidth = 1.77;
-    // Without a bridge landmark, put the brow line a fifth of the face above
-    // the nose tip, which is roughly where it sits on the stock head.
+    // Without a bridge landmark, place the brow line a fifth of the face above the nose tip.
     if (bridgeY === null) bridgeY = noseTipY + (noseTipY - chinY) * 0.20;
 
-    // ── Scale ──
-    // Width and height are fitted independently, as FaceMaskSystem does.
-    //
-    // The model's own proportions do not match this head: fitted uniformly to
-    // the skull it wraps correctly but its triangle hangs to the base of the
-    // neck, and fitted uniformly to the face it stops at the chin but bites
-    // into the cheeks. Horizontal follows the skull so the loop clears it, and
-    // vertical follows the brow-to-chin span so the point lands where a worn
-    // bandana would.
+    // Width follows the skull so the loop clears it, and height follows brow-to-chin so the point lands where a worn bandana would.
     const WRAP_SLACK = 1.06;
     const userScale = this.params.scale / 100;
     const userWidth = this.params.width / 100;
@@ -776,8 +640,7 @@ class BandanaSystem {
     const DEG = Math.PI / 180;
     const span = Math.max(0.05, bridgeY - chinY);
 
-    // Morph-driven refinement — measured deltas cover most of it, these sharpen
-    // the response during fast slider drags.
+    // Morph values fine-tune the fit during fast slider drags.
     const mv = this._faceMorphValues || (this._morpher ? this._morpher.morphValues : null) || {};
     const neutral = 50;
     const t = (key) => ((mv[key] ?? neutral) - neutral) / 50;   // -1..+1
@@ -797,35 +660,19 @@ class BandanaSystem {
 
     container.scale.set(scaleX, scaleY, scaleZ);
 
-    // ── Placement ──
-    // Anchor by the model's own edges rather than its bbox centre: the centre
-    // sits far back because the box includes the knot tails, so aligning the
-    // top edge to the brow and the front edge to the nose is what actually
-    // lands the cloth on the face.
+    // Place by the model's top and front edges, since its box centre sits far back because of the knot tails.
     const userPosX = this.params.posX * 0.01;
     const userPosY = this.params.posY * 0.01;
     const userPosZ = this.params.posZ * 0.01;
 
     const halfHeight = (size.y * scaleY) * 0.5;
-    // offsetGroup already recentred the geometry, so the container origin is
-    // the bbox centre; place that so the top edge lands on target.
+    // The container origin is the box centre, so place that so the top edge lands on target.
     const centreY = targetTopY - halfHeight;
 
-    // Depth: far enough forward that no part of the face pokes through.
-    // The nose-tip alignment is the floor; the profile sweep usually asks for
-    // more, because the chin and lips sit proud of where this model's surface
-    // would otherwise fall.
-    // Purely additive: the fit cache measures the pristine mesh and the depth
-    // solve samples the pristine baseline, so flaring the hem never rescales
-    // or repositions the piece — only the lower cloth moves.
-    // Vertices stay in raw model space — the recentring lives on
-    // offsetGroup.position — so the bounds passed here are model-space too.
+    // Push the cloth forward until no part of the face pokes through, then bend the hem.
     this._applyHemFlare(offsetGroup, this._fitCache.min.y, center.y);
 
-    // 0.075 rather than a hair's breadth: the profiles are sampled into 24
-    // bands, so the true worst contact usually falls between two band centres
-    // and the sweep under-reads it by ~0.04. Calibrated so the measured
-    // closest approach lands a little clear of the skin rather than on it.
+    // A small gap to cover contacts that fall between the sampled bands.
     const FACE_CLEARANCE = 0.075;
     const frontFromCentre = (max.z - center.z) * scaleZ;
     let centreZ = noseTipZ + FACE_CLEARANCE - frontFromCentre;
@@ -853,6 +700,7 @@ class BandanaSystem {
 
   // ── State / persistence ─────────────────────────────────────────────────
 
+  // Returns the bandana settings for saving.
   exportState() {
     return {
       ...this.params,
@@ -863,6 +711,7 @@ class BandanaSystem {
     };
   }
 
+  // Restores bandana settings from a saved case.
   loadState(state) {
     if (!state) return;
     if (state.style && this.bandanaModels[state.style]) this.currentStyle = state.style;
@@ -871,17 +720,13 @@ class BandanaSystem {
     for (const key of Object.keys(this.params)) {
       if (state[key] !== undefined) this.params[key] = state[key];
     }
-    // Force a clean rebuild so style/param changes from undo/redo are always
-    // reflected — setEnabled skips generate() when a container already exists.
+    // Force a clean rebuild so undo/redo always shows the restored state.
     this._container = null;
     this._fitCache = null;
     this.setEnabled(state.enabled === true);
   }
 
-  /**
-   * Apply AI-generated bandana block. Schema:
-   *   { enabled, style, tint, opacity }
-   */
+  // Applies bandana settings suggested by the AI.
   applyFromAI(data) {
     if (!data) return;
     if (data.style && this.bandanaModels[data.style]) this.setStyle(data.style);
@@ -890,36 +735,16 @@ class BandanaSystem {
     this.setEnabled(!!data.enabled);
   }
 
-  /**
-   * World-space transform of the container, for future Blender export
-   * pipelines that want to merge the bandana into the head mesh.
-   */
-  getRenderTransform() {
-    if (!this._container || !this.enabled) {
-      return { matrix: null, params: { ...this.params }, enabled: this.enabled };
-    }
-    const c = this._container;
-    const o = c.children[0];
-    c.updateWorldMatrix(true, false);
-    o?.updateWorldMatrix(true, false);
-    return {
-      matrix: Array.from((o ? o.matrixWorld : c.matrixWorld).elements),
-      params: { ...this.params },
-      enabled: this.enabled,
-      style: this.currentStyle,
-      tint: this.tint,
-      opacity: this.opacity,
-    };
-  }
-
   // ── Cleanup ────────────────────────────────────────────────────────────
 
+  // Removes every child from a group.
   _clearGroup(group) {
     while (group.children.length > 0) {
       group.remove(group.children[0]);
     }
   }
 
+  // Removes the bandana from the scene and frees its textures.
   dispose() {
     this._clearGroup(this.bandanaGroup);
     this.scene.remove(this.bandanaGroup);

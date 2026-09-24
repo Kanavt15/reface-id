@@ -1,17 +1,9 @@
-/** Reconstruct curved fibres from the imported cards, which remain style guides.
- * The small ribbons have their own tangent, diameter, pigment and tapered tips.
- * No rendered polygon spans the width of an original clump.
- */
+// Turns the imported hair cards into many thin curved strands for more realistic hair.
 class HairStrands {
-  // Extra shells of fibres drawn over the groom. Density above 100 switches
-  // them on one at a time, so this is what sets the density ceiling.
-  // Shells reuse the strand buffers, so each one costs draw time and no
-  // memory, and an unused shell costs neither: raising this only widens the
-  // runway, it does not make an ordinary head any more expensive to render.
+  // Maximum number of extra strand layers; density above 100 turns them on one at a time.
   static get MAX_LAYERS() { return 12; }
 
-  // Used by both visible and shadow passes so extra density casts matching
-  // shadows. Layer zero is the original groom, including its strand IDs.
+  // Shader code that offsets each extra layer, shared by the visible and shadow passes.
   static layerVertexGLSL() {
     return `
       attribute float aHairLayer;
@@ -32,6 +24,7 @@ class HairStrands {
     `;
   }
 
+  // Builds, and caches, the strand geometry for a hair or beard style.
   static build(geometries, style) {
     const cache = this._cache || (this._cache = new Map());
     const active = this._active || (this._active = {});
@@ -60,12 +53,12 @@ class HairStrands {
     return result;
   }
 
+  // Spreads strand roots across a solid surface mesh instead of following a card.
   static _surfaceGuides(g, span, random) {
     const pos = g.attributes.position, norm = g.attributes.normal, index = g.index;
     const guides = [];
     const p = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
-    // Beard 1 includes a continuous foundation, not a hair card. Distribute
-    // follicles over its surface rather than wrapping one tuft across it.
+    // Beard 1 has a solid base mesh, so spread roots across it.
     for (let t = 0; t < index.count; t += 3) {
       const ids = [index.getX(t), index.getX(t + 1), index.getX(t + 2)];
       ids.forEach((id, i) => p[i].fromBufferAttribute(pos, id));
@@ -99,6 +92,7 @@ class HairStrands {
     return guides;
   }
 
+  // Gives the strands matching shadow materials so the extra layers cast shadows too.
   static attachShadows(mesh, material) {
     const cache = this._shadows || (this._shadows = new WeakMap());
     if (!cache.has(material)) {
@@ -121,6 +115,7 @@ class HairStrands {
     mesh.customDepthMaterial = depth; mesh.customDistanceMaterial = distance;
   }
 
+  // Traces the centre line of each hair card to use as a guide for strands.
   static _guides(g) {
     const pos = g.attributes.position, uv = g.attributes.uv, index = g.index;
     const parent = Int32Array.from({ length: pos.count }, (_, i) => i);
@@ -143,8 +138,7 @@ class HairStrands {
       for (const i of ids) { minV = Math.min(minV, uv.getY(i)); maxV = Math.max(maxV, uv.getY(i)); }
       if (maxV - minV < 1e-6) continue;
       const rows = [];
-      // Intersections with iso-v planes recover the actual bends of a card.
-      // Sample within the boundary to avoid coincident-edge ambiguities.
+      // Slice each card along its length to follow its real bends.
       for (let row = 0; row <= 12; row++) {
         const v = minV + (maxV - minV) * (0.0001 + row / 12 * 0.9998);
         const hits = [];
@@ -167,6 +161,7 @@ class HairStrands {
     return guides;
   }
 
+  // Grows individual strands along the guides and builds their geometry.
   static _grow(source, guides, { span, coarse, random, totalWidth, budget }) {
     const positions = [], normals = [], tangents = [], uvs = [], fibres = [], widths = [], depths = [], indices = [];
     const sourceDepth = source.attributes.aStrandDepth;
@@ -224,8 +219,7 @@ class HairStrands {
             const q = p.clone().addScaledVector(across, side * thick * taper * 0.5);
             positions.push(q.x, q.y, q.z); normals.push(normal.x, normal.y, normal.z);
             tangents.push(tangent.x, tangent.y, tangent.z);
-            // Keep the style's generated pigment atlas; opacity is evaluated
-            // for this individual fibre, independently of the old card UVs.
+            // Keep the style's colour texture; each strand works out its own opacity.
             uvs.push(0.005 + id * 0.99, 0.002 + v * 0.996);
             fibres.push(side, v, id);
             widths.push(thick * taper * 0.5);
@@ -251,8 +245,7 @@ class HairStrands {
     geometry.setAttribute('aStrandDepth', new THREE.Float32BufferAttribute(depths, 1));
     geometry.setIndex(indices);
     geometry.userData = { ...source.userData, strandGeometryVersion: 3, strandCount, strandSourceVertexCount: source.attributes.position.count };
-    // Alignment uses the imported style's bounds, so shorter individual tips
-    // cannot shift or enlarge the entire hairstyle when it is regenerated.
+    // Keep the original style's bounds so regenerated strands don't shift or resize the hairstyle.
     geometry.boundingBox = source.boundingBox.clone();
     geometry.computeBoundingSphere();
     geometry.boundingSphere.radius += span * 0.015;

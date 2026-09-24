@@ -1,10 +1,4 @@
-/**
- * HeadTracker.js
- * Uses the webcam + MediaPipe Face Mesh to detect head pose (yaw/pitch)
- * and rotates the 3D model accordingly in the Three.js viewport.
- *
- * Requires MediaPipe Face Mesh CDN scripts loaded before this file.
- */
+// Uses the webcam to follow the user's head movement and turns the 3D head to match.
 
 class HeadTracker {
   constructor(sceneManager, hairSystem, eyeSystem, decalSystem, glassesSystem, faceMaskSystem, earringSystem, bandanaSystem, browPiercingSystem) {
@@ -49,9 +43,7 @@ class HeadTracker {
     this.previewContainer = null;
   }
 
-  /**
-   * Initialize the video element and MediaPipe Face Mesh
-   */
+  // Creates the hidden webcam video and sets up face detection.
   async init() {
     // Create hidden video element for webcam feed
     this.videoElement = document.createElement('video');
@@ -81,9 +73,7 @@ class HeadTracker {
     console.log('[HeadTracker] Initialized');
   }
 
-  /**
-   * Create the small webcam preview overlay
-   */
+  // Builds the small webcam preview shown in the corner.
   _createPreview() {
     this.previewContainer = document.createElement('div');
     this.previewContainer.id = 'head-tracker-preview';
@@ -140,9 +130,7 @@ class HeadTracker {
     document.body.appendChild(this.previewContainer);
   }
 
-  /**
-   * Start head tracking — requests webcam and begins detection loop
-   */
+  // Starts the webcam and head tracking.
   async start() {
     if (this.enabled) return;
 
@@ -181,10 +169,7 @@ class HeadTracker {
     }
   }
 
-  /**
-   * Create a pivot group and reparent head, hair, eyes, eyebrows, beard into it.
-   * This way rotating the pivot rotates everything together.
-   */
+  // Groups the head, hair, eyes and other face parts under one pivot so they turn together.
   _setupPivotGroup() {
     const scene = this.sceneManager.scene;
 
@@ -243,9 +228,7 @@ class HeadTracker {
     console.log(`[HeadTracker] Pivot group created with ${this.reparentedObjects.length} objects`);
   }
 
-  /**
-   * Tear down pivot group, reparent objects back to the scene
-   */
+  // Moves the face parts back out of the pivot group.
   _teardownPivotGroup() {
     if (!this.pivotGroup) return;
 
@@ -267,9 +250,7 @@ class HeadTracker {
     console.log('[HeadTracker] Pivot group removed');
   }
 
-  /**
-   * Stop head tracking, release webcam, restore model rotation
-   */
+  // Stops tracking, releases the webcam and puts the head back.
   stop() {
     if (!this.enabled) return;
 
@@ -293,9 +274,7 @@ class HeadTracker {
     console.log('[HeadTracker] Stopped');
   }
 
-  /**
-   * Toggle tracking on/off
-   */
+  // Turns tracking on or off.
   async toggle() {
     if (this.enabled) {
       this.stop();
@@ -306,9 +285,7 @@ class HeadTracker {
     }
   }
 
-  /**
-   * Continuous detection loop using requestAnimationFrame
-   */
+  // Keeps sending webcam frames to face detection.
   _detectLoop() {
     if (!this.enabled) return;
 
@@ -323,9 +300,7 @@ class HeadTracker {
     }
   }
 
-  /**
-   * Process MediaPipe Face Mesh results
-   */
+  // Updates the preview and the head rotation from each detection result.
   _onResults(results) {
     // Draw preview
     this.canvasCtx.save();
@@ -385,19 +360,9 @@ class HeadTracker {
     this.canvasCtx.restore();
   }
 
-  /**
-   * Estimate head yaw and pitch from face landmarks.
-   * Uses nose tip, left/right face edges, and forehead/chin for pitch.
-   */
+  // Estimates head turn and tilt from the nose, face edges, forehead and chin.
   _estimatePose(landmarks) {
-    // Key landmark indices (MediaPipe Face Mesh 468 landmarks):
-    // 1   = nose tip
-    // 33  = left eye inner corner
-    // 263 = right eye inner corner
-    // 10  = forehead top center
-    // 152 = chin bottom
-    // 234 = left face edge (cheek)
-    // 454 = right face edge (cheek)
+    // MediaPipe landmarks used: 1 nose tip, 10 forehead, 152 chin, 234/454 face edges, 33/263 eye corners.
 
     const noseTip = landmarks[1];
     const leftEdge = landmarks[234];
@@ -405,8 +370,7 @@ class HeadTracker {
     const forehead = landmarks[10];
     const chin = landmarks[152];
 
-    // Yaw: horizontal position of nose relative to face edges
-    // If nose is closer to left edge -> head turned right (from user's POV)
+    // Yaw: where the nose sits between the two face edges.
     const faceWidth = rightEdge.x - leftEdge.x;
     const noseCenterOffset = noseTip.x - (leftEdge.x + faceWidth / 2);
     // Normalize to roughly -1..1 range, then convert to radians
@@ -420,21 +384,16 @@ class HeadTracker {
     return { yaw, pitch };
   }
 
-  /**
-   * Apply computed rotation to the pivot group (rotates head + hair + eyes + all)
-   */
+  // Rotates the pivot group, which turns the whole head.
   _applyRotation(yaw, pitch) {
     if (!this.pivotGroup) return;
 
-    // Yaw = Y-axis rotation (left/right)
-    // Pitch = X-axis rotation (up/down)
+    // Yaw turns around the Y axis, pitch around the X axis.
     this.pivotGroup.rotation.y = yaw;
     this.pivotGroup.rotation.x = -pitch;
   }
 
-  /**
-   * Recalibrate the neutral head position
-   */
+  // Treats the current head position as the new neutral.
   recalibrate() {
     this.calibrated = false;
     this.calibrationFrames = 0;
@@ -445,9 +404,7 @@ class HeadTracker {
     console.log('[HeadTracker] Recalibrating...');
   }
 
-  /**
-   * Clean up resources
-   */
+  // Stops tracking and removes the preview.
   dispose() {
     this.stop();
     if (this.videoElement && this.videoElement.parentNode) {

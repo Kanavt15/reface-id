@@ -1,27 +1,4 @@
-/**
- * verify-realism.mjs — check the shading work end to end.
- *
- *   node scripts/verify-realism.mjs
- *
- * Four things this asserts, all of which are easy to break silently:
- *
- *  1. Slider responsiveness. The macro skin maps regenerate on the main thread
- *     on every slider tick, so their cost is felt directly as drag latency.
- *     Three caches were added to that path (noise fields, anatomical zone
- *     weights, wrinkle region bounds); this times a regenerate with them warm
- *     and with them defeated, so the improvement is measured rather than
- *     asserted. It also times the High tier's 1024 maps, which are a
- *     deliberate quality-for-latency trade the operator opts into.
- *
- *  2. Capture parity. Four call sites render the scene, and any one of them
- *     left on a direct renderer.render() produces an ungraded frame that does
- *     not match the viewport the operator was looking at.
- *
- *  3. The Photoreal/Structure toggle actually swaps the whole stack.
- *
- *  4. Quality tiers, including that Low frees its render targets rather than
- *     leaving them allocated.
- */
+// Checks the shading work: skin map rebuild speed (with and without caches), that every capture uses the same render path, the Photoreal/Structure switch, and the quality tiers; run with `node scripts/verify-realism.mjs`.
 import { _electron as electron } from 'playwright-core';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -36,6 +13,7 @@ const bin = path.join(APP_DIR, 'node_modules', 'electron', 'dist',
   : process.platform === 'darwin' ? 'Electron.app/Contents/MacOS/Electron'
   : 'electron');
 
+// Waits for a number of milliseconds.
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
@@ -49,6 +27,7 @@ const app = await electron.launch({
   env, timeout: 60_000,
 });
 
+// Finds the app window by URL, since DevTools can open first.
 async function realPage() {
   const t0 = Date.now();
   for (;;) {
@@ -66,6 +45,7 @@ page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message));
 await page.waitForLoadState('domcontentloaded');
 
+// Waits until a condition is true in the page, or fails after a timeout.
 async function waitFor(label, fn, timeout = 45_000) {
   const t0 = Date.now();
   for (;;) {
@@ -143,6 +123,7 @@ const skinDetail = await page.evaluate(async () => {
 });
 
 const results = [];
+// Prints a check result and stores it for the summary.
 const record = (name, pass, detail) => {
   results.push({ name, pass, detail });
   console.log((pass ? '  ok   ' : '  FAIL ') + name + (detail ? '  ' + detail : ''));
@@ -224,15 +205,11 @@ const timing = await page.evaluate(async () => {
 console.log('  ' + JSON.stringify(timing));
 if (!timing.error) {
   record('default tier renders macro maps at 512', timing.res === 512, timing.res + 'px');
-  /* The old code recomputed every noise field and swept the whole grid per
-     wrinkle line on every tick, which is what `cold` reproduces. */
+  // The uncached path redoes all the noise work on every tick, like the old code did.
   record('caching beats the uncached path it replaced',
     timing.cold > timing.warm * 2,
     `uncached ${timing.cold}ms vs cached ${timing.warm}ms`);
-  /* 45 rather than 30 since the roughness pass also writes the pore-density
-     and line-gain control channels for the detail tiles. UIController
-     debounces slider regeneration by 150ms, so this runs once on the
-     trailing edge of a drag, not per tick. */
+  // The limit is 45ms because the roughness pass also writes the detail control channels; sliders debounce the rebuild anyway.
   record('a slider drag stays interactive', timing.warm < 45, timing.warm + 'ms');
   // High rebuilds larger macro maps; drawing uses its independent detail map.
   record('high tier stays within its budget', timing.warmHigh < 130, timing.warmHigh + 'ms');

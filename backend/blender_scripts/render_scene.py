@@ -1,8 +1,4 @@
-"""
-Blender Script: Render Realistic Scene
-Imports head.glb + selected hair GLB, applies materials, lighting,
-and renders a high-quality image using Cycles or EEVEE.
-"""
+"""Blender script that imports the head and chosen hairstyle, sets up materials, lights and camera, and renders an image with Cycles or EEVEE."""
 
 import bpy
 import json
@@ -13,6 +9,7 @@ import mathutils
 
 
 def get_args():
+    """Reads the JSON arguments file passed after '--' on the Blender command line."""
     argv = sys.argv
     if '--' in argv:
         args_file = argv[argv.index('--') + 1]
@@ -21,11 +18,11 @@ def get_args():
     return {}
 
 
-# Debug log file alongside this script
+# Debug log written next to the renders.
 _DEBUG_LOG = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'renders', 'render_debug.log')
 
 def dlog(msg):
-    """Print and also write to a debug log file."""
+    """Prints a message and also appends it to the debug log."""
     print(msg)
     try:
         with open(_DEBUG_LOG, 'a') as f:
@@ -35,6 +32,7 @@ def dlog(msg):
 
 
 def clear_scene():
+    """Removes every object and orphaned mesh from the scene."""
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.object.delete(use_global=False)
     # Clear orphan data
@@ -47,12 +45,13 @@ def clear_scene():
 
 
 def hex_to_rgb(hex_color):
+    """Converts a hex colour to RGB floats."""
     hex_color = hex_color.lstrip('#')
     return tuple(int(hex_color[i:i+2], 16) / 255.0 for i in (0, 2, 4))
 
 
 def create_skin_material(skin_color='#d4a574'):
-    """Create a realistic skin material with SSS."""
+    """Creates a skin material with subsurface scattering."""
     r, g, b = hex_to_rgb(skin_color)
 
     mat = bpy.data.materials.new(name="REface_Skin")
@@ -83,7 +82,7 @@ def create_skin_material(skin_color='#d4a574'):
 
 
 def create_hair_material(hair_color='#2c1b0e'):
-    """Create a realistic hair material."""
+    """Creates a hair material."""
     r, g, b = hex_to_rgb(hair_color)
 
     mat = bpy.data.materials.new(name="REface_Hair")
@@ -111,7 +110,7 @@ def create_hair_material(hair_color='#2c1b0e'):
 
 
 def setup_studio_lighting():
-    """Create a 3-point studio lighting setup."""
+    """Creates a three-point studio lighting setup."""
     # Key light (warm, strong)
     key = bpy.data.lights.new(name="KeyLight", type='AREA')
     key.energy = 200
@@ -153,7 +152,7 @@ def setup_studio_lighting():
 
 
 def setup_camera():
-    """Set up camera aimed at the head, auto-framed to scene content."""
+    """Sets up a camera framed on the head and hair."""
     cam_data = bpy.data.cameras.new(name="RenderCam")
     cam_data.lens = 50  # Natural portrait lens
     cam_data.clip_start = 0.01
@@ -201,7 +200,7 @@ def setup_camera():
 
 
 def configure_render(engine='EEVEE', quality='medium', output_path=''):
-    """Configure render settings."""
+    """Sets render engine, quality and output options."""
     scene = bpy.context.scene
 
     # Quality presets
@@ -243,7 +242,7 @@ def configure_render(engine='EEVEE', quality='medium', output_path=''):
 
 
 def import_glb(filepath):
-    """Import a GLB file and return imported objects."""
+    """Imports a GLB file and returns the new objects."""
     print(f"import_glb: importing {filepath}")
     before = set(bpy.data.objects)
     try:
@@ -266,7 +265,7 @@ def import_glb(filepath):
 
 
 def import_obj(filepath):
-    """Import an OBJ file and return imported objects."""
+    """Imports an OBJ file and returns the new objects."""
     print(f"import_obj: importing {filepath}")
     before = set(bpy.data.objects)
     try:
@@ -281,6 +280,7 @@ def import_obj(filepath):
 
 
 def main():
+    """Imports the head and hair, fits the hair the same way the app does, lights the scene and renders it."""
     args = get_args()
 
     # Clear debug log
@@ -306,9 +306,7 @@ def main():
 
     clear_scene()
 
-    # --- Import Head ---
-    # Prefer the morphed mesh (includes slider + manual edits from the editor)
-    # Fall back to the base head.glb if no morphed mesh was provided.
+    # Import the head, preferring the morphed mesh from the editor over the base head.glb.
     head_objects = []
     if morphed_mesh_path and os.path.exists(morphed_mesh_path):
         head_objects = import_obj(morphed_mesh_path)
@@ -381,8 +379,7 @@ def main():
                     else:
                         dlog(f"  Non-mesh hair object: {obj.name} (type={obj.type})")
 
-                # Clear any GLB-imported parent hierarchy on kept meshes
-                # so they are free-standing at their world position
+                # Clear the imported parent hierarchy so the kept meshes stand on their own.
                 for mobj in kept_meshes:
                     if mobj.parent:
                         dlog(f"  Clearing parent of {mobj.name} (was {mobj.parent.name})")
@@ -397,10 +394,7 @@ def main():
                     except Exception:
                         pass
 
-                # ── Apply the combined world transform from Three.js ──
-                # The frontend sends either:
-                #   1) A 4x4 matrix (combined container+offset world matrix)
-                #   2) Raw slider parameters for Blender to compute alignment
+                # Apply the hair transform from the app: either a 4x4 matrix or raw slider values.
                 if hair_transform and kept_meshes:
                     ht = hair_transform
                     opa = ht.get('opacity', 1.0)
@@ -442,8 +436,7 @@ def main():
 
                     else:
                         dlog("  No matrix — computing alignment from raw params")
-                        # Replicate the Three.js _alignAndAdjust logic in
-                        # Blender's Z-up coordinate space.
+                        # Recreate the app's hair alignment in Blender's Z-up space.
                         rp = ht.get('rawParams', {})
 
                         # ── Compute the hair model's bounding box ──
@@ -486,14 +479,9 @@ def main():
                         dlog(f"  Head center: ({head_cx:.3f}, {head_cy:.3f}, {head_cz:.3f})")
                         dlog(f"  Head width={head_width:.3f}, height={head_height:.3f}, top={head_top:.3f}")
 
-                        # ── Replicate _alignAndAdjust ──
-                        # In Blender Z-up: X=right, Y=forward, Z=up
-                        # In Three.js Y-up: X=right, Y=up, Z=forward
-                        # The GLB importer converts the hair model coordinates.
+                        # Blender is Z-up (Y forward) while Three.js is Y-up (Z forward).
 
-                        # baseScale matches head width to hair width
-                        # In Three.js: baseScale = headWidth / max(hairSize.x, hairSize.z)
-                        # In Blender Z-up: hairSize.x stays, hairSize.z → hairSize.y(forward)
+                        # Scale the hair to the head width, as the app does.
                         baseScale = head_width / max(hair_sx, hair_sy, 0.001)
 
                         # Adjustment factors from sliders
@@ -520,38 +508,23 @@ def main():
                         # Rotation
                         rotOffY = ((roty_val - 50) / 50) * (math.pi / 2)
 
-                        # Scalp target (Three.js Y-up)
-                        # In Three.js: scalpY = headTop - modelHeight * 0.12
-                        # Convert to Blender: scalpZ = head_top - head_height * 0.12
+                        # Scalp target, just below the top of the head.
                         scalpZ = head_top - head_height * 0.12
 
-                        # Container scale:
-                        # Three.js: (baseScale*volumeF*scaleF, baseScale*lengthF*scaleF, baseScale*volumeF*scaleF)
-                        #   X=right, Y=up, Z=forward
-                        # Blender: X=right, Y=forward, Z=up
+                        # Container scale, with the up and forward axes swapped for Blender.
                         sx = baseScale * volumeF * scaleF
                         sy = baseScale * volumeF * scaleF  # Blender Y = Three.js Z
                         sz = baseScale * lengthF * scaleF   # Blender Z = Three.js Y
 
-                        # Container position:
-                        # Three.js: (targetX + posOffX, scalpY + posOffY, targetZ + posOffZ)
-                        # Blender: (targetX + posOffX, -(targetZ + posOffZ), scalpZ + posOffY)
-                        # Since modelCenter.z is the Three.js Z (forward direction),
-                        # in Blender forward = -Y
+                        # Container position, with forward mapped to Blender's Y axis.
                         tx = head_cx + posOffX
-                        ty = -(head_cy + posOffZ)  # head_cy in Blender ≈ -Three.js.z
-                        # Actually head_cy in Blender IS the Blender Y for the head center
-                        # Let's just use the head center directly
                         ty = head_cy - posOffZ  # offset forward
                         tz = scalpZ + posOffY
 
-                        # Container rotation:
-                        # Three.js rotation.y (around up) → Blender rotation around Z
+                        # Container rotation around Blender's Z (up) axis.
                         rot_total = (curlF * 0.15 if curlF > 0 else 0) + rotOffY
 
-                        # Offset = centering: move hair center to origin
-                        # In Blender coords: (-hair_cx, -hair_cy, -hair_cz)
-                        # (already in Blender space after import)
+                        # Move the hair's centre to the origin before transforming.
                         off_x = -hair_cx
                         off_y = -hair_cy
                         off_z = -hair_cz

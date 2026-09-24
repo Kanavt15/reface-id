@@ -1,32 +1,8 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   ReFace ID — carried.css
-   The blocks that came through the inventory as markup.
-
-   Most controls were re-authored from data through the component system in
-   build-ui.js. About thirty blocks could not be — the assist transcript, the
-   camera sheet, the snapshot bar, the lip-paint tools, the export row — each
-   carries bespoke structure that the engine drives in a one-off way, so their
-   markup is preserved byte-for-byte and only re-skinned.
-
-   Their class names therefore come from the old document and cannot change.
-   Everything they look like is defined here, in the same language as the rest
-   of the interface: film-black grounds, hairline borders, one chroma reserved
-   for live state, 3px radii, mono numerals.
-
-   ── Two contracts to respect ──────────────────────────────────────────────
-   1. AIController toggles `.visible` on .ai-action-menu. That menu must be
-      display:none by default.
-   2. It shows the camera sheet and the reference strip with
-      `style.display = ''` — which falls back to whatever CSS says. So their
-      CSS default must be the *visible* layout; the markup carries an inline
-      display:none to keep them shut until then. Setting display:none here
-      would make them impossible to open.
-   ═══════════════════════════════════════════════════════════════════════════ */
+/* carried.css: styles for the blocks copied from the old markup; keep .ai-action-menu hidden by default, and keep the camera sheet and reference strip visible by default (the markup hides them inline). */
 
 /* ══ Shared utilities carried from the old document ═════════════════════ */
 
-/* A file input driven by a visible button. Never shown — left in the
-   layout it renders as "Choose Files / No file chosen". */
+/* A file input driven by a visible button; never shown. */
 .rf-file-input,
 .rf-hidden {
   display: none !important;
@@ -83,8 +59,7 @@
   color: var(--t-hi);
 }
 
-/* Button variants the old markup used. Mapped onto the new weights rather
-   than given looks of their own. */
+/* Old button variants mapped onto the new styles. */
 .btn-secondary,
 .btn-outline {
   display: inline-flex;
@@ -149,10 +124,7 @@
 
 .slider-label-right { margin-left: auto; }
 
-/* ══ Assist ══════════════════════════════════════════════════════════════
-   Set as a working console rather than a chat app: a header with the model
-   selector, a transcript, a compose row, and quick prompts. No bubbles, no
-   avatars — at 368px wide a transcript reads far better than either. */
+/* Assist panel, laid out as a console: model selector, transcript, compose row and quick prompts. */
 
 .ai-chat-panel { display: flex; flex-direction: column; gap: 0; }
 
@@ -181,8 +153,7 @@
 
 .ai-chat-actions { display: flex; align-items: center; gap: 4px; }
 
-/* The model selector. Narrow, mono, and quiet — it is configuration, not
-   a primary control. */
+/* The model selector: narrow, mono and quiet. */
 .ai-provider-select {
   -webkit-appearance: none;
   appearance: none;
@@ -240,8 +211,7 @@
   color: var(--t-lo);
 }
 
-/* AIController appends plain nodes; these keep any shape it produces
-   legible without assuming a structure it does not emit. */
+/* AIController adds plain nodes, so keep any of them readable. */
 .ai-chat-messages > div { max-width: 100%; }
 .ai-chat-messages strong,
 .ai-chat-messages b { color: var(--t-hi); font-weight: 600; }
@@ -310,8 +280,7 @@
 .ai-chat-textarea:hover { border-color: var(--k-edge); }
 .ai-chat-textarea:focus { border-color: var(--sig-line); background: var(--k-void); }
 
-/* Reference thumbnails attached to the prompt. CSS default is the visible
-   layout — AIController reveals it by clearing the inline display. */
+/* Reference thumbnails; visible by default because AIController shows them by clearing the inline display. */
 .ai-reference-info {
   display: flex;
   flex-wrap: wrap;
@@ -366,8 +335,7 @@
 .ai-menu-item .i { color: var(--t-off); }
 .ai-menu-item:hover .i { color: var(--sig); }
 
-/* Send is the only filled button in the panel — it is the one action that
-   costs a request. */
+/* Send is the only filled button in the panel. */
 .ai-send-btn {
   height: 26px;
   padding: 0 12px;
@@ -479,9 +447,7 @@
   background: var(--on-sig);
 }
 
-/* ── Camera sheet ────────────────────────────────────────────────────────
-   CSS default is the open layout; the markup's inline display:none keeps
-   it shut, and AIController opens it by clearing that. */
+/* Camera sheet; open layout by default, with the markup's inline display:none keeping it shut. */
 
 .ai-camera-modal {
   position: fixed;

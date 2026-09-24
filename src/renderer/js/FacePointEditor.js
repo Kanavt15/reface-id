@@ -1,15 +1,4 @@
-/**
- * FacePointEditor.js  (v5 — uses OBJMorpher's own deformation engine)
- *
- * Dragging a landmark deforms the mesh EXACTLY the way the sliders do:
- *   - Gaussian-weighted influence from the landmark + its neighbours
- *   - radius_scale, face_mask, directional weights all from OBJMorpher
- *   - Asymmetric: only the dragged side is affected (unless midline point)
- *
- * The drag delta is decomposed into X/Y/Z components and each is
- * applied through the morpher's weight functions, producing the same
- * natural, face-wide deformation that sliders produce.
- */
+// Lets the user drag face landmarks directly, deforming the mesh the same way the sliders do (one side only unless the point is on the midline).
 
 class FacePointEditor {
   constructor(sceneManager, objMorpher) {
@@ -79,10 +68,9 @@ class FacePointEditor {
     this._onKeyDown = this._onKeyDown.bind(this);
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // ENABLE / DISABLE
-  // ═══════════════════════════════════════════════════════════════════════
+  // Enable / disable
 
+  // Shows the landmark points and starts listening for drags.
   enable() {
     if (this.enabled) return;
     this.enabled = true;
@@ -95,6 +83,7 @@ class FacePointEditor {
     console.log('FacePointEditor: enabled (v5 — morpher-engine deformation)');
   }
 
+  // Hides the points and stops listening for drags.
   disable() {
     if (!this.enabled) return;
     this.enabled = false;
@@ -114,15 +103,15 @@ class FacePointEditor {
     console.log('FacePointEditor: disabled');
   }
 
+  // Turns point editing on or off.
   toggle() {
     if (this.enabled) this.disable(); else this.enable();
     return this.enabled;
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // CONTROL POINTS
-  // ═══════════════════════════════════════════════════════════════════════
+  // Control points
 
+  // Creates a small sphere on the face for every landmark.
   _createControlPoints() {
     while (this.pointGroup.children.length > 0) {
       const c = this.pointGroup.children[0];
@@ -139,7 +128,7 @@ class FacePointEditor {
 
     const geometry = new THREE.SphereGeometry(this.pointSize, 12, 8);
 
-    for (const [name, pos] of Object.entries(this.morpher._landmarkPositions)) {
+    for (const [name] of Object.entries(this.morpher._landmarkPositions)) {
       const idx = this.morpher._landmarkIndices[name];
       const currentPos = this._getVertexWorldPosition(idx);
 
@@ -158,6 +147,7 @@ class FacePointEditor {
     console.log(`FacePointEditor: ${this.controlPoints.length} control points`);
   }
 
+  // Returns the current world position of a vertex by its global index.
   _getVertexWorldPosition(globalIndex) {
     const pos = new THREE.Vector3();
     for (let m = 0; m < this.morpher.meshes.length; m++) {
@@ -175,6 +165,7 @@ class FacePointEditor {
     return pos;
   }
 
+  // Moves the landmark spheres to follow the current face shape.
   refreshPoints() {
     for (const cp of this.controlPoints) {
       const worldPos = this._getVertexWorldPosition(cp.vertexIndex);
@@ -183,18 +174,9 @@ class FacePointEditor {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  //  DETERMINE WHICH LANDMARKS TO USE AS WEIGHT SOURCES
-  // ═══════════════════════════════════════════════════════════════════════
+  // Which landmarks move together
 
-  /**
-   * Given a landmark name, return:
-   *   landmarks: array of landmark names to pass to _getRegionWeights
-   *              (the dragged point + anatomically-related neighbours)
-   *   side:      -1 (left), +1 (right), 0 (midline)
-   *
-   * This mirrors how each slider in applyAllMorphs() groups landmarks.
-   */
+  // Returns the landmarks that move with the dragged one, and which side of the face it is on.
   _getLandmarkGroupForDrag(name) {
     // Determine side from the landmark's X coordinate
     const pos = this.morpher._landmarkPositions[name];
@@ -304,17 +286,9 @@ class FacePointEditor {
     return { landmarks: [name], side };
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // ASYMMETRIC WEIGHT MASK
-  // ═══════════════════════════════════════════════════════════════════════
+  // Asymmetry mask
 
-  /**
-   * Create an asymmetry mask that limits deformation to one side.
-   * side = -1 (left), +1 (right), 0 (both — midline, no mask)
-   *
-   * Uses a smooth tanh transition (like OBJMorpher's directional weights)
-   * so there's no hard seam at the midline.
-   */
+  // Builds a mask that limits the change to one side of the face, fading smoothly across the midline.
   _computeAsymmetryMask(side) {
     const N = this.morpher.totalVertices;
     const mask = new Float64Array(N);
@@ -328,8 +302,7 @@ class FacePointEditor {
       // side = -1 → left (negative X), side = +1 → right (positive X)
       for (let i = 0; i < N; i++) {
         const x = verts[i * 3];
-        // Smooth transition: 1 on the target side, 0 on the opposite,
-        // smooth blend in the middle
+        // Smoothly goes from 1 on the chosen side to 0 on the other.
         const s = Math.tanh(x * side / (tw * 2));  // positive when on target side
         mask[i] = Math.max(0, Math.min(1, 0.5 + s * 0.5));
       }
@@ -338,22 +311,22 @@ class FacePointEditor {
     return mask;
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // MOUSE INTERACTION
-  // ═══════════════════════════════════════════════════════════════════════
+  // Mouse interaction
 
+  // Converts the mouse position to normalised screen coordinates.
   _getNDC(event) {
     const rect = this.canvas.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
   }
 
+  // Returns the landmark sphere under the mouse, if any.
   _raycastPoints() {
     this.raycaster.setFromCamera(this.mouse, this.camera);
     return this.raycaster.intersectObjects(this.pointGroup.children, false)[0] || null;
   }
 
-  // ── Pointer Down ──
+  // Starts a drag when a landmark is clicked.
   _onPointerDown(event) {
     if (event.button !== 0) return;
     this._getNDC(event);
@@ -387,7 +360,7 @@ class FacePointEditor {
     }
   }
 
-  // ── Pointer Move ──
+  // Moves the face as the landmark is dragged.
   _onPointerMove(event) {
     this._getNDC(event);
 
@@ -430,7 +403,7 @@ class FacePointEditor {
     }
   }
 
-  // ── Pointer Up ──
+  // Ends the drag.
   _onPointerUp(event) {
     if (event.button !== 0) return;
     if (this.isDragging) event.stopImmediatePropagation();
@@ -452,7 +425,7 @@ class FacePointEditor {
     this._hideInfluenceRing();
   }
 
-  // ── Keyboard ──
+  // Handles undo and cancel keys while editing.
   _onKeyDown(event) {
     if (!this.enabled) return;
     if (event.ctrlKey && event.key === 'z') this._popUndo();
@@ -471,19 +444,9 @@ class FacePointEditor {
       this.setInfluenceRadius(Math.max(0.02, this.influenceRadius - 0.02));
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // DEFORMATION — USING MORPHER'S OWN WEIGHT SYSTEM
-  // ═══════════════════════════════════════════════════════════════════════
+  // Deformation, using the morpher's own weights
 
-  /**
-   * At drag-start, compute and cache:
-   *   1. A snapshot of all position buffers (for clean restore each frame)
-   *   2. Gaussian region weights from morpher._getRegionWeights()
-   *   3. Directional weights from morpher._getDirectionalWeights()
-   *   4. Asymmetry mask (left-only / right-only / both)
-   *
-   * These are computed ONCE and reused on every mouse-move.
-   */
+  // At drag start, saves the mesh and works out the weights and side mask once, to reuse on every mouse move.
   _prepareDrag(landmarkName) {
     // 1. Snapshot position buffers
     this._dragSnapshot = [];
@@ -516,22 +479,13 @@ class FacePointEditor {
     console.log(`FacePointEditor: drag "${landmarkName}" — ${landmarks.length} sources, side=${side}, ${affected} affected verts`);
   }
 
-  /**
-   * Apply the drag delta using morpher-style offsets.
-   * Called every mouse-move (restores from snapshot first).
-   *
-   * Decomposition of the world-space delta:
-   *   - X component → directional spread (same as noseWidth, jawWidth, etc.)
-   *   - Y component → uniform vertical offset (same as browHeight, chinHeight)
-   *   - Z component → forward/backward protrusion (same as noseBridgeHeight, chinProtrusion)
-   */
+  // Applies the drag offset: sideways spreads, up/down shifts and forward/back pushes, just like the sliders.
   _applyDragDelta(worldDelta) {
     if (!this._dragSnapshot || !this._dragWeights) return;
 
     const weights = this._dragWeights;
     const directions = this._dragDirections;
     const cfg = OBJMorpher.MODEL_CONFIG;
-    const zDir = cfg.z_front_direction;
     const N = this.morpher.totalVertices;
 
     // Compute per-global-vertex offsets (exactly like applyAllMorphs)
@@ -587,10 +541,9 @@ class FacePointEditor {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // INFLUENCE RADIUS / POINT SIZE
-  // ═══════════════════════════════════════════════════════════════════════
+  // Influence radius and point size
 
+  // Sets how far the drag's influence reaches.
   setInfluenceRadius(r) {
     this.influenceRadius = r;
     if (this.onSettingsChanged) this.onSettingsChanged();
@@ -600,6 +553,7 @@ class FacePointEditor {
     }
   }
 
+  // Changes the size of the landmark spheres.
   setPointSize(size) {
     this.pointSize = size;
     const geo = new THREE.SphereGeometry(size, 12, 8);
@@ -609,9 +563,10 @@ class FacePointEditor {
     }
   }
 
+  // Shows a ring on the face marking the drag's area of influence.
   _showInfluenceRing(position) {
     this._hideInfluenceRing();
-    // Visual ring uses the effective Gaussian radius (after radius_scale)
+    // The ring shows the effective radius after the model's scale factor.
     const effectiveR = this.influenceRadius * OBJMorpher.MODEL_CONFIG.radius_scale;
     const ringGeo = new THREE.RingGeometry(
       effectiveR - 0.005,
@@ -628,6 +583,7 @@ class FacePointEditor {
     this.scene.add(this.influenceRing);
   }
 
+  // Removes the influence ring.
   _hideInfluenceRing() {
     if (this.influenceRing) {
       this.scene.remove(this.influenceRing);
@@ -637,10 +593,9 @@ class FacePointEditor {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // UNDO
-  // ═══════════════════════════════════════════════════════════════════════
+  // Undo
 
+  // Saves the current mesh so the next drag can be undone.
   _pushUndo() {
     const snapshot = [];
     for (let m = 0; m < this.morpher.meshes.length; m++) {
@@ -650,6 +605,7 @@ class FacePointEditor {
     if (this.undoStack.length > this.maxUndo) this.undoStack.shift();
   }
 
+  // Undoes the last drag.
   _popUndo() {
     if (this.undoStack.length === 0) return;
     const snapshot = this.undoStack.pop();
@@ -665,6 +621,7 @@ class FacePointEditor {
     console.log('FacePointEditor: undo applied');
   }
 
+  // Discards every manual edit and rebuilds the face from the sliders.
   resetAllEdits() {
     this.undoStack = [];
     this.morpher.applyAllMorphs();
@@ -672,15 +629,7 @@ class FacePointEditor {
     console.log('FacePointEditor: all manual edits reset');
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // VISIBILITY / CLEANUP
-  // ═══════════════════════════════════════════════════════════════════════
-
-  setPointsVisible(visible) {
-    this.pointsVisible = visible;
-    this.pointGroup.visible = visible && this.enabled;
-  }
-
+  // Turns editing off and frees the landmark spheres.
   dispose() {
     this.disable();
     this.scene.remove(this.pointGroup);
@@ -692,60 +641,6 @@ class FacePointEditor {
     this.pointMaterial.dispose();
     this.pointHoverMaterial.dispose();
     this.pointActiveMaterial.dispose();
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // EXPORT — OBJ string for Blender render pipeline
-  // ═══════════════════════════════════════════════════════════════════════
-
-  exportCurrentMeshAsOBJ() {
-    const lines = ['# REface ID — morphed head export'];
-    let vertexOffset = 1;
-
-    for (let m = 0; m < this.morpher.meshes.length; m++) {
-      const mesh = this.morpher.meshes[m];
-      const posAttr = mesh.geometry.attributes.position;
-      const normalAttr = mesh.geometry.attributes.normal;
-      const indexAttr = mesh.geometry.index;
-
-      mesh.updateWorldMatrix(true, false);
-      const mat = mesh.matrixWorld;
-      const normalMat = new THREE.Matrix3().getNormalMatrix(mat);
-
-      lines.push(`o mesh_${m}`);
-
-      for (let i = 0; i < posAttr.count; i++) {
-        const v = new THREE.Vector3(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i));
-        v.applyMatrix4(mat);
-        lines.push(`v ${v.x.toFixed(6)} ${v.y.toFixed(6)} ${v.z.toFixed(6)}`);
-      }
-
-      if (normalAttr) {
-        for (let i = 0; i < normalAttr.count; i++) {
-          const n = new THREE.Vector3(normalAttr.getX(i), normalAttr.getY(i), normalAttr.getZ(i));
-          n.applyMatrix3(normalMat).normalize();
-          lines.push(`vn ${n.x.toFixed(6)} ${n.y.toFixed(6)} ${n.z.toFixed(6)}`);
-        }
-      }
-
-      if (indexAttr) {
-        for (let i = 0; i < indexAttr.count; i += 3) {
-          const a = indexAttr.getX(i) + vertexOffset;
-          const b = indexAttr.getX(i + 1) + vertexOffset;
-          const c = indexAttr.getX(i + 2) + vertexOffset;
-          lines.push(`f ${a}//${a} ${b}//${b} ${c}//${c}`);
-        }
-      } else {
-        for (let i = 0; i < posAttr.count; i += 3) {
-          const a = i + vertexOffset;
-          lines.push(`f ${a}//${a} ${a + 1}//${a + 1} ${a + 2}//${a + 2}`);
-        }
-      }
-
-      vertexOffset += posAttr.count;
-    }
-
-    return lines.join('\n');
   }
 }
 

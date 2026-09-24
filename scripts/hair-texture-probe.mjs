@@ -1,7 +1,4 @@
-/** Render every shipped hair/beard with the production renderer.
- * node scripts/hair-texture-probe.mjs [--before] [--styles=hair7,beard2]
- * Baselines use ignored copies in scripts/verify/hair-baseline/.
- */
+// Renders every hair and beard style with the real renderer for comparison; run with `node scripts/hair-texture-probe.mjs [--before] [--styles=hair7,beard2]`.
 import { chromium, _electron as electron } from 'playwright-core';
 import express from 'express';
 import fs from 'node:fs';
@@ -73,6 +70,7 @@ try {
   await page.evaluate(() => Promise.all([SkinShader._detailReady, SkinShader._anatomyReady, SkinShader._microfoldReady, SkinShader._faceColourReady]));
   const styles = selected || await page.evaluate(densityCheck => [...Object.keys(hs.hairModels).filter(s => s !== 'bald'), ...(densityCheck ? [] : Object.keys(hs.beardModels).filter(s => s !== 'none' && s !== 'beard7'))], densityCheck);
   const report = [];
+  // Frames the hair or beard from an angle and saves a picture.
   async function shot(name, beard, angle = 0, close = false, elevation = close ? 0.18 : 0) {
     await page.evaluate(({ beard, angle, close, elevation }) => {
       const y = sm.modelCenter.y + (beard ? -0.30 : 0.35);

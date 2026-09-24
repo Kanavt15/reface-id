@@ -1,3 +1,5 @@
+// Exposes a small, safe set of Electron features (dialogs, files, menu events) to the page.
+
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {

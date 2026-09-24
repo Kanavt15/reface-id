@@ -1,8 +1,4 @@
-/**
- * Headless skin render checks, without opening or writing a case.
- * node scripts/skin-detail-probe.mjs [--before] [--missing] [--label=name]
- * Optional baseline JS files live in ignored scripts/verify/skin-baseline/.
- */
+// Headless skin render checks that don't open or save a case; run with `node scripts/skin-detail-probe.mjs [--before] [--missing] [--label=name]`.
 import { chromium } from 'playwright-core';
 import express from 'express';
 import * as fs from 'node:fs';
@@ -80,6 +76,7 @@ try {
     assert.equal(report.source, missing ? 'procedural-fallback' : 'generated-cheek-v2');
     assert(report.detailBound, 'active material references the loaded detail');
   }
+  // Renders the skin at a distance, angle and tone and saves a picture.
   async function shot(name, distance, angle = 0, tone = '#cb9a78') {
     await page.evaluate(({ distance, angle, tone }) => {
       sts.setSkinColor(tone);
@@ -93,6 +90,7 @@ try {
     }, { distance, angle, tone });
     await page.locator('#skin').screenshot({ path: path.join(out, name + '.png') });
   }
+  // Measures how much visible texture detail the skin shader produces.
   async function detailContrast() {
     return page.evaluate(() => {
       const materials = [];

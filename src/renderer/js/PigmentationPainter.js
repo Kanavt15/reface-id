@@ -1,11 +1,4 @@
-/**
- * PigmentationPainter.js
- * Brush tool for painting pigmentation (dark spots, melasma, vitiligo) onto the
- * 3D face. Strokes are recorded in UV space as an intensity + color map that gets
- * composited into SkinTextureSystem's diffuse map via multiply blending.
- *
- * Follows the same raycasting / UV-stamp / undo pattern as WrinklePainter.
- */
+// Lets the user paint dark spots and other pigmentation onto the skin texture.
 
 class PigmentationPainter {
   constructor(sceneManager, skinTextureSystem) {
@@ -60,6 +53,7 @@ class PigmentationPainter {
 
   // ─── Enable / Disable ──────────────────────────────────────────────────
 
+  // Starts listening for paint strokes on the canvas.
   enable() {
     if (this.enabled) return;
     this.enabled = true;
@@ -69,6 +63,7 @@ class PigmentationPainter {
     this.canvas.style.cursor = 'crosshair';
   }
 
+  // Stops listening for paint strokes.
   disable() {
     if (!this.enabled) return;
     this.enabled = false;
@@ -81,6 +76,7 @@ class PigmentationPainter {
     this.controls.enabled = true;
   }
 
+  // Turns the pigment brush on or off.
   toggle() {
     if (this.enabled) { this.disable(); } else { this.enable(); }
     return this.enabled;
@@ -88,12 +84,14 @@ class PigmentationPainter {
 
   // ─── Raycasting ────────────────────────────────────────────────────────
 
+  // Converts the mouse position to normalised screen coordinates.
   _getNDC(event) {
     const rect = this.canvas.getBoundingClientRect();
     this._mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this._mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
   }
 
+  // Casts a ray from the mouse and returns the skin texture position it hits.
   _raycastUV(event) {
     this._getNDC(event);
     this._raycaster.setFromCamera(this._mouse, this.camera);
@@ -116,6 +114,7 @@ class PigmentationPainter {
 
   // ─── Pointer Events ────────────────────────────────────────────────────
 
+  // Starts a stroke where the user pressed on the face.
   _handlePointerDown(event) {
     if (event.button !== 0) return;
 
@@ -134,6 +133,7 @@ class PigmentationPainter {
     this._applyToTexture();
   }
 
+  // Paints along the stroke as the mouse moves.
   _handlePointerMove(event) {
     if (!this._isPainting) return;
     event.preventDefault();
@@ -161,6 +161,7 @@ class PigmentationPainter {
     this._applyToTexture();
   }
 
+  // Ends the stroke and refreshes the skin.
   _handlePointerUp(event) {
     if (!this._isPainting) return;
     this._isPainting = false;
@@ -173,6 +174,7 @@ class PigmentationPainter {
 
   // ─── Brush Stamping ────────────────────────────────────────────────────
 
+  // Paints one soft round dab of pigment into the maps.
   _stampBrush(u, v) {
     const R = this.RES;
     const cx = Math.round(u * (R - 1));
@@ -217,18 +219,14 @@ class PigmentationPainter {
 
   // ─── Apply to Texture ──────────────────────────────────────────────────
 
+  // Rebuilds the skin texture so the new pigment shows.
   _applyToTexture() {
     if (this.skinTexture && this.skinTexture._initialized) {
       this.skinTexture.regenerate();
     }
   }
 
-  /**
-   * Rebuild at a new texture resolution, resampling the painted pigment.
-   * Same reasoning as WrinklePainter.resize(): these buffers are indexed with
-   * SkinTextureSystem's resolution, which now follows the quality tier, and a
-   * stale buffer would be read past its end when compositing the diffuse map.
-   */
+  // Resizes the pigment maps to a new texture resolution, keeping what was painted.
   resize(res) {
     const r = res | 0;
     if (!r || r === this.RES || !this._pigmentMap) return;
@@ -262,23 +260,19 @@ class PigmentationPainter {
     }
   }
 
+  // Returns the pigment strength map.
   getPigmentMap() {
     return this._pigmentMap;
   }
 
+  // Returns the pigment colour map.
   getColorMap() {
     return this._colorMap;
   }
 
-  hasPigmentation() {
-    for (let i = 0, n = this._pigmentMap.length; i < n; i++) {
-      if (this._pigmentMap[i] > 0.001) return true;
-    }
-    return false;
-  }
-
   // ─── Undo ──────────────────────────────────────────────────────────────
 
+  // Saves a copy of the maps so the next change can be undone.
   _pushUndo() {
     if (this._undoStack.length >= this._maxUndo) {
       this._undoStack.shift();
@@ -289,6 +283,7 @@ class PigmentationPainter {
     });
   }
 
+  // Undoes the last change.
   undo() {
     if (this._undoStack.length === 0) return;
     const snapshot = this._undoStack.pop();
@@ -300,6 +295,7 @@ class PigmentationPainter {
 
   // ─── Clear ─────────────────────────────────────────────────────────────
 
+  // Removes all painted pigment.
   clearAll() {
     this._pushUndo();
     this._pigmentMap.fill(0);
@@ -316,6 +312,7 @@ class PigmentationPainter {
 
   // ─── Persistence ───────────────────────────────────────────────────────
 
+  // Returns the painted pixels in a compact form for saving.
   exportState() {
     const sparse = {};
     for (let i = 0, n = this._pigmentMap.length; i < n; i++) {
@@ -337,6 +334,7 @@ class PigmentationPainter {
     };
   }
 
+  // Restores painted pigment from a saved case.
   loadState(state) {
     if (!state) return;
     if (state.brushSize !== undefined) this.brushSize = state.brushSize;
@@ -364,6 +362,7 @@ class PigmentationPainter {
 
   // ─── Helpers ───────────────────────────────────────────────────────────
 
+  // Converts a hex colour to RGB.
   _hexToRgb(hex) {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? {
@@ -375,6 +374,7 @@ class PigmentationPainter {
 
   // ─── Dispose ───────────────────────────────────────────────────────────
 
+  // Turns the brush off and frees its maps.
   dispose() {
     this.disable();
     this._pigmentMap = null;

@@ -1,29 +1,4 @@
-"""
-db.py — SQLite persistence for REface ID.
-
-Cases and snapshots used to live in two places that could not agree with each
-other: case JSON files under backend/cases/, and a localStorage key in the
-renderer whose name was recomputed on every write. This module replaces the
-snapshot half of that with a single transactional file.
-
-Design notes:
-
-  * The database file lives in the OS user-data directory, NOT in the repo.
-    Electron passes its own userData path in REFACE_DATA_DIR when it spawns
-    this server; the fallbacks below cover running the backend by hand.
-
-  * Deletes are soft (deleted_at). This is a forensic tool — an operator who
-    clears a snapshot list should not be able to destroy evidence of what was
-    reconstructed, and the rows cost nothing.
-
-  * snapshots.client_uuid is UNIQUE so that a retried write cannot duplicate a
-    row. The renderer queues captures in an outbox while the backend is down
-    and replays them on reconnect; without idempotency that replay would
-    silently double every snapshot taken offline.
-
-  * Thumbnails are stored as raw JPEG bytes rather than base64 data URLs —
-    about a third smaller, and the data URL is reassembled on read.
-"""
+"""SQLite storage for cases and snapshots, kept in the user-data folder; deletes are soft and snapshot saves are safe to retry."""
 
 import os
 import sys
@@ -36,23 +11,14 @@ from pathlib import Path
 
 SCHEMA_VERSION = 1
 
-# Snapshots recovered from the pre-database localStorage era have no case of
-# their own — the old code filed everything under one shared bucket because a
-# case id was never assigned. They are parked against this sentinel case and
-# adopted by the first real case the operator opens, rather than being pinned
-# to whichever throwaway case happened to exist at migration time.
+# Snapshots recovered from the old localStorage storage wait on this placeholder case until a real case adopts them.
 PENDING_CASE_ID = '__pending_migration__'
 
 
 # ─── Location ─────────────────────────────────────────────────────────────────
 
 def _default_data_dir() -> Path:
-    """Resolve the directory holding reface.db.
-
-    REFACE_DATA_DIR wins when set — that is Electron handing us
-    app.getPath('userData'), which is the only value that keeps the database
-    in the same place for a packaged build as for `npm start`.
-    """
+    """Finds the folder for reface.db, preferring REFACE_DATA_DIR from Electron."""
     env_dir = os.getenv('REFACE_DATA_DIR')
     if env_dir:
         return Path(env_dir)
@@ -73,13 +39,12 @@ DB_PATH = DATA_DIR / 'reface.db'
 
 # ─── Connections ──────────────────────────────────────────────────────────────
 
-# Flask serves requests on multiple threads and a sqlite3 connection may not
-# cross threads, so each thread gets its own. They all point at one file; WAL
-# lets readers and the writer proceed without blocking each other.
+# sqlite3 connections can't cross threads, so each Flask thread gets its own; WAL lets reads and writes overlap.
 _local = threading.local()
 
 
 def connect() -> sqlite3.Connection:
+    """Returns this thread's database connection, opening and configuring it the first time."""
     conn = getattr(_local, 'conn', None)
     if conn is not None:
         return conn
@@ -90,8 +55,7 @@ def connect() -> sqlite3.Connection:
 
     # WAL: concurrent reads during a write, and no lost database on a crash.
     conn.execute('PRAGMA journal_mode=WAL')
-    # Foreign keys are OFF by default in SQLite — without this the CASCADE on
-    # snapshots.case_id is decorative.
+    # Foreign keys are off by default in SQLite, so turn them on for the cascade to work.
     conn.execute('PRAGMA foreign_keys=ON')
     # Write volume here is a handful of rows per session; buy full durability.
     conn.execute('PRAGMA synchronous=FULL')
@@ -102,6 +66,7 @@ def connect() -> sqlite3.Connection:
 
 
 def _now() -> str:
+    """Returns the current UTC time as an ISO string."""
     return datetime.now(timezone.utc).isoformat(timespec='seconds')
 
 
@@ -156,7 +121,7 @@ CREATE INDEX IF NOT EXISTS idx_events_case ON case_events(case_id, at);
 
 
 def init() -> Path:
-    """Create the schema if absent. Safe to call on every boot."""
+    """Creates the tables if they don't exist; safe to call on every start."""
     conn = connect()
     with conn:
         conn.executescript(_SCHEMA)
@@ -171,7 +136,7 @@ def init() -> Path:
 # ─── Thumbnails ───────────────────────────────────────────────────────────────
 
 def _decode_thumbnail(data_url):
-    """'data:image/jpeg;base64,AAA' -> (bytes, 'image/jpeg'). (None, None) on junk."""
+    """Splits a data URL into raw bytes and a mime type, or (None, None) if it isn't one."""
     if not data_url or not isinstance(data_url, str):
         return None, None
     if not data_url.startswith('data:'):
@@ -185,6 +150,7 @@ def _decode_thumbnail(data_url):
 
 
 def _encode_thumbnail(blob, mime):
+    """Turns stored thumbnail bytes back into a data URL."""
     if not blob:
         return ''
     return 'data:%s;base64,%s' % (mime or 'image/jpeg',
@@ -194,12 +160,7 @@ def _encode_thumbnail(blob, mime):
 # ─── Cases ────────────────────────────────────────────────────────────────────
 
 def upsert_case(case_id: str, case: dict) -> str:
-    """Insert or update a case row, preserving created_at on update.
-
-    Snapshots carry a foreign key to cases, so every snapshot write calls this
-    first. That ordering is deliberate: it makes "snapshot belonging to a case
-    that does not exist" unrepresentable rather than merely unlikely.
-    """
+    """Inserts or updates a case, keeping its original created_at."""
     conn = connect()
     now = _now()
     with conn:
@@ -234,7 +195,7 @@ def upsert_case(case_id: str, case: dict) -> str:
 
 
 def ensure_case(case_id: str, meta: dict = None) -> str:
-    """Create a stub case row if it does not exist yet. Never overwrites."""
+    """Creates an empty case row if it doesn't exist yet; never overwrites."""
     conn = connect()
     now = _now()
     meta = meta or {}
@@ -261,30 +222,8 @@ def ensure_case(case_id: str, meta: dict = None) -> str:
     return case_id
 
 
-def get_case(case_id: str):
-    row = connect().execute(
-        'SELECT * FROM cases WHERE id = ? AND deleted_at IS NULL', (case_id,)
-    ).fetchone()
-    if not row:
-        return None
-    try:
-        state = json.loads(row['state_json'])
-    except Exception:
-        state = {}
-    state['caseId'] = row['id']
-    return state
-
-
 def adopt_pending_snapshots(case_id: str, meta: dict = None) -> int:
-    """Move recovered snapshots off the sentinel case onto a real one.
-
-    Called when a case with an operator-supplied identity opens. Returns how
-    many moved, which is zero on every call after the first.
-
-    `meta` matters: adoption can be the first thing that ever mentions this
-    case to the database, and creating the row without it leaves a case with a
-    blank name owning the operator's recovered work.
-    """
+    """Moves recovered snapshots from the placeholder case onto a real case and returns how many moved."""
     if case_id == PENDING_CASE_ID:
         return 0
 
@@ -303,6 +242,7 @@ def adopt_pending_snapshots(case_id: str, meta: dict = None) -> int:
 
 
 def list_cases():
+    """Lists every case except the placeholder, newest first."""
     rows = connect().execute(
         'SELECT id, case_number, case_name, investigator, created_at, updated_at '
         'FROM cases WHERE deleted_at IS NULL AND id != ? '
@@ -324,6 +264,7 @@ def list_cases():
 # ─── Snapshots ────────────────────────────────────────────────────────────────
 
 def _row_to_meta(row):
+    """Converts a snapshot row into the dictionary sent to the app."""
     return {
         'id': row['id'],
         'clientUuid': row['client_uuid'],
@@ -335,11 +276,7 @@ def _row_to_meta(row):
 
 
 def list_snapshots(case_id: str):
-    """Metadata and thumbnails only — state_json is deliberately not selected.
-
-    A case with 30 snapshots holds ~30 full face states; shipping all of them
-    to render a list is what made the old localStorage payload hit quota.
-    """
+    """Lists a case's snapshots with thumbnails but without their full state, to keep the list light."""
     rows = connect().execute(
         'SELECT id, client_uuid, case_id, name, thumbnail, thumb_mime, created_at '
         'FROM snapshots WHERE case_id = ? AND deleted_at IS NULL '
@@ -350,7 +287,7 @@ def list_snapshots(case_id: str):
 
 
 def get_snapshot(snapshot_id: int):
-    """One snapshot including its full state — used by restore and export."""
+    """Returns one snapshot with its full state, for restore and export."""
     row = connect().execute(
         'SELECT * FROM snapshots WHERE id = ? AND deleted_at IS NULL',
         (snapshot_id,),
@@ -367,12 +304,7 @@ def get_snapshot(snapshot_id: int):
 
 def create_snapshot(case_id, name, state, thumbnail=None,
                     client_uuid=None, case_meta=None):
-    """Insert a snapshot, or return the existing row for a repeated client_uuid.
-
-    The idempotency check is what makes the renderer's offline outbox safe to
-    replay: a capture that reached the database but whose response was lost
-    resolves to the same row instead of a duplicate.
-    """
+    """Saves a snapshot, or returns the existing one if the same client id was already saved."""
     ensure_case(case_id, case_meta)
 
     if client_uuid:
@@ -380,8 +312,7 @@ def create_snapshot(case_id, name, state, thumbnail=None,
             'SELECT * FROM snapshots WHERE client_uuid = ?', (client_uuid,)
         ).fetchone()
         if existing:
-            # A replay of a write that already landed. Undo a prior soft delete
-            # only if it is still live; otherwise hand back what is there.
+            # This save already happened, so return the existing row.
             return get_snapshot(existing['id']) or _row_to_meta(existing)
 
     blob, mime = _decode_thumbnail(thumbnail)
@@ -403,6 +334,7 @@ def create_snapshot(case_id, name, state, thumbnail=None,
 
 
 def rename_snapshot(snapshot_id: int, name: str):
+    """Renames a snapshot and logs the change."""
     conn = connect()
     with conn:
         cur = conn.execute(
@@ -418,7 +350,7 @@ def rename_snapshot(snapshot_id: int, name: str):
 
 
 def delete_snapshot(snapshot_id: int):
-    """Soft delete — the row and its state survive for the audit trail."""
+    """Soft-deletes a snapshot; the row stays for the audit trail."""
     conn = connect()
     with conn:
         row = conn.execute('SELECT case_id, name FROM snapshots WHERE id = ?',
@@ -436,6 +368,7 @@ def delete_snapshot(snapshot_id: int):
 
 
 def delete_all_snapshots(case_id: str):
+    """Soft-deletes every snapshot of a case and returns how many."""
     conn = connect()
     with conn:
         cur = conn.execute(
@@ -451,6 +384,7 @@ def delete_all_snapshots(case_id: str):
 # ─── Audit log ────────────────────────────────────────────────────────────────
 
 def _log(conn, case_id, kind, detail=''):
+    """Adds an entry to the case event log using an open connection."""
     conn.execute(
         'INSERT INTO case_events (case_id, kind, detail, at) VALUES (?, ?, ?, ?)',
         (case_id, kind, str(detail)[:500], _now()),
@@ -458,21 +392,14 @@ def _log(conn, case_id, kind, detail=''):
 
 
 def log_event(case_id, kind, detail=''):
+    """Adds an entry to the case event log in its own transaction."""
     conn = connect()
     with conn:
         _log(conn, case_id, kind, detail)
 
 
-def list_events(case_id: str, limit: int = 200):
-    rows = connect().execute(
-        'SELECT kind, detail, at FROM case_events WHERE case_id = ? '
-        'ORDER BY id DESC LIMIT ?',
-        (case_id, limit),
-    ).fetchall()
-    return [{'kind': r['kind'], 'detail': r['detail'], 'at': r['at']} for r in rows]
-
-
 def stats():
+    """Returns database statistics: file path and row counts."""
     conn = connect()
     return {
         'path': str(DB_PATH),

@@ -1,8 +1,4 @@
-/**
- * UIController.js
- * Connects all UI elements to the 3D scene, morpher, hair system, and backend.
- * Handles all DOM interactions, panel switching, slider updates, etc.
- */
+// Connects every panel control to the 3D systems, morpher, case manager and backend, and restores the UI on undo, redo and load.
 
 class UIController {
   constructor(sceneManager, faceMorpher, hairSystem, backendAPI, caseManager) {
@@ -15,6 +11,7 @@ class UIController {
     this.historyLog = [];
   }
 
+  // Wires up every panel, tool and shortcut, then shows the starting state.
   init() {
     this.bindTitleBar();
     this.bindToolbar();
@@ -60,6 +57,7 @@ class UIController {
 
   // ─── Title Bar ───────────────────────────────────────────────────────────
 
+  // Wires the window minimise, maximise and close buttons.
   bindTitleBar() {
     document.getElementById('btnMinimize')?.addEventListener('click', () => {
       window.electronAPI?.minimize();
@@ -74,6 +72,7 @@ class UIController {
 
   // ─── Toolbar ─────────────────────────────────────────────────────────────
 
+  // Wires the viewport tools: views, wireframe, lighting, render mode, quality, screenshot, age progression, reset and undo/redo.
   bindToolbar() {
     // View presets
     document.getElementById('btnFrontView')?.addEventListener('click', () => {
@@ -106,11 +105,7 @@ class UIController {
       this.addHistory(`Lighting: ${mode}`);
     });
 
-    /* Render mode. Photoreal is the default; Structure strips the skin shading
-       stack, the studio environment and the post grade back to a flat matte
-       surface over the ground and grid — which is genuinely easier to judge a
-       jaw or a brow ridge against while dragging sliders. Logged like every
-       other adjustment, because this app stamps its history onto exports. */
+    // Render mode: Structure strips the skin shading back to a flat surface, easier for judging shape; the switch is logged.
     document.getElementById('btnRenderMode')?.addEventListener('click', (e) => {
       const mode = this.scene.toggleRenderMode();
       e.currentTarget.classList.toggle('active', mode === 'Photoreal');
@@ -151,6 +146,7 @@ class UIController {
 
   // ─── Panel Tabs ──────────────────────────────────────────────────────────
 
+  // Switches the side panel when a section tab is clicked.
   bindPanelTabs() {
     document.querySelectorAll('.panel-tab').forEach(tab => {
       tab.addEventListener('click', (e) => {
@@ -162,13 +158,13 @@ class UIController {
         e.currentTarget.classList.add('active');
         const panelId = 'panel-' + e.currentTarget.dataset.panel;
         document.getElementById(panelId)?.classList.add('active');
-        // Note: Preview container visibility is now handled by card hover events
       });
     });
   }
 
   // ─── Morph Sliders ───────────────────────────────────────────────────────
 
+  // Wires the face morph sliders and their reset buttons, with undo around each drag.
   bindMorphSliders() {
     document.querySelectorAll('.morph-slider').forEach(slider => {
       const control = slider.closest('.slider-control');
@@ -260,6 +256,7 @@ class UIController {
 
   // ─── Slider Fill Helper ──────────────────────────────────────────────────
 
+  // Updates a slider's filled track to match its value.
   updateSliderFill(slider) {
     const min = parseFloat(slider.min) || 0;
     const max = parseFloat(slider.max) || 100;
@@ -270,6 +267,7 @@ class UIController {
 
   // ─── Hair Controls ───────────────────────────────────────────────────────
 
+  // Wires the hair style cards (with hover previews), sliders, colours and default buttons.
   bindHairControls() {
     // Hair style cards
     const previewContainer = document.getElementById('hairPreviewContainer');
@@ -458,80 +456,11 @@ class UIController {
         this.addHistory('Changed hair color');
       });
     }
-
-    // ── Render with Blender (disabled — re-enable when hair transform pipeline is fixed) ──
-    // To re-enable: uncomment the block below and unhide #renderSection in index.html
-    /*
-    document.getElementById('btnRenderBlender')?.addEventListener('click', async () => {
-      this.showLoading('Preparing morphed mesh for render...');
-
-      // ── Upload current morphed mesh to backend so Blender uses it ──
-      try {
-        if (this.facePointEditor) {
-          const objData = this.facePointEditor.exportCurrentMeshAsOBJ();
-          if (objData) {
-            const uploadResult = await this.api.uploadMorphedMesh(objData);
-            if (uploadResult?.error) {
-              console.warn('Mesh upload failed, Blender will use base model:', uploadResult.error);
-            } else {
-              console.log('Morphed mesh uploaded for render');
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('Mesh export/upload error, Blender will use base model:', err);
-      }
-
-      this.showLoading('Rendering with Blender (this may take a minute)...');
-
-      // Gather render settings from UI
-      const engine = document.getElementById('renderEngine')?.value || 'EEVEE';
-      const quality = document.getElementById('renderQuality')?.value || 'medium';
-
-      // Gather scene data to send to Blender
-      const hairParams = this.hair.getParams();
-      const skinColor = document.getElementById('skinColorPicker')?.value || '#d4a574';
-      const hairColor = document.getElementById('hairColorPicker')?.value || '#2c1b0e';
-
-      // Get the precise hair transform from the frontend scene
-      const hairTransform = this.hair.getRenderTransform();
-      console.log('Hair transform for render:', JSON.stringify(hairTransform));
-
-      const result = await this.api.renderScene({
-        hairStyle: hairParams.style || 'hair1',
-        hairColor: hairColor,
-        skinColor: skinColor,
-        engine: engine,
-        quality: quality,
-        hairTransform: hairTransform,
-      });
-
-      this.hideLoading();
-
-      if (result?.error) {
-        this.addHistory('Blender render failed: ' + result.error);
-        alert('Render failed: ' + result.error);
-      } else if (result?.render_url) {
-        // Open rendered image in a new window or download it
-        const renderUrl = `http://127.0.0.1:5001${result.render_url}`;
-        const win = window.open(renderUrl, '_blank', 'width=1280,height=720');
-        if (!win) {
-          // Fallback: download
-          const link = document.createElement('a');
-          link.href = renderUrl;
-          link.download = result.filename || 'render.png';
-          link.click();
-        }
-        this.addHistory('Blender render complete');
-      } else {
-        this.addHistory('Blender render returned no image');
-      }
-    });
-    */
   }
 
   // ─── Eyebrow Controls ───────────────────────────────────────────────────
 
+  // Wires the eyebrow sliders, colours and reset button.
   bindEyebrowControls() {
     // Eyebrow param sliders
     document.querySelectorAll('.eyebrow-slider').forEach(slider => {
@@ -664,6 +593,7 @@ class UIController {
 
   // ─── Beard Controls ──────────────────────────────────────────────────────
 
+  // Wires the beard style, sliders, colours, reset and defaults editor.
   bindBeardControls() {
     // Beard style dropdown
     document.getElementById('beardStyle')?.addEventListener('change', (e) => {
@@ -805,6 +735,7 @@ class UIController {
 
   // ─── Beard Defaults Editor Modal ────────────────────────────────────────
 
+  // Wires the beard defaults editor dialog: save, export, import and clear.
   _initBeardDefaultsModal() {
     const modal     = document.getElementById('beardDefaultsModal');
     const closeBtn  = document.getElementById('btnBeardDefaultsClose');
@@ -874,6 +805,7 @@ class UIController {
     });
   }
 
+  // Opens the beard defaults editor filled with the current defaults.
   _openBeardDefaultsModal() {
     const modal = document.getElementById('beardDefaultsModal');
     if (!modal) return;
@@ -882,6 +814,7 @@ class UIController {
     modal.style.display = 'flex';
   }
 
+  // Builds one collapsible section of sliders per beard style in the defaults editor.
   _populateBeardDefaultsModal(allDefaults) {
     const body = document.getElementById('beardDefaultsBody');
     if (!body) return;
@@ -995,6 +928,7 @@ class UIController {
     });
   }
 
+  // Reads every beard style's values back out of the defaults editor.
   _collectBeardDefaultsFromModal() {
     const body = document.getElementById('beardDefaultsBody');
     if (!body) return {};
@@ -1010,6 +944,7 @@ class UIController {
 
   // ─── Appearance Controls ─────────────────────────────────────────────────
 
+  // Wires the skin tone, lip colour, eye colour and demographic controls.
   bindAppearanceControls() {
     // Skin tone swatches
     document.querySelectorAll('#skinToneGrid .skin-swatch').forEach(swatch => {
@@ -1156,6 +1091,7 @@ class UIController {
 
   // ─── Skin Texture & Aging Controls ──────────────────────────────────────
 
+  // Wires the skin texture sliders (debounced, since rebuilding the maps is slow), the cheek flush toggle and reset.
   bindSkinTextureControls() {
     const sliderMap = UIController.SKIN_TEXTURE_UI;
 
@@ -1180,8 +1116,7 @@ class UIController {
         if (this.skinTextureSystem) {
           this.skinTextureSystem.setParam(cfg.param, v);
 
-          // setParam already pushed this one to the shader; regenerating the
-          // macro maps for it would just be wasted work on every tick.
+          // setParam already sent this one to the shader, so there's no need to rebuild the maps.
           if (cfg.shaderOnly) return;
 
           // Debounce regeneration for performance (texture gen is expensive)
@@ -1226,9 +1161,7 @@ class UIController {
       this.addHistory(underEyeToggle.checked ? 'Enabled under-eye wrinkles' : 'Disabled under-eye wrinkles');
     });
 
-    // ── Cheek flush toggle ──
-    // Not a slider: it changes the diffuse map, so it rebuilds once on change
-    // rather than on a drag debounce.
+    // Cheek flush rebuilds the colour map once when toggled.
     const flushToggle = document.getElementById('cheekFlushToggle');
     if (flushToggle) {
       const cur = this.skinTextureSystem && this.skinTextureSystem.params.cheekFlush;
@@ -1263,8 +1196,7 @@ class UIController {
     });
   }
 
-  /* Slider/toggle ids for the skin texture panel, shared by every path that
-     has to push loaded state back into the controls. */
+  // Slider and toggle ids for the skin texture panel.
   static get SKIN_TEXTURE_UI() {
     return {
       sliderSkinAge:       { param: 'age',          valId: 'valSkinAge' },
@@ -1272,14 +1204,13 @@ class UIController {
       sliderUnderEyeIntensity: { param: 'underEyeIntensity', valId: 'valUnderEyeIntensity', shaderOnly: true },
       sliderSkinRoughness: { param: 'roughness',    valId: 'valSkinRoughness' },
       sliderPoreDetail:    { param: 'poreDetail',   valId: 'valPoreDetail' },
-      // shaderOnly: a uniform, not a texel — no map rebuild, so it lands on
-      // the same frame as the drag.
+      // shaderOnly settings change a uniform, so they apply on the same frame.
       sliderMicroRelief:   { param: 'microRelief',  valId: 'valMicroRelief', shaderOnly: true },
       sliderSunDamage:     { param: 'sunDamage',    valId: 'valSunDamage' },
     };
   }
 
-  /** Push skin texture params into the sliders and the cheek flush toggle. */
+  // Pushes skin texture settings into the sliders and the cheek flush toggle.
   _syncSkinTextureUI(params) {
     const p = { ...SkinTextureSystem.DEFAULT_PARAMS, ...params };
     for (const [sliderId, cfg] of Object.entries(UIController.SKIN_TEXTURE_UI)) {
@@ -1299,6 +1230,7 @@ class UIController {
 
   // ─── Age Progression Controls ────────────────────────────────────────────
 
+  // Wires the age progression overlay's age cards, undo, redo and close buttons.
   bindAgeProgressionControls() {
     // Use event delegation on the overlay container since buttons are initially hidden
     const overlay = document.getElementById('ageProgressionOverlay');
@@ -1342,6 +1274,7 @@ class UIController {
     }
   }
 
+  // Opens or closes the age progression overlay.
   toggleAgeProgressionPanel() {
     const overlay = document.getElementById('ageProgressionOverlay');
     const btn = document.getElementById('btnAgeProgression');
@@ -1366,6 +1299,7 @@ class UIController {
     }
   }
 
+  // Ages the skin by a number of years from the original settings, raising age and pore detail.
   applyAgeProgression(years) {
     if (!this.skinTextureSystem) return;
 
@@ -1380,16 +1314,14 @@ class UIController {
 
     this.caseManager.pushState(`Age progression: +${years} years`);
 
-    // Calculate age progression values - ONLY PORES
-    // Base values from original stored state
+    // Only age and pores change, starting from the stored original values.
     const baseAge = this.originalAgeParams.age;
     const basePoreDetail = this.originalAgeParams.poreDetail;
 
     // New age value
     const newAge = Math.min(100, baseAge + years);
     
-    // Pore detail increases with age (more visible pores)
-    // Progressive scaling: more visible pores as aging progresses
+    // Pores get more visible with age, up to a limit.
     const poreIncrement = Math.min(40, years * 1.6); // +1.6 per year, max +40
     const newPoreDetail = Math.min(100, basePoreDetail + poreIncrement);
 
@@ -1420,6 +1352,7 @@ class UIController {
 
   // ─── Eye Controls ───────────────────────────────────────────────────────
 
+  // Wires the eye position, size and rotation sliders and reset.
   bindEyeControls() {
     // Eye param sliders (scale/spacing/position/rotation)
     document.querySelectorAll('.eye-slider').forEach(slider => {
@@ -1501,6 +1434,7 @@ class UIController {
 
   // ─── Eyelash Controls ────────────────────────────────────────────────────
 
+  // Wires the eyelash sliders, colours and reset.
   bindEyelashControls() {
     // Eyelash param sliders
     document.querySelectorAll('.eyelash-slider').forEach(slider => {
@@ -1610,6 +1544,7 @@ class UIController {
 
   // ─── Glasses Controls ────────────────────────────────────────────────────
 
+  // Wires the glasses style cards, visibility, colours, fit sliders and reset.
   bindGlassesControls() {
     const glasses = this.glassesSystem;
     if (!glasses) return;
@@ -1647,8 +1582,7 @@ class UIController {
         } else {
           glasses.setStyle(style);
           glasses.setEnabled(true);
-          // setStyle may have applied per-style default params — push them
-          // back onto the sliders so the UI reflects the new pose.
+          // The style may have its own defaults, so push them back onto the sliders.
           this._syncGlassesUI(glasses.exportState());
         }
         if (visibleToggle) visibleToggle.checked = glasses.enabled;
@@ -1748,8 +1682,7 @@ class UIController {
         if (!isDragging) return;
         persistGlassesState();
         this.caseManager.endAction();
-        // Delay reset so the 'change' event (which fires synchronously after mouseup)
-        // still sees isDragging=true and skips its redundant pushState call.
+        // Clear the drag flag after the change event, so that event skips its extra undo step.
         setTimeout(() => { isDragging = false; }, 0);
         document.removeEventListener('mouseup', onMouseUp);
       };
@@ -1800,10 +1733,7 @@ class UIController {
     });
   }
 
-  /**
-   * Push glasses state into the DOM controls. Used after reset and when
-   * restoring from snapshots / loaded cases.
-   */
+  // Pushes glasses state into the panel controls, after a reset or restore.
   _syncGlassesUI(state) {
     if (!state) return;
     const visibleToggle = document.getElementById('glassesVisibleToggle');
@@ -1843,6 +1773,7 @@ class UIController {
 
   // ─── Face Mask Controls ──────────────────────────────────────────────────
 
+  // Wires the face mask style cards, visibility, colours, fit sliders and reset.
   bindFaceMaskControls() {
     const mask = this.faceMaskSystem;
     if (!mask) return;
@@ -1887,8 +1818,7 @@ class UIController {
           this._dropOtherFaceCovering('faceMask');
           mask.setStyle(style);
           mask.setEnabled(true);
-          // setStyle may have applied per-style default params — push them
-          // back onto the sliders so the UI reflects the new pose.
+          // The style may have its own defaults, so push them back onto the sliders.
           this._syncFaceMaskUI(mask.exportState());
         }
         if (visibleToggle) visibleToggle.checked = mask.enabled;
@@ -1993,8 +1923,7 @@ class UIController {
         if (!isDragging) return;
         persistFaceMaskState();
         this.caseManager.endAction();
-        // Delay reset so the 'change' event (which fires synchronously after mouseup)
-        // still sees isDragging=true and skips its redundant pushState call.
+        // Clear the drag flag after the change event, so that event skips its extra undo step.
         setTimeout(() => { isDragging = false; }, 0);
         document.removeEventListener('mouseup', onMouseUp);
       };
@@ -2029,16 +1958,11 @@ class UIController {
       this.addHistory('Reset face mask');
     });
 
-    // Push the seeded per-style defaults onto the controls so the panel agrees
-    // with what enabling the mask will actually render. Without this the
-    // sliders keep the static values written in index.html.
+    // Show the style's own defaults so the panel matches what will render.
     this._syncFaceMaskUI(mask.exportState());
   }
 
-  /**
-   * Push face mask state into the DOM controls. Used after reset and when
-   * restoring from snapshots / loaded cases.
-   */
+  // Pushes face mask state into the panel controls, after a reset or restore.
   _syncFaceMaskUI(state) {
     if (!state) return;
     const visibleToggle = document.getElementById('faceMaskVisibleToggle');
@@ -2084,6 +2008,7 @@ class UIController {
 
   // ─── Earring Controls ────────────────────────────────────────────────────
 
+  // Wires the earring style, side, metal, fit sliders and reset.
   bindEarringControls() {
     const earrings = this.earringSystem;
     if (!earrings) return;
@@ -2109,8 +2034,7 @@ class UIController {
         } else {
           earrings.setStyle(style);
           earrings.setEnabled(true);
-          // setStyle may have applied per-style default params — push them back
-          // onto the sliders so the UI reflects the new pose.
+          // The style may have its own defaults, so push them back onto the sliders.
           this._syncEarringUI(earrings.exportState());
         }
         if (visibleToggle) visibleToggle.checked = earrings.enabled;
@@ -2233,8 +2157,7 @@ class UIController {
         if (!isDragging) return;
         persistEarringState();
         this.caseManager.endAction();
-        // Delay reset so the 'change' event (which fires synchronously after mouseup)
-        // still sees isDragging=true and skips its redundant pushState call.
+        // Clear the drag flag after the change event, so that event skips its extra undo step.
         setTimeout(() => { isDragging = false; }, 0);
         document.removeEventListener('mouseup', onMouseUp);
       };
@@ -2268,15 +2191,11 @@ class UIController {
       this.addHistory('Reset earrings');
     });
 
-    // Push the seeded per-style defaults onto the controls so the panel agrees
-    // with what enabling the earrings will actually render.
+    // Show the style's own defaults so the panel matches what will render.
     this._syncEarringUI(earrings.exportState());
   }
 
-  /**
-   * Push earring state into the DOM controls. Used after reset and when
-   * restoring from snapshots / loaded cases.
-   */
+  // Pushes earring state into the panel controls, after a reset or restore.
   _syncEarringUI(state) {
     if (!state) return;
     const visibleToggle = document.getElementById('earringVisibleToggle');
@@ -2327,11 +2246,7 @@ class UIController {
 
   // ─── Bandana Controls ────────────────────────────────────────────────────
 
-  /**
-   * A bandana and a face mask both cover the lower face, so wearing both at
-   * once just renders one through the other. Turning either on drops the
-   * other, and the panel is kept in step.
-   */
+  // A bandana and a face mask both cover the lower face, so turning one on turns the other off.
   _dropOtherFaceCovering(keep) {
     if (keep !== 'bandana' && this.bandanaSystem && this.bandanaSystem.enabled) {
       this.bandanaSystem.setEnabled(false);
@@ -2345,6 +2260,7 @@ class UIController {
     }
   }
 
+  // Wires the bandana style, tint, visibility, fit sliders and reset.
   bindBandanaControls() {
     const bandana = this.bandanaSystem;
     if (!bandana) return;
@@ -2475,8 +2391,7 @@ class UIController {
         if (!isDragging) return;
         persistBandanaState();
         this.caseManager.endAction();
-        // Delay reset so the 'change' event (which fires synchronously after mouseup)
-        // still sees isDragging=true and skips its redundant pushState call.
+        // Clear the drag flag after the change event, so that event skips its extra undo step.
         setTimeout(() => { isDragging = false; }, 0);
         document.removeEventListener('mouseup', onMouseUp);
       };
@@ -2513,10 +2428,7 @@ class UIController {
     this._syncBandanaUI(bandana.exportState());
   }
 
-  /**
-   * Push bandana state into the DOM controls. Used after reset and when
-   * restoring from snapshots / loaded cases.
-   */
+  // Pushes bandana state into the panel controls, after a reset or restore.
   _syncBandanaUI(state) {
     if (!state) return;
     const visibleToggle = document.getElementById('bandanaVisibleToggle');
@@ -2557,6 +2469,7 @@ class UIController {
 
   // ─── Eyebrow Piercing Controls ───────────────────────────────────────────
 
+  // Wires the eyebrow piercing side, metal, fit sliders and reset.
   bindBrowRingControls() {
     const brow = this.browPiercingSystem;
     if (!brow) return;
@@ -2685,7 +2598,7 @@ class UIController {
     this._syncBrowRingUI(brow.exportState());
   }
 
-  /** Push eyebrow piercing state into the DOM controls. */
+  // Pushes eyebrow piercing state into the panel controls.
   _syncBrowRingUI(state) {
     if (!state) return;
     const toggle = document.getElementById('browRingVisibleToggle');
@@ -2723,6 +2636,7 @@ class UIController {
 
   // ─── Reference Photo Overlay ─────────────────────────────────────────────
 
+  // Wires the reference photo: load, show/hide, blend or wipe, mirror and alignment sliders.
   bindReferenceControls() {
     const ref = this.referenceOverlay;
     if (!ref) return;
@@ -2732,8 +2646,7 @@ class UIController {
     const flipToggle = document.getElementById('referenceFlipToggle');
     const toolbarBtn = document.getElementById('rf-vp-reference');
 
-    // Load a photo. Read as a data URL so it works the same whether the app is
-    // packaged or running from source, with no temp files to clean up.
+    // Read the photo as a data URL so it works the same packaged or from source.
     document.getElementById('btnLoadReference')?.addEventListener('click', () => fileInput?.click());
     fileInput?.addEventListener('change', (e) => {
       const file = e.target.files && e.target.files[0];
@@ -2761,8 +2674,7 @@ class UIController {
       this._syncReferenceUI();
     });
 
-    // Quick show/hide from the viewport, since that is the action you repeat
-    // constantly while comparing.
+    // Quick show/hide from the viewport, since it gets toggled a lot while comparing.
     toolbarBtn?.addEventListener('click', () => {
       if (!ref.hasImage) {
         this.showNotification('Load a reference photo in the Case tab first', 'info');
@@ -2783,9 +2695,7 @@ class UIController {
       ref.setFlipped(!!e.target.checked);
     });
 
-    // Alignment sliders. These are plain live updates — the overlay is a
-    // viewing aid, so it deliberately stays out of undo/redo and the case
-    // history rather than filling them with alignment noise.
+    // Alignment is a viewing aid, so it stays out of undo and the case history.
     const sliders = [
       ['referenceOpacitySlider', 'opacity'],
       ['referenceWipeSlider', 'wipe'],
@@ -2816,7 +2726,7 @@ class UIController {
     this._syncReferenceUI();
   }
 
-  /** Push overlay state into the panel and the viewport toggle. */
+  // Pushes the overlay state into the panel and the viewport toggle.
   _syncReferenceUI() {
     const ref = this.referenceOverlay;
     if (!ref) return;
@@ -2874,6 +2784,7 @@ class UIController {
 
   // ─── Turntable Clip ──────────────────────────────────────────────────────
 
+  // Wires the turntable clip settings and the record button.
   bindTurntableControls() {
     const rec = this.turntableRecorder;
     if (!rec) return;
@@ -2895,8 +2806,7 @@ class UIController {
       status.className = 'rf-turntable-status' + (kind ? ' ' + kind : '');
     };
 
-    // Plain live sliders — these are export settings, not part of the
-    // reconstruction, so they stay out of undo/redo and the case history.
+    // Export settings, so they stay out of undo and the case history.
     for (const id of ['turntableDurationSlider', 'turntableDegreesSlider',
                       'turntableElevationSlider', 'turntableFpsSlider']) {
       const el = document.getElementById(id);
@@ -2962,10 +2872,7 @@ class UIController {
     });
   }
 
-  /**
-   * Chunked so a multi-megabyte clip does not blow the argument limit that
-   * String.fromCharCode(...bytes) hits on large buffers.
-   */
+  // Converts an ArrayBuffer to base64 in chunks, so large clips don't overflow the argument limit.
   _arrayBufferToBase64(buffer) {
     const bytes = new Uint8Array(buffer);
     const CHUNK = 0x8000;
@@ -2978,6 +2885,7 @@ class UIController {
 
   // ─── Witness Variant Picker ──────────────────────────────────────────────
 
+  // Wires the witness variant picker: start, pick, reject all, apply and cancel.
   bindVariantPickerControls() {
     const picker = this.variantPicker;
     if (!picker) return;
@@ -2991,30 +2899,20 @@ class UIController {
 
     picker.onUpdate = () => this._renderVariantGrid();
 
-    // Hair, colouring and accessories for the candidate set go through the same
-    // path as a normal AI build — it already handles every block, persists to
-    // the case and resyncs the panel, and reusing it is what keeps the picker's
-    // faces to the same standard as the builder's.
+    // Apply the shared hair, colouring and accessories the same way a normal AI build does.
     picker.applyShared = (shared) => {
       if (!shared || !this.aiController) return;
       this.aiController._applyParams(shared);
       this.updatePropertyPanel?.();
-      // Taken off the AI controller so the list cannot drift from the systems
-      // _applyParams actually just touched. Resolved here rather than in the
-      // constructor: the picker is built before any of this is attached.
+      // Take the accessory systems from the AI controller so the list matches what it touches.
       const ai = this.aiController;
       picker.assetSystems = [ai.hair, ai.glasses, ai.faceMask, ai.earrings, ai.bandana];
     };
 
-    // Once a session has changed more than morphs, undo is the only thing that
-    // can put the whole face back — the restore point went in before start().
+    // Undo is the only thing that restores the whole face once a session changed more than morphs.
     picker.onRestore = () => this.undo();
 
-    /**
-     * Run an AI request for the picker, and if it fails for want of a key,
-     * ask for one and run it again. Both entry points below want this, and
-     * both would otherwise report a failure the operator could have fixed.
-     */
+    // Runs an AI request for the picker and, if it needs a key, asks for one and retries.
     const withKey = async (run) => {
       try {
         return await run();
@@ -3037,9 +2935,7 @@ class UIController {
         return;
       }
 
-      // A candidate set is an AI call like any other. The key is asked for
-      // before the picker opens, so a dismissed dialog does not leave an empty
-      // grid sitting on screen.
+      // Ask for a key before opening the picker, so a dismissed dialog doesn't leave an empty grid.
       const picked = () => (document.getElementById('aiProviderSelect')?.value
         || `${this.apiKeys?.defaultProvider || 'anthropic'}:`).split(':');
       if (this.apiKeys && !(await this.apiKeys.ensure(picked()[0]))) {
@@ -3047,8 +2943,7 @@ class UIController {
         return;
       }
 
-      // Read again: the key dialog offers every provider, and the picker has
-      // followed whichever one was keyed.
+      // Read the provider again, since the key dialog may have switched it.
       [picker.provider, picker.model] = picked();
 
       modal.style.display = 'flex';
@@ -3057,8 +2952,7 @@ class UIController {
       if (hint) hint.textContent = '';
       if (acceptBtn) acceptBtn.disabled = true;
 
-      // The face is about to be overwritten repeatedly for thumbnails, so put
-      // a restore point in before anything moves.
+      // Save a restore point before the face is changed for thumbnails.
       this.caseManager.pushState('Witness variant session');
 
       try {
@@ -3105,7 +2999,7 @@ class UIController {
     });
   }
 
-  /** Paint the candidate grid and the round/convergence messaging. */
+  // Draws the candidate grid and the round messages.
   _renderVariantGrid() {
     const picker = this.variantPicker;
     const grid = document.getElementById('rf-variant-grid');
@@ -3128,8 +3022,7 @@ class UIController {
         img.alt = v.label;
         card.appendChild(img);
       }
-      // Round 1+ keeps the previous pick in slot 0 so a good face can never be
-      // lost by choosing it; call that out rather than leaving it a surprise.
+      // From round 1, slot 0 holds the previous pick, so label it.
       if (state.round > 0 && i === 0) {
         const badge = document.createElement('div');
         badge.className = 'rf-variant-badge';
@@ -3169,6 +3062,7 @@ class UIController {
     if (acceptBtn) acceptBtn.disabled = picker.selectedIndex < 0;
   }
 
+  // Builds the next round from the picked candidate, or closes the picker once it has converged.
   _advanceVariantRound(index) {
     const picker = this.variantPicker;
     const status = document.getElementById('rf-variant-status');
@@ -3187,6 +3081,7 @@ class UIController {
 
   // ─── Skin Mark Controls ──────────────────────────────────────────────────
 
+  // Wires skin mark placement, type, size, rotation, colour, delete and clear, turning off other tools while active.
   bindSkinMarkControls() {
     const skinMarks = this.skinMarkSystem;
     if (!skinMarks) return;
@@ -3438,6 +3333,7 @@ class UIController {
 
   // ─── Decal System Controls ────────────────────────────────────────────
 
+  // Wires decal placement, upload, scale, rotation, opacity, delete and clear, turning off other tools while active.
   bindDecalControls() {
     const decals = this.decalSystem;
     if (!decals) return;
@@ -3446,7 +3342,6 @@ class UIController {
     const btnToolbar = document.getElementById('btnDecals');
     const fileInput = document.getElementById('decalFileInput');
     const btnUpload = document.getElementById('btnUploadDecalTexture');
-    const gallery = document.getElementById('decalTextureGallery');
 
     // ── Toggle placement mode ──
     const toggleDecalMode = () => {
@@ -3675,9 +3570,7 @@ class UIController {
     };
   }
 
-  /**
-   * Refresh the decal texture thumbnail gallery.
-   */
+  // Refreshes the decal image gallery.
   _refreshDecalGallery() {
     const decals = this.decalSystem;
     if (!decals) return;
@@ -3709,6 +3602,7 @@ class UIController {
 
   // ─── Wrinkle Painter Controls ─────────────────────────────────────────
 
+  // Wires the wrinkle brush: toggle, size, strength, eraser, undo and clear.
   bindWrinklePainterControls() {
     const painter = this.wrinklePainter;
     if (!painter) return;
@@ -3839,6 +3733,7 @@ class UIController {
 
   // ─── Lip Painter Controls ─────────────────────────────────────────────────
 
+  // Wires the lip brush: toggle, size, strength, eraser, undo and clear.
   bindLipPainterControls() {
     const painter = this.lipPainter;
     if (!painter) return;
@@ -3949,6 +3844,7 @@ class UIController {
 
   // ─── Pigmentation Painter Controls ──────────────────────────────────────────
 
+  // Wires the pigment brush: toggle, size, strength, eraser, undo, clear and colours.
   bindPigmentationPainterControls() {
     const painter = this.pigmentationPainter;
     if (!painter) return;
@@ -4103,6 +3999,7 @@ class UIController {
 
   // ─── Tint / Overlay Color Controls ──────────────────────────────────────
 
+  // Wires the tint colour, picker and strength for the hair, beard and eyebrows.
   bindTintControls() {
     // ── Helper: bind tint presets, picker, and intensity for a target ──
     const bindTintGroup = (presetsId, pickerId, intensityId, intensityValueId, setTintColor, setTintIntensity) => {
@@ -4195,6 +4092,7 @@ class UIController {
 
   // ─── Manual Hair Tint Painter Controls ──────────────────────────────────
 
+  // Wires the hair tint brush: target, size, strength, colour, eraser, undo and clear.
   bindHairTintPainterControls() {
     const painter = this.hairTintPainter;
     if (!painter) return;
@@ -4331,6 +4229,7 @@ class UIController {
 
   // ─── Case Controls ───────────────────────────────────────────────────────
 
+  // Wires the case buttons (save, load, new) and the case detail fields.
   bindCaseControls() {
     // Save - Export case to JSON file
     document.getElementById('btnSaveCase')?.addEventListener('click', () => {
@@ -4372,9 +4271,7 @@ class UIController {
             this.scene.eyeSystem.setParam(key, value);
           });
         }
-        /* Restore skin texture parameters. This called scene.setSkinTextureParam,
-           which does not exist on SceneManager — loading a case with saved skin
-           params threw here and abandoned the rest of the restore. */
+        // Restore skin texture settings; the old call to scene.setSkinTextureParam didn't exist and broke the rest of the restore.
         if (this.skinTextureSystem) {
           this.skinTextureSystem.loadState(data.appearance?.skinTextureParams || SkinTextureSystem.DEFAULT_PARAMS);
           this._syncSkinTextureUI(this.skinTextureSystem.getParams());
@@ -4440,6 +4337,7 @@ class UIController {
 
   // ─── Group Collapse ──────────────────────────────────────────────────────
 
+  // Makes group and sub-group headers open and close their contents.
   bindGroupCollapse() {
     document.querySelectorAll('.control-group-header').forEach(header => {
       header.addEventListener('click', (e) => {
@@ -4467,6 +4365,7 @@ class UIController {
 
   // ─── Keyboard Shortcuts ──────────────────────────────────────────────────
 
+  // Binds the keyboard shortcuts: undo, redo, save and number keys for views.
   bindKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
       if (e.ctrlKey || e.metaKey) {
@@ -4496,6 +4395,7 @@ class UIController {
 
   // ─── Backend Status ──────────────────────────────────────────────────────
 
+  // Shows the backend connection status in the status strip.
   bindBackendStatus() {
     this.api.onStatusChange = (connected, data) => {
       const statusDot = document.querySelector('#backendStatus .status-dot');
@@ -4527,6 +4427,7 @@ class UIController {
 
   // ─── Helper Methods ──────────────────────────────────────────────────────
 
+  // Copies the current state of every system into the case record.
   updateCaseFromUI() {
     this.caseManager.updateCaseInfo('caseNumber', document.getElementById('caseNumber')?.value || '');
     this.caseManager.updateCaseInfo('caseName', document.getElementById('caseName')?.value || 'Untitled');
@@ -4561,16 +4462,19 @@ class UIController {
     this.caseManager.currentCase.cameraState = this.scene.getCameraState();
   }
 
+  // Shows the case title.
   updateCaseTitle() {
     const titleEl = document.getElementById('caseTitle');
     if (titleEl) titleEl.textContent = this.caseManager.getTitle();
   }
 
+  // Shows the current view name.
   updateViewAngle(name) {
     const el = document.getElementById('viewAngle');
     if (el) el.textContent = name;
   }
 
+  // Updates the readout: edited morph count, hair style, skin, lip and eye colour, mark and decal counts, and vertex count.
   updatePropertyPanel() {
     const modCount = document.getElementById('modifiedCount');
     if (modCount) modCount.textContent = this.morpher.getModifiedCount();
@@ -4613,6 +4517,7 @@ class UIController {
     if (polyEl) polyEl.textContent = `Vertices: ${this.scene.getVertexCount().toLocaleString()}`;
   }
 
+  // Adds a line to the activity log.
   addHistory(message) {
     this.historyLog.unshift(message);
     if (this.historyLog.length > 30) this.historyLog.pop();
@@ -4631,6 +4536,7 @@ class UIController {
     }
   }
 
+  // Shows the processing overlay with a message.
   showLoading(text = 'Processing...') {
     const overlay = document.getElementById('loadingOverlay');
     const loadingText = document.getElementById('loadingText');
@@ -4638,11 +4544,13 @@ class UIController {
     if (loadingText) loadingText.textContent = text;
   }
 
+  // Hides the processing overlay.
   hideLoading() {
     const overlay = document.getElementById('loadingOverlay');
     if (overlay) overlay.style.display = 'none';
   }
 
+  // Saves a screenshot through the save dialog, or downloads it in a browser.
   async takeScreenshot() {
     const dataUrl = this.scene.takeScreenshot();
     if (window.electronAPI) {
@@ -4668,6 +4576,7 @@ class UIController {
 
 
 
+  // Resets every feature on the face to its default, as one undo step.
   resetAllFeatures() {
     this.caseManager.pushState('Reset all features');
 
@@ -4849,6 +4758,7 @@ class UIController {
     this.addHistory('Reset all features');
   }
 
+  // Starts a new case and resets every system and control.
   newCase() {
     this.caseManager.newCase();
     this.wrinklePainter?.loadState(null);
@@ -4971,14 +4881,13 @@ class UIController {
     this.updateCaseTitle();
     this.updatePropertyPanel();
 
-    // A new case has a new id, so its snapshot list is a different set of
-    // rows. Without this the panel kept showing the previous case's captures
-    // — the old code loaded snapshots exactly once, at boot.
+    // A new case has its own snapshot list, so load it.
     this.snapshotManager?.loadForCurrentCase();
 
     this.addHistory('New case created');
   }
 
+  // Loads a case file and restores every system from it.
   async loadCase(filePath) {
     this.showLoading('Loading case...');
     const data = await this.caseManager.load(filePath);
@@ -5062,8 +4971,7 @@ class UIController {
       this.updateCaseTitle();
       this.updatePropertyPanel();
 
-      // Pull this case's snapshots out of the database. A case opened from a
-      // file used to inherit whatever list happened to be in memory.
+      // Load this case's snapshots from the database.
       this.snapshotManager?.loadForCurrentCase();
 
       this.addHistory(`Loaded case: ${data.caseName || 'Untitled'}`);
@@ -5072,6 +4980,7 @@ class UIController {
     }
   }
 
+  // Undoes the last change and refreshes the UI.
   undo() {
     const state = this.caseManager.undo();
     if (state) {
@@ -5080,6 +4989,7 @@ class UIController {
     }
   }
 
+  // Redoes the last undone change and refreshes the UI.
   redo() {
     const state = this.caseManager.redo();
     if (state) {
@@ -5088,6 +4998,7 @@ class UIController {
     }
   }
 
+  // Restores a saved state into every system and control, in the order they depend on each other.
   restoreState(state) {
     // Restore morph targets + slider UI
     if (state.morphTargets !== undefined) {
@@ -5235,8 +5146,7 @@ class UIController {
 
     // Restore appearance (skin color, eye color)
     if (state.appearance) {
-      // Restore wrinkle paint BEFORE skin color so that regenerate() uses the correct data.
-      // Clear wrinkle paint if the state doesn't have it.
+      // Restore wrinkle paint before skin colour so the rebuild uses it.
       if (this.wrinklePainter) {
         if (state.appearance.wrinklePaintData) {
           this.wrinklePainter.loadState(state.appearance.wrinklePaintData);
@@ -5254,8 +5164,7 @@ class UIController {
         }
       }
 
-      // Restore skin color — this regenerates the skin texture (which now includes
-      // the correct wrinkle data) and updates SceneManager._skinColor.
+      // Restoring skin colour rebuilds the skin texture with the restored wrinkles.
       if (state.appearance.skinColor) {
         this.scene.setSkinColor(state.appearance.skinColor);
         const skinPicker = document.getElementById('skinColorPicker');
@@ -5265,8 +5174,7 @@ class UIController {
         });
       }
 
-      // Restore lip paint overrides BEFORE lip color so vertex colors blend correctly.
-      // Clear lip paint if the state doesn't have it.
+      // Restore lip paint before lip colour so the vertex colours blend correctly.
       if (this.lipPainter) {
         if (state.appearance.lipPaintData) {
           // loadState calls _updateVertexColors internally
@@ -5410,12 +5318,11 @@ class UIController {
 
   // ─── Snapshot Controls ─────────────────────────────────────────────────
 
+  // Wires the snapshot buttons: capture, name, clear all, import and panel refresh.
   bindSnapshotControls() {
     if (!this.snapshotManager) return;
 
-    // Capture button. Every snapshot operation is a database round trip now,
-    // so the button is disabled for the duration — a double click used to be
-    // able to queue two captures of the same state.
+    // Disable the capture button during the database call so a double click can't save twice.
     const captureBtn = document.getElementById('btnCaptureSnapshot');
     captureBtn?.addEventListener('click', async () => {
       if (captureBtn.disabled) return;
@@ -5463,14 +5370,10 @@ class UIController {
     // Re-render list when snapshots change
     this.snapshotManager.onSnapshotsChanged = (list) => this.renderSnapshotList(list);
 
-    // Surface storage problems in the activity log instead of the console,
-    // where an operator would never see them.
+    // Show storage problems in the activity log, where the operator will see them.
     this.snapshotManager.onStatus = (message) => this.addHistory(message);
 
-    // Opening the Frames panel re-reads the list when the case has changed
-    // underneath it. The intake flow fills the case fields on the existing
-    // template rather than creating a case, so neither newCase() nor
-    // loadCase() fires and nothing else would notice.
+    // Reload the snapshot list when the panel opens, in case the case changed underneath it.
     document.querySelector('.panel-tab[data-panel="snapshots"]')
       ?.addEventListener('click', () => {
         this.snapshotManager.refreshIfCaseChanged();
@@ -5480,13 +5383,7 @@ class UIController {
     this.renderSnapshotList(this.snapshotManager.getList());
   }
 
-  /**
-   * Build an icon element from the sprite sheet.
-   * FontAwesome was removed in the UI rebuild and build-ui.js only rewrites
-   * `<i class="fa…">` that appears in *markup* — icons created at runtime in
-   * JS were left behind and rendered as empty boxes, which is what made the
-   * snapshot export button look like it had stopped working.
-   */
+  // Builds an icon from the SVG sprite, since FontAwesome icons built in JS showed as empty boxes.
   _icon(name) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('class', 'i');
@@ -5497,6 +5394,7 @@ class UIController {
     return svg;
   }
 
+  // Draws the snapshot cards, newest first, with restore, export, delete and rename.
   renderSnapshotList(list) {
     const container = document.getElementById('snapshotList');
     const emptyEl = document.getElementById('snapshotEmpty');
@@ -5538,8 +5436,7 @@ class UIController {
         thumb.appendChild(ph);
       }
 
-      // A capture taken while the backend was down is shown, not hidden, with
-      // a marker saying it has not reached the database yet.
+      // Show captures still waiting for the backend, marked as pending.
       if (snap.pending) {
         const badge = document.createElement('span');
         badge.className = 'snapshot-badge';
@@ -5625,9 +5522,7 @@ class UIController {
         e.stopPropagation();
         exportBtn.disabled = true;
         try {
-          // Only log the export once it has actually been written — the old
-          // code logged it unconditionally, so a cancelled or failed save
-          // still reported success in the activity log.
+          // Only log the export once it has actually been written.
           if (await this.snapshotManager.exportToFile(snap.uid)) {
             this.addHistory(`Snapshot exported: ${snap.name}`);
           }
@@ -5652,6 +5547,7 @@ class UIController {
     });
   }
 
+  // Restores a snapshot and briefly highlights its card.
   async _restoreSnapshot(uid, cardEl) {
     const state = await this.snapshotManager.restore(uid);
     if (!state) return;
@@ -5665,6 +5561,7 @@ class UIController {
     }
   }
 
+  // Lets the user rename a snapshot inline.
   _startSnapshotRename(uid, nameEl) {
     const currentName = nameEl.textContent;
     const input = document.createElement('input');
@@ -5678,16 +5575,13 @@ class UIController {
     input.focus();
     input.select();
 
-    // blur fires again when the list re-renders under the input, so commit
-    // has to be idempotent or a rename round-trips to the backend twice.
+    // Blur can fire twice when the list re-renders, so commit only once.
     let committed = false;
     const commit = () => {
       if (committed) return;
       committed = true;
       const newName = input.value.trim() || currentName;
-      // Put the text back before calling rename. A rename to the same name is
-      // a no-op that never fires onSnapshotsChanged, and without this the
-      // input stayed mounted with no way to dismiss it.
+      // Put the text back first, since renaming to the same name triggers no refresh.
       nameEl.textContent = newName;
       this.snapshotManager.rename(uid, newName);
     };
@@ -5699,6 +5593,7 @@ class UIController {
     });
   }
 
+  // Formats a snapshot time as "Just now", minutes or hours ago, or a date.
   _formatSnapshotTime(ts) {
     const d = new Date(ts);
     const now = new Date();
@@ -5716,7 +5611,7 @@ class UIController {
     return d.toLocaleDateString(undefined, opts);
   }
 
-  // Helper: Update hair position sliders to given defaults
+  // Moves the hair position sliders to the given defaults.
   _updateHairPositionSliders(defaults) {
     // Map HTML data-param to HairSystem param key
     const sliderMap = {
@@ -5739,7 +5634,7 @@ class UIController {
     });
   }
 
-  // Helper: Update beard position sliders to given defaults
+  // Moves the beard position sliders to the given defaults.
   _updateBeardPositionSliders(defaults) {
     const sliderMap = {
       'beardScale': 'scale',
@@ -5763,10 +5658,12 @@ class UIController {
     });
   }
 
+  // Turns a camelCase parameter name into readable words.
   formatParamName(param) {
     return param.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
   }
 
+  // Turns a style id into a readable name.
   formatStyleName(style) {
     return style.replace(/_/g, ' ').replace(/^./, s => s.toUpperCase());
   }

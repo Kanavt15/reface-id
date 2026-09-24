@@ -1,12 +1,10 @@
+// Electron entry point: opens the window, builds the menu, starts the Python backend and handles file dialogs.
+
 const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 
-/* Electron 28 still defaults macOS to ANGLE's OpenGL backend, which reports
-   itself as "OpenGL 4.1" — a translation layer over an API Apple deprecated.
-   Metal is the supported path and measurably the faster one here. Must be set
-   before the app is ready, and scoped to darwin: Windows has its own default
-   (D3D11) that this would override for no reason. */
+// Use Metal instead of the old OpenGL layer on macOS; this must be set before the app is ready.
 if (process.platform === 'darwin') {
   app.commandLine.appendSwitch('use-angle', 'metal');
 }
@@ -14,7 +12,7 @@ if (process.platform === 'darwin') {
 let mainWindow;
 let pythonProcess;
 
-// Start Python/Blender backend
+// Starts the Python backend as a child process.
 function startBackend() {
   const backendPath = path.join(__dirname, '..', '..', 'backend', 'server.py');
   const condaPython = path.join(
@@ -23,11 +21,7 @@ function startBackend() {
   );
   const pythonCmd = require('fs').existsSync(condaPython) ? condaPython : 'python';
 
-  /* The SQLite store must not live inside the repo — a reinstall or a
-     packaged build would leave it somewhere the app cannot write, and cases
-     would silently reset. userData is the one path that means the same thing
-     for `npm start` and for an installed build, so hand it to Python rather
-     than letting each side guess. */
+  // Keep the database in the user's app-data folder so it survives reinstalls and packaged builds.
   const dataDir = app.getPath('userData');
   console.log(`[Backend] data dir: ${dataDir}`);
 
@@ -36,10 +30,7 @@ function startBackend() {
     env: { ...process.env, REFACE_DATA_DIR: dataDir }
   });
 
-  /* Both streams carry ordinary output. Flask writes its startup banner and
-     every request line to stderr, so tagging that stream "[Backend Error]"
-     labelled a console full of 200s as failures. A real traceback still reads
-     as one; the stream it arrived on never told us anything. */
+  // Flask writes normal output to stderr too, so both streams are logged the same way.
   const relay = (data) => console.log(`[Backend] ${data}`);
   pythonProcess.stdout.on('data', relay);
   pythonProcess.stderr.on('data', relay);
@@ -49,6 +40,7 @@ function startBackend() {
   });
 }
 
+// Creates the main window and the application menu.
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1600,
@@ -145,6 +137,7 @@ function createWindow() {
   Menu.setApplicationMenu(menu);
 }
 
+// Lets the user pick a case file and sends its path to the page.
 async function handleOpenCase() {
   const result = await dialog.showOpenDialog(mainWindow, {
     title: 'Open Case File',
@@ -156,6 +149,7 @@ async function handleOpenCase() {
   }
 }
 
+// Lets the user pick a 3D model file and sends its path to the page.
 async function handleImportModel() {
   const result = await dialog.showOpenDialog(mainWindow, {
     title: 'Import 3D Model',
@@ -186,12 +180,10 @@ ipcMain.handle('file:save-buffer', async (event, filePath, base64Data) => {
 
 ipcMain.handle('file:download-export', async (event, filename, sourcePath) => {
   const fs = require('fs');
-  const path = require('path');
 
   console.log(`[Export] Received parameters:`, { filename, sourcePath });
   console.log(`[Export] sourcePath type:`, typeof sourcePath);
 
-  // Show save dialog
   const result = await dialog.showSaveDialog(mainWindow, {
     defaultPath: filename,
     filters: [
@@ -242,9 +234,7 @@ ipcMain.handle('file:read-binary', async (event, filePath) => {
   return { data: buffer.toString('base64'), size: buffer.length };
 });
 
-/* The key dialog shows the provider's console URL. Opening it in the default
-   browser keeps the app window on the reconstruction; https only, so a URL
-   from anywhere but our own dialog cannot hand the OS something to run. */
+// Opens the AI provider's key page in the browser, allowing https links only.
 ipcMain.handle('shell:open-external', async (event, url) => {
   if (typeof url !== 'string' || !url.startsWith('https://')) return false;
   await shell.openExternal(url);

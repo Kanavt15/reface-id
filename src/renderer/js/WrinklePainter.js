@@ -1,8 +1,4 @@
-/** Continuous, tapered skin folds with a trough and soft raised shoulders.
- * Rest-space surface metrics keep brush width consistent across UV islands.
- * A separate 2048 map shares the authored creases' normal/contact shading.
- * Stroke commands preserve undo and case data without huge bitmap snapshots.
- */
+// Lets the user paint wrinkles onto the skin as smooth tapered folds, saved as strokes so undo stays cheap.
 class WrinklePainter {
   constructor(sceneManager, skinTextureSystem) {
     this.sceneManager = sceneManager;
@@ -34,6 +30,7 @@ class WrinklePainter {
     this._onPointerCancel = () => this._finishStroke(false);
   }
 
+  // Starts listening for brush strokes on the canvas.
   enable() {
     if (this.enabled) return;
     this.enabled = true;
@@ -41,12 +38,14 @@ class WrinklePainter {
     this.canvas.style.cursor = 'crosshair';
   }
 
+  // Lists the pointer events the brush listens to.
   _events() {
     return [['pointerdown', this._onPointerDown], ['pointermove', this._onPointerMove],
       ['pointerup', this._onPointerUp], ['pointercancel', this._onPointerCancel],
       ['lostpointercapture', this._onPointerCancel]];
   }
 
+  // Stops listening for brush strokes.
   disable() {
     this._finishStroke(true);
     this.enabled = false;
@@ -54,8 +53,10 @@ class WrinklePainter {
     this.canvas.style.cursor = '';
   }
 
+  // Turns the wrinkle brush on or off.
   toggle() { if (this.enabled) this.disable(); else this.enable(); return this.enabled; }
 
+  // Casts a ray from the mouse and returns the skin texture position it hits.
   _raycastUV(event) {
     const rect = this.canvas.getBoundingClientRect();
     this._mouse.set((event.clientX - rect.left) / rect.width * 2 - 1,
@@ -75,8 +76,7 @@ class WrinklePainter {
     const ub = uv.getX(b) - uv.getX(a), vb = uv.getY(b) - uv.getY(a);
     const uc = uv.getX(c) - uv.getX(a), vc = uv.getY(c) - uv.getY(a);
     const det = ub * vc - uc * vb;
-    // A degenerate UV triangle at the head's centre seam is still skin.
-    // Skip that sample without breaking the stroke across its neighbours.
+    // A flat UV triangle on the centre seam is still skin, so skip it without breaking the stroke.
     if (Math.abs(det) < 1e-12) return { skip: true };
     const su = ab.clone().multiplyScalar(vc).addScaledVector(ac, -vb).divideScalar(det);
     const sv = ac.clone().multiplyScalar(ub).addScaledVector(ab, -uc).divideScalar(det);
@@ -85,12 +85,11 @@ class WrinklePainter {
       metric: [su.dot(su), su.dot(sv), sv.dot(sv)], position: position.toArray() };
   }
 
+  // Adds a hit point to the current stroke, splitting it at seams and big jumps.
   _appendHit(hit) {
     if (hit?.skip) return;
     if (!hit) {
-      // One exact shared-edge ray can miss both triangles through numerical
-      // precision. Bridge that isolated miss; sustained off-face movement
-      // still splits the path, as do UV/surface discontinuities below.
+      // A ray exactly on a shared edge can miss both triangles, so bridge one isolated miss.
       this._misses = (this._misses || 0) + 1;
       if (this._misses > 1 && this._stroke.points.at(-1)) this._stroke.points.push(null);
       return;
@@ -107,6 +106,7 @@ class WrinklePainter {
     this._stroke.points.push(p);
   }
 
+  // Starts a new stroke where the user pressed on the face.
   _handlePointerDown(event) {
     if (!this.enabled || event.button !== 0 || this._stroke) return;
     const hit = this._raycastUV(event);
@@ -123,6 +123,7 @@ class WrinklePainter {
     this._queuePreview();
   }
 
+  // Extends the stroke as the mouse moves.
   _handlePointerMove(event) {
     if (!this._stroke || event.pointerId !== this._pointerId) return;
     event.preventDefault(); event.stopPropagation();
@@ -130,12 +131,14 @@ class WrinklePainter {
     this._queuePreview();
   }
 
+  // Ends the stroke when the mouse is released.
   _handlePointerUp(event) {
     if (!this._stroke || event.pointerId !== this._pointerId) return;
     this._appendHit(this._raycastUV(event));
     this._finishStroke(true);
   }
 
+  // Redraws the stroke preview at most once per frame.
   _queuePreview() {
     if (this._frame !== null) return;
     this._frame = requestAnimationFrame(() => {
@@ -144,6 +147,7 @@ class WrinklePainter {
     });
   }
 
+  // Finishes the stroke, either keeping it or throwing it away.
   _finishStroke(commit) {
     if (!this._stroke) return;
     if (this._frame !== null) cancelAnimationFrame(this._frame);
@@ -162,6 +166,7 @@ class WrinklePainter {
     this._previewBounds = null;
   }
 
+  // Creates the wrinkle texture the first time it is needed.
   _ensureMap() {
     if (this.texture) return;
     this._foldHeight = new Float32Array(this.RES * this.RES);
@@ -178,12 +183,14 @@ class WrinklePainter {
     this._bindTexture();
   }
 
+  // Hands the wrinkle texture to the skin shader.
   _bindTexture() {
     this.sceneManager.headMesh?.traverse(c => {
       if (c.isMesh && window.SkinShader) SkinShader.setWrinkleMap(c.material, this.texture);
     });
   }
 
+  // Draws one stroke into the fold height map.
   _rasterStroke(stroke, commit, encode = true) {
     const segments = [];
     let length = 0;
@@ -255,6 +262,7 @@ class WrinklePainter {
     return bounds;
   }
 
+  // Turns the fold heights in an area into normal-map colours.
   _encode(bounds, preview = null) {
     if (!this.texture || !bounds) return;
     const R = this.RES, data = this.texture.image.data;
@@ -278,16 +286,18 @@ class WrinklePainter {
     this.texture.needsUpdate = true;
   }
 
-  // Independent of the macro skin-map resolution and normal-map compositor.
+  // The wrinkle map has its own resolution, so a skin resize needs nothing here.
   resize() {}
+  // Kept for compatibility; wrinkles no longer use a shared height map.
   getHeightMap() { return null; }
-  hasManualWrinkles() { return this._commands.length > 0; }
 
+  // Saves the current strokes so they can be undone.
   _pushUndo() {
     this._undoStack.push(this._commands.slice());
     if (this._undoStack.length > 30) this._undoStack.shift();
   }
 
+  // Undoes the last change.
   undo() {
     this._finishStroke(false);
     if (!this._undoStack.length) return;
@@ -295,12 +305,14 @@ class WrinklePainter {
     this._rebuild(); this.onChanged?.();
   }
 
+  // Removes every painted wrinkle.
   clearAll() {
     this._finishStroke(false);
     this._pushUndo(); this._commands = [];
     this._rebuild(); this.onChanged?.();
   }
 
+  // Redraws the whole wrinkle map from the saved strokes.
   _rebuild() {
     if (!this.texture && !this._commands.length) return;
     this._ensureMap(); this._foldHeight.fill(0);
@@ -311,6 +323,7 @@ class WrinklePainter {
     this._encode([0, 0, this.RES - 1, this.RES - 1]); this._bindTexture();
   }
 
+  // Converts wrinkles from an older case format onto the new map.
   _importLegacy(command) {
     const r = command.resolution, R = this.RES;
     const source = new Float32Array(r * r);
@@ -328,11 +341,13 @@ class WrinklePainter {
     }
   }
 
+  // Returns the brush settings and strokes for saving.
   exportState() {
     return { version: 2, resolution: this.RES, brushSize: this.brushSize,
       brushStrength: this.brushStrength, commands: JSON.parse(JSON.stringify(this._commands)) };
   }
 
+  // Restores brush settings and strokes from a saved case.
   loadState(state) {
     this._finishStroke(false); this._undoStack = [];
     this.eraseMode = false;
@@ -351,8 +366,7 @@ class WrinklePainter {
         }
       }
     } else if (state?.data && Object.keys(state.data).length) {
-      // Older cases omitted resolution. Default to their usual 512 grid;
-      // larger indices identify the old High grid. New cases store metadata.
+      // Older cases didn't store a resolution, so work it out from the largest index.
       let max = 0;
       for (const key of Object.keys(state.data)) max = Math.max(max, Number(key) || 0);
       const resolution = [256, 512, 1024, 2048].includes(state.resolution) ? state.resolution
@@ -362,6 +376,7 @@ class WrinklePainter {
     this._rebuild(); this.onSettingsChanged?.();
   }
 
+  // Turns the brush off and frees the wrinkle texture.
   dispose() {
     this.disable(); this.texture?.dispose(); this.texture = null;
     this._bindTexture();

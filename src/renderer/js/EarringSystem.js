@@ -1,74 +1,35 @@
-/**
- * EarringSystem.js – GLB-based ear jewellery with per-side placement.
- *
- * Anchors to the live post-morph earlobe landmarks (ear_left_bottom /
- * ear_right_bottom) so the jewellery follows earSize, earHeight, earProtrusion
- * and earlobeSize instead of sitting at a fixed offset. Mirrors GlassesSystem
- * and FaceMaskSystem — HeadTracker reparents earringGroup into the pivot group,
- * so head tracking works without extra wiring.
- *
- * Sides are independent: 'both', 'left' or 'right'. A single piercing is common
- * enough in real subjects that one-sided wear is a first-class option, not an
- * afterthought.
- *
- * Model-space notes for assets/accessories/nose_ring_ear_ring.glb:
- *   - The file carries exactly one mesh, "Nose Ring.001_Metal_0" (a plain hoop).
- *     Both ears reuse that geometry; there is no separate left/right mesh.
- *   - Every transform lives on ANCESTOR nodes (Sketchfab_model → .fbx →
- *     RootNode → Nose Ring.001), and the mesh-bearing node has no matrix of its
- *     own. GlassesSystem._readNodeTransforms only reads a mesh node's own
- *     matrix, so it returns nothing here — hence _readWorldTransforms below,
- *     which accumulates down the hierarchy.
- *   - The hoop is authored thin in Z. An earring needs it thin in X (hoop plane
- *     parallel to the head's sagittal plane), so _normalise rotates it.
- *
- * Realism: the geometry is re-origined at the TOP of the hoop, which is the
- * point that passes through the lobe. Positioning that origin at the piercing
- * point makes the hoop hang below the lobe the way real jewellery does, rather
- * than floating centred on the landmark. A small bead is drawn at the entry
- * point so the piercing reads as a piercing.
- */
+// Fits earrings to each earlobe, measured from the live head mesh, with separate left and right placement.
 
-// ── Asset path constants ────────────────────────────────────────────────────
-// Update this path if the GLB is moved.
+// Earring model path; update this if the file moves.
 const EARRING_MODEL_PATH = '../../assets/accessories/nose_ring_ear_ring.glb';
 
 class EarringSystem {
-  /**
-   * Neutral slider values, before any per-style tuning is layered on top.
-   * Every key here is a valid `setParam` target.
-   */
+  // Neutral slider values before any per-style tuning.
   static get BASE_PARAMS() {
     return {
       size: 100,   // 40..200 — overall scale, relative to the measured ear
       posX: 0,     // -100..+100 — outward (away from the head) / inward
       posY: 0,     // -100..+100 — raises / lowers the piercing point
       posZ: 0,     // -100..+100 — forward / back along the lobe
-      // Per-side tuning. Ears are rarely symmetric once morphs are applied, and
-      // a single-side piercing usually wants its own placement. "left" is the
-      // subject's left, i.e. the -X ear, matching the ear_left_* / jaw_angle_left
-      // convention in OBJMorpher.LANDMARKS.
+      // Per-side tuning, since ears are rarely symmetric; "left" is the subject's left ear.
       tiltL: 0,    // -45..+45 deg — swings the hoop fore/aft in the ear plane
       tiltR: 0,
       splayL: 0,   // -45..+45 deg — flares the hoop away from the neck
       splayR: 0,
       dropL: 0,    // -50..+50 — extra hang below the lobe
       dropR: 0,
-      // Rolls the hoop around its own centre without moving it. 0 leaves the
-      // model's opening where _alignGapToTop put it, i.e. straight at the lobe.
+      // Rolls the hoop around its own centre; 0 leaves the opening at the lobe.
       spinL: 0,    // -180..+180 deg
       spinR: 0,
     };
   }
 
   constructor(sceneManager) {
-    // Accepts a SceneManager (needs .renderer for the metal environment map)
-    // but tolerates a bare scene, matching the looser constructors elsewhere.
+    // Takes the SceneManager (it needs the renderer for metal reflections) but also accepts a bare scene.
     this.sceneManager = sceneManager && sceneManager.scene ? sceneManager : null;
     this.scene = this.sceneManager ? this.sceneManager.scene : sceneManager;
 
-    // Scene group — HeadTracker.js looks for this.earringGroup by name to
-    // reparent into the head-tracking pivot, matching GlassesSystem.
+    // HeadTracker looks for this.earringGroup by name to move it into the tracking pivot.
     this.earringGroup = new THREE.Group();
     this.earringGroup.name = 'EarringSystem';
     this.scene.add(this.earringGroup);
@@ -88,29 +49,15 @@ class EarringSystem {
 
     this.params = EarringSystem.BASE_PARAMS;
 
-    // Style configs. `defaults` are applied by setStyle().
-    //
-    // `place` is the piercing point relative to the measured lobe anchor, in
-    // units of ear height: `out` is away from the skull, `lift` upward, `fwd`
-    // toward the face. These exist because _computeEarAnchors returns the
-    // outermost point of the lower ear, which is the helix rim rather than the
-    // lobe itself — it lands a touch high, noticeably far back, and outboard of
-    // where a ring actually passes through. Hand-tuned against the stock head;
-    // `place` keeps that correction out of the user's sliders so those stay
-    // centred on 0 and can trim in both directions.
+    // Style settings; `place` corrects the measured anchor, which sits on the ear rim, onto the real piercing point.
     this.earringModels = {
       hoop: {
         label: 'Hoop',
         usesModel: true,
-        // Hoop diameter as a fraction of the measured ear height. The stock
-        // head measures ~0.49 units ear-to-lobe against a ~1.9 unit head
-        // width, so one unit is roughly 8cm; 0.42 puts a ~1.7cm hoop on the
-        // lobe, which reads as everyday jewellery rather than a statement piece.
+        // Hoop size as a share of ear height; 0.42 gives an everyday hoop of about 1.7cm.
         sizeRatio: 0.4234,
         place: { out: -0.17, lift: 0.032, fwd: 0.188 },
-        // spin is negative because the slider's sign is now absolute rather
-        // than per-side: the tuned left ear ran at -29 once its old outward
-        // flip was applied, and the right must match it exactly.
+        // Spin is negative so both ears match the tuned left ear.
         defaults: {
           size: 100, posX: 0, posY: 0, posZ: 0,
           tiltL: 3, tiltR: 3, splayL: 8, splayR: 8,
@@ -120,10 +67,7 @@ class EarringSystem {
       stud: {
         label: 'Stud',
         usesModel: false,
-        // A stud is a bead sitting on the lobe, so it is scaled off the same
-        // ear measurement but far smaller — about a 5mm ball. It rests on the
-        // surface rather than passing through, so it keeps more of the
-        // anchor's outward reach than the ring styles do.
+        // A stud is a small bead of about 5mm that sits on the lobe surface.
         sizeRatio: 0.10,
         place: { out: -0.04, lift: 0.032, fwd: 0.188 },
         defaults: {
@@ -135,10 +79,7 @@ class EarringSystem {
       drop: {
         label: 'Drop',
         usesModel: true,
-        // Hangs a smaller hoop below a short bar. The ratio covers the whole
-        // assembly (bar + hoop = 1.0 in unit space), so a ~2.5cm total drop.
-        // Its bar passes through the lobe just as the hoop does, so it shares
-        // the ring placement.
+        // A small hoop hanging below a short bar, about 2.5cm in total.
         sizeRatio: 0.46,
         place: { out: -0.17, lift: 0.032, fwd: 0.188 },
         defaults: {
@@ -159,18 +100,12 @@ class EarringSystem {
     // Per-side scene containers
     this._sides = { left: null, right: null };
 
-    // Baseline landmark positions captured on first refresh — used so the fit
-    // degrades gracefully if a landmark stops resolving mid-session.
+    // Starting lobe positions, used as a fallback if measuring fails.
     this._initialLobeL = null;
     this._initialLobeR = null;
     this._initialEarHeight = null;
 
-    // ── Metal material ──
-    // metalness 1.0 with no image-based lighting renders almost black, and this
-    // scene never sets scene.environment (SceneManager only adds directional,
-    // ambient and hemisphere lights). A small PMREM-filtered gradient gives the
-    // metal something to reflect. It is attached to this material only, so the
-    // skin/hair/glasses/mask look is untouched.
+    // Metal looks black without reflections, so this material gets its own small reflection map.
     this._metalMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(this.metalColor),
       metalness: 1.0,
@@ -186,11 +121,7 @@ class EarringSystem {
     console.log('[EarringSystem] Initialized');
   }
 
-  /**
-   * Full default state for a style, ready to hand to loadState(). Reset paths
-   * use this so "reset" restores the tuned per-style fit rather than a flat
-   * neutral pose that no style actually wants.
-   */
+  // Returns a style's full default state, so reset restores the tuned fit.
   getStyleDefaults(style) {
     const name = this.earringModels[style] ? style : 'hoop';
     const d = this.earringModels[name].defaults || {};
@@ -207,6 +138,7 @@ class EarringSystem {
 
   // ── Head binding ────────────────────────────────────────────────────────
 
+  // Connects the earrings to the head mesh and morpher.
   setHeadMesh(headGroup, regionData, morpher) {
     this._headGroup = headGroup;
     this._regionData = regionData;
@@ -217,6 +149,7 @@ class EarringSystem {
     this._captureBaselines();
   }
 
+  // Records the starting earlobe positions.
   _captureBaselines() {
     const a = this._computeEarAnchors();
     if (!a) return;
@@ -225,16 +158,9 @@ class EarringSystem {
     this._initialEarHeight = a.earHeight;
   }
 
-  // ── Ear localisation ────────────────────────────────────────────────────
+  // Ear location
 
-  /**
-   * World-space vertices of the head mesh, post-morph.
-   *
-   * OBJMorpher rewrites the position attribute in place, so reading it here
-   * always reflects the current face. Accessory meshes are skipped by vertex
-   * count — the head is an order of magnitude denser than anything else in
-   * the group.
-   */
+  // Returns the head mesh's current vertices in world space, skipping smaller accessory meshes.
   _sampleHeadPoints() {
     const group = this._headGroup;
     if (!group) return null;
@@ -262,22 +188,7 @@ class EarringSystem {
     return out;
   }
 
-  /**
-   * Find each earlobe from the mesh itself rather than from
-   * OBJMorpher.LANDMARKS.
-   *
-   * The landmark table is a hand-written approximation and its ear entries do
-   * not match head.glb: `ear_left_bottom` resolves roughly 0.12 above, 0.13
-   * behind and 0.05 inboard of the actual lobe, which buries a hoop inside the
-   * skull. Measuring instead keeps the jewellery on the surface and makes it
-   * follow earSize / earProtrusion / earlobeSize for free.
-   *
-   * Method: bin the head by height and record how far each slice reaches
-   * sideways. The ear is the lateral bulge, so outwardness peaks inside it and
-   * falls away below; the lobe is where the profile has dropped to 90% of that
-   * peak. Averaging the outermost vertices around that height gives a point on
-   * the outer lobe surface — where a piercing actually sits.
-   */
+  // Finds each earlobe from the mesh itself, since the landmark table puts them in the wrong place.
   _computeEarAnchors() {
     const pts = this._sampleHeadPoints();
     if (!pts) return null;
@@ -311,8 +222,7 @@ class EarringSystem {
         if (outward > ext[b]) ext[b] = outward;
       }
 
-      // Peak = widest point of the ear. Restrict to the upper 60% of the head
-      // so a broad jaw or shoulder cannot win.
+      // The widest point of the ear, searched only in the upper part so the jaw can't win.
       const lo = binOf(minY + span * 0.40);
       let peakBin = -1, peak = -Infinity;
       for (let b = lo; b < BINS; b++) {
@@ -366,9 +276,7 @@ class EarringSystem {
     return result;
   }
 
-  /**
-   * Called by app.js on every morph update so the jewellery tracks ear changes.
-   */
+  // Refits the earrings after every face change.
   refreshFromMesh(morphValues) {
     if (morphValues) this._faceMorphValues = morphValues;
     if (this.enabled && (this._sides.left || this._sides.right)) {
@@ -378,6 +286,7 @@ class EarringSystem {
 
   // ── Public API ──────────────────────────────────────────────────────────
 
+  // Shows or hides the earrings, loading the model on first use.
   setEnabled(enabled) {
     this.enabled = !!enabled;
     if (this.enabled) {
@@ -393,6 +302,7 @@ class EarringSystem {
     }
   }
 
+  // Switches to another earring style, or hides them for 'none'.
   setStyle(style) {
     if (style === 'none') {
       this.setEnabled(false);
@@ -415,7 +325,7 @@ class EarringSystem {
     if (this.enabled) this.generate();
   }
 
-  /** 'both' | 'left' | 'right' — which ears carry jewellery. */
+  // Chooses which ears wear jewellery: both, left or right.
   setSideMode(mode) {
     if (!['both', 'left', 'right'].includes(mode)) {
       console.warn('[EarringSystem] Unknown side mode:', mode);
@@ -425,29 +335,32 @@ class EarringSystem {
     this._applySideVisibility();
   }
 
+  // Sets the metal colour.
   setMetalColor(hex) {
     this.metalColor = hex;
     this._metalMat.color.set(hex);
   }
 
-  /** 0 = brushed/matte, 100 = mirror finish. */
+  // Sets how polished the metal is, from matte (0) to mirror (100).
   setPolish(value) {
     this.polish = Math.max(0, Math.min(100, value));
     this._metalMat.roughness = this._polishToRoughness(this.polish);
   }
 
+  // Converts the polish value into material roughness.
   _polishToRoughness(polish) {
-    // Keep a floor of 0.04: a perfectly smooth metal with only a tiny env map
-    // collapses to a hard mirror and loses its silhouette.
+    // Keep some roughness, or the metal turns into a hard mirror and loses its shape.
     return 0.04 + (1 - Math.max(0, Math.min(100, polish)) / 100) * 0.66;
   }
 
+  // Sets one fit value and refits the earrings.
   setParam(param, value) {
     if (this.params[param] === undefined) return;
     this.params[param] = value;
     if (this.enabled) this._alignAndAdjust();
   }
 
+  // Returns the current earring settings.
   getParams() {
     return {
       ...this.params,
@@ -459,19 +372,14 @@ class EarringSystem {
     };
   }
 
-  /** True when the active style is driven by the GLB rather than procedural. */
+  // Tells whether the current style uses the loaded model rather than built shapes.
   usesModel() {
     return !!this.earringModels[this.currentStyle]?.usesModel;
   }
 
-  // ── Environment map (metal reflections) ─────────────────────────────────
+  // Environment map
 
-  /**
-   * Build a small PMREM-filtered studio gradient. Drawn on a canvas rather than
-   * loaded from disk so the app stays offline-only and no asset is added.
-   * Returns null if no renderer is reachable — the material then falls back to
-   * direct lighting only, which is dull but not broken.
-   */
+  // Builds a small studio reflection map on a canvas, or returns null if there is no renderer.
   _buildEnvMap() {
     const renderer = this.sceneManager && this.sceneManager.renderer;
     if (!renderer || typeof THREE.PMREMGenerator !== 'function') {
@@ -493,8 +401,7 @@ class EarringSystem {
       ctx.fillStyle = ramp;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Two soft highlights so the hoop catches moving streaks as it rotates,
-      // which is most of what sells a curved metal surface.
+      // Two soft highlights so the hoop catches moving reflections as it turns.
       for (const [cx, cy, r] of [[64, 34, 44], [186, 46, 30]]) {
         const hl = ctx.createRadialGradient(cx, cy, 1, cx, cy, r);
         hl.addColorStop(0.0, 'rgba(255,255,255,1)');
@@ -519,16 +426,9 @@ class EarringSystem {
     }
   }
 
-  // ── GLB loading ─────────────────────────────────────────────────────────
+  // Model loading
 
-  /**
-   * Accumulate each mesh's full world matrix by walking the glTF node tree.
-   *
-   * GLBLoader emits a flat mesh list and drops node TRS entirely, and
-   * GlassesSystem's flat reader only recovers a transform when it sits on the
-   * mesh's own node. This asset puts a -90 deg X rotation, a 0.01 scale and a
-   * 0.63 scale on three separate ancestors, so both of those paths lose it.
-   */
+  // Collects each mesh's world transform by walking the glTF node tree, since this model keeps them on parent nodes.
   _readWorldTransforms(buffer) {
     try {
       const dv = new DataView(buffer);
@@ -565,8 +465,7 @@ class EarringSystem {
         const world = new THREE.Matrix4().multiplyMatrices(parentMatrix, localMatrix(n));
         if (typeof n.mesh === 'number') {
           const meshName = meshes[n.mesh]?.name;
-          // GLBLoader names every primitive of a mesh after the mesh itself, so
-          // one entry per mesh name is the right granularity here.
+          // The loader names every part after its mesh, so one entry per mesh name is enough.
           if (meshName && !out[meshName]) out[meshName] = world.clone();
         }
         for (const child of n.children || []) walk(child, world);
@@ -583,7 +482,7 @@ class EarringSystem {
     }
   }
 
-  /** Union bounding box across a list of BufferGeometry. */
+  // Returns the combined bounding box of several geometries.
   _unionBox(geoms) {
     const box = new THREE.Box3();
     for (const g of geoms) {
@@ -593,18 +492,7 @@ class EarringSystem {
     return box;
   }
 
-  /**
-   * Roll the hoop about its own axis so its opening faces the lobe.
-   *
-   * The supplied model is a split ring: a 40-degree gap sits directly opposite
-   * the closed arc. Left alone the closed side lands against the ear and the
-   * opening dangles in mid-air, which is backwards — on a real hoop the gap is
-   * the closure, and it sits at the piercing with the ear inside it.
-   *
-   * Vertices are binned by angle around the hoop centre in the YZ plane; the
-   * longest empty run is the opening. Returns the ring radius, or null when
-   * the model is a closed ring and there is nothing to align.
-   */
+  // Rolls the hoop so its opening faces the lobe, finding the gap as the longest empty run of angles.
   _alignGapToTop(geoms, centreY, centreZ) {
     const BINS = 72;                        // 5 degrees per bin
     const hits = new Uint16Array(BINS);
@@ -657,13 +545,7 @@ class EarringSystem {
     return { radius, rotated: true };
   }
 
-  /**
-   * Bake world transforms, re-orient the hoop into the sagittal plane, roll its
-   * opening up to the lobe, move the origin to the piercing point and normalise
-   * to unit diameter. After this the per-side container only has to set
-   * position, rotation and a single scale equal to the desired diameter, and
-   * the hoop centre always sits at local (0, _hoopCentreY, 0).
-   */
+  // Reorients the hoop, aims its opening at the lobe, moves the origin to the piercing point and scales it to unit size.
   _normalise(geoms) {
     if (!geoms.length) return geoms;
 
@@ -686,10 +568,7 @@ class EarringSystem {
     box.getCenter(centre);
     const gap = this._alignGapToTop(geoms, centre.y, centre.z);
 
-    // ── Re-origin at the piercing point ──
-    // With an opening aligned upward that point is the ring's notional top
-    // (centre + radius), which lands in the middle of the gap. Falling back to
-    // the bbox top would sit the origin on the rim instead, below the opening.
+    // Put the origin at the top of the ring, in the middle of the opening, where the lobe passes through.
     box = this._unionBox(geoms);
     box.getSize(size);
     box.getCenter(centre);
@@ -706,14 +585,13 @@ class EarringSystem {
         g.computeBoundingBox();
         g.computeBoundingSphere();
       }
-      // Origin is the ring top and radius is half the diameter, so in unit
-      // space the centre is exactly half a diameter below the origin.
+      // With the origin at the ring top, the centre sits half a diameter below it.
       this._hoopCentreY = (gap && gap.rotated) ? -0.5 : (centre.y - top) / diameter;
     }
     return geoms;
   }
 
-  /** Fetch + parse the GLB once; resolves to normalised unit geometry. */
+  // Loads the earring model once and returns its prepared geometry.
   _loadModel() {
     if (this._unitGeometries) return Promise.resolve(this._unitGeometries);
     if (this._loadPromise) return this._loadPromise;
@@ -750,8 +628,9 @@ class EarringSystem {
     return this._loadPromise;
   }
 
-  // ── Piece construction ──────────────────────────────────────────────────
+  // Piece construction
 
+  // Wraps a geometry in a mesh using the shared metal material.
   _meshFromGeometry(geometry) {
     const mesh = new THREE.Mesh(geometry, this._metalMat);
     mesh.castShadow = true;
@@ -759,21 +638,14 @@ class EarringSystem {
     return mesh;
   }
 
-  /**
-   * The bead that sits at the entry point. Without it a hoop simply intersects
-   * the lobe and reads as clipping rather than as a piercing.
-   */
+  // Makes the small bead at the piercing point so the hoop doesn't look like it clips the ear.
   _makePiercingBead(radius) {
     const bead = this._meshFromGeometry(new THREE.SphereGeometry(radius, 16, 12));
     bead.name = 'EarringBead';
     return bead;
   }
 
-  /**
-   * A thin cylinder. `axis` 'x' gives the post that passes through the lobe
-   * front-to-back; 'y' gives the vertical bar a drop earring hangs from.
-   * CylinderGeometry is Y-aligned as built, so only the X case rotates.
-   */
+  // Makes a thin bar, either through the lobe (x) or hanging down (y).
   _makeBar(radius, length, axis) {
     const geo = new THREE.CylinderGeometry(radius, radius, length, 12);
     if (axis === 'x') geo.rotateZ(Math.PI / 2);
@@ -782,14 +654,7 @@ class EarringSystem {
     return bar;
   }
 
-  /**
-   * A hoop wrapped so it can be rolled about its own centre.
-   *
-   * The piece origin is the piercing point on the ring's rim, so rotating the
-   * meshes directly would swing the whole hoop away from the ear instead of
-   * turning it in place. Nesting them under a group parked at the ring centre
-   * makes rotation.x a true spin.
-   */
+  // Wraps the hoop in a group at its centre so it can spin in place.
   _makeHoop(unitGeoms) {
     const outer = new THREE.Group();
     outer.name = 'EarringHoop';
@@ -805,19 +670,14 @@ class EarringSystem {
     return outer;
   }
 
-  /**
-   * Build one side's jewellery in unit space: the piercing point is the origin
-   * and the piece hangs down -Y with an overall extent of about 1 unit.
-   * `piece.userData.spinners` lists the groups the spin slider drives.
-   */
+  // Builds one side's earring with the piercing point at the origin.
   _buildPiece(unitGeoms) {
     const piece = new THREE.Group();
     piece.name = 'EarringPiece';
     piece.userData.spinners = [];
 
     if (this.currentStyle === 'stud') {
-      // A stud is the bead itself plus a token post so a side view still shows
-      // something passing through the lobe.
+      // A stud is the bead plus a short post so it still shows from the side.
       const bead = this._makePiercingBead(0.5);
       bead.position.set(0, -0.35, 0);
       piece.add(bead);
@@ -845,9 +705,7 @@ class EarringSystem {
       return piece;
     }
 
-    // Default: plain hoop, opening at the lobe so the ear sits inside it.
-    // No extra bead — the model carries its own ball terminals, and after the
-    // gap alignment those are exactly what flank the piercing.
+    // Default plain hoop with its opening at the lobe.
     const hoop = this._makeHoop(unitGeoms);
     piece.add(hoop);
     piece.userData.spinners.push(hoop.userData.spinner);
@@ -856,6 +714,7 @@ class EarringSystem {
 
   // ── Generation ──────────────────────────────────────────────────────────
 
+  // Builds an earring for each side of the face.
   generate() {
     this._clearGroup(this.earringGroup);
     this._sides = { left: null, right: null };
@@ -887,11 +746,12 @@ class EarringSystem {
     }).finally(() => this._loads.end());
   }
 
-  /** Resolves once no earring model is mid-load. See AssetLoadTracker. */
+  // Resolves once the earring model has finished loading.
   whenIdle() {
     return this._loads.whenIdle();
   }
 
+  // Shows or hides each side according to the side setting.
   _applySideVisibility() {
     const wantLeft = this.sideMode === 'both' || this.sideMode === 'left';
     const wantRight = this.sideMode === 'both' || this.sideMode === 'right';
@@ -899,6 +759,7 @@ class EarringSystem {
     if (this._sides.right) this._sides.right.visible = wantRight;
   }
 
+  // Places each earring on its measured lobe and applies the user's settings.
   _alignAndAdjust() {
     if (!this._sides.left && !this._sides.right) return;
 
@@ -923,10 +784,7 @@ class EarringSystem {
     const diameter = earHeight * (config.sizeRatio || 0.42) * (this.params.size / 100);
 
     const DEG = Math.PI / 180;
-    // Slider offsets are scaled by ear height so they stay proportional when
-    // earSize is morphed, instead of drifting off a large ear. At ±100 a
-    // slider moves the piece by ±0.2 of an ear height, which is plenty of
-    // trim without letting it fly off the head.
+    // Offsets scale with ear height so they stay in proportion when the ear is resized.
     const unit = earHeight;
     const userPosX = this.params.posX * 0.002 * unit;
     const userPosY = this.params.posY * 0.002 * unit;
@@ -950,25 +808,14 @@ class EarringSystem {
         lobe.z + place.fwd * unit + userPosZ,
       );
 
-      // Tilt swings the hang fore/aft within the ear plane (about X).
-      // Splay flares the piece away from the neck; rotation about Z sends a
-      // point at -Y toward +X, so the left ear needs the opposite sign for both
-      // sides to swing outward together.
+      // Tilt swings the earring forward or back; splay flares it away from the neck, with opposite signs per side.
       const tilt = (this.params['tilt' + suffix] ?? 0) * DEG;
       const splay = (this.params['splay' + suffix] ?? 0) * DEG;
       container.rotation.set(tilt, 0, outward * splay);
 
       container.scale.setScalar(diameter);
 
-      // Spin rolls the ring about its own centre, so the opening can be aimed
-      // anywhere without the hoop leaving the lobe.
-      //
-      // No per-side sign flip, unlike splay. Reflecting the head through the
-      // sagittal plane maps (x,y,z) to (-x,y,z), which leaves a rotation about
-      // X untouched — so a mirror-symmetric pair carries the *same* spin angle.
-      // Negating it here made the right ear a rotational mirror of the left,
-      // which only looked right when viewed from behind the head. Tilt is also
-      // a rotation about X and is left unflipped for the same reason.
+      // Spin rolls the ring around its centre; it needs no flip between sides because mirroring leaves it unchanged.
       const spin = (this.params['spin' + suffix] ?? 0) * DEG;
       const piece = container.children[0];
       for (const s of (piece && piece.userData.spinners) || []) {
@@ -979,6 +826,7 @@ class EarringSystem {
 
   // ── State / persistence ─────────────────────────────────────────────────
 
+  // Returns the earring settings for saving.
   exportState() {
     // Spread params so new sliders persist without touching this method.
     return {
@@ -991,6 +839,7 @@ class EarringSystem {
     };
   }
 
+  // Restores earring settings from a saved case.
   loadState(state) {
     if (!state) return;
     if (state.style && this.earringModels[state.style]) this.currentStyle = state.style;
@@ -1002,17 +851,13 @@ class EarringSystem {
     for (const key of Object.keys(this.params)) {
       if (state[key] !== undefined) this.params[key] = state[key];
     }
-    // Force a clean rebuild so style/param changes from undo/redo are always
-    // reflected — setEnabled skips generate() when containers already exist.
+    // Force a clean rebuild so undo/redo always shows the restored state.
     this._sides = { left: null, right: null };
     this._clearGroup(this.earringGroup);
     this.setEnabled(state.enabled === true);
   }
 
-  /**
-   * Apply AI-generated earring block. Schema:
-   *   { enabled, style, sideMode, metalColor, polish }
-   */
+  // Applies earring settings suggested by the AI.
   applyFromAI(data) {
     if (!data) return;
     if (data.style && this.earringModels[data.style]) this.setStyle(data.style);
@@ -1022,38 +867,16 @@ class EarringSystem {
     this.setEnabled(!!data.enabled);
   }
 
-  /**
-   * World-space transforms of each visible side. Useful for future Blender
-   * export pipelines that want to merge the jewellery into the head mesh.
-   */
-  getRenderTransform() {
-    const out = {
-      matrices: {},
-      params: { ...this.params },
-      enabled: this.enabled,
-      style: this.currentStyle,
-      sideMode: this.sideMode,
-      metalColor: this.metalColor,
-      polish: this.polish,
-    };
-    if (!this.enabled) return out;
-    for (const side of ['left', 'right']) {
-      const c = this._sides[side];
-      if (!c || !c.visible) continue;
-      c.updateWorldMatrix(true, false);
-      out.matrices[side] = Array.from(c.matrixWorld.elements);
-    }
-    return out;
-  }
-
   // ── Cleanup ────────────────────────────────────────────────────────────
 
+  // Removes every child from a group.
   _clearGroup(group) {
     while (group.children.length > 0) {
       group.remove(group.children[0]);
     }
   }
 
+  // Removes the earrings from the scene and frees their materials.
   dispose() {
     this._clearGroup(this.earringGroup);
     this.scene.remove(this.earringGroup);

@@ -1,36 +1,6 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   ReFace ID — shell.css
-   Stage, sheet, and the apparatus arranged around them.
+/* shell.css: layout of the screens and the editor; the 3D view fills the stage and the sheet, nav, tools, dock and status strip float above it. */
 
-   ── Layout model ──────────────────────────────────────────────────────────
-   The render is never boxed in. #viewport fills the entire area between the
-   command bar and the status strip, edge to edge, and everything else floats
-   above it:
-
-     ┌───────────────────────────────────────────────────────────┐
-     │  command bar                              ─ □ ×           │
-     ├───────────────────────────────────────────────────────────┤
-     │  ┌ sections ┐                              ┌ subject ┐    │
-     │                                                       ┌─┐ │
-     │  ┌──────────┐                                         │ │ │
-     │  │  sheet   │              render                     │t│ │
-     │  │          │                                         │o│ │
-     │  └──────────┘                                         │o│ │
-     │                                                       │l│ │
-     │                     ┌ camera dock ┐                   └─┘ │
-     ├───────────────────────────────────────────────────────────┤
-     │  status strip                                             │
-     └───────────────────────────────────────────────────────────┘
-
-   The sheet is dismissible. That is the whole point of floating it: at any
-   moment the operator can press Escape and see the face with nothing on top
-   of it, which the previous fixed side docks made impossible.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* ══ Screen router ═══════════════════════════════════════════════════════
-   Four screens, only one mounted-visible at a time. The editor is never
-   unmounted — the head keeps loading behind the intake flow so the render
-   is already live when the operator arrives. */
+/* Screen router: four screens, one visible at a time; the editor stays mounted so the head keeps loading behind the intake. */
 
 #k-router { position: relative; width: 100%; height: 100%; }
 
@@ -42,11 +12,7 @@
   will-change: opacity, transform;
 }
 
-/* ScreenRouter.js owns these four classes and a 400ms budget
-   (ScreenRouter.TRANSITION_MS). The transition is a short push with a
-   scale of less than 2% — at full-screen size that reads as the frame
-   moving rather than a card sliding, which is the whole difference
-   between a cut in a film and a slide transition in a deck. */
+/* Screen transition classes driven by ScreenRouter.js within its 400ms budget. */
 
 .rf-screen-hidden { display: none !important; }
 
@@ -68,12 +34,7 @@
   pointer-events: none;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   INTAKE  —  hero, case setup, method
-   ═══════════════════════════════════════════════════════════════════════════
-   The intake screens are the only place the app is allowed to be quiet and
-   large. They are set on the void, with a single shaft of light behind the
-   content and nothing else. */
+/* Intake: hero, case setup and method screens, set large and quiet on the darkest ground. */
 
 .k-intake {
   position: relative;
@@ -84,8 +45,7 @@
   overflow: hidden;
 }
 
-/* One off-centre elliptical wash. Not a gradient background — a light
-   source. It is placed off-axis so the composition is never symmetrical. */
+/* One off-centre soft light behind the intake content. */
 .k-intake::before {
   content: '';
   position: absolute;
@@ -137,10 +97,7 @@
   padding: 16px 56px 30px;
 }
 
-/* ── The intake measure ──────────────────────────────────────────────────
-   Content is held to a readable measure and pushed left of centre. Centred
-   hero text is the single most generic layout there is; an asymmetric
-   measure with a long empty right side reads as considered. */
+/* Intake content is held to a readable width, left of centre. */
 .k-measure {
   width: 100%;
   max-width: 940px;
@@ -161,8 +118,7 @@
   background: linear-gradient(90deg, var(--k-edge), transparent);
 }
 
-/* Display type. Tight tracking, low weight contrast, and a deliberately
-   large step down to the body copy underneath. */
+/* Display title with tight tracking. */
 .k-title {
   font-size: var(--s-dis-l);
   font-weight: 620;
@@ -183,9 +139,7 @@
   font-weight: 380;
 }
 
-/* ── Start screen: the two entry cards ───────────────────────────────────
-   Two cards, unequal. The primary one is wider — an even 50/50 split makes
-   both look optional. */
+/* Start screen: two entry cards, the primary one wider. */
 .k-start-grid {
   display: grid;
   grid-template-columns: 1.35fr 1fr;
@@ -211,8 +165,7 @@
 
 .k-start-card:hover { background: var(--k-raise); border-color: var(--k-edge); }
 
-/* The primary card carries the one chroma, as a hairline at its top edge
-   only — enough to say "this one", not enough to shout. */
+/* The primary card gets a thin accent line at its top edge. */
 .k-start-card-primary::before {
   content: '';
   position: absolute;
@@ -289,9 +242,7 @@
 .k-recent-row:hover { color: var(--t-hi); padding-left: 10px; }
 .k-recent-empty { padding: 18px 4px; font-size: var(--s-sm); color: var(--t-off); }
 
-/* ── Case setup: the form ────────────────────────────────────────────────
-   Two columns of fields on a shared baseline, with the section label in the
-   left margin rather than above the fields. */
+/* Case setup form: two columns with the section label in the left margin. */
 .k-form {
   display: grid;
   grid-template-columns: 132px 1fr;
@@ -313,8 +264,7 @@
   margin-top: 40px;
 }
 
-/* .rf-method-card / .rf-method-selected are the names ScreenRouter.js
-   toggles; multi-select, so these read as checkboxes rather than radios. */
+/* Method cards toggled by ScreenRouter.js; they multi-select like checkboxes. */
 .rf-method-card {
   position: relative;
   display: flex;
@@ -361,10 +311,7 @@
 .k-method-title { font-size: var(--s-md); font-weight: 560; color: var(--t-hi); letter-spacing: -0.012em; }
 .k-method-note  { font-size: var(--s-sm); line-height: 1.55; color: var(--t-mute); }
 
-/* ── Intake form field ───────────────────────────────────────────────────
-   .rf-error and .rf-visible are applied by ScreenRouter._validateCaseSetup.
-   The message is reserved space, so a field that fails validation does not
-   shove the rest of the form down the page. */
+/* Intake form field; the error message space is reserved so the form doesn't jump. */
 
 .k-field-label {
   display: block;
@@ -408,8 +355,7 @@ textarea.k-field-input { height: auto; min-height: 84px; padding: 10px 12px; lin
 
 .k-field-error.rf-visible { height: 14px; margin-top: 5px; opacity: 1; }
 
-/* Disabled CTA — ScreenRouter toggles .rf-cta-disabled alongside
-   [disabled], so both are covered. */
+/* Disabled call-to-action; ScreenRouter sets both .rf-cta-disabled and [disabled]. */
 .rf-cta-disabled,
 .k-btn-primary:disabled {
   background: var(--k-lift);
@@ -433,15 +379,11 @@ textarea.k-field-input { height: auto; min-height: 84px; padding: 10px 12px; lin
 .k-step.active { width: 34px; background: var(--sig); }
 .k-step.done { background: var(--t-off); }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   EDITOR
-   ═══════════════════════════════════════════════════════════════════════════ */
+/* Editor */
 
 #k-editor { background: var(--k-void); }
 
-/* ── Command bar ─────────────────────────────────────────────────────────
-   The only full-width chrome in the app. Draggable, because the window is
-   frameless; every interactive child opts back out. */
+/* Command bar: the only full-width chrome, draggable because the window is frameless. */
 
 .k-cmdbar {
   position: relative;
@@ -462,8 +404,7 @@ textarea.k-field-input { height: auto; min-height: 84px; padding: 10px 12px; lin
 .k-cmdbar-left { gap: 11px; }
 .k-cmdbar-right { margin-left: auto; }
 
-/* Wordmark: a small filled square, then the name. The square is the only
-   solid chroma in the chrome and it doubles as the app's identity mark. */
+/* Wordmark: a small accent square and the app name. */
 .k-mark {
   display: flex;
   align-items: center;
@@ -533,8 +474,7 @@ textarea.k-field-input { height: auto; min-height: 84px; padding: 10px 12px; lin
 #viewport { position: absolute; inset: 0; }
 #viewport canvas { width: 100% !important; height: 100% !important; display: block; }
 
-/* A vignette anchors the render in the frame — the same trick a grading
-   suite uses, and it keeps floating chrome legible over bright skin. */
+/* A vignette that keeps floating controls readable over bright skin. */
 .k-stage::after {
   content: '';
   position: absolute;
@@ -547,10 +487,7 @@ textarea.k-field-input { height: auto; min-height: 84px; padding: 10px 12px; lin
 /* Everything that floats sits above the vignette. */
 .k-float { position: absolute; z-index: var(--z-hud); }
 
-/* ── Section nav ─────────────────────────────────────────────────────────
-   Floating, top-left. These are the real .panel-tab elements the controller
-   binds — no proxying. Clicking the active section closes the sheet, so the
-   nav is also the dismiss control. */
+/* Section nav: the real .panel-tab elements, floating top-left; clicking the active one closes the sheet. */
 
 .k-sections {
   top: 14px;
@@ -585,9 +522,7 @@ textarea.k-field-input { height: auto; min-height: 84px; padding: 10px 12px; lin
 .panel-tab .i { font-size: 13px; opacity: 0.85; }
 .panel-tab:hover { color: var(--t); background: rgba(255, 255, 255, 0.04); }
 
-/* The active tab's ground is a single marker element that slides between
-   tabs (k-motion.js), so the tab itself only changes colour. Sits behind
-   the labels via z-index rather than opacity. */
+/* One marker slides under the active tab (k-motion.js). */
 .k-tab-marker {
   position: absolute;
   top: 3px;
@@ -604,13 +539,10 @@ textarea.k-field-input { height: auto; min-height: 84px; padding: 10px 12px; lin
 .panel-tab.active { color: var(--t-hi); }
 .panel-tab.active .i { color: var(--sig); opacity: 1; }
 
-/* Without the motion layer the marker never gets placed, so the active
-   tab still needs a ground of its own. */
+/* Without the motion layer, the active tab needs its own background. */
 .k-sections:not(:has(.k-tab-marker)) .panel-tab.active { background: var(--k-lift); }
 
-/* ── Subject readout ─────────────────────────────────────────────────────
-   Top-right. A live summary of what has actually been built — style, eye
-   colour, tone, marks. Mono, dim, and never interactive: it is a gauge. */
+/* Subject readout: a read-only summary of the face, top-right. */
 
 .k-subject {
   top: 14px;
@@ -635,9 +567,7 @@ textarea.k-field-input { height: auto; min-height: 84px; padding: 10px 12px; lin
 .k-subject-k { font-size: var(--s-micro); letter-spacing: var(--tr-cap); text-transform: uppercase; color: var(--t-off); }
 .k-subject-v { font-family: var(--f-num); font-size: var(--s-tiny); color: var(--t-lo); letter-spacing: -0.02em; }
 
-/* ── Tool strip ──────────────────────────────────────────────────────────
-   Right edge, vertical, icon-only. These are modes, not commands, so they
-   latch: an engaged tool keeps the chroma until it is disengaged. */
+/* Tool strip: latching modes on the right edge, lit while engaged. */
 
 .k-tools {
   top: 50%;
@@ -676,14 +606,11 @@ textarea.k-field-input { height: auto; min-height: 84px; padding: 10px 12px; lin
 
 .k-tool-sep { height: 1px; margin: 3px 4px; background: var(--k-hair); }
 
-/* ── Camera dock ─────────────────────────────────────────────────────────
-   Bottom centre. Camera and display state only — nothing that edits the
-   subject lives here, so the operator always knows this row is safe. */
+/* Camera dock: camera and display controls only, bottom centre. */
 
 .k-dock {
   bottom: 16px;
-  /* Centred on the *free* stage, not the window — with the sheet open,
-     centring on the window buries the first half of the dock behind it. */
+  /* Centre on the free stage, not the window, so the open sheet doesn't cover it. */
   left: calc(50% + (var(--w-sheet) + 28px) / 2);
   transform: translateX(-50%);
   transition: left var(--t-3) var(--e);
@@ -721,10 +648,7 @@ body.k-sheet-closed .k-dock { left: 50%; }
 .k-dock-btn.active .i { color: var(--sig); }
 .k-dock-sep { width: 1px; align-self: stretch; margin: 4px 5px; background: var(--k-hair); }
 
-/* ── The sheet ───────────────────────────────────────────────────────────
-   The instrument surface. Floats over the stage rather than displacing it,
-   and blurs what is behind so the face stays readable underneath — the one
-   place in this design where blur is doing real work. */
+/* The sheet: the control panel, floating over the stage with a blur behind it. */
 
 .k-sheet {
   position: absolute;
@@ -745,8 +669,7 @@ body.k-sheet-closed .k-dock { left: 50%; }
   transform-origin: left center;
 }
 
-/* Dismissed state. Kept in the DOM and only moved, because several panels
-   host modals and video elements that must survive being hidden. */
+/* Closed state: moved off-screen but kept in the DOM so panels with modals and videos survive. */
 body.k-sheet-closed .k-sheet {
   pointer-events: none;
   opacity: 0;
@@ -781,8 +704,7 @@ body.k-sheet-closed .k-sheet {
 
 .k-sheet-actions { margin-left: auto; display: flex; align-items: center; gap: 2px; }
 
-/* The scroller. Lenis drives this; overflow stays on so it degrades to a
-   normal scroll area if the motion layer is disabled. */
+/* The scroller, driven by Lenis; still scrolls normally without it. */
 .k-sheet-body {
   flex: 1;
   min-height: 0;
@@ -790,8 +712,7 @@ body.k-sheet-closed .k-sheet {
   overscroll-behavior: contain;
 }
 
-/* Only the active section is mounted-visible. This is the contract
-   UIController.bindPanelTabs() drives, so the class names stay. */
+/* Only the active section is visible, as UIController.bindPanelTabs() expects. */
 .panel-content { display: none; padding-bottom: 28px; }
 .panel-content.active { display: block; }
 
@@ -854,8 +775,7 @@ body.k-sheet-closed .k-sheet {
 
 .k-status-btn:hover { color: var(--t-hi); background: var(--k-raise); }
 
-/* Connection dot. Colour is state, and it is the only thing in the status
-   strip permitted to carry any. */
+/* Connection dot, the only coloured thing in the status strip. */
 .k-dot {
   width: 6px; height: 6px;
   border-radius: 50%;
@@ -872,10 +792,7 @@ body.k-sheet-closed .k-sheet {
 .k-dot.status-dot { background: var(--rec); box-shadow: 0 0 0 3px var(--rec-dim); }
 .k-dot.status-dot.connected { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-dim); }
 
-/* UIController rewrites #statusBackend's innerHTML and includes its own
-   small dot glyph. The strip already shows state in the dot beside it, so
-   the duplicate is suppressed rather than shown twice. Icons injected the
-   same way collapse to nothing now that the icon font is gone. */
+/* UIController adds its own small dot in #statusBackend, so hide the duplicate. */
 .status-dot-small { display: none; }
 .k-status-item i { display: none; }
 
@@ -898,9 +815,7 @@ body.k-sheet-closed .k-sheet {
 
 .k-banner.visible { height: 27px; border-bottom-color: rgba(224, 163, 60, 0.24); }
 
-/* ── Loading overlay ─────────────────────────────────────────────────────
-   Sits over the stage while the head loads. A determinate bar, not a
-   spinner — a spinner tells the operator nothing about a 40MB mesh. */
+/* Loading overlay: a progress bar over the stage while the head loads. */
 
 .k-loading {
   position: absolute;
@@ -966,8 +881,7 @@ body.k-sheet-closed .k-sheet {
 
 #ageProgressionOverlay.active { display: grid; }
 
-/* ── Hair preview video ──────────────────────────────────────────────────
-   Follows the cursor near a style card. Framed like a monitor feed. */
+/* Hair preview video that follows the cursor near a style card. */
 
 #hairPreviewContainer {
   position: fixed;
@@ -987,17 +901,9 @@ body.k-sheet-closed .k-sheet {
   background: var(--k-sunken);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   WORKBENCH  —  filter row, bench, grip, mode banner
-   ═══════════════════════════════════════════════════════════════════════════
-   Everything below is new apparatus for reaching controls, and it borrows
-   nothing new: the same film-black grounds, the same hairlines, the same
-   single chroma reserved for what is live. Behaviour lives in
-   k-workbench.js; the sheet's own geometry lives above. */
+/* Workbench: filter row, bench, resize grip and mode banner (behaviour in k-workbench.js). */
 
-/* ── Filter row ──────────────────────────────────────────────────────────
-   Sits directly under the sheet head, outside the scroller, so it stays
-   put while two hundred rows move underneath it. */
+/* Filter row: fixed under the sheet header while the rows scroll. */
 
 .k-sheet-filter {
   flex: none;
@@ -1053,9 +959,7 @@ body.k-sheet-closed .k-sheet {
 .k-filter-clear:hover { background: var(--k-hover); color: var(--t-hi); }
 .k-filter-clear .i { font-size: 10px; }
 
-/* ── The edited chip ─────────────────────────────────────────────────────
-   Off by default and quiet about it. It takes the chroma only when it is
-   the thing filtering the view, which is the same rule the tools follow. */
+/* Edited chip: quiet until it is filtering the view. */
 
 .k-chip {
   flex: none;
@@ -1094,10 +998,7 @@ body.k-sheet-closed .k-sheet {
 .k-chip.has .k-chip-n { color: var(--t); }
 .k-chip.on .k-chip-n { color: var(--sig); }
 
-/* ── Bench ───────────────────────────────────────────────────────────────
-   A short, separately scrolling shelf between the filter and the sections.
-   Capped at a third of the sheet: it is a working set, and a bench that
-   can grow to fill the panel is just a section with extra steps. */
+/* Bench: a short shelf of pinned controls, capped at a third of the sheet. */
 
 .k-bench {
   flex: none;
@@ -1146,10 +1047,7 @@ body.k-sheet-closed .k-sheet {
 
 .k-sheet-empty .i { font-size: 18px; }
 
-/* ── Resize grip ─────────────────────────────────────────────────────────
-   A 6px strip on the sheet's right edge, invisible until approached. It
-   draws a hairline rather than a handle, because a visible grabber on a
-   panel this quiet would be the loudest thing in the frame. */
+/* Resize grip: an invisible strip on the sheet's right edge that shows a hairline when approached. */
 
 .k-sheet-grip {
   position: absolute;
@@ -1172,17 +1070,13 @@ body.k-sheet-closed .k-sheet {
 .k-sheet-grip:hover::after { opacity: 0.55; }
 body.k-resizing .k-sheet-grip::after { opacity: 1; }
 
-/* Nothing eases while the edge is being dragged — the sheet must track the
-   pointer exactly, and the dock reads its width from the same property. */
+/* No easing while resizing, so the sheet follows the pointer exactly. */
 body.k-resizing { cursor: ew-resize; user-select: none; }
 body.k-resizing .k-sheet,
 body.k-resizing .k-dock,
 body.k-resizing .k-float { transition: none !important; }
 
-/* ── Tool labels ─────────────────────────────────────────────────────────
-   The strip is 30px of icon with no words. The name flies out to the left
-   on hover, immediately — the native tooltip's one-second delay is why the
-   strip read as nine unexplained glyphs. */
+/* Tool labels that fly out on hover, immediately, unlike the slow native tooltip. */
 
 .k-tool-label {
   position: absolute;
@@ -1209,10 +1103,7 @@ body.k-resizing .k-float { transition: none !important; }
   transform: translateY(-50%) translateX(0);
 }
 
-/* ── Mode banner ─────────────────────────────────────────────────────────
-   Top centre of the stage, over the render. A latched tool means a click
-   on the face does something other than orbit it, and that is worth one
-   line of type. */
+/* Mode banner: names the latched tool over the 3D view. */
 
 .k-mode {
   top: 14px;

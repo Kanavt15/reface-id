@@ -1,9 +1,4 @@
-/**
- * probe-motion.mjs — is the motion layer actually doing anything?
- *
- * Measures rather than asserts. Samples real values over time so a
- * "configured but inert" library shows up as a flat line.
- */
+// Checks the animation libraries really move things by sampling values over time.
 import { _electron as electron } from 'playwright-core';
 import * as path from 'node:path';
 
@@ -14,10 +9,10 @@ const bin = path.join(APP_DIR, 'node_modules', 'electron', 'dist',
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
 
+// Waits for a number of milliseconds.
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/* Every wait is bounded. An unbounded loop here just hangs the run with
-   no output, which tells you nothing about where it stopped. */
+// Waits for a condition, with a time limit so a hang is reported.
 async function until(label, fn, ms = 30_000) {
   const t0 = Date.now();
   for (;;) {
@@ -27,6 +22,7 @@ async function until(label, fn, ms = 30_000) {
   }
 }
 
+// Prints a progress line.
 const step = (s) => { console.log('· ' + s); };
 
 const app = await electron.launch({ executablePath: bin, args: ['--no-sandbox', APP_DIR], env, timeout: 60_000 });
@@ -63,12 +59,8 @@ console.log(await page.evaluate(() => {
 }));
 
 /* ── Into the editor ───────────────────────────────────────────────── */
-/* force:true skips the actionability wait — GSAP is tweening this button
-   as the intake plays, and Playwright would otherwise block on it being
-   "stable". */
-/* Sample the dock while the editor entrance plays: it must animate AND
-   finish horizontally centred on the free stage, not flung sideways by
-   GSAP overwriting its translateX(-50%). */
+// force:true skips Playwright's wait while GSAP is still animating the button.
+// The dock must animate in and end up centred on the free stage.
 await page.evaluate(() => { window.__entrance = []; });
 await page.click('#rf-hero-open-editor', { force: true });
 await page.evaluate(() => {
@@ -94,8 +86,7 @@ console.log(await page.evaluate(() => {
   const stage = document.getElementById('k-stage').getBoundingClientRect();
   const dr = d.getBoundingClientRect(), tr = t.getBoundingClientRect();
   const sheetOpen = !document.body.classList.contains('k-sheet-closed');
-  /* With the sheet open the dock centres on the free stage: 50% + half
-     the sheet's footprint. */
+  // With the sheet open, the dock centres on the space beside it.
   const want = stage.left + stage.width / 2 + (sheetOpen ? (368 + 28) / 2 : 0);
   return {
     dockCentre: Math.round(dr.left + dr.width / 2),
@@ -128,8 +119,7 @@ console.log(await page.evaluate(() => {
   };
 }));
 
-/* Sample scrollTop over time after a wheel. Smooth scrolling shows a
-   ramp of intermediate values; a native jump shows one step. */
+// Smooth scrolling shows gradual scrollTop values after a wheel; a native jump shows one step.
 console.log('\n── wheel over the sheet: scrollTop samples ──');
 const box = await page.evaluate(() => {
   const r = document.getElementById('k-sheet-body').getBoundingClientRect();

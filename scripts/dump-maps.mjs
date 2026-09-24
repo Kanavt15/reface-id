@@ -1,13 +1,4 @@
-/**
- * dump-maps.mjs — write the live procedural skin maps to scripts/maps/*.png.
- *
- *   node scripts/dump-maps.mjs
- *
- * Macro maps (diffuse, normal, roughness, thickness) come from
- * SkinTextureSystem; the two tiled detail maps come from SkinShader. The
- * roughness and thickness maps pack control data into their channels (see
- * the SkinShader header), so each is also written split per channel.
- */
+// Saves the live skin maps and detail tiles to scripts/maps/ as PNGs, with packed control maps also split per channel; run with `node scripts/dump-maps.mjs`.
 import { _electron as electron } from 'playwright-core';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -15,16 +6,19 @@ import * as path from 'node:path';
 const APP_DIR = path.resolve(import.meta.dirname, '..');
 const OUT = path.join(APP_DIR,'scripts','maps'); fs.mkdirSync(OUT,{recursive:true});
 const bin = path.join(APP_DIR,'node_modules','electron','dist','electron.exe');
+// Waits for a number of milliseconds.
 const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
 const env={...process.env}; delete env.ELECTRON_RUN_AS_NODE;
 const PROFILE=path.join(os.tmpdir(),'reface-maps'+Date.now());
 const app=await electron.launch({executablePath:bin,args:['--no-sandbox',`--user-data-dir=${PROFILE}`,APP_DIR],env,timeout:60000});
+// Finds the app window by URL, since DevTools can open first.
 async function realPage(){const t0=Date.now();for(;;){const w=app.windows().find(w=>w.url().includes('index.html'));if(w)return w;if(Date.now()-t0>30000)throw new Error('no window');await sleep(200);}}
 await app.firstWindow(); const page=await realPage();
 const errors=[];
 page.on('console',(m)=>{ if(m.type()==='error') errors.push(m.text()); });
 page.on('pageerror',(e)=>errors.push('PAGEERROR: '+e.message));
 await page.waitForLoadState('domcontentloaded');
+// Waits until a condition is true in the page, or fails after a timeout.
 async function waitFor(l,fn,t=45000){const t0=Date.now();for(;;){if(await page.evaluate(fn).catch(()=>false))return;if(Date.now()-t0>t)throw new Error('timeout '+l);await sleep(200);}}
 await waitFor('ui',()=>document.querySelectorAll('.panel-tab').length===7&&!!window.KMotion);
 await page.click('#rf-hero-new-case'); await sleep(900);

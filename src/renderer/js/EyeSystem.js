@@ -1,31 +1,17 @@
-/**
- * EyeSystem.js – Realistic 3D eye system for forensic facial reconstruction
- *
- * Features:
- * - Loads left and right eye GLB models
- * - Applies eye color (iris/sclera)
- * - Adjusts eye positioning and size based on morphs
- * - Supports multiple eye styles
- * - Auto-refreshes when head morphs change
- */
+// Loads the eye and eyelash models, gives them realistic materials, and keeps them fitted to the eye sockets as the face changes.
 
 class EyeSystem {
-  /** Bounds on how far the eyeball may follow the opening's size. */
+  // Limits on how far the eyeball may scale to follow the eye opening.
   static get MIN_FOLLOW_SCALE() { return 0.80; }
+  // Largest scale the eyeball may follow the opening to.
   static get MAX_FOLLOW_SCALE() { return 1.30; }
 
-  /**
-   * Which container axis rolls the eye within the frontal plane, and its sign
-   * per side — the two containers are mirrored, so the same visual tilt needs
-   * opposite signs. Isolated here because it is the one part of following the
-   * opening that cannot be derived from the mesh: it depends on how the eye
-   * GLB was authored. If tilted eyes ever roll the wrong way, flip TILT_SIGN;
-   * if they roll about the wrong axis, change TILT_AXIS to 'z'.
-   */
+  // Which axis rolls the eye for tilt, with opposite signs per side; flip TILT_SIGN if tilted eyes roll the wrong way.
   static get TILT_AXIS() { return 'y'; }
+  // Tilt direction for each eye, since the two are mirrored.
   static get TILT_SIGN() { return { left: 1, right: -1 }; }
 
-  /** Set false to keep the eyeball level regardless of eyeTilt. */
+  // Set to false to keep the eyeball level whatever the eye tilt.
   static get FOLLOW_TILT() { return true; }
 
   constructor(scene) {
@@ -74,45 +60,17 @@ class EyeSystem {
 
     // Eye materials
     this._eyeMaterials = {
-      // Not #ffffff. A sclera photographs as a warm grey — leaving it at pure
-      // white makes it the brightest thing in the frame, which it never is on
-      // a real face, and reads instantly as a doll's eye.
+      // A warm grey, not white, because a pure white sclera looks like a doll's eye.
       scleraColor: '#cfc6b8',
       irisColor: '#6b5030',
       pupilColor: '#000000',
     };
 
-    /* Eye materials.
-     *
-     * A face is read at the eyes before anywhere else, so flat eyes sink an
-     * otherwise good head. The three materials here were a plain white sphere,
-     * a flat coloured sphere and a black sphere, which is roughly a doll's eye:
-     * no wet surface, no limbal ring, no iris structure, no catchlight, and a
-     * sclera brighter than anything else on the face.
-     *
-     * The structure itself lives in EyeShading, which derives it from the
-     * eyeball's own gaze axis rather than from textures — the eye GLB's UV
-     * layout is a Blender UV sphere whose pole does not sit where the pupil
-     * does, so a radial iris pattern cannot be mapped onto it without a seam
-     * and a pinch. See EyeShading.measureAnatomy(). */
+    // Eye materials; the iris and sclera detail comes from EyeShading, keyed to the eyeball's own gaze axis.
 
     this._sclera = new THREE.MeshPhysicalMaterial({
-      // Never pure white. A real sclera is a warm off-white and is the single
-      // most common giveaway when it is left at #ffffff.
       color: new THREE.Color(this._eyeMaterials.scleraColor),
-      /* Matte, and matte by a wide margin.
-       *
-       * Bare sclera is opaque collagen with no gloss of its own; every
-       * highlight a real eye shows belongs to the tear film lying on it,
-       * which is the cornea shell's job and now stays where the film is thick
-       * enough to behave like one. At 0.30 the sclera carried its own broad
-       * specular lobe, and under the key that lobe measured 233 against skin
-       * at 128 — a clipped white smear the size of the iris sitting beside
-       * it. One mirror that big is all it takes to read as a glass bead,
-       * whatever the diffuse term is doing.
-       *
-       * The same reasoning retires the clearcoat: at 1.0 it made a chrome
-       * ball, at 0.05 it was a second, redundant film over the one in front. */
+      // Matte, because the gloss belongs to the tear film (the cornea shell), not the sclera itself.
       roughness: 0.65,
       metalness: 0.0,
       clearcoat: 0.0,
@@ -123,19 +81,11 @@ class EyeSystem {
 
     this._iris = new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(this._eyeMaterials.irisColor),
-      /* Matte, and with no coat of its own.
-       *
-       * An iris stroma is a fibrous, essentially matte tissue. Every bit of
-       * gloss on a real eye belongs to the tear film in front of it — which
-       * is what the cornea shell now is, and which now actually covers the
-       * iris rather than passing under it. Leaving the clearcoat at 0.6 here
-       * gave the iris a second highlight of its own a few millimetres behind
-       * the corneal one, and a doubled catchlight is a straight giveaway. */
+      // Matte with no clearcoat, so there's only one catchlight, from the cornea.
       roughness: 0.50,
       metalness: 0.0,
       clearcoat: 0.0,
-      // An iris does not mirror the room; it scatters. The environment is
-      // here to keep it out of pure black in the shadowed eye, no more.
+      // The iris scatters light rather than mirroring it; this only keeps it out of pure black.
       envMapIntensity: 0.45,
       side: THREE.FrontSide,
     });
@@ -143,64 +93,27 @@ class EyeSystem {
 
     this._pupil = new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(this._eyeMaterials.pupilColor),
-      // A pupil is a hole. It should absorb essentially everything; the old
-      // 0.1 metalness made it pick up a grey sheen and read as a painted dot.
+      // The pupil is a hole, so it absorbs everything.
       roughness: 1.0,
       metalness: 0.0,
       envMapIntensity: 0.0,
       side: THREE.FrontSide,
     });
 
-    /* The cornea: a thin shell over the whole eyeball.
-     *
-     * Black base colour plus additive blending means it contributes nothing
-     * but its own reflection — so it adds the specular catchlight and the wet
-     * sheen without hiding the iris underneath, and without needing three's
-     * transmission pass, which would re-render the scene for two small
-     * spheres. The catchlight is what makes an eye look alive; without one the
-     * eye reads as glass no matter what else is right. */
+    // The cornea: an additive shell that adds the catchlight and wet sheen without hiding the iris.
     this._cornea = new THREE.MeshPhysicalMaterial({
-      /* Metallic, not dielectric, and that is deliberate.
-       *
-       * A real cornea is a dielectric with an F0 of about 0.025 — it reflects
-       * 2.5% of what hits it. It looks bright in a photograph only because the
-       * lamp is a thousand times brighter than the face. This environment is a
-       * canvas that tops out at 1.0, so a physically correct cornea reflects
-       * 0.025 of that and is invisible, which is exactly what the first
-       * attempt rendered.
-       *
-       * metalness 1 makes the reflection take this colour instead, which is
-       * the standard way to buy back a highlight the tone range cannot carry.
-       * The colour value IS the reflection strength — and it is decoded from
-       * sRGB, so a mid-grey here is only ~0.05 linear. That is why the first
-       * two passes at this rendered nothing: 0x2b3138 looks like a reasonable
-       * dark reflection and is in fact 2% of the light. */
+      // Metallic on purpose, so the colour sets the reflection strength; a physically correct cornea would be invisible here.
       color: 0x858b92,
       metalness: 1.0,
       roughness: 0.11,
-      /* Low, and the catchlight comes from the direct lights instead.
-       *
-       * A mirror reflects the entire environment, and this environment is a
-       * broad soft gradient — so at a high intensity the shell was not adding
-       * a highlight, it was adding half the sky as a flat additive wash across
-       * the whole eyeball. That wash was what kept reading as a bright
-       * blue-white sclera through several attempts at darkening the sclera
-       * itself, which was never the thing that was bright.
-       *
-       * The directional lights are point sources: on a surface this smooth
-       * they give a small, hard, genuinely bright dot, which is what a
-       * catchlight is. This value only carries the faint wet sheen. */
+      // Low environment reflection; the catchlight comes from the direct lights instead.
       envMapIntensity: 0.25,
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       side: THREE.FrontSide,
     });
-    /* And the shell is no longer uniformly wet. attachCornea confines the
-       glassy part to the corneal cap, pools a bright meniscus in the limbal
-       groove and dries out the lid-covered top of the ball, which cuts the
-       flat additive wash the comment above is about by a further two thirds
-       everywhere except the cornea itself. */
+    // Limit the glassy part to the cornea and keep the lid-covered top dry.
     EyeShading.attachCornea(this._cornea);
 
     // Eye model configurations (reference to GLB files when available)
@@ -215,7 +128,7 @@ class EyeSystem {
       },
     };
 
-    // Default position and scale calibration (updated after head metrics are known)
+    // Default eye positions, updated once the head has been measured.
     this._leftEyeBasePos = new THREE.Vector3(-0.12, 0.32, 0.58);
     this._rightEyeBasePos = new THREE.Vector3(0.12, 0.32, 0.58);
     this._eyeBaseScale = 1.0;
@@ -246,11 +159,7 @@ class EyeSystem {
 
     this.eyelashColor = '#241a14';
 
-    /* Same reasoning as the eyebrows: eyelashes.glb is 42k vertices of real
-       strands with no UVs, and blending them against each other at 0.95 is
-       what made them read as hard black spider legs rather than as hair.
-       #0a0a0a is also nearly pure black, which no hair is — lashes are dark
-       brown and pick up a rim from behind. */
+    // Opaque, dark brown lashes, because blended near-black strands looked like spider legs.
     this._eyelashMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(this.eyelashColor),
       roughness: 0.45,
@@ -262,11 +171,7 @@ class EyeSystem {
     });
 
     if (window.StrandShading) {
-      /* Every lobe named explicitly, including the ones this asset wants
-         almost none of. The defaults on attachSheen are calibrated for a
-         head of card hair with real UVs; a lash mesh has neither, and
-         inheriting a card's transmission strength and scatter width would
-         light 2mm of lash as though it had a hair mass behind it. */
+      // Every lobe is set explicitly, since the hair defaults would light tiny lashes like a full head of hair.
       StrandShading.attachSheen(this._eyelashMat, {
         sheenStrength: 0.08, trtStrength: 0.07, rimStrength: 0.10,
         rootDarken: 0.22, scatter: 0.16,
@@ -278,26 +183,11 @@ class EyeSystem {
     console.log('[EyeSystem] Initialized');
   }
 
-  // ── Eye anatomy ────────────────────────────────────────────────────────
+  // Eye anatomy
 
-  /**
-   * Measure one assembled eyeball and hand its anatomy to the shaders.
-   *
-   * The three parts are spheres, so the gaze axis, the limbus and the pupil
-   * margin all fall out of sphere intersections — see
-   * EyeShading.measureAnatomy(). Measuring beats hard-coding because the same
-   * code has to serve the GLB eyes and the procedural fallback, whose
-   * proportions differ, and because nothing here then breaks if the asset is
-   * re-exported at another scale.
-   *
-   * Returns the anatomy, or null when the meshes are not the spheres this
-   * assumes; callers fall back to leaving the shaders on their defaults.
-   */
+  // Measures one eyeball's gaze axis, iris edge and pupil from its sphere meshes and passes them to the shaders.
   _bindEyeAnatomy(container) {
-    /* Bind the baked maps and the melanin first: neither depends on the
-       geometry, so both apply whether or not the parts turn out to be
-       measurable spheres. The maps cost a couple of hundred milliseconds of
-       canvas work on the first call and nothing on every call after. */
+    // Bind the maps and pigment first, since they don't depend on the geometry.
     EyeShading.setMaps(this._iris);
     EyeShading.setMaps(this._sclera);
     EyeShading.setMelanin(this._iris, this.eyeColor);
@@ -319,23 +209,10 @@ class EyeSystem {
 
     EyeShading.setAnatomy(this._sclera, anatomy, parts.sclera);
     EyeShading.setAnatomy(this._iris, anatomy, parts.iris);
-    // The shell hangs off the sclera mesh and inherits its rotation, so the
-    // sclera's own space is the shell's space for directions.
+    // The shell hangs off the sclera mesh, so use the sclera's space for directions.
     EyeShading.setAnatomy(this._cornea, anatomy, parts.sclera);
 
-    /* Recess the pupil.
-     *
-     * The asset's pupil is a sphere whose pole sits *outside* the iris dome,
-     * so it rendered as a black bead bulging off the front of the eye rather
-     * than as a hole in it — and it poked through the cornea shell as well.
-     * A pupil is an aperture; nothing about it protrudes. Pushed back along
-     * the gaze axis until it is just under the iris surface, where it is
-     * hidden by the opaque iris and the iris shader draws the pupil instead
-     * (soft-edged, and displaced by corneal refraction, which a rigid mesh
-     * cannot be). It is kept rather than removed because the opacity slider
-     * makes the iris translucent, and then the eye does need something black
-     * behind it.
-     */
+    // Push the pupil sphere back under the iris surface so it reads as a hole, not a bead.
     if (parts.pupil && anatomy.pupilProtrusion > 0) {
       const sink = anatomy.pupilProtrusion + anatomy.irisRadius * 0.03;
       parts.pupil.position.addScaledVector(anatomy.axis, -sink);
@@ -345,15 +222,7 @@ class EyeSystem {
     return anatomy;
   }
 
-  /**
-   * Build the tear-film shell for one eye container.
-   *
-   * Shaped by EyeShading.buildCorneaGeometry(): a sphere over the sclera with
-   * a corneal cap grafted on at the limbus, so the eyeball has the bulge a
-   * real one has instead of being a bare ball. Rendered last with depth
-   * writing off, so it composites over the iris and pupil regardless of draw
-   * order.
-   */
+  // Builds the tear-film shell for one eye and draws it last, over the iris and pupil.
   _addCorneaShell(container, anatomy) {
     let sclera = null;
     container.traverse((c) => {
@@ -368,8 +237,7 @@ class EyeSystem {
       geo = built.geometry;
       centre = built.centre;
     } else {
-      // Nothing measurable to shape a cap from; a plain lifted sphere is
-      // still better than no tear film at all.
+      // Nothing to measure, so use a plain slightly larger sphere.
       sclera.geometry.computeBoundingSphere();
       const bs = sclera.geometry.boundingSphere;
       if (!bs) return null;
@@ -379,11 +247,7 @@ class EyeSystem {
 
     const shell = new THREE.Mesh(geo, this._cornea);
     shell.name = 'CorneaShell';
-    // Parented to the sclera rather than the container: the eye parts carry
-    // their own transforms inside the GLB, and a shell added as a sibling
-    // lands in the wrong place and at the wrong size. As a child it inherits
-    // the eyeball's full transform for free, and keeps doing so when
-    // _applyAdjustments() moves and rescales the eyes.
+    // Parent the shell to the sclera so it inherits the eyeball's transform.
     shell.position.copy(centre);
     shell.castShadow = false;
     shell.receiveShadow = false;
@@ -394,6 +258,7 @@ class EyeSystem {
 
   // ── Head binding ──
 
+  // Connects the eyes to the head mesh and morpher and fits them.
   setHeadMesh(headGroup, regionData, morpher) {
     this._headGroup = headGroup;
     this._regionData = regionData;
@@ -407,24 +272,7 @@ class EyeSystem {
     this._computeHeadMetrics();
   }
 
-  /**
-   * Measure one eye's opening on the live, morphed mesh.
-   *
-   * The eyeball is a separate mesh from the head, so something has to tell it
-   * where the socket went. It used to track the eye-CENTRE landmark, and that
-   * is the root of the "asleep" look: the morphs displace that centre vertex at
-   * full weight, while the ring of lid vertices around it is displaced by a
-   * falloff and therefore travels less. Following the centre made the eyeball
-   * over-travel — pushed back by eyeDepth it sank behind lids that had barely
-   * moved, and the iris disappeared.
-   *
-   * Measuring the ring instead fixes that at the source, and gives the two
-   * things the centre could never express: how big the opening now is, and
-   * which way it is tilted.
-   *
-   * Head space here is X = left/right, Y = depth, Z = up/down — the convention
-   * _computeHeadMetrics reads the bounding box in.
-   */
+  // Measures one eye opening's centre, size and tilt from the lid landmarks on the morphed mesh, since the centre vertex alone over-travels.
   _measureEyeOpening(side) {
     const m = this._morpher;
     if (!m || typeof m.getCurrentLandmarkPosition !== 'function') return null;
@@ -448,12 +296,7 @@ class EyeSystem {
     };
   }
 
-  /**
-   * Growth ratio of an opening, bounded. A landmark that lands on a degenerate
-   * or badly-morphed vertex should not be able to inflate the eyeball off the
-   * face; past these limits the eyeball is wrong either way, and wrong-and-small
-   * is far less alarming than wrong-and-enormous.
-   */
+  // Returns how much an opening has grown, within safe limits.
   _followScale(span, initialSpan) {
     if (!(initialSpan > 1e-6)) return 1;
     const ratio = span / initialSpan;
@@ -461,6 +304,7 @@ class EyeSystem {
                     Math.min(EyeSystem.MAX_FOLLOW_SCALE, ratio));
   }
 
+  // Measures the head and works out where each eyeball should sit.
   _computeHeadMetrics() {
     if (!this._headGroup) return;
     const box = new THREE.Box3().setFromObject(this._headGroup);
@@ -495,9 +339,7 @@ class EyeSystem {
       this._rightEyeBasePos.copy(this._initialBaseRight)
         .add(fitR.centre.clone().sub(init.right.centre));
 
-      // How much the opening has grown and rotated since the neutral face.
-      // Derived from the mesh rather than read off the morph sliders, so it
-      // stays correct however those morphs are combined or recalibrated.
+      // How much each opening has grown and rotated since the neutral face.
       this._eyeFollow = {
         left: {
           scale: this._followScale(fitL.span, init.left.span),
@@ -513,8 +355,7 @@ class EyeSystem {
       return;
     }
 
-    // Older path: track the centre vertex alone. Kept only for meshes without
-    // the four ring landmarks; it cannot see size or tilt.
+    // Older path for meshes without the lid landmarks; follows the centre only.
     if (this._morpher && typeof this._morpher.getCurrentLandmarkPosition === 'function') {
       const leftPos = this._morpher.getCurrentLandmarkPosition('eye_left_center');
       const rightPos = this._morpher.getCurrentLandmarkPosition('eye_right_center');
@@ -548,6 +389,7 @@ class EyeSystem {
 
   // ── Public API ──
 
+  // Switches eye style and regenerates the eyes.
   setStyle(style) {
     if (this.eyeModels[style]) {
       this.currentStyle = style;
@@ -557,21 +399,13 @@ class EyeSystem {
     }
   }
 
-  /**
-   * Set eye color (iris color)
-   * Accepts hex color string: #634e34 (brown), #2e536f (blue), #3d671d (green), etc.
-   */
+  // Sets the iris colour from a hex string.
   setEyeColor(hexColor) {
     this.eyeColor = hexColor;
     this._eyeMaterials.irisColor = hexColor;
     this._iris.color.set(hexColor);
 
-    /* Colour is not only a tint here. How much anterior pigment the chosen
-       colour implies also decides how much of the stroma shows through: a
-       blue iris has none, so its fibres, crypts and furrows read at full
-       contrast, while a dark brown one buries the same structures. Without
-       this the palette would produce one texture in five hues, which is the
-       tell that an iris is a decal. */
+    // The colour also sets how much iris structure shows, like real pigment.
     EyeShading.setMelanin(this._iris, hexColor);
 
     // Ensure already-instantiated meshes update even if they were loaded earlier.
@@ -579,9 +413,7 @@ class EyeSystem {
     console.log('[EyeSystem] Eye color changed to:', hexColor);
   }
 
-  /**
-   * Update eye parameter (scale, position, rotation, opacity)
-   */
+  // Updates one eye setting (scale, position, rotation or opacity).
   setParam(param, value) {
     if (this.params[param] === undefined) return;
     this.params[param] = Math.max(0, Math.min(100, value));
@@ -590,10 +422,7 @@ class EyeSystem {
     }
   }
 
-  getColor() {
-    return this.eyeColor;
-  }
-
+  // Returns the eye settings and colour.
   getParams() {
     return {
       ...this.params,
@@ -601,6 +430,7 @@ class EyeSystem {
     };
   }
 
+  // Returns the eye and eyelash settings for saving.
   exportState() {
     return {
       style: this.currentStyle,
@@ -614,55 +444,7 @@ class EyeSystem {
     };
   }
 
-  /**
-   * Return the eyes' world-space transforms so Blender can replicate them.
-   */
-  getEyeRenderTransforms() {
-    const result = {
-      leftMatrix: null,
-      rightMatrix: null,
-      params: { ...this.params },
-      color: this.eyeColor,
-    };
-
-    if (this._leftEyeContainer) {
-      this._leftEyeContainer.updateWorldMatrix(true, false);
-      result.leftMatrix = Array.from(this._leftEyeContainer.matrixWorld.elements);
-    }
-
-    if (this._rightEyeContainer) {
-      this._rightEyeContainer.updateWorldMatrix(true, false);
-      result.rightMatrix = Array.from(this._rightEyeContainer.matrixWorld.elements);
-    }
-
-    return result;
-  }
-
-  /**
-   * Return the eyelashes' world-space transforms so Blender can replicate them.
-   */
-  getEyelashRenderTransforms() {
-    const result = {
-      leftMatrix: null,
-      rightMatrix: null,
-      params: { ...this.eyelashParams },
-      color: this.eyelashColor,
-      visible: this.eyelashesVisible,
-    };
-
-    if (this._leftLashContainer) {
-      this._leftLashContainer.updateWorldMatrix(true, false);
-      result.leftMatrix = Array.from(this._leftLashContainer.matrixWorld.elements);
-    }
-
-    if (this._rightLashContainer) {
-      this._rightLashContainer.updateWorldMatrix(true, false);
-      result.rightMatrix = Array.from(this._rightLashContainer.matrixWorld.elements);
-    }
-
-    return result;
-  }
-
+  // Restores eye and eyelash settings from a saved case.
   restoreState(state) {
     if (state.style) this.currentStyle = state.style;
     if (state.color) this.setEyeColor(state.color);
@@ -686,6 +468,7 @@ class EyeSystem {
 
   // ── Main generation ──
 
+  // Loads the eye models (or builds simple ones as a fallback) and places them.
   generateEyes() {
     console.log('[EyeSystem] Generating eyes with style:', this.currentStyle);
     this._computeHeadMetrics();
@@ -719,6 +502,7 @@ class EyeSystem {
     });
   }
 
+  // Loads one eye model, using the cache when possible.
   _loadEyeModel(filePath, side, loadId) {
     return new Promise((resolve) => {
       // Check cache first
@@ -758,6 +542,7 @@ class EyeSystem {
     });
   }
 
+  // Puts both eyes in the scene, scaled from their measured size.
   _displayEyes(leftGroup, rightGroup) {
     this._clearGroup(this.eyeGroup);
 
@@ -781,16 +566,10 @@ class EyeSystem {
       return;
     }
 
-    /* Derive base scale from loaded mesh size so imported eyes are not
-       oversized — from the anatomy only, with the tear-film shell hidden for
-       the measurement. The shell is a shading device, not part of the
-       eyeball's size, and letting it into the box means every future tweak to
-       the corneal bulge silently rescales both eyes. */
+    // Measure the eyeball's size without the tear-film shell, so shell tweaks don't resize the eyes.
     const shells = [];
     this._leftEyeContainer.traverse((c) => {
-      // Detached rather than hidden: Box3.expandByObject takes no notice of
-      // `visible`, so the only way to keep a mesh out of the box is to take
-      // it out of the graph.
+      // Detach the shells, since the bounding box ignores visibility.
       if (c.name === 'CorneaShell') shells.push({ shell: c, parent: c.parent });
     });
     for (const { shell, parent } of shells) parent.remove(shell);
@@ -814,11 +593,7 @@ class EyeSystem {
     console.log('[EyeSystem] Eyes displayed successfully');
   }
 
-  /**
-   * Collect meshes from a loaded GLB group, clone them, and assign materials.
-   * First tries name-based matching. If no mesh matched "iris" by name,
-   * falls back to a size-based heuristic: largest=sclera, smallest=pupil, middle=iris.
-   */
+  // Copies the meshes from a loaded eye, assigning materials by name or, failing that, by size.
   _collectAndAssignMaterials(sourceGroup, targetContainer) {
     const clones = [];
     sourceGroup.traverse((child) => {
@@ -872,17 +647,12 @@ class EyeSystem {
       targetContainer.add(clone);
     }
 
-    // Measure before the shell is built: the shell's cap is cut to the limbus
-    // the anatomy reports, so it cannot be shaped until the parts are in
-    // place and their spheres are known.
+    // Measure before building the shell, since the shell is cut to the measured iris edge.
     const anatomy = this._bindEyeAnatomy(targetContainer);
     this._addCorneaShell(targetContainer, anatomy);
   }
 
-  /**
-   * Apply correct materials based on mesh names.
-   * Returns which part was matched: 'pupil', 'iris', 'sclera', or 'unknown'.
-   */
+  // Assigns a material from the mesh name and returns which part it matched.
   _applyEyeMaterials(mesh) {
     const name = mesh.name.toLowerCase();
     console.log('[EyeSystem] Checking mesh name:', mesh.name);
@@ -910,10 +680,7 @@ class EyeSystem {
     }
   }
 
-  /**
-   * Create procedural eyes as fallback
-   * Generates simple geometric eyes when GLB models are unavailable
-   */
+  // Builds simple sphere eyes when the eye models can't load.
   _createProceduralEyes() {
     console.log('[EyeSystem] Creating procedural eyes');
 
@@ -965,9 +732,7 @@ class EyeSystem {
     this._rightEyeContainer.add(rightIris);
     this._rightEyeContainer.add(rightPupil);
 
-    // The fallback is measured and shelled on exactly the same path as the
-    // GLB eyes. Its spheres are differently proportioned, which is the whole
-    // reason the anatomy is derived rather than written down.
+    // The fallback eyes are measured and shelled the same way as the loaded ones.
     for (const container of [this._leftEyeContainer, this._rightEyeContainer]) {
       this._addCorneaShell(container, this._bindEyeAnatomy(container));
     }
@@ -980,9 +745,7 @@ class EyeSystem {
     this._applyAdjustments();
   }
 
-  /**
-   * Position and adjust eyes based on params
-   */
+  // Positions, scales and rotates both eyes from the settings and the measured sockets.
   _applyAdjustments() {
     if (!this._leftEyeContainer || !this._rightEyeContainer) return;
 
@@ -1017,8 +780,7 @@ class EyeSystem {
     this._leftEyeContainer.rotation.y = BASE_ROT_Y + rotYNorm * 0.3;
     this._leftEyeContainer.rotation.z = BASE_ROT_Z + rotZNorm * 0.3;
 
-    // Follow the opening's size and tilt on top of the manual sliders, so the
-    // eyeball stays registered with the socket the morphs actually produced.
+    // Follow the opening's size and tilt on top of the sliders so the eyeball stays in its socket.
     const followL = this._eyeFollow ? this._eyeFollow.left : null;
     const scaleL = scale * (followL ? followL.scale : 1);
     if (followL && EyeSystem.FOLLOW_TILT) {
@@ -1060,7 +822,7 @@ class EyeSystem {
     this._updateUnderEyeFrames();
   }
 
-  /** Keep the skin preset registered with the rendered eyes, in head-mesh space. */
+  // Keeps the under-eye skin detail lined up with the rendered eyes.
   _updateUnderEyeFrames() {
     if (!this._headGroup) return;
     const frames = {};
@@ -1105,6 +867,7 @@ class EyeSystem {
     });
   }
 
+  // Refits the eyes and eyelashes after the face changes.
   refreshFromMesh() {
     this._computeHeadMetrics();
     if (this._leftEyeContainer && this._rightEyeContainer) {
@@ -1115,6 +878,7 @@ class EyeSystem {
     }
   }
 
+  // Applies the iris colour to the eye meshes already on screen.
   _updateRenderedIrisColor() {
     const applyColor = (container) => {
       if (!container) return;
@@ -1132,12 +896,14 @@ class EyeSystem {
 
   // ── Eyelash system ──
 
+  // Sets the eyelash colour.
   setEyelashColor(hexColor) {
     this.eyelashColor = hexColor;
     this._eyelashMat.color.set(hexColor);
     console.log('[EyeSystem] Eyelash color changed to:', hexColor);
   }
 
+  // Sets one eyelash setting and refits the lashes.
   setEyelashParam(param, value) {
     if (this.eyelashParams[param] === undefined) return;
     this.eyelashParams[param] = Math.max(0, Math.min(100, value));
@@ -1146,11 +912,13 @@ class EyeSystem {
     }
   }
 
+  // Shows or hides the eyelashes.
   setEyelashesVisible(visible) {
     this.eyelashesVisible = visible;
     this._eyelashGroup.visible = visible;
   }
 
+  // Returns the eyelash settings, colour and visibility.
   getEyelashParams() {
     return {
       ...this.eyelashParams,
@@ -1159,6 +927,7 @@ class EyeSystem {
     };
   }
 
+  // Loads the eyelash model (or uses the cached one) and places it.
   generateEyelashes() {
     console.log('[EyeSystem] Generating eyelashes');
     this._clearGroup(this._eyelashGroup);
@@ -1189,14 +958,13 @@ class EyeSystem {
     );
   }
 
+  // Places the cached eyelashes, as one pair or as one lash mirrored for each eye.
   _showCachedEyelashes() {
     this._clearGroup(this._eyelashGroup);
     const cached = this._modelCache['eyelashes'];
     if (!cached) return;
 
-    // The eyelash GLB may contain a single combined mesh (both eyes) or separate meshes.
-    // We'll clone the entire model twice — one for each eye — and mirror the right one.
-    // First, check if the model appears to be a single-side (one eye) or full pair.
+    // The lash model may cover both eyes or just one, so check which.
     const meshes = [];
     cached.traverse(child => { if (child.isMesh) meshes.push(child); });
 
@@ -1227,13 +995,7 @@ class EyeSystem {
         if (child.isMesh) {
           const clone = child.clone();
           clone.material = this._eyelashMat;
-          /* Eyelashes do not cast.
-          A lash is about 0.1mm across; the shadow map covers a ~3-unit
-          frustum at 4096, so one texel is roughly 0.8mm. Every strand is
-          far below a texel, so what lands on the sclera is not a shadow but
-          pure aliasing — a scatter of hard blue-grey dashes across the
-          white of the eye. Real lash shadows at portrait distance are a
-          faint overall darkening, which the socket shading already gives. */
+          // Lashes don't cast shadows; they are far thinner than a shadow texel and would only alias.
           clone.castShadow = false;
           clone.receiveShadow = true;
           offsetGroup.add(clone);
@@ -1269,6 +1031,7 @@ class EyeSystem {
       'rightEye:', this._rightEyeBasePos.x.toFixed(3), this._rightEyeBasePos.y.toFixed(3), this._rightEyeBasePos.z.toFixed(3));
   }
 
+  // Wraps a copy of the lash model in a container for one eye.
   _createLashContainer(source, name) {
     const container = new THREE.Group();
     container.name = name;
@@ -1280,13 +1043,7 @@ class EyeSystem {
       if (child.isMesh) {
         const clone = child.clone();
         clone.material = this._eyelashMat;
-        /* Eyelashes do not cast.
-        A lash is about 0.1mm across; the shadow map covers a ~3-unit
-        frustum at 4096, so one texel is roughly 0.8mm. Every strand is
-        far below a texel, so what lands on the sclera is not a shadow but
-        pure aliasing — a scatter of hard blue-grey dashes across the
-        white of the eye. Real lash shadows at portrait distance are a
-        faint overall darkening, which the socket shading already gives. */
+        // Lashes don't cast shadows; they are far thinner than a shadow texel and would only alias.
         clone.castShadow = false;
         clone.receiveShadow = true;
         offsetGroup.add(clone);
@@ -1297,6 +1054,7 @@ class EyeSystem {
     return container;
   }
 
+  // Positions, scales and tilts the eyelashes from their settings and the eye positions.
   _applyEyelashAdjustments() {
     if (!this._leftLashContainer || !this._eyelashBboxCache) return;
 
@@ -1323,18 +1081,14 @@ class EyeSystem {
     }
 
     if (cache.isPair) {
-      // Full pair model — use the same approach as the eyebrow system:
-      // Position using absolute world coordinates, not relative to eye base positions.
+      // Full pair: place it at fixed head coordinates, like the eyebrows.
       const container = this._leftLashContainer;
       const offsetGroup = container.children[0];
 
       // Center the model at its own origin
       offsetGroup.position.set(-cache.center.x, -cache.center.y, -cache.center.z);
 
-      // The eyelash region sits at approximately the same location as the eyebrows
-      // but slightly lower (at the eyelid line instead of above the eye).
-      // Eyebrow reference: browRegionWidth=0.90, browRegionY=0.39, browRegionZ=1.02
-      // Eyelashes should be slightly lower in Y and slightly further forward in Z
+      // The lashes sit a little below and in front of the eyebrows, at the upper lid.
       const lashRegionWidth = 0.90;
       const lashRegionY = 0.34;   // slightly below brow line (at upper eyelid)
       const lashRegionZ = 1.04;   // slightly more forward than brows
@@ -1423,23 +1177,11 @@ class EyeSystem {
     }
   }
 
-  clearEyelashes() {
-    this._clearGroup(this._eyelashGroup);
-    this._leftLashContainer = null;
-    this._rightLashContainer = null;
-    this._eyelashBboxCache = null;
-  }
-
   // ── Cleanup ──
 
+  // Clears a group, freeing the cornea shells, which are the only unshared geometry.
   _clearGroup(group) {
-    /* Free the shells on the way out.
-     *
-     * Everything else here shares geometry with the GLB cache and must not be
-     * disposed, but each cornea shell is built fresh for its container and is
-     * the one thing in the group that nothing else refers to. At 3.4k
-     * vertices a pair, regenerating eyes on every style change or restored
-     * case would otherwise strand them. */
+    // Free the cornea shells, since everything else shares geometry with the model cache.
     group.traverse((child) => {
       if (child.isMesh && child.name === 'CorneaShell') child.geometry.dispose();
     });
@@ -1448,6 +1190,7 @@ class EyeSystem {
     }
   }
 
+  // Removes the eyes and eyelashes from the scene.
   dispose() {
     this._clearGroup(this.eyeGroup);
     this.scene.remove(this.eyeGroup);

@@ -1,11 +1,4 @@
-/**
- * DecalSystem.js
- * Manages placement, selection, transformation, and deletion of image decals
- * (tattoos, birthmarks, skin graphics) on the 3D face mesh using DecalGeometry.
- *
- * Decals conform to face curvature via THREE.DecalGeometry projection.
- * They survive morphing by storing placement params and rebuilding geometry.
- */
+// Places, selects, moves and deletes image decals (tattoos, birthmarks) that wrap onto the face and survive morphing.
 
 class DecalSystem {
   constructor(sceneManager, objMorpher) {
@@ -59,6 +52,7 @@ class DecalSystem {
 
   // ─── Enable / Disable (placement mode) ─────────────────────────────────
 
+  // Turns on decal placement mode.
   enable() {
     if (this.enabled) return;
     this.enabled = true;
@@ -68,6 +62,7 @@ class DecalSystem {
     console.log('[DecalSystem] Placement mode enabled');
   }
 
+  // Turns off decal placement mode.
   disable() {
     if (!this.enabled) return;
     this.enabled = false;
@@ -79,6 +74,7 @@ class DecalSystem {
     console.log('[DecalSystem] Placement mode disabled');
   }
 
+  // Turns placement mode on or off.
   toggle() {
     if (this.enabled) this.disable(); else this.enable();
     return this.enabled;
@@ -86,11 +82,7 @@ class DecalSystem {
 
   // ─── Texture Upload ────────────────────────────────────────────────────
 
-  /**
-   * Upload an image file and register it as a decal texture.
-   * @param {File} file - PNG/JPEG/WEBP file
-   * @returns {Promise<Object>} texture registry entry { id, name, texture, thumbnail }
-   */
+  // Loads an image file and adds it to the decal texture list.
   async uploadTexture(file) {
     if (!file) return null;
 
@@ -147,21 +139,21 @@ class DecalSystem {
     });
   }
 
-  /**
-   * Get a texture entry by ID.
-   */
+  // Returns a texture entry by its id.
   getTexture(textureId) {
     return this.textures.find(t => t.id === textureId) || null;
   }
 
   // ─── Raycasting ────────────────────────────────────────────────────────
 
+  // Converts the mouse position to normalised screen coordinates.
   _getNDC(event) {
     const rect = this.canvas.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
   }
 
+  // Casts a ray from the mouse and returns where it hits the head.
   _raycastHead() {
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const headMesh = this.sceneManager.headMesh;
@@ -174,6 +166,7 @@ class DecalSystem {
     return hits.length > 0 ? hits[0] : null;
   }
 
+  // Casts a ray from the mouse and returns the decal it hits, if any.
   _raycastDecals() {
     this.raycaster.setFromCamera(this.mouse, this.camera);
     if (this.decalGroup.children.length === 0) return null;
@@ -183,9 +176,7 @@ class DecalSystem {
 
   // ─── Decal Placement ──────────────────────────────────────────────────
 
-  /**
-   * Get the face width from bounding box for sizing reference.
-   */
+  // Measures the face width, used to size decals.
   _getFaceWidth() {
     const headMesh = this.sceneManager.headMesh;
     if (!headMesh) return 1.0;
@@ -193,12 +184,9 @@ class DecalSystem {
     return box.max.x - box.min.x;
   }
 
-  /**
-   * Compute orientation Euler from surface normal + camera up.
-   */
+  // Works out the decal's rotation from the surface normal and the camera's up direction.
   _computeOrientation(normal, point) {
-    // Build a rotation matrix that aligns -Z with the surface normal
-    // and keeps Y roughly aligned with camera up
+    // Point the decal along the surface normal and keep it roughly upright.
     const lookTarget = point.clone().add(normal);
     const m = new THREE.Matrix4();
     m.lookAt(point, lookTarget, this.camera.up);
@@ -208,9 +196,7 @@ class DecalSystem {
     return euler;
   }
 
-  /**
-   * Place a decal at the raycast intersection point.
-   */
+  // Places a new decal where the ray hit the face.
   placeDecal(intersection, options = {}) {
     if (this.decals.length >= this.MAX_DECALS) {
       console.warn('[DecalSystem] Max decals reached:', this.MAX_DECALS);
@@ -274,9 +260,7 @@ class DecalSystem {
 
   // ─── Mesh Creation ─────────────────────────────────────────────────────
 
-  /**
-   * Build a DecalGeometry mesh from decal data.
-   */
+  // Builds the mesh for one decal, wrapped onto the face.
   _createDecalMesh(decalData) {
     const headMesh = this.sceneManager.headMesh;
     if (!headMesh) return null;
@@ -352,6 +336,7 @@ class DecalSystem {
 
   // ─── Selection ─────────────────────────────────────────────────────────
 
+  // Selects a decal and highlights it.
   selectDecal(index) {
     this._clearSelection();
     if (index < 0 || index >= this.decals.length) return;
@@ -364,6 +349,7 @@ class DecalSystem {
     if (this.onDecalChanged) this.onDecalChanged();
   }
 
+  // Clears the current selection highlight.
   _clearSelection() {
     if (this.selectedDecalIndex >= 0 && this.selectedDecalIndex < this.decalMeshes.length) {
       const mesh = this.decalMeshes[this.selectedDecalIndex];
@@ -378,6 +364,7 @@ class DecalSystem {
 
   // ─── Transform Controls ────────────────────────────────────────────────
 
+  // Changes a property of the selected decal, such as size or rotation.
   updateSelectedDecal(property, value) {
     if (this.selectedDecalIndex < 0) return;
     const decalData = this.decals[this.selectedDecalIndex];
@@ -404,9 +391,7 @@ class DecalSystem {
     if (this.onDecalChanged) this.onDecalChanged();
   }
 
-  /**
-   * Reposition the selected decal to a new raycast intersection.
-   */
+  // Moves the selected decal to where the ray hit.
   repositionSelected(intersection) {
     if (this.selectedDecalIndex < 0) return;
     const decalData = this.decals[this.selectedDecalIndex];
@@ -433,6 +418,7 @@ class DecalSystem {
 
   // ─── Rebuild Single Decal ──────────────────────────────────────────────
 
+  // Rebuilds one decal's mesh from its saved placement.
   _rebuildDecal(index) {
     if (index < 0 || index >= this.decals.length) return;
 
@@ -458,6 +444,7 @@ class DecalSystem {
 
   // ─── Rebuild All (after morph) ─────────────────────────────────────────
 
+  // Rebuilds every decal after the face changes shape.
   rebuildAll() {
     for (let i = 0; i < this.decals.length; i++) {
       this._rebuildDecal(i);
@@ -467,6 +454,7 @@ class DecalSystem {
 
   // ─── Delete ────────────────────────────────────────────────────────────
 
+  // Deletes the selected decal.
   deleteSelectedDecal() {
     const idx = this.selectedDecalIndex;
     if (idx < 0 || idx >= this.decals.length) return;
@@ -488,6 +476,7 @@ class DecalSystem {
     if (this.onDecalChanged) this.onDecalChanged();
   }
 
+  // Removes every decal.
   clearAll() {
     this._clearSelection();
     for (const mesh of this.decalMeshes) {
@@ -502,6 +491,7 @@ class DecalSystem {
 
   // ─── Pointer Events ────────────────────────────────────────────────────
 
+  // Selects a decal, moves the selected one, or places a new one depending on what was clicked.
   _onPointerDown(event) {
     if (event.button !== 0) return;
     this._getNDC(event);
@@ -551,6 +541,7 @@ class DecalSystem {
     }
   }
 
+  // Deletes the selected decal when Delete or Backspace is pressed.
   _onKeyDown(event) {
     if (!this.enabled) return;
     if (event.key === 'Delete' || event.key === 'Backspace') {
@@ -567,6 +558,7 @@ class DecalSystem {
 
   // ─── Serialization ─────────────────────────────────────────────────────
 
+  // Returns the decals and their images for saving.
   exportState() {
     return this.decals.map(d => {
       const texEntry = this.getTexture(d.textureId);
@@ -585,6 +577,7 @@ class DecalSystem {
     });
   }
 
+  // Restores decals and their images from a saved case.
   loadState(decalsArray) {
     this.clearAll();
     if (!decalsArray || !Array.isArray(decalsArray)) return;
@@ -656,23 +649,12 @@ class DecalSystem {
     });
   }
 
+  // Returns how many decals are placed.
   getDecalCount() {
     return this.decals.length;
   }
 
-  /**
-   * Serialize all decals for undo/redo snapshots.
-   * Alias for exportState().
-   */
-  serialize() {
-    return this.exportState();
-  }
-
-  /**
-   * Deserialize decals from an undo/redo snapshot.
-   * Fully rebuilds textures, geometry, meshes, and fires onDecalChanged
-   * so the UI gallery refreshes.
-   */
+  // Restores decals from an undo/redo snapshot and refreshes the gallery.
   deserialize(data) {
     this.loadState(data);
   }

@@ -1,29 +1,10 @@
-/**
- * EyebrowPiercingSystem.js – ring through the brow, per side.
- *
- * Same split-ring asset as the earrings, duplicated so the two can be swapped
- * independently later, and fitted very differently:
- *
- *   - An earring hangs from a fixed point, so that system anchors the TOP of
- *     the ring at the lobe and lets it dangle. A brow ring passes THROUGH the
- *     skin, so this one anchors the ring's CENTRE on the brow with the skin
- *     crossing its opening.
- *   - Placement rides between the brow landmarks rather than sitting at one of
- *     them, so "along the brow" is a single intuitive control and the ring
- *     follows browHeight / browAngle as the face is morphed.
- *   - The ring plane is yawed outward from the sagittal plane. Flat-on-frontal
- *     would lie against the face like a sticker; fully sagittal would read as a
- *     bare line head-on. Partway between is what a real brow ring looks like,
- *     and the exact angle is exposed because it depends on the brow's curve.
- *
- * Mirrors GlassesSystem and EarringSystem structurally — HeadTracker reparents
- * browPiercingGroup into the pivot group, so head tracking needs no extra work.
- */
+// Fits a small ring through each eyebrow, centred on the brow and angled outward like a real piercing.
 
-// ── Asset path constant ─────────────────────────────────────────────────────
+// Asset path
 const BROW_RING_MODEL_PATH = '../../assets/accessories/eyebrow_ring.glb';
 
 class EyebrowPiercingSystem {
+  // Default fit values for the rings.
   static get BASE_PARAMS() {
     return {
       size: 100,      // 40..200 — diameter, relative to the measured brow
@@ -31,11 +12,7 @@ class EyebrowPiercingSystem {
       posX: 2,        // -100..+100 — outward / inward from the skin
       posY: 35,       // -100..+100 — up / down
       posZ: 0,        // -100..+100 — forward / back
-      // Per side, and identical by default: the two rings should read as a
-      // matched pair. Both of these mirror correctly at equal values — yaw is
-      // sign-flipped internally, and a rotation about X is unchanged by
-      // reflection through the sagittal plane, so spin needs no flip.
-      // "left" is the -X brow, matching the brow_left_* landmark naming.
+      // Per side but identical by default so the rings match; "left" is the subject's left brow.
       yawL: 27, yawR: 27,       // 0..90 deg — ring plane, 0 = side-on, 90 = flat-on
       spinL: 110, spinR: 110,   // -180..180 deg — rolls the opening around the ring
     };
@@ -84,6 +61,7 @@ class EyebrowPiercingSystem {
     console.log('[EyebrowPiercingSystem] Initialized');
   }
 
+  // Returns the default piercing settings.
   getDefaults() {
     return {
       enabled: false,
@@ -96,6 +74,7 @@ class EyebrowPiercingSystem {
 
   // ── Head binding ────────────────────────────────────────────────────────
 
+  // Connects the piercing to the head mesh and morpher.
   setHeadMesh(headGroup, regionData, morpher) {
     this._headGroup = headGroup;
     this._regionData = regionData;
@@ -105,14 +84,7 @@ class EyebrowPiercingSystem {
     this._sampleBrow();
   }
 
-  /**
-   * Read the brow line for both sides.
-   *
-   * Uses the landmark table rather than measuring geometry: unlike the ear and
-   * the chin, a brow has no clean geometric extremum to detect, and the
-   * brow_*_center / brow_*_outer entries land on the right feature (they are
-   * not among the ones the snap check flags).
-   */
+  // Reads the inner, centre and outer brow points for both sides from the landmarks.
   _sampleBrow() {
     if (!this._morpher || typeof this._morpher.getCurrentLandmarkPosition !== 'function') return null;
     const read = (name) => {
@@ -133,15 +105,7 @@ class EyebrowPiercingSystem {
     return out;
   }
 
-  /**
-   * How far forward the face actually is near a point on the brow.
-   *
-   * The anchor comes from interpolating between brow landmarks, and a straight
-   * line between two points on a curved brow cuts the chord — at the outer
-   * third that lands roughly 0.04 behind the skin, which buries the ring
-   * inside the head. Sampling the mesh puts it back on the surface, and keeps
-   * it there when the brow is morphed forward or back.
-   */
+  // Finds how far forward the skin is near a point on the brow, so the ring sits on the surface.
   _skinFrontAt(x, y, radius) {
     const group = this._headGroup;
     if (!group) return null;
@@ -161,6 +125,7 @@ class EyebrowPiercingSystem {
     return isFinite(maxZ) ? maxZ : null;
   }
 
+  // Refits the rings after a face change.
   refreshFromMesh(morphValues) {
     if (morphValues) this._faceMorphValues = morphValues;
     if (this.enabled && (this._sides.left || this._sides.right)) this._alignAndAdjust();
@@ -168,6 +133,7 @@ class EyebrowPiercingSystem {
 
   // ── Public API ──────────────────────────────────────────────────────────
 
+  // Shows or hides the rings, loading them on first use.
   setEnabled(enabled) {
     this.enabled = !!enabled;
     if (this.enabled) {
@@ -183,32 +149,38 @@ class EyebrowPiercingSystem {
     }
   }
 
+  // Chooses whether to show the left ring, the right ring or both.
   setSideMode(mode) {
     if (!['both', 'left', 'right'].includes(mode)) return;
     this.sideMode = mode;
     this._applySideVisibility();
   }
 
+  // Sets the metal colour.
   setMetalColor(hex) {
     this.metalColor = hex;
     this._metalMat.color.set(hex);
   }
 
+  // Sets how polished the metal looks.
   setPolish(value) {
     this.polish = Math.max(0, Math.min(100, value));
     this._metalMat.roughness = this._polishToRoughness(this.polish);
   }
 
+  // Converts the polish value (0-100) into material roughness.
   _polishToRoughness(polish) {
     return 0.04 + (1 - Math.max(0, Math.min(100, polish)) / 100) * 0.66;
   }
 
+  // Sets one fit value and refits the rings.
   setParam(param, value) {
     if (this.params[param] === undefined) return;
     this.params[param] = value;
     if (this.enabled) this._alignAndAdjust();
   }
 
+  // Returns the current piercing settings.
   getParams() {
     return {
       ...this.params,
@@ -219,13 +191,9 @@ class EyebrowPiercingSystem {
     };
   }
 
-  // ── Environment map ─────────────────────────────────────────────────────
+  // Environment map
 
-  /**
-   * Small PMREM studio gradient, same reasoning as EarringSystem: the scene
-   * sets no environment, and metalness 1.0 with only direct lights renders
-   * near black. Attached to this material alone so nothing else changes.
-   */
+  // Builds a small studio reflection map just for this metal, since metal looks black without one.
   _buildEnvMap() {
     const renderer = this.sceneManager && this.sceneManager.renderer;
     if (!renderer || typeof THREE.PMREMGenerator !== 'function') return null;
@@ -263,10 +231,9 @@ class EyebrowPiercingSystem {
     }
   }
 
-  // ── GLB loading ─────────────────────────────────────────────────────────
+  // Model loading
 
-  /** Accumulate world matrices down the glTF node tree — this asset puts every
-   *  transform on ancestors, so a flat per-mesh read would miss them. */
+  // Collects world transforms down the glTF node tree, since this model puts them on parent nodes.
   _readWorldTransforms(buffer) {
     try {
       const dv = new DataView(buffer);
@@ -309,20 +276,14 @@ class EyebrowPiercingSystem {
     }
   }
 
+  // Returns the combined bounding box of several geometries.
   _unionBox(geoms) {
     const box = new THREE.Box3();
     for (const g of geoms) { g.computeBoundingBox(); box.union(g.boundingBox); }
     return box;
   }
 
-  /**
-   * Orient the ring into the sagittal plane and centre it on its own middle.
-   *
-   * Centre-origin, unlike the earring's top-origin: a brow ring is threaded
-   * through the skin at its middle rather than hung from its top edge, so the
-   * anchor belongs at the ring centre. The outward yaw is applied at fit time
-   * rather than baked here, because it is a user control.
-   */
+  // Turns the ring side-on and centres it on its middle, because a brow ring passes through the skin at its centre.
   _normalise(geoms) {
     if (!geoms.length) return geoms;
 
@@ -330,7 +291,7 @@ class EyebrowPiercingSystem {
     const size = new THREE.Vector3();
     box.getSize(size);
 
-    // Bring the thinnest axis onto X so the ring plane is YZ.
+    // Put the thinnest axis on X so the ring lies in the YZ plane.
     let orient = null;
     if (size.z <= size.x && size.z <= size.y) {
       orient = new THREE.Matrix4().makeRotationY(Math.PI / 2);
@@ -358,6 +319,7 @@ class EyebrowPiercingSystem {
     return geoms;
   }
 
+  // Loads the ring model once and caches its geometry.
   _loadModel() {
     if (this._unitGeometries) return Promise.resolve(this._unitGeometries);
     if (this._loadPromise) return this._loadPromise;
@@ -394,6 +356,7 @@ class EyebrowPiercingSystem {
 
   // ── Generation ──────────────────────────────────────────────────────────
 
+  // Builds a ring for each side of the face.
   generate() {
     this._clearGroup(this.browPiercingGroup);
     this._sides = { left: null, right: null };
@@ -410,8 +373,7 @@ class EyebrowPiercingSystem {
         const container = new THREE.Group();
         container.name = `BrowRing_${side}`;
 
-        // Nested so yaw (the ring's plane) and spin (the opening's position on
-        // the ring) can be set independently without fighting each other.
+        // Nested groups so the ring's angle and the opening's position can be set separately.
         const yawGroup = new THREE.Group();
         yawGroup.name = 'BrowRingYaw';
         const spinGroup = new THREE.Group();
@@ -437,11 +399,12 @@ class EyebrowPiercingSystem {
     }).finally(() => this._loads.end());
   }
 
-  /** Resolves once no brow-ring model is mid-load. See AssetLoadTracker. */
+  // Resolves once the ring model has finished loading.
   whenIdle() {
     return this._loads.whenIdle();
   }
 
+  // Shows or hides each side according to the side setting.
   _applySideVisibility() {
     const wantLeft = this.sideMode === 'both' || this.sideMode === 'left';
     const wantRight = this.sideMode === 'both' || this.sideMode === 'right';
@@ -449,14 +412,14 @@ class EyebrowPiercingSystem {
     if (this._sides.right) this._sides.right.visible = wantRight;
   }
 
+  // Places each ring on the brow from the landmarks and applies the user's settings.
   _alignAndAdjust() {
     if (!this._sides.left && !this._sides.right) return;
 
     const live = this._sampleBrow() || {};
     const DEG = Math.PI / 180;
 
-    // Brow span sets the scale reference, so the ring keeps its proportion when
-    // the face is widened or narrowed.
+    // Scale from the brow span so the ring keeps its size relative to the face.
     let span = this._initialBrowSpan;
     const bl = live.left || this._initialBrow.left;
     const br = live.right || this._initialBrow.right;
@@ -464,8 +427,7 @@ class EyebrowPiercingSystem {
     if (!span || span < 0.05) span = 0.60;
 
     const t = Math.max(0, Math.min(1, this.params.alongBrow / 100));
-    // Brow-centre span is ~0.60 on the stock head and one world unit is
-    // roughly 8cm, so 0.20 puts a ~1cm ring on the brow.
+    // About 0.20 of the brow span gives a ring roughly 1cm across on the stock head.
     const diameter = span * 0.20 * (this.params.size / 100);
     const unit = span;
 
@@ -479,24 +441,14 @@ class EyebrowPiercingSystem {
       const outward = isLeft ? -1 : 1;
       const suffix = isLeft ? 'L' : 'R';
 
-      // Slide between the inner and outer ends of the brow. A brow ring
-      // conventionally sits in the outer third, which is what alongBrow 70
-      // lands on.
+      // Slide between the inner and outer ends of the brow; brow rings usually sit in the outer third.
       const anchor = new THREE.Vector3().lerpVectors(brow.inner, brow.outer, t);
 
-      // The brow_* landmarks sit below where the eyebrow itself renders — the
-      // table puts them at y 0.38 while the brow mesh lands nearer 0.44 — so
-      // without this the ring straddles the eyelid instead of the brow.
+      // The brow landmarks sit below the rendered eyebrow, so lift the ring onto the brow.
       const BROW_LIFT = 0.10;
       const posY = anchor.y + BROW_LIFT * unit + this.params.posY * 0.0015 * unit;
 
-      // Sit the ring relative to the measured skin rather than the
-      // interpolated anchor, and set it INTO the brow rather than proud of it.
-      // A piercing passes through, so the ring's centre belongs behind the
-      // surface with the arc emerging either side; standing it off the face
-      // reads as jewellery resting on the skin. Hand-tuned, and folded in here
-      // so the Forward/Back slider stays centred on 0 instead of pinned near
-      // its limit.
+      // Set the ring partly into the skin, since a piercing passes through it rather than resting on top.
       const skinZ = this._skinFrontAt(anchor.x, posY, diameter * 0.9);
       const baseZ = skinZ !== null ? skinZ : anchor.z;
       const EMBED = 0.405;   // fraction of the ring's diameter sunk behind the skin
@@ -507,14 +459,11 @@ class EyebrowPiercingSystem {
         baseZ - diameter * EMBED + this.params.posZ * 0.0015 * unit,
       );
 
-      // Yaw swings the ring plane between sagittal (0) and frontal (90).
-      // Mirrored, so the same value angles both brows outward alike.
+      // Yaw angles the ring between side-on (0) and flat-on (90), mirrored for each side.
       const yaw = (this.params['yaw' + suffix] ?? 45) * DEG * outward;
       if (container.userData.yaw) container.userData.yaw.rotation.y = yaw;
 
-      // Spin rolls the opening around the ring. Rotation about X, so no
-      // per-side sign flip — reflecting through the sagittal plane leaves a
-      // rotation about X unchanged.
+      // Spin rolls the opening around the ring; it needs no flip between sides.
       const spin = (this.params['spin' + suffix] ?? 0) * DEG;
       if (container.userData.spin) container.userData.spin.rotation.x = spin;
 
@@ -524,6 +473,7 @@ class EyebrowPiercingSystem {
 
   // ── State / persistence ─────────────────────────────────────────────────
 
+  // Returns the piercing settings for saving.
   exportState() {
     return {
       ...this.params,
@@ -534,6 +484,7 @@ class EyebrowPiercingSystem {
     };
   }
 
+  // Restores piercing settings from a saved case.
   loadState(state) {
     if (!state) return;
     if (state.sideMode && ['both', 'left', 'right'].includes(state.sideMode)) {
@@ -549,7 +500,7 @@ class EyebrowPiercingSystem {
     this.setEnabled(state.enabled === true);
   }
 
-  /** Apply AI-generated block. Schema: { enabled, sideMode, metalColor, polish } */
+  // Applies piercing settings suggested by the AI.
   applyFromAI(data) {
     if (!data) return;
     if (data.sideMode) this.setSideMode(data.sideMode);
@@ -558,31 +509,14 @@ class EyebrowPiercingSystem {
     this.setEnabled(!!data.enabled);
   }
 
-  getRenderTransform() {
-    const out = {
-      matrices: {},
-      params: { ...this.params },
-      enabled: this.enabled,
-      sideMode: this.sideMode,
-      metalColor: this.metalColor,
-      polish: this.polish,
-    };
-    if (!this.enabled) return out;
-    for (const side of ['left', 'right']) {
-      const c = this._sides[side];
-      if (!c || !c.visible) continue;
-      c.updateWorldMatrix(true, false);
-      out.matrices[side] = Array.from(c.matrixWorld.elements);
-    }
-    return out;
-  }
-
   // ── Cleanup ────────────────────────────────────────────────────────────
 
+  // Removes every child from a group.
   _clearGroup(group) {
     while (group.children.length > 0) group.remove(group.children[0]);
   }
 
+  // Removes the rings from the scene and frees their materials.
   dispose() {
     this._clearGroup(this.browPiercingGroup);
     this.scene.remove(this.browPiercingGroup);

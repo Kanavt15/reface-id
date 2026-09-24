@@ -1,18 +1,4 @@
-/**
- * eye-probe.mjs — photograph the eye at the framings realism is judged at,
- * and dump the baked iris and sclera maps beside the renders.
- *
- *   node scripts/eye-probe.mjs [outDir]
- *
- * face-probe.mjs frames the whole head; an eye is 40 pixels there and no
- * shading decision can be made from it. This drives the camera onto one eye
- * at portrait, close and macro distance, sweeps the iris colours the palette
- * offers, and writes EyeTextures' own canvases so the bake can be inspected
- * apart from the lighting that is sitting on top of it.
- *
- * Intake navigation mirrors face-probe.mjs deliberately — real Playwright
- * clicks, never element.click() via evaluate.
- */
+// Photographs one eye at portrait, close and macro distance across the iris colours, and saves the baked eye maps next to them; run with `node scripts/eye-probe.mjs [outDir]`.
 import { _electron as electron } from 'playwright-core';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -27,6 +13,7 @@ const bin = path.join(APP_DIR, 'node_modules', 'electron', 'dist',
   : process.platform === 'darwin' ? 'Electron.app/Contents/MacOS/Electron'
   : 'electron');
 
+// Waits for a number of milliseconds.
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
@@ -40,6 +27,7 @@ const app = await electron.launch({
   timeout: 60_000,
 });
 
+// Finds the app window by URL, since DevTools can open first.
 async function realPage() {
   const t0 = Date.now();
   for (;;) {
@@ -56,14 +44,14 @@ const page = await realPage();
 const errors = [];
 page.on('console', (m) => {
   if (m.type() === 'error') errors.push(m.text());
-  // The bake is main-thread canvas work on the first eye generation, so how
-  // long it takes is part of what this probe is for.
+  // The eye texture bake time is part of what this probe measures.
   else if (m.text().includes('[EyeTextures]')) console.log(m.text());
 });
 page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message));
 
 await page.waitForLoadState('domcontentloaded');
 
+// Waits until a condition is true in the page, or fails after a timeout.
 async function waitFor(label, fn, timeout = 45_000) {
   const t0 = Date.now();
   for (;;) {
@@ -102,10 +90,7 @@ const anatomy = await page.evaluate(() => {
     if (!c.isMesh) return;
     c.getWorldPosition(v);
     c.geometry.computeBoundingSphere();
-    // World radius, not the geometry's own: the eye meshes are authored at
-    // asset scale and mounted under several scaled parents, so the local
-    // bounding radius is off by two orders of magnitude and framing from it
-    // puts the camera outside the orbit controls' own distance clamp.
+    // Use the world radius, since the eye meshes sit under several scaled parents.
     const s = new THREE.Vector3();
     c.getWorldScale(s);
     parts.push({
@@ -156,8 +141,7 @@ if (maps) {
 await page.keyboard.press('Backslash');
 await sleep(600);
 
-/* The orbit controls stop at 1.5 world units, which is a whole head away
-   from an eyeball 5cm across. Macro framing needs inside that. */
+// Lift the orbit controls' minimum distance so the camera can get close to the eye.
 await page.evaluate(() => {
   const sm = window.rfApp.sceneManager;
   sm.controls.minDistance = 0.01;
@@ -168,8 +152,7 @@ await page.evaluate(() => {
 
 const eye = anatomy.parts?.find((p) => p.mat === 'sclera') || { world: [0, 0, 0], radius: 0.05 };
 
-/** Point the camera at one eyeball from a given azimuth, at a distance
- *  expressed in eyeball radii so the framing is the same on any asset. */
+// Points the camera at one eyeball from an angle, at a distance measured in eyeball radii.
 async function shot(name, radii, azimuth, elevation) {
   await page.evaluate(({ at, dist, azimuth, elevation }) => {
     const sm = window.rfApp.sceneManager;
@@ -188,8 +171,7 @@ async function shot(name, radii, azimuth, elevation) {
   console.log('shot →', path.relative(APP_DIR, f));
 }
 
-// Portrait: the eye as it is actually seen. Close: the framing a reviewer
-// zooms to. Macro: where the bake's own detail is the whole picture.
+// Portrait, close and macro views.
 await shot('eye-portrait', 26, 0, 0.05);
 await shot('eye-close', 11, 0, 0.05);
 await shot('eye-macro', 5.0, 0, 0.05);
@@ -197,6 +179,7 @@ await shot('eye-macro-34', 5.0, 0.55, 0.10);
 await shot('eye-macro-profile', 5.0, 1.05, 0.05);
 await shot('eye-macro-down', 5.0, 0.0, 0.55);
 
+// Sets the iris colour in the page.
 const setColor = (hex) => page.evaluate((h) => {
   window.rfApp.ui.eyeSystem.setEyeColor(h);
 }, hex);

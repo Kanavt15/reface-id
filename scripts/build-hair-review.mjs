@@ -1,4 +1,4 @@
-/** Build a local comparison page from hair-texture-probe captures. */
+// Builds a local page comparing the hair-texture-probe captures.
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -7,6 +7,7 @@ const out = path.join(root,'art/hair');
 fs.mkdirSync(path.join(out,'previews'),{recursive:true});
 const manifest = JSON.parse(fs.readFileSync(path.join(root,'assets/textures/hair/provenance.json'),'utf8'));
 const styles = ['beard1','hair6','hair7','hair3','hair12','beard2','moustache1'];
+// Turns a style id like "hair7" into a label like "Hair 7".
 const name = style => style.replace(/^(hair|beard|moustache)(\d+)$/,(_,kind,n)=>kind[0].toUpperCase()+kind.slice(1)+' '+n);
 for (const style of styles) for (const version of ['before','desktop']) {
   const directory = version === 'before' ? 'scripts/verify/hair-first-pass/desktop' : 'scripts/verify/hair-desktop';

@@ -1,26 +1,7 @@
-/**
- * ReferenceOverlay.js – pin a reference photo over the viewport for comparison.
- *
- * Reference images already reach the AI as vision input (AIController), but the
- * investigator never got to see the photo and the reconstruction together. This
- * puts the photo on top of the render so the two can be aligned and judged
- * directly, which is how facial comparison actually gets done.
- *
- * Deliberately a DOM layer rather than a textured plane in the scene:
- *   - It must never take a pointer event. The layer is `pointer-events: none`
- *     at all times, so orbiting, point-edit, mark placement and every other
- *     viewport interaction keep working with the photo visible. Alignment is
- *     driven by sliders instead of dragging, which also avoids fighting
- *     OrbitControls for the mouse.
- *   - It sits at z-index 2 — above the canvas and the vignette, below the
- *     floating toolbar (50), the action buttons and the stats strip — so it
- *     covers the render and nothing else.
- *   - Screenshots come from the WebGL canvas, so the overlay never leaks into a
- *     saved image. That is the right behaviour: the photo is a working aid, not
- *     part of the reconstruction.
- */
+// Shows a reference photo over the 3D view so the reconstruction can be compared with it directly.
 
 class ReferenceOverlay {
+  // Default alignment settings for the photo.
   static get BASE_PARAMS() {
     return {
       opacity: 50,   // 0..100 — 50 shows model and photo together by default
@@ -47,6 +28,7 @@ class ReferenceOverlay {
     console.log('[ReferenceOverlay] Initialized');
   }
 
+  // Creates the photo layer inside the viewport; it ignores the mouse so the 3D view keeps working.
   _buildLayer() {
     if (!this.viewport) {
       console.warn('[ReferenceOverlay] No #viewport element — overlay disabled');
@@ -66,8 +48,7 @@ class ReferenceOverlay {
     divider.id = 'rf-ref-divider';
     layer.appendChild(divider);
 
-    // Insert directly after the canvas so it layers above the render but
-    // before every floating control in the markup.
+    // Add it right after the canvas so it sits above the render but below the floating controls.
     this.viewport.appendChild(layer);
 
     this.layer = layer;
@@ -78,7 +59,7 @@ class ReferenceOverlay {
 
   // ── Public API ──────────────────────────────────────────────────────────
 
-  /** Load a photo from a data URL. Resets alignment so a new photo starts clean. */
+  // Loads a photo from a data URL and resets its alignment.
   setImage(dataUrl, name) {
     if (!this.img || !dataUrl) return;
     this.img.src = dataUrl;
@@ -90,6 +71,7 @@ class ReferenceOverlay {
     this._apply();
   }
 
+  // Removes the photo and hides the overlay.
   clear() {
     if (!this.img) return;
     this.img.removeAttribute('src');
@@ -99,34 +81,38 @@ class ReferenceOverlay {
     this._apply();
   }
 
+  // Shows or hides the overlay, but only if a photo is loaded.
   setEnabled(on) {
     this.enabled = !!on && this.hasImage;
     this._apply();
   }
 
-  /** Show/hide without losing the loaded photo — the toolbar toggle. */
+  // Shows or hides the overlay without dropping the loaded photo.
   toggle() {
     this.setEnabled(!this.enabled);
     return this.enabled;
   }
 
+  // Switches between blend and wipe modes.
   setMode(mode) {
     this.mode = mode === 'wipe' ? 'wipe' : 'blend';
     this._apply();
   }
 
+  // Mirrors the photo left to right.
   setFlipped(on) {
     this.flipped = !!on;
     this._apply();
   }
 
+  // Sets one alignment value, such as opacity or scale.
   setParam(key, value) {
     if (this.params[key] === undefined) return;
     this.params[key] = value;
     this._apply();
   }
 
-  /** Drop alignment back to a centred, unrotated fit. */
+  // Puts the photo back to a centred, unrotated fit.
   resetTransform() {
     const base = ReferenceOverlay.BASE_PARAMS;
     this.params.scale = base.scale;
@@ -137,6 +123,7 @@ class ReferenceOverlay {
     this._apply();
   }
 
+  // Returns the overlay's current settings.
   getState() {
     return {
       ...this.params,
@@ -150,6 +137,7 @@ class ReferenceOverlay {
 
   // ── Rendering ───────────────────────────────────────────────────────────
 
+  // Applies the current settings to the photo layer.
   _apply() {
     if (!this.layer) return;
     const p = this.params;
@@ -160,8 +148,7 @@ class ReferenceOverlay {
 
     this.layer.style.opacity = String(Math.max(0, Math.min(100, p.opacity)) / 100);
 
-    // Wipe reveals the photo from the left edge to the divider, so the model
-    // shows through on the right. Blend just shows the whole photo.
+    // Wipe shows the photo left of the divider and the model on the right; blend shows the whole photo.
     if (this.mode === 'wipe') {
       const w = Math.max(0, Math.min(100, p.wipe));
       this.layer.style.clipPath = `inset(0 ${100 - w}% 0 0)`;
@@ -182,17 +169,12 @@ class ReferenceOverlay {
 
   // ── State / persistence ─────────────────────────────────────────────────
 
-  /**
-   * Alignment only — the photo itself is not persisted.
-   *
-   * A reference still can be several megabytes, and a .rfc is a JSON case file
-   * that gets copied around; embedding base64 image data would bloat every
-   * save. The photo is reloaded per session.
-   */
+  // Saves the alignment only; the photo itself isn't stored because it would bloat the case file.
   exportState() {
     return { ...this.params, mode: this.mode, flipped: this.flipped };
   }
 
+  // Restores saved alignment settings.
   loadState(state) {
     if (!state) return;
     for (const key of Object.keys(this.params)) {
@@ -203,6 +185,7 @@ class ReferenceOverlay {
     this._apply();
   }
 
+  // Removes the overlay from the page.
   dispose() {
     if (this.layer && this.layer.parentNode) this.layer.parentNode.removeChild(this.layer);
     this.layer = null;

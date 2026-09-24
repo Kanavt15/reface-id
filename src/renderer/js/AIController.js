@@ -1,20 +1,16 @@
-/**
- * AIController.js
- * Handles AI-powered face generation — sends prompts to backend,
- * applies returned parameters to morpher/hair/appearance, and syncs sliders.
- */
+// Runs the AI assistant: sends descriptions and photos to the backend and applies the returned face to the model and sliders.
 
 class AIController {
   constructor(backendAPI, morpher, hairSystem, caseManager, uiController) {
     this.api = backendAPI;
     this.morpher = morpher;
     this.hair = hairSystem;
-    this.eyes = null;  // Will be set externally
+    this.eyes = null;
     this.caseManager = caseManager;
     this.ui = uiController;
-    this.skinMarkSystem = null;  // Will be set externally
-    this.markPositionMapper = null;  // Will be set externally
-    this.keys = null;  // ApiKeyGate, set externally — owns the provider keys
+    this.skinMarkSystem = null;
+    this.markPositionMapper = null;
+    this.keys = null;  // ApiKeyGate, set from app.js; it owns the provider keys.
 
     // Conversation history for refinement
     this.conversationHistory = [];
@@ -56,9 +52,7 @@ class AIController {
     this.markHandlingMode = 'preserve';  // 'preserve', 'replace', or 'merge'
   }
 
-  /**
-   * Initialize DOM bindings for the AI chat panel.
-   */
+  // Wires up the AI chat panel's buttons, inputs and camera.
   init() {
     this.chatMessages = document.getElementById('aiChatMessages');
     this.chatInput = document.getElementById('aiChatInput');
@@ -148,14 +142,12 @@ class AIController {
     // Provider selector
     this.providerSelect = document.getElementById('aiProviderSelect');
 
-    // Switching model can switch provider, and the two providers hold
-    // separate keys — relabel so "(no key)" follows the actual selection.
+    // Changing model can change provider, so refresh the "(no key)" labels.
     if (this.providerSelect) {
       this.providerSelect.addEventListener('change', () => this._paintProviders());
     }
 
-    // Reopening the key dialog on purpose: replacing a rotated key, or
-    // removing one, without having to wait for a request to fail first.
+    // Lets the operator open the key dialog on purpose, to replace or remove a key.
     const keyBtn = document.getElementById('aiKeyBtn');
     if (keyBtn) {
       keyBtn.addEventListener('click', () => this.keys?.open(this._selectedProvider()));
@@ -186,27 +178,20 @@ class AIController {
     this._addMessage('assistant', 'Describe a face and I\'ll build it. You can refine by saying things like "make the nose wider" or "cheeks should be fuller".');
   }
 
-  /**
-   * Send the current prompt to the AI backend.
-   */
+  // Sends the current prompt to the AI and applies the result.
   async sendPrompt() {
     const text = this.chatInput?.value?.trim();
     if ((!text && this.referenceImages.length === 0) || this.isProcessing) return;
 
     let [provider, model] = (this.providerSelect?.value || 'anthropic:claude-opus-5').split(':');
 
-    // Nothing is sent until the provider has a key. Asked here rather than at
-    // startup so an operator who never opens this panel is never asked at all,
-    // and asked before the prompt is echoed so a dismissed dialog leaves the
-    // description still sitting in the box.
+    // Ask for a key only when it is needed, and before echoing the prompt so a dismissed dialog keeps the text.
     if (this.keys && !(await this.keys.ensure(provider))) {
       this._addMessage('assistant', 'No API key entered, so nothing was sent.');
       return;
     }
 
-    // The dialog offers every provider, so the key that came back may belong
-    // to a different one — the picker has already moved to it, and this
-    // request follows rather than going out on a provider with no key.
+    // The key saved may be for a different provider; the picker has already moved to it, so follow it.
     [provider, model] = (this.providerSelect?.value || `${provider}:${model}`).split(':');
 
     // Show user message
@@ -245,9 +230,7 @@ class AIController {
 
       let data = await (await send()).json();
 
-      // A key can be revoked, rotated or run out of credit between one prompt
-      // and the next. The backend says so with needsKey; ask for a current one
-      // and send the same request again rather than making them retype it.
+      // If the key was revoked or ran out, ask for a new one and resend the same request.
       if (data.needsKey && this.keys && await this.keys.handleResponse(data, provider)) {
         data = await (await send()).json();
       }
@@ -264,7 +247,7 @@ class AIController {
         // Apply the parameters
         const changes = this._applyParams(data.params);
 
-        // Update conversation history for refinement (text only — strip images to save tokens)
+        // Keep the history as text only, dropping images to save tokens.
         this.conversationHistory.push(
           { role: 'user', content: userMessage },
           { role: 'assistant', content: data.aiResponse }
@@ -290,7 +273,7 @@ class AIController {
           this.ui.addHistory('AI: ' + historyLabel.substring(0, 40) + (historyLabel.length > 40 ? '...' : ''));
         }
 
-        // Use reference images once, then clear so users can choose different ones for next turn.
+        // Reference images are used once, then cleared for the next turn.
         this._clearReferenceImages();
       }
     } catch (err) {
@@ -301,10 +284,7 @@ class AIController {
     }
   }
 
-  /**
-   * Apply AI-returned parameters to the face.
-   * Returns an object summarizing what changed.
-   */
+  // Applies the AI's parameters to the face and returns a summary of what changed.
   _applyParams(params) {
     const changes = {
       morphs: 0, hair: false, eyebrows: false, beard: false,
@@ -407,15 +387,11 @@ class AIController {
 
     // Apply facial marks if provided
     if (params.facialMarks && this.skinMarkSystem && this.markPositionMapper) {
-      // Only report marks as changed if they actually were — under 'preserve'
-      // the AI's marks are dropped, and the chat summary should not claim
-      // otherwise.
+      // Only report marks as changed if they really were; 'preserve' can drop them.
       changes.marks = this._applyFacialMarks(params.facialMarks);
     }
 
-    // Apply accessories. Each system validates its own payload in
-    // applyFromAI, so this only has to route the block, persist it, and
-    // refresh the panel so the controls agree with what the AI did.
+    // Each accessory system checks its own data, so this only routes it, saves it and refreshes the panel.
     const accessories = [
       ['glasses',  this.glasses,  'glasses',  '_syncGlassesUI'],
       ['faceMask', this.faceMask, 'faceMask', '_syncFaceMaskUI'],
@@ -433,10 +409,7 @@ class AIController {
       changes[key] = true;
     }
 
-    // A bandana and a face mask both cover the lower face, so wearing both
-    // renders one through the other. The panel already makes them exclusive;
-    // enforce the same here against live state rather than the payload, so it
-    // also catches the model enabling one while the other was already on.
+    // A bandana and a face mask can't be worn together, so keep only one.
     if (this.bandana?.enabled && this.faceMask?.enabled) {
       this.faceMask.setEnabled(false);
       this.caseManager.updateAppearance('faceMask', this.faceMask.exportState());
@@ -452,9 +425,7 @@ class AIController {
     return changes;
   }
 
-  /**
-   * Apply facial marks from AI-generated data to the face.
-   */
+  // Places the AI's facial marks on the face.
   _applyFacialMarks(aiMarks) {
     if (!Array.isArray(aiMarks) || aiMarks.length === 0) return false;
 
@@ -462,25 +433,17 @@ class AIController {
       ? this.skinMarkSystem.getMarkCount()
       : 0;
 
-    // Mark handling mode decides what happens to marks the operator placed by
-    // hand when the AI returns its own.
+    // The mark mode decides what happens to marks the operator already placed.
     if (this.markHandlingMode === 'replace') {
       // AI wins: wipe the existing set first.
       this.skinMarkSystem.clearAll();
     } else if (this.markHandlingMode === 'preserve' && existingCount > 0) {
-      // Operator wins: their marks stand and the AI's are dropped.
-      //
-      // Gated on there being something to preserve. 'preserve' is the default,
-      // so discarding unconditionally would make "Generate facial marks from
-      // image" appear broken on a fresh case — the operator ticks the box, the
-      // model returns marks, and nothing shows up. With nothing on the face
-      // there is nothing to protect, so the AI's marks land.
+      // Operator's marks win, but only when there are some; on a fresh face the AI's marks are added.
       console.log(`[AIController] Preserving ${existingCount} existing mark(s); dropped ${aiMarks.length} from the AI`);
       return false;
     }
     // 'merge' falls through: existing marks stay and the AI's are added on top.
 
-    // Add marks from AI
     for (const markData of aiMarks) {
       try {
         // Map region + offset to 3D world position
@@ -524,12 +487,10 @@ class AIController {
     return true;
   }
 
-  /**
-   * Apply skin color to the 3D model material and UI.
-   */
+  // Applies a skin colour to the model and the colour picker.
   _applySkinColor(hex) {
     this.caseManager.updateAppearance('skinColor', hex);
-    // Use SceneManager.setSkinColor so _skinColor, texture system, and material all stay in sync
+    // Use SceneManager.setSkinColor so the colour, texture and material stay in sync.
     if (this.scene) {
       this.scene.setSkinColor(hex);
     }
@@ -540,9 +501,7 @@ class AIController {
     swatches.forEach(s => s.classList.toggle('active', s.dataset.color === hex));
   }
 
-  /**
-   * Apply lip color to the 3D model and UI.
-   */
+  // Applies a lip colour to the model and the colour picker.
   _applyLipColor(hex) {
     this.caseManager.updateAppearance('lipColor', hex);
     if (this.scene) {
@@ -554,9 +513,7 @@ class AIController {
     swatches.forEach(s => s.classList.toggle('active', s.dataset.color === hex));
   }
 
-  /**
-   * Apply eye color to the 3D model material and UI.
-   */
+  // Applies an eye colour to the model and the colour picker.
   _applyEyeColor(hex) {
     if (this.eyes) {
       this.eyes.setEyeColor(hex);
@@ -566,9 +523,7 @@ class AIController {
     swatches.forEach(s => s.classList.toggle('active', s.dataset.color === hex));
   }
 
-  /**
-   * Sync all morph sliders, hair sliders, etc. to current values.
-   */
+  // Moves every slider and picker to match the current values.
   _syncSliders() {
     // Morph sliders
     document.querySelectorAll('.slider-control[data-param]').forEach(ctrl => {
@@ -606,9 +561,7 @@ class AIController {
     if (hairColorPicker) hairColorPicker.value = this.hair.hairColor;
   }
 
-  /**
-   * Get current face state for sending to AI as context.
-   */
+  // Collects the current face state to send to the AI as context.
   _getCurrentState() {
     const state = {
       morphTargets: { ...this.morpher.morphValues },
@@ -634,9 +587,7 @@ class AIController {
       appearance: { ...this.caseManager.currentCase.appearance },
     };
 
-    // Include current accessory state so the AI can apply relative changes
-    // ("make the sunglasses darker", "take the bandana off") instead of
-    // rebuilding each block from scratch.
+    // Include accessories so the AI can make relative changes like "make the glasses darker".
     if (this.glasses) state.glasses = this.glasses.exportState();
     if (this.faceMask) state.faceMask = this.faceMask.exportState();
     if (this.earrings) state.earrings = this.earrings.exportState();
@@ -653,9 +604,7 @@ class AIController {
     return state;
   }
 
-  /**
-   * Summarize what the AI changed for the chat.
-   */
+  // Builds a short chat summary of what the AI changed.
   _summarizeChanges(changes) {
     const parts = [];
     if (changes.morphs > 0) parts.push(`${changes.morphs} facial features`);
@@ -674,9 +623,7 @@ class AIController {
     return `Updated ${parts.join(', ')}. You can refine further or adjust individual sliders manually.`;
   }
 
-  /**
-   * Undo the last AI-applied change.
-   */
+  // Undoes the last AI change using the normal undo.
   undoLastAiChange() {
     if (this.ui) {
       // Trigger the existing undo system
@@ -684,9 +631,7 @@ class AIController {
     }
   }
 
-  /**
-   * Clear conversation history and start fresh.
-   */
+  // Clears the conversation and starts fresh.
   clearConversation() {
     this.conversationHistory = [];
     this._clearReferenceImages();
@@ -698,6 +643,7 @@ class AIController {
 
   // ─── Chat UI Helpers ──────────────────────────────────────────────────────
 
+  // Adds a message to the chat.
   _addMessage(role, content) {
     if (!this.chatMessages) return;
     const msg = document.createElement('div');
@@ -707,6 +653,7 @@ class AIController {
     this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
   }
 
+  // Shows or hides the "thinking" state on the send button and in the chat.
   _setLoading(loading) {
     if (this.sendBtn) {
       this.sendBtn.disabled = loading;
@@ -734,27 +681,20 @@ class AIController {
     }
   }
 
-  // ─── Provider Detection ──────────────────────────────────────────────────
+  // Provider detection
 
-  /** Provider half of the model picker's value — 'anthropic' or 'gemini'. */
+  // Returns the provider part of the model picker's value, such as 'anthropic'.
   _selectedProvider() {
     return (this.providerSelect?.value || 'anthropic:claude-opus-5').split(':')[0];
   }
 
-  /**
-   * Show which providers hold a key.
-   *
-   * Key state belongs to ApiKeyGate, so this only reflects it — and options
-   * without a key stay selectable, because choosing one is now how an operator
-   * asks to be prompted for that provider's key.
-   */
+  // Marks providers without a key as "(no key)"; they stay selectable so choosing one prompts for its key.
   _paintProviders() {
     const providers = this.keys?.providers;
     if (!providers || !this.providerSelect) return;
 
     Array.from(this.providerSelect.options).forEach(opt => {
-      // The pristine label is kept on the option: re-painting a label that
-      // already carries "(no key)" would keep appending to it.
+      // Keep the original label so "(no key)" isn't added twice.
       if (!opt.dataset.label) opt.dataset.label = opt.textContent;
       const info = providers[opt.value.split(':')[0]];
       opt.textContent = info && !info.available
@@ -762,8 +702,7 @@ class AIController {
         : opt.dataset.label;
     });
 
-    // A machine with only the other provider's key set should open on that
-    // provider rather than on a default the operator would have to change.
+    // If only another provider has a key, switch the picker to it.
     if (!providers[this._selectedProvider()]?.available) {
       const ready = Array.from(this.providerSelect.options)
         .find(opt => providers[opt.value.split(':')[0]]?.available);
@@ -771,31 +710,32 @@ class AIController {
     }
   }
 
+  // Labels the providers now and whenever the keys change.
   _detectProviders() {
     if (!this.keys) return;
     this._paintProviders();
     this.keys.subscribe(() => this._paintProviders());
   }
 
-  // ─── Voice Recording (Web Audio → Backend Transcription) ─────────────────
+  // Voice input (recorded here, transcribed by the backend)
 
+  // Sets up voice recording state.
   _initVoiceRecognition() {
-    // Using Web Audio recording + backend speech-to-text (works in Electron)
     this._mediaRecorder = null;
     this._audioChunks = [];
     this._audioStream = null;
   }
 
+  // Starts or stops voice recording.
   async toggleVoice() {
     if (this._isListening) {
-      // Stop recording
       this._stopRecording();
     } else {
-      // Start recording
       await this._startRecording();
     }
   }
 
+  // Starts recording from the microphone.
   async _startRecording() {
     try {
       this._audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -825,6 +765,7 @@ class AIController {
     }
   }
 
+  // Stops recording and releases the microphone.
   _stopRecording() {
     if (this._mediaRecorder && this._mediaRecorder.state === 'recording') {
       this._mediaRecorder.stop();
@@ -843,6 +784,7 @@ class AIController {
     }
   }
 
+  // Sends the recording to the backend for transcription and puts the text in the input box.
   async _processRecording() {
     if (this._audioChunks.length === 0) {
       this._resetInputPlaceholder();
@@ -852,7 +794,7 @@ class AIController {
     try {
       const webmBlob = new Blob(this._audioChunks, { type: 'audio/webm' });
 
-      // Send audio to backend for transcription (backend handles format conversion)
+      // Send the audio to the backend, which handles format conversion.
       const formData = new FormData();
       formData.append('audio', webmBlob, 'recording.webm');
 
@@ -863,7 +805,7 @@ class AIController {
       const data = await response.json();
 
       if (data.success && data.text) {
-        // Show transcribed text in the input — user can review/edit before sending
+        // Put the text in the input so the user can check it before sending.
         if (this.chatInput) {
           this.chatInput.value = data.text;
           this.chatInput.placeholder = 'Review and press Enter to send, or edit first';
@@ -880,12 +822,14 @@ class AIController {
     }
   }
 
+  // Restores the chat input's placeholder text.
   _resetInputPlaceholder() {
     if (this.chatInput) {
       this.chatInput.placeholder = 'Describe a face or give instructions...';
     }
   }
 
+  // Adds the chosen photos as reference images, up to the limit.
   async _onReferenceImageSelected(event) {
     const files = Array.from(event.target?.files || []);
     if (!files.length) return;
@@ -928,11 +872,12 @@ class AIController {
     } catch (err) {
       this._addMessage('assistant', `Could not read selected images: ${err.message}`);
     } finally {
-      // Reset so selecting the same file again triggers change
+      // Reset so picking the same file again still triggers a change.
       this.imageInput.value = '';
     }
   }
 
+  // Reads an image file as a data URL.
   _readReferenceImage(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -948,6 +893,7 @@ class AIController {
     });
   }
 
+  // Shows the reference image thumbnails with remove buttons.
   _renderReferenceImages() {
     if (!this.referenceInfo) return;
     if (this.referenceImages.length === 0) {
@@ -987,12 +933,14 @@ class AIController {
     this.attachBtn?.classList.add('active');
   }
 
+  // Removes one reference image.
   _removeReferenceImage(index) {
     if (index < 0 || index >= this.referenceImages.length) return;
     this.referenceImages.splice(index, 1);
     this._renderReferenceImages();
   }
 
+  // Removes every reference image.
   _clearReferenceImages() {
     this.referenceImages = [];
     if (this.imageInput) this.imageInput.value = '';
@@ -1001,6 +949,7 @@ class AIController {
 
   // ── Camera Capture ──────────────────────────────────────────
 
+  // Opens the webcam to take a reference photo.
   async _openCamera() {
     if (!this.cameraModal || !this.cameraVideo) return;
 
@@ -1022,6 +971,7 @@ class AIController {
     }
   }
 
+  // Takes a photo from the webcam and adds it as a reference image.
   _capturePhoto() {
     if (!this.cameraVideo || !this.cameraCanvas) return;
 
@@ -1047,6 +997,7 @@ class AIController {
     this._addMessage('assistant', 'Photo captured and attached as a reference image.');
   }
 
+  // Closes the webcam dialog and stops the camera.
   _closeCamera() {
     if (this._cameraStream) {
       this._cameraStream.getTracks().forEach(track => track.stop());

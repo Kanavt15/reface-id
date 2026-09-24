@@ -1,11 +1,4 @@
-/**
- * SceneManager.js
- * Manages the Three.js scene, camera, lighting, and rendering.
- * Handles the 3D viewport, view presets, materials, and screenshot capture.
- *
- * Coordinate system: Three.js standard (Y-up, Z-toward-camera, X-right).
- * Blender OBJ models are rotated -90° on X to convert from Z-up → Y-up.
- */
+// Owns the Three.js scene: renderer, camera, lights, the head mesh and its skin material, view presets and screenshots (Y is up).
 
 class SceneManager {
   constructor(canvasId) {
@@ -15,9 +8,7 @@ class SceneManager {
     this.wireframeMode = false;
     this.lightingMode = 0; // 0 = studio, 1 = outdoor, 2 = dramatic
 
-    // Render mode: 'photoreal' shades against the studio IBL and hides the
-    // technical backdrop; 'structure' restores the flat matte shading and the
-    // ground/grid, which is far easier to read while sculpting 180 sliders.
+    // Photoreal uses the studio lighting; Structure shows flat shading with a floor and grid, easier for sculpting.
     this.renderMode = 'photoreal';
     this.environmentSystem = null;
     this._skinMaterial = null;
@@ -35,9 +26,7 @@ class SceneManager {
     // Skin texture system reference (set externally)
     this.skinTextureSystem = null;
 
-    /* Governs the post chain, the procedural map resolution and the pixel
-       ratio cap below. Tracked here rather than read back off PostFX so the
-       cap still has a tier to consult when post is bypassed entirely. */
+    // Quality tier, which sets the post effects, skin map size and pixel ratio cap.
     this.qualityTier = 'medium';
 
     // Countdown to the next shadow map rebuild; see _refreshShadows().
@@ -46,6 +35,7 @@ class SceneManager {
     this.init();
   }
 
+  // Creates the renderer, camera, controls, lighting and post effects, then starts the render loop.
   init() {
     // Renderer
     this.renderer = new THREE.WebGLRenderer({
@@ -58,12 +48,7 @@ class SceneManager {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.VSMShadowMap;
 
-    /* The hair alone is ~950k triangles, and by default three.js re-rasterises
-       every shadow caster into the shadow map on every single frame. Orbiting
-       the camera does not move the light, so for a head that is only being
-       looked at that is the most expensive redundant work in the app — it cost
-       more than the post chain and the resolution put together.
-       _refreshShadows() below drives the updates instead. */
+    // Don't redraw the shadow map every frame, since the hair alone is about 950k triangles; _refreshShadows() handles it.
     this.renderer.shadowMap.autoUpdate = false;
     this.renderer.shadowMap.needsUpdate = true;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -87,11 +72,7 @@ class SceneManager {
     this.controls.minDistance = 1.5;
     this.controls.maxDistance = 15;
 
-    // ── Image-based lighting ──
-    // Everything else in this file is downstream of this: with no
-    // scene.environment a PBR material's specular lobe has nothing to reflect
-    // and skin renders as flat clay. Built before the lights so the softbox
-    // directions and the shadow-casting directions are set up as one thing.
+    // Image-based lighting, built before the lights so the softboxes and shadows line up; without it skin looks like clay.
     this.environmentSystem = new EnvironmentSystem(this.renderer);
     this.environmentSystem.build();
     this.scene.environment = this.environmentSystem.texture;
@@ -124,8 +105,7 @@ class SceneManager {
     // Lighting
     this.setupStudioLighting();
 
-    // Post-processing. Created before the first resize so setSize() below can
-    // give it real dimensions on the very first frame.
+    // Post effects, created before the first resize so they get real dimensions straight away.
     if (window.PostFX) {
       this.postFX = new PostFX(this.renderer);
       this.postFX.setTier('medium');
@@ -142,31 +122,18 @@ class SceneManager {
     this.animate();
   }
 
-  /**
-   * Shadows are recomputed on demand rather than every frame.
-   *
-   * Callers that change the scene should say so via invalidateShadows(). The
-   * periodic refresh is the safety net behind that: the scene is mutated from
-   * a dozen systems (hair, glasses, masks, piercings, morphs, marks…) and a
-   * scheme that depended on every one of them remembering to call would fail
-   * silently — and invisibly, since a stale shadow still renders. Refreshing
-   * on a fixed interval means a missed call costs a fraction of a second of
-   * staleness instead of a wrong image, and adding a fourteenth system to the
-   * scene needs no knowledge of any of this.
-   *
-   * Six frames is ~100ms — below the threshold where a shadow lagging a slider
-   * drag is noticeable, and still a ~6x cut in shadow work.
-   */
+  // Frames between automatic shadow refreshes, a safety net so a missed invalidateShadows() only lags briefly.
   static get SHADOW_REFRESH_FRAMES() {
     return 6;
   }
 
-  /** Force the shadow map to rebuild on the next frame. */
+  // Forces the shadow map to rebuild on the next frame.
   invalidateShadows() {
     this._shadowFrame = 0;
     if (this.renderer) this.renderer.shadowMap.needsUpdate = true;
   }
 
+  // Rebuilds the shadow map when asked or every few frames.
   _refreshShadows() {
     if (!this.renderer.shadowMap.enabled) return;
     if (this._shadowFrame-- <= 0) {
@@ -175,45 +142,18 @@ class SceneManager {
     }
   }
 
-  /**
-   * Per-tier ceiling on the render resolution.
-   *
-   * A Retina panel reports devicePixelRatio 2, so the uncapped renderer drew
-   * four times the fragments of the 1.0 that most non-Retina displays report.
-   * The scene that holds a steady 60fps on those displays landed just past the
-   * 16.7ms vsync deadline here and juddered between 60 and 30 — read as "low
-   * fps" rather than as lag, because the frames that did land were on time.
-   *
-   * Capping costs a little edge sharpness and buys a stable frame. Nothing
-   * changes on a display already at or below its tier's cap, so this is inert
-   * on the 1.0 and 1.25 displays the app already ran well on; 'high' opts back
-   * into full native density for operators who would rather have the pixels.
-   *
-   * Medium stops at 1.25 rather than 1.5 for a reason worth keeping: it is the
-   * last step where PostFX still affords the full 4x multisampling the hair
-   * and brow strands need, so it is both faster AND sharper on strands than
-   * 1.5 turned out to be. Raising it is not a free quality win.
-   */
+  // Highest pixel ratio per quality tier, so high-DPI screens keep a steady frame rate.
   static get PIXEL_RATIO_CAP() {
     return { low: 1.0, medium: 1.25, high: 2.0 };
   }
 
+  // Returns the pixel ratio to render at, within the tier's cap.
   _targetPixelRatio() {
     const cap = SceneManager.PIXEL_RATIO_CAP[this.qualityTier] ?? 1.5;
     return Math.min(window.devicePixelRatio || 1, cap);
   }
 
-  /**
-   * The photoreal skin surface constants, in one place.
-   *
-   * These used to be written out as literals in three separate files —
-   * _createSkinMaterial() here, setRenderMode() below, and
-   * SkinTextureSystem._applyToMesh(), which runs last on every slider tick and
-   * therefore won. They had already drifted apart once (envMapIntensity was
-   * 0.9 in two of them and 0.4 in the third, so regenerating the skin textures
-   * silently halved the IBL contribution), and clearcoat drifted the same way
-   * the moment it was retuned. Anything the three of them share belongs here.
-   */
+  // The photoreal skin surface values, kept in one place so they can't drift apart.
   static get SKIN() {
     return {
       roughness: 0.62,
@@ -228,7 +168,7 @@ class SceneManager {
     };
   }
 
-  /** Keep surface settings consistent after a slider, restore or mode switch. */
+  // Applies the shared skin surface values for the current mode.
   static applySkinSurface(material, photoreal) {
     const skin = SceneManager.SKIN;
     material.envMapIntensity = photoreal ? skin.envMapIntensity : 0;
@@ -241,17 +181,7 @@ class SceneManager {
     material.sheenColor.set(skin.sheenColor);
   }
 
-  /**
-   * The one place the skin material is defined.
-   *
-   * MeshPhysicalMaterial rather than MeshStandardMaterial because skin needs
-   * two specular lobes: a broad dermal one (`roughness`) and a tight oily
-   * epidermal one on top. `clearcoat` is a cheap stand-in for the second lobe
-   * and is most of what separates "skin" from "painted plastic" at a glance.
-   *
-   * `ior` 1.4 is skin's measured refractive index — the default 1.5 is glass
-   * and gives a slightly too-bright grazing edge.
-   */
+  // Creates the skin material: two reflection layers (clearcoat for oil) and skin's refractive index of 1.4.
   _createSkinMaterial() {
     const mat = new THREE.MeshPhysicalMaterial({
       color: 0xcb9a78,
@@ -268,8 +198,7 @@ class SceneManager {
       side: THREE.FrontSide,
     });
 
-    // Pre-integrated subsurface scattering, pore detail and cavity occlusion.
-    // Degrades to a plain physical material if the injection is unavailable.
+    // Add scattering, pore detail and crease shading, or fall back to a plain material.
     if (window.SkinShader) {
       SkinShader.attach(mat);
       this._skinShaderMaterials = this._skinShaderMaterials || [];
@@ -280,9 +209,7 @@ class SceneManager {
     return mat;
   }
 
-  /**
-   * Load a GLB model. Already in Y-up — no rotation needed.
-   */
+  // Loads a GLB head model, which is already Y-up.
   loadGLB(url, onLoaded) {
     const loader = new THREE.GLBLoader();
     loader.load(
@@ -305,16 +232,14 @@ class SceneManager {
         this.headMesh.name = 'HeadMesh';
         this.scene.add(this.headMesh);
 
-        // Seed the cavity attribute for the undeformed mesh; OBJMorpher
-        // refreshes it after every morph settles.
+        // Compute crease shading for the starting shape; OBJMorpher refreshes it after morphs.
         if (window.SkinShader) SkinShader.computeCavity(this.headMesh);
 
         const box = new THREE.Box3().setFromObject(this.headMesh);
         this.modelCenter = new THREE.Vector3();
         box.getCenter(this.modelCenter);
         this.modelHeight = box.max.y - box.min.y;
-        // The shadow frustum is fitted to the subject, so it has to be refitted
-        // whenever the subject changes.
+        // Refit the shadows to the new head.
         this.updateShadowFrustums();
 
         const cY = this.modelCenter.y;
@@ -336,85 +261,7 @@ class SceneManager {
     );
   }
 
-  /**
-   * Load an OBJ model from a file path.
-   * Applies -90° X rotation to convert from Blender Z-up to Three.js Y-up.
-   */
-  loadOBJ(url, onLoaded) {
-    const loader = new THREE.OBJLoader();
-    loader.load(
-      url,
-      (group) => {
-        // Remove old head
-        if (this.headMesh) {
-          this.scene.remove(this.headMesh);
-        }
-
-        // ── Convert Blender Z-up → Three.js Y-up ──
-        group.rotation.x = -Math.PI / 2;
-        group.updateMatrixWorld(true);
-
-        const skinMat = this._createSkinMaterial();
-
-        group.traverse((child) => {
-          if (child.isMesh) {
-            child.material = skinMat;
-            child.castShadow = true;
-            child.receiveShadow = true;
-
-            // Ensure geometry normals are correct after rotation
-            if (child.geometry) {
-              child.geometry.computeVertexNormals();
-            }
-          }
-        });
-
-        this.headMesh = group;
-        this.headMesh.name = 'HeadMesh';
-        this.scene.add(this.headMesh);
-
-        // Seed the cavity attribute for the undeformed mesh; OBJMorpher
-        // refreshes it after every morph settles.
-        if (window.SkinShader) SkinShader.computeCavity(this.headMesh);
-
-        // Compute bounding box in world space to set camera properly
-        const box = new THREE.Box3().setFromObject(this.headMesh);
-        this.modelCenter = new THREE.Vector3();
-        box.getCenter(this.modelCenter);
-        this.modelHeight = box.max.y - box.min.y;
-        // The shadow frustum is fitted to the subject, so it has to be refitted
-        // whenever the subject changes.
-        this.updateShadowFrustums();
-
-        // Reposition camera for loaded model
-        const cY = this.modelCenter.y;
-        this.controls.target.set(0, cY, 0);
-        this.camera.position.set(0, cY, 4.5);
-        this.controls.update();
-
-        console.log(`OBJ loaded: ${url}`);
-        console.log(`  Model center: (${this.modelCenter.x.toFixed(3)}, ${this.modelCenter.y.toFixed(3)}, ${this.modelCenter.z.toFixed(3)})`);
-        console.log(`  Model height: ${this.modelHeight.toFixed(3)}`);
-        console.log(`  Bounds: min(${box.min.x.toFixed(2)}, ${box.min.y.toFixed(2)}, ${box.min.z.toFixed(2)}) max(${box.max.x.toFixed(2)}, ${box.max.y.toFixed(2)}, ${box.max.z.toFixed(2)})`);
-
-        if (onLoaded) onLoaded(group);
-      },
-      (progress) => {
-        if (progress.total > 0) {
-          console.log(`Loading OBJ: ${(progress.loaded / progress.total * 100).toFixed(0)}%`);
-        }
-      },
-      (error) => {
-        console.error('Failed to load OBJ:', error);
-        if (onLoaded) onLoaded(null);
-      }
-    );
-  }
-
-  /**
-   * Add an imported 3D model to the scene as a reference overlay.
-   * Parses GLB/OBJ from an ArrayBuffer and adds it alongside the head mesh.
-   */
+  // Adds an imported 3D model next to the head as a reference.
   addImportedModel(arrayBuffer, fileName) {
     const ext = fileName.split('.').pop().toLowerCase();
 
@@ -499,9 +346,7 @@ class SceneManager {
     }
   }
 
-  /**
-   * Remove an imported model from the scene by index or all.
-   */
+  // Removes one imported model by index, or all of them.
   removeImportedModel(index) {
     if (!this.importedModels) return;
     if (index === undefined) {
@@ -514,9 +359,7 @@ class SceneManager {
     }
   }
 
-  /**
-   * Create the base head mesh from geometry (procedural fallback)
-   */
+  // Creates the fallback head mesh from procedural geometry.
   createHead(geometry, material) {
     if (this.headMesh) {
       this.scene.remove(this.headMesh);
@@ -536,9 +379,7 @@ class SceneManager {
     return this.headMesh;
   }
 
-  /**
-   * Update skin color on all head meshes
-   */
+  // Sets the skin colour on the head.
   setSkinColor(color) {
     this._skinColor = color;
     if (!this.headMesh) return;
@@ -564,9 +405,7 @@ class SceneManager {
     }
   }
 
-  /**
-   * Set lip color. Pass null to remove lip color.
-   */
+  // Sets the lip colour, or removes it when given null.
   setLipColor(color) {
     this._lipColor = color;
     if (!this.headMesh) return;
@@ -597,11 +436,7 @@ class SceneManager {
     }
   }
 
-  /**
-   * Compute Gaussian weights for lip vertices based on lip landmarks.
-   * Uses anisotropic distance (Y penalized 3x) so color stays tight
-   * vertically while covering the full horizontal lip width.
-   */
+  // Works out how strongly each vertex belongs to the lips, keeping the colour tight vertically.
   _computeLipWeights() {
     // Dense lip landmarks — upper lip outer edge, inner edge, lower lip, and fill
     const lipLandmarks = [
@@ -716,9 +551,7 @@ class SceneManager {
     this._lipWeights = allWeights;
   }
 
-  /**
-   * Apply vertex colors blending skin color and lip color based on lip weights.
-   */
+  // Blends skin and lip colour into the vertex colours using the lip weights.
   _updateVertexColors() {
     if (!this._lipWeights || !this._lipColor) return;
 
@@ -754,10 +587,7 @@ class SceneManager {
     }
   }
 
-  /**
-   * Apply manual paint overrides to computed lip weights.
-   * Called by LipPainter after each stroke.
-   */
+  // Applies the lip painter's manual changes to the lip weights.
   _applyPaintOverrides() {
     if (!this._lipWeights || !this._lipPaintOverrides) return;
     for (const entry of this._lipWeights) {
@@ -771,14 +601,7 @@ class SceneManager {
     }
   }
 
-  /**
-   * Invalidate cached lip weights so they recompute on next setLipColor.
-   */
-  invalidateLipWeights() {
-    this._lipWeights = null;
-  }
-
-  /** Neutral portrait lighting with a gentle key-to-fill difference. */
+  // Sets up neutral portrait lighting with a gentle key-to-fill difference.
   setupStudioLighting() {
     this.clearLights();
 
@@ -789,16 +612,12 @@ class SceneManager {
     this._configureShadow(keyLight, true);
     this.scene.add(keyLight);
 
-    // A neutral fill keeps skin colour and pores legible on the shadowed cheek.
-    // It casts no second shadow and remains weaker than the modelling key.
+    // A neutral fill keeps the shadowed cheek readable without a second shadow.
     const fillLight = new THREE.DirectionalLight(0xf4f5f7, 0.70);
     fillLight.position.set(-2.7, 0.65, 2.3);
     this.scene.add(fillLight);
 
-    /* Two kickers rather than one light straight behind. A single rim on the
-       axis rims the nose and the ears equally, which reads as a halo; offset
-       pairs catch the jawline and the far cheek instead, which is what
-       separates a head from its background. */
+    // Two offset rim lights catch the jaw and far cheek instead of haloing the nose and ears.
     const rimLight = new THREE.DirectionalLight(0xffffff, 0.08);
     rimLight.position.set(-1.9, 1.5, -2.4);
     this.scene.add(rimLight);
@@ -813,9 +632,7 @@ class SceneManager {
     const hemiLight = new THREE.HemisphereLight(0xf0f2f5, 0x77736d, 0.14);
     this.scene.add(hemiLight);
 
-    /* Named so setRenderMode() can put the fill back for Structure mode, which
-       has no environment to supply it and would otherwise render the head
-       under a bare key light with pitch-black shadow sides. */
+    // Keep a handle so Structure mode can raise the fill, since it has no environment light.
     this._ambientLight = ambientLight;
     this._hemiLight = hemiLight;
     this.lights = [keyLight, fillLight, rimLight, rimLight2, ambientLight, hemiLight];
@@ -823,10 +640,7 @@ class SceneManager {
     this.updateShadowFrustums();
   }
 
-  /** Fit shadows to the head and blur the studio key as a broad source.
-   * VSM filters the cast-shadow boundary itself, preventing a sharp diagonal
-   * jaw shadow across the neck. Outdoor lighting retains a narrow filter.
-   */
+  // Fits a light's shadow to the head; the studio key uses a soft, wide filter.
   _configureShadow(light, soft = false) {
     // A smaller map with a wide filter gives the studio shadow a smooth falloff.
     light.shadow.mapSize.width = soft ? 1024 : 2048;
@@ -840,15 +654,7 @@ class SceneManager {
     this.updateShadowFrustums();
   }
 
-  /**
-   * Fit every shadow camera to the subject.
-   *
-   * Called after the head loads and whenever it is replaced, because the
-   * imported meshes differ in scale by more than a factor of two and a frustum
-   * fitted to one clips another. Uses the bounding sphere rather than the box
-   * so the fit is orientation-independent — the same extents are correct from
-   * whatever direction each light happens to sit.
-   */
+  // Fits every shadow camera to the head's bounding sphere, whichever way the lights point.
   updateShadowFrustums() {
     if (!this._shadowLights || !this._shadowLights.length) return;
 
@@ -874,31 +680,20 @@ class SceneManager {
       cam.top = extent;
       cam.bottom = -extent;
 
-      /* A DirectionalLight's shadow camera sits at the light's position and
-         looks at its target, so the subject spans `dist +/- extent` along that
-         axis. Clamping near/far to that band instead of 0.5..12 concentrates
-         the depth buffer on the head, which is what makes the tiny depth bias
-         above survivable. */
+      // Clamp near and far to the head's depth so the shadow depth precision goes where it matters.
       const dist = light.position.distanceTo(center);
       cam.near = Math.max(0.05, dist - extent);
       cam.far = dist + extent;
       cam.updateProjectionMatrix();
 
-      // Aim the light at the head. Without this the shadow camera points at
-      // the world origin, and the head is not centred there.
+      // Aim the light at the head, not the world origin.
       light.target.position.copy(center);
       if (!light.target.parent) this.scene.add(light.target);
       light.target.updateMatrixWorld();
     }
   }
 
-  /**
-   * Switch between the photoreal look and the flat technical view.
-   *
-   * Structure mode is not just "photoreal off" — a matte unlit-ish surface with
-   * a ground plane and grid genuinely reads better when you are judging the
-   * shape of a jaw against a slider, which is most of what this app is for.
-   */
+  // Switches between the photoreal look and the flat Structure view used for judging shape.
   setRenderMode(mode) {
     this.renderMode = mode === 'structure' ? 'structure' : 'photoreal';
     const photo = this.renderMode === 'photoreal';
@@ -908,8 +703,7 @@ class SceneManager {
     if (this.ground) this.ground.visible = !photo;
     if (this.grid) this.grid.visible = !photo;
 
-    // The head material carries the whole photoreal skin stack; structure mode
-    // strips it back to a plain diffuse surface so form reads cleanly.
+    // Structure mode strips the skin back to a plain surface so the shape reads clearly.
     if (this.headMesh) {
       this.headMesh.traverse((child) => {
         if (!child.isMesh || !child.material) return;
@@ -926,7 +720,7 @@ class SceneManager {
     return this.renderMode;
   }
 
-  /** Keep shadow detail visible; Structure needs more fill without the environment. */
+  // Adjusts the ambient fill for the current mode.
   _applyModeLighting() {
     const photo = this.renderMode === 'photoreal';
     // Use restrained neutral bounce in Photoreal and stronger fill in Structure.
@@ -934,16 +728,14 @@ class SceneManager {
     if (this._hemiLight) this._hemiLight.intensity = photo ? 0.14 : 0.45;
   }
 
-  /** Cycle Photoreal → Structure → Photoreal. Returns the new mode label. */
+  // Toggles between Photoreal and Structure and returns the new mode's label.
   toggleRenderMode() {
     const next = this.renderMode === 'photoreal' ? 'structure' : 'photoreal';
     this.setRenderMode(next);
     return next === 'photoreal' ? 'Photoreal' : 'Structure';
   }
 
-  /**
-   * Outdoor lighting
-   */
+  // Sets up outdoor lighting.
   setupOutdoorLighting() {
     this.clearLights();
 
@@ -964,9 +756,7 @@ class SceneManager {
     this.lights = [sunLight, skyLight, bounceLight];
   }
 
-  /**
-   * Dramatic lighting
-   */
+  // Sets up dramatic lighting.
   setupDramaticLighting() {
     this.clearLights();
 
@@ -990,11 +780,11 @@ class SceneManager {
     this.lights = [spotLight, accent, ambient];
   }
 
+  // Removes every light, along with the shadow targets and references tied to them.
   clearLights() {
     if (this.lights) {
       this.lights.forEach((light) => {
-        // updateShadowFrustums() parents each shadow light's target to aim it
-        // at the head; the target has to leave with the light.
+        // Remove each light's target too, since it was added to the scene for aiming.
         if (light.target && light.target.parent === this.scene) {
           this.scene.remove(light.target);
         }
@@ -1002,23 +792,17 @@ class SceneManager {
       });
     }
     this.lights = [];
-    // Only the studio preset defines these; the others must not leave stale
-    // references pointing at lights that are no longer in the scene.
+    // Only the studio preset sets these, so clear them.
     this._ambientLight = null;
     this._hemiLight = null;
-    /* Emptied for the same reason. Without this, cycling the lighting preset
-       would leave every previous preset's key light in the refit list, and each
-       refit would go on re-aiming lights that are no longer in the scene. */
+    // Empty the shadow list so old lights aren't re-aimed.
     this._shadowLights = [];
   }
 
-  /**
-   * Cycle through lighting modes
-   */
+  // Cycles to the next lighting preset.
   cycleLighting() {
     this.lightingMode = (this.lightingMode + 1) % 3;
-    /* Moving the light is the one change that invalidates every shadow at
-       once, so it is worth not waiting for the periodic refresh here. */
+    // Moving the lights changes every shadow, so rebuild now.
     this.invalidateShadows();
     switch (this.lightingMode) {
       case 0: this.setupStudioLighting(); return 'Studio';
@@ -1027,9 +811,7 @@ class SceneManager {
     }
   }
 
-  /**
-   * Toggle wireframe mode (supports groups from OBJ)
-   */
+  // Turns wireframe view on or off.
   toggleWireframe() {
     this.wireframeMode = !this.wireframeMode;
     if (this.headMesh) {
@@ -1042,10 +824,7 @@ class SceneManager {
     return this.wireframeMode;
   }
 
-  /**
-   * Camera view presets (Y-up coordinate system)
-   * Front = +Z looking toward origin, right = +X, up = +Y
-   */
+  // Moves the camera to a preset view (front is +Z, right is +X, up is +Y).
   setView(view) {
     const cY = this.modelCenter.y;
     const target = new THREE.Vector3(0, cY, 0);
@@ -1074,9 +853,7 @@ class SceneManager {
     return view;
   }
 
-  /**
-   * Animate camera to target position
-   */
+  // Smoothly animates the camera to a new position and target.
   animateCamera(targetPos, targetLookAt) {
     const startPos = this.camera.position.clone();
     const startTarget = this.controls.target.clone();
@@ -1100,16 +877,7 @@ class SceneManager {
     animate();
   }
 
-  /**
-   * The ONE place the scene is drawn.
-   *
-   * Every capture path — the animation loop, screenshots, snapshot thumbnails,
-   * the variant picker, and the turntable recorder reading the live canvas —
-   * must go through here. Before this existed each of them called
-   * `renderer.render()` directly, which was harmless while there was no post
-   * stack; with one, a direct call silently produces an ungraded frame that
-   * does not match what the operator saw when they pressed the button.
-   */
+  // Draws the scene; every screenshot and capture goes through here so it matches the screen.
   renderFrame() {
     if (this.postFX && this.postFX.enabled) {
       this.postFX.render(this.scene, this.camera);
@@ -1118,17 +886,13 @@ class SceneManager {
     }
   }
 
-  /**
-   * Take a screenshot of the viewport
-   */
+  // Captures the viewport as an image.
   takeScreenshot() {
     this.renderFrame();
     return this.canvas.toDataURL('image/png');
   }
 
-  /**
-   * Get vertex count
-   */
+  // Returns the head's vertex count.
   getVertexCount() {
     let count = 0;
     this.scene.traverse((child) => {
@@ -1139,9 +903,7 @@ class SceneManager {
     return count;
   }
 
-  /**
-   * Resize handler
-   */
+  // Resizes the renderer and camera to fit the viewport.
   resize() {
     const viewport = document.getElementById('viewport');
     if (!viewport) return;
@@ -1155,24 +917,15 @@ class SceneManager {
     if (this.postFX) this.postFX.setSize(width, height);
   }
 
-  /**
-   * Post-processing quality. 'low' bypasses the chain entirely.
-   * Returns the tier that is now active.
-   */
+  // Sets the quality tier ('low' turns off post effects) and returns the active tier.
   setQualityTier(tier) {
-    /* The tier governs CPU cost as well as GPU: the procedural skin maps are
-       regenerated on the main thread on every slider tick, so their resolution
-       belongs to the same control the operator uses to trade quality for
-       responsiveness. */
+    // The tier also sets the skin map resolution, since those are rebuilt on every slider move.
     this.qualityTier = tier;
     if (this.skinTextureSystem) {
       this.skinTextureSystem.setResolution(tier === 'high' ? 1024 : 512);
     }
 
-    /* The tier moves the resolution ceiling, so the renderer and every post
-       target have to be rebuilt against the new ratio. resize() is what owns
-       that, and PostFX._buildTargets() re-reads the ratio to decide whether
-       MSAA is still worth paying for at the new density. */
+    // Rebuild the renderer and post targets for the new pixel ratio.
     const pr = this._targetPixelRatio();
     if (this.renderer.getPixelRatio() !== pr) {
       this.renderer.setPixelRatio(pr);
@@ -1181,15 +934,12 @@ class SceneManager {
 
     if (!this.postFX) return 'low';
     const active = this.postFX.setTier(tier);
-    // Low disables post, which also hands tone mapping back to the renderer;
-    // re-applying the mode keeps everything else consistent with that.
+    // Low turns post off, which hands tone mapping back to the renderer.
     if (this.renderMode === 'structure') this.postFX.setEnabled(false);
     return active;
   }
 
-  /**
-   * Get camera state for saving
-   */
+  // Returns the camera position and target for saving.
   getCameraState() {
     return {
       position: this.camera.position.toArray(),
@@ -1197,9 +947,7 @@ class SceneManager {
     };
   }
 
-  /**
-   * Restore camera state
-   */
+  // Restores a saved camera position and target.
   loadCameraState(state) {
     if (!state) return;
     if (state.position) this.camera.position.fromArray(state.position);
@@ -1207,9 +955,7 @@ class SceneManager {
     this.controls.update();
   }
 
-  /**
-   * Animation loop
-   */
+  // Render loop: updates the controls, shadows and grain, then draws a frame.
   animate() {
     requestAnimationFrame(() => this.animate());
     this.controls.update();

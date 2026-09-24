@@ -1,9 +1,6 @@
-/**
- * Matched, style-specific hair-card textures and directional strand lighting.
- * All channels are authored from the same fibres, so coverage, pigment,
- * roughness and normals remain in register. No external service is needed.
- */
+// Builds matching textures and hair-specific lighting for each hair and beard style.
 class StrandShading {
+  // Random seed, waviness and taper for each style's fibre texture.
   static get PROFILES() {
     return {
       hair1: { seed: 1103, wave: 1.4, taper: 0.76 },
@@ -30,7 +27,7 @@ class StrandShading {
     };
   }
 
-  /** Four widths of tuft in one atlas; narrow cards must not carry 64 hairs. */
+  // Builds a style's fibre texture atlas with four card widths.
   static buildStyleTextures(style) {
     const cfg = StrandShading.PROFILES[style] || StrandShading.PROFILES.hair1;
     const W = 1024, H = 1024, tile = W / 4;
@@ -109,6 +106,7 @@ class StrandShading {
     return { map, normal: texture(normals, 'normal'), profile: cfg };
   }
 
+  // Returns a style's textures from the cache, building and loading them if needed.
   static getStyleTextures(style) {
     const cache = StrandShading._styles || (StrandShading._styles = new Map());
     if (cache.has(style)) {
@@ -118,8 +116,7 @@ class StrandShading {
     }
     const value = StrandShading.buildStyleTextures(style);
     value.source = 'procedural-fallback';
-    // Load the authored fibre atlas locally. The deterministic set above
-    // keeps first display and offline/missing-asset operation immediate.
+    // Load the authored fibre atlas; the generated set above covers first display and offline use.
     value.ready = new Promise(resolve => {
       new THREE.ImageLoader().load('../../assets/textures/hair/' + style + '-fibres-v2.png', image => {
         if (value.disposed) { resolve(); return; }
@@ -129,8 +126,7 @@ class StrandShading {
       }, undefined, () => resolve());
     });
     cache.set(style, value);
-    // A hairstyle and a beard are visible together. Four entries bound GPU
-    // memory while retaining the most recently compared alternatives.
+    // Keep at most four styles cached to limit GPU memory.
     if (cache.size > 4) {
       const candidates = [...cache.keys()];
       const oldest = candidates.find(key => !StrandShading._activeStyles?.has(key));
@@ -143,7 +139,7 @@ class StrandShading {
     return value;
   }
 
-  /** Derive registered material channels from the authored monochrome fibres. */
+  // Builds the matching colour, roughness and normal channels from the authored fibre image.
   static readFibreAtlas(textures, image) {
     const W = 1024, H = 1024;
     const layout = textures.map.image.getContext('2d').getImageData(0,0,W,H).data;
@@ -153,9 +149,7 @@ class StrandShading {
     const source = ctx.getImageData(0,0,W,H).data;
     const fitted = document.createElement('canvas'); fitted.width = W; fitted.height = H;
     const fit = fitted.getContext('2d');
-    // Generated atlases can contain far more fibres than requested. Fit the
-    // measured fibre count to each card width, otherwise a short beard card
-    // compresses hundreds of hairs into a blurred, semi-transparent patch.
+    // Fit the fibre count to each card width, or short cards blur into a see-through patch.
     for (let col=0;col<4;col++) {
       const counts = [];
       for (const y of [180,320,460]) {
@@ -178,10 +172,7 @@ class StrandShading {
     let mean = 0, count = 0;
     for (let y=0;y<H;y++) for (let x=0;x<W;x++) {
       const p = y*W+x, i = p*4, h = heights[p];
-      // Keep resolvable, continuous fibre silhouettes from the authored
-      // layout. Photograph-level subpixel gaps must not turn short cards
-      // into stochastic dust. The generated image supplies cuticle detail
-      // and pigment variation within those same opaque fibre bodies.
+      // Keep solid, continuous fibres; the image only adds detail and colour variation within them.
       const tone = (layout[i]/200) * (0.78 + Math.sqrt(h)*0.44);
       const cov = (layout[i+1]/255) * (0.86 + Math.min(1,h*2)*0.14);
       packed.data[i] = Math.min(255,Math.round(tone*200));
@@ -203,12 +194,7 @@ class StrandShading {
     textures.map.needsUpdate = textures.normal.needsUpdate = true;
   }
 
-  /**
-   * Unwrap each connected card independently. Atlas-wide UV scaling put
-   * arbitrary texture fragments on every card and never feathered its edges.
-   * Authored UV flow is retained; collapsed cards use their local long axis.
-   * Positions, vertex order and indices stay intact for case/tint painting.
-   */
+  // Unwraps each hair card on its own so its texture runs along the strands, keeping vertex order for painting.
   static prepareStrandGeometry(geometries, style = 'hair1') {
     const geos = (Array.isArray(geometries) ? geometries : [geometries]).filter(Boolean);
     const box = new THREE.Box3();
@@ -308,34 +294,7 @@ class StrandShading {
     StrandShading.computeStrandDepth(geos);
   }
 
-  /**
-   * How deep inside the hair mass each vertex sits, as a 0..1 vertex attribute.
-   *
-   * This is the cue the texture could not carry. A head of hair is nearly
-   * black a centimetre in and catches all its light on the outer shell, and
-   * without that the mass reads as a single sheet of strands with no volume
-   * behind it — which is what the flat cards were already failing at.
-   *
-   * Measured as the local density of hair SURFACE, not of vertices. Vertex
-   * count is a bad proxy for card geometry: one big card spanning half the
-   * fringe may carry four vertices while a tight curl carries two hundred, so
-   * a vertex-density field would read the fringe as empty air. Triangle area
-   * binned into a coarse grid measures how much hair is actually present in a
-   * region, which is the thing that occludes.
-   *
-   * The attribute is named so that a MISSING one means "not occluded": WebGL
-   * feeds absent attributes as zero, and zero has to be the harmless value.
-   * The eyebrow and eyelash materials run the same shader without ever calling
-   * this, and if the polarity were the other way round they would silently
-   * render black.
-   *
-   * Takes every geometry of a style at once, and has to. A style is three or
-   * four meshes that interleave in space — a cap under a fringe under a fall
-   * — and a mesh measuring only its own triangles would report the fringe as
-   * hanging in clear air while the cap it is lying against reports the same.
-   * One grid over all of them is what makes the field describe the hair
-   * rather than the mesh split.
-   */
+  // Stores how deep inside the hair mass each vertex sits (0-1), so inner hair is darker, measured across all meshes of a style.
   static computeStrandDepth(geometries) {
     const geos = (Array.isArray(geometries) ? geometries : [geometries])
       .filter(g => g && g.attributes.position && !g.attributes.aStrandDepth);
@@ -350,9 +309,7 @@ class StrandShading {
     const sy = Math.max(1e-4, box.max.y - box.min.y);
     const sz = Math.max(1e-4, box.max.z - box.min.z);
 
-    /* Coarse on purpose. The field wants to describe the mass, not the cards
-       inside it; at a fine resolution every voxel holds one card and the
-       result is card-shaped again, which is the artefact this replaces. */
+    // Coarse on purpose, so it describes the hair mass rather than the individual cards.
     const RES = 14;
     const cell = Math.max(sx, sy, sz) / RES;
     const nx = Math.max(1, Math.ceil(sx / cell));
@@ -388,17 +345,14 @@ class StrandShading {
       }
     }
 
-    /* Normalise against a high percentile rather than the maximum. One dense
-       voxel — a knot at the crown, a fold where cards stack — would otherwise
-       set the scale for the whole head and flatten everything else to zero. */
+    // Normalise against a high percentile so one dense spot doesn't flatten the rest.
     const occupied = [];
     for (let i = 0; i < grid.length; i++) if (grid[i] > 0) occupied.push(grid[i]);
     if (!occupied.length) return;
     occupied.sort((p, q) => p - q);
     const ref = occupied[Math.min(occupied.length - 1, Math.floor(occupied.length * 0.85))] || 1;
 
-    // 3x3x3 average, so the field varies smoothly instead of stepping at the
-    // voxel boundaries and putting a grid back into the shading.
+    // Average neighbouring cells so the shading has no visible grid.
     for (const g of geos) {
       const p = g.attributes.position.array;
       const n = g.attributes.position.count;
@@ -419,15 +373,14 @@ class StrandShading {
             }
           }
         }
-        // Neighbourhoods clipped by the bounding box average over fewer cells;
-        // dividing by the count keeps the edge of the box from reading as air.
+        // Divide by the count so the edges of the box don't read as empty.
         depth[i] = Math.min(1, (sum / Math.max(1, cnt)) / ref);
       }
       g.setAttribute('aStrandDepth', new THREE.BufferAttribute(depth, 1));
     }
   }
 
-  /** Bind a distinct matched texture set when a style is selected. */
+  // Applies a style's textures to a material.
   static applyStyle(material, style) {
     const active = StrandShading._activeStyles || (StrandShading._activeStyles = new Set());
     if (material.userData.strandStyle) active.delete(material.userData.strandStyle);
@@ -453,78 +406,25 @@ class StrandShading {
     return material;
   }
 
-  /**
-   * Replace the surface's direct-lighting term with a hair one.
-   *
-   * Hair is not a rough dielectric, and shading it as one is what made the
-   * mass read as painted slabs. Three things it does that a standard material
-   * cannot:
-   *
-   *   - It has no point highlight. Each strand is a cylinder, so it reflects
-   *     in a ring, and a head of them reflects in a BAND running across the
-   *     strands. Where that band sits depends on the strand direction, not on
-   *     the surface normal, which is why this needs a tangent.
-   *   - Light goes THROUGH it. A strand mass lit from behind glows; the
-   *     terminator is soft and the far side never reaches black. A Lambert
-   *     term gives a hard terminator and a black back, which is most of why
-   *     the baseline had a step between neighbouring cards.
-   *   - It reflects twice, and the second one is coloured. Light that enters a
-   *     strand, bounces inside and comes back out has been filtered by the
-   *     hair's own pigment. That is the broad warm band sitting below the
-   *     white one, and it is the single most recognisable thing about how hair
-   *     looks. Marschner calls these two R and TRT; the shifted lobes below
-   *     are the cheap version of them.
-   *
-   * THE TANGENT
-   * -----------
-   * None of these assets carry a tangent attribute, and hair cards would need
-   * authored flow directions to have one. But they do carry UVs, and the card
-   * convention puts v along the strand — so the direction in which v increases
-   * across the surface IS the strand direction, and that is recoverable per
-   * pixel from screen-space derivatives without any new attribute. A card's UV
-   * scale drops out under normalisation, so the tiling repeat does not disturb
-   * it.
-   *
-   * Where there is no UV at all — the eyebrow and eyelash strand meshes — the
-   * derivative is meaningless and the code falls back to shifting the normal
-   * along view-up, which is the approximation this file used everywhere before
-   * the tangent was available. It is wrong, but it is wrong in a way that
-   * still reads as a band, and those assets are 3mm of hair viewed head-on.
-   */
+  // Swaps in a hair lighting model: a white band off the surface, a coloured band through the strand, and soft light through the mass.
   static attachSheen(material, options) {
     if (!material || material.userData.strandSheen) return material;
     const cfg = Object.assign({
-      /* R: the tight near-white band off the cuticle. Takes the light's colour
-       * with only a slight warm bias — it has not been inside the hair.
-       *
-       * The strength looks tiny next to the TRT below, and it has to be. This
-       * is the one term that is WHITE on top of an albedo as dark as hair, so
-       * it sets the hue of anything it touches: at 0.30 it buried a dark brown
-       * head under what photographed as steel wool, and the band is broad —
-       * every H perpendicular to the strand is in it, which is a great circle,
-       * not a spot. Read the two numbers together: the white lobe is a glint
-       * on top, the coloured one carries the light. */
+      // R: the thin white highlight band; kept weak because white on dark hair quickly looks like steel wool.
       sheenStrength: 0.085,
       sheenTint: new THREE.Color(0xfff2e2),
       sheenExponent: 150.0,
       sheenShift: -0.10,
-      // TRT: the broad band that HAS been inside, so it is tinted by the hair
-      // and lands further down the strand. Wider, softer, and it glints. Safe
-      // to run hot precisely because it is multiplied by the hair's own colour.
+      // TRT: the broad coloured band from light passing through the strand, tinted by the hair colour.
       trtStrength: 0.13,
       trtExponent: 38.0,
       trtShift: 0.22,
-      /* How far the transmission tint is pulled toward the light's own
-         colour. At 0 it is the hair's hue at full saturation, which on a dark
-         brown is a copper that reads as gold streaks; near 1 it is a plain
-         warm sheen that only hints at the hair's colour. See trtTint. */
+      // How far the coloured band is pulled toward the light's colour, so dark hair doesn't flare copper.
       trtDesat: 0.78,
-      // Also white, also unconditional, and it is added once rather than per
-      // light — so it needs to stay near the floor for the same reason as R.
+      // Rim light, kept low because it is white and added once.
       rimStrength: 0.06,
       rootDarken: 0.35,
-      // Forward scattering through the mass: how far past the terminator the
-      // light carries. 0 is Lambert.
+      // How far light carries past the shadow line through the hair (0 = none).
       scatter: 0.5,
       toneStrength: 1.0,
     }, options || {});
@@ -554,23 +454,14 @@ class StrandShading {
       renderer.getDrawingBufferSize(uniforms.uHairViewport.value);
     };
 
-    /* Chain rather than replace.
-     *
-     * onBeforeCompile is a single slot, so assigning it here silently discards
-     * whatever the caller installed first. That is exactly what happened to
-     * the eyelash material: it had a fragment clip attached one line earlier,
-     * and this overwrote it, so the clip compiled into nothing and every
-     * attempt to tune it looked like it had no effect. */
+    // Chain onto any existing onBeforeCompile instead of replacing it.
     const priorCompile = material.onBeforeCompile;
     const priorKey = material.customProgramCacheKey;
 
     material.onBeforeCompile = (shader, renderer) => {
       if (typeof priorCompile === 'function') priorCompile(shader, renderer);
 
-      /* Carry the mass-depth attribute through to the fragment stage.
-         Declared unconditionally: a geometry without it feeds zero, which
-         this defines as "not occluded", so the materials that never run
-         computeStrandDepth are unaffected. */
+      // Pass the depth attribute to the fragment shader; missing means "not occluded".
       shader.vertexShader =
         (window.HairStrands ? '#ifdef HAIR_FIBRES\n' + HairStrands.layerVertexGLSL() + '\n#endif\n' : '') +
         '#ifdef HAIR_FIBRES\nattribute vec3 aHairTangent;\nattribute vec3 aHairFiber;\nattribute float aHairWidth;\nuniform vec2 uHairViewport;\nvarying vec3 vHairTangent;\nvarying vec3 vHairFiber;\n#endif\n' +
@@ -597,19 +488,12 @@ class StrandShading {
         '#endif',
       ].join('\n'));
 
-      /* Read the map here rather than in the constructor: attachSheen and
-         applyCardAlpha are two independent calls in either order, and only by
-         compile time is the material guaranteed to have both. */
+      // Read the map's average tone at compile time, when both texture and alpha are set.
       const mean = material.alphaMap && material.alphaMap.userData.toneMean;
       uniforms.uToneMean.value = mean || 1.0;
       Object.assign(shader.uniforms, uniforms);
 
-      /* Globals, not varyings or function arguments.
-       *
-       * The strand frame is needed inside RE_Direct, which three calls from
-       * its own light loop with a fixed signature there is no way to add to.
-       * A file-scope variable written in main() before that loop runs is the
-       * only channel into it. */
+      // Shared variables, because three's light function has a fixed signature.
       shader.fragmentShader =
         '#ifdef HAIR_FIBRES\nuniform float uHairDensity;\nvarying float vHairLayer;\nvarying vec3 vHairTangent;\nvarying vec3 vHairFiber;\n#endif\n' +
         'uniform float uSheenStrength;\n' +
@@ -631,17 +515,12 @@ class StrandShading {
         'float gStrandOpen = 1.0;\n' +
         shader.fragmentShader;
 
-      /* Per-strand tone, applied to the base colour before lighting.
-         After <color_fragment> so it multiplies whatever the vertex-colour
-         tint painter has already put there rather than replacing it. */
+      // Apply per-strand tone after the vertex colour so painted tint is kept.
       shader.fragmentShader = shader.fragmentShader.replace(
         '#include <color_fragment>',
         [
           '#include <color_fragment>',
-          /* Mass occlusion, before anything else touches the albedo.
-             Held clear of zero: hair deep in the mass is very dark but it is
-             never a hole, and letting it reach black punches one through the
-             silhouette wherever the field peaks. */
+          // Darken hair deep in the mass, but never to full black.
           '{',
           '  gStrandOpen = mix( 1.0, 1.0 - uRootDarken, clamp( vStrandDepth, 0.0, 1.0 ) );',
           '  diffuseColor.rgb *= gStrandOpen;',
@@ -650,10 +529,7 @@ class StrandShading {
           '{',
           '  vec3 packed = texture2D( alphaMap, vAlphaMapUv ).rgb;',
           '  gStrandId = packed.b;',
-          // r carries the strand's own tone with the root-to-tip ramp already
-          // folded in. Dividing by the map's measured mean holds the overall
-          // level where the user's colour put it and leaves uToneStrength as
-          // a pure variation control rather than a hidden exposure.
+          // Divide by the map's average so the user's colour sets the overall level.
           '  float tone = mix( 1.0, packed.r / uToneMean, uToneStrength );',
           '#ifndef HAIR_FIBRES',
           '  diffuseColor.rgb *= tone;',
@@ -667,10 +543,7 @@ class StrandShading {
           '#else',
           '#ifndef FLAT_SHADED',
           '{',
-          /* No UV, so no baked ramp: fall back to the view-space cue this file
-             used before the maps existed. It is a poor stand-in for
-             root-to-tip — it swims as the camera orbits — but on 3mm of
-             eyebrow seen head-on that never shows. */
+          // No UV, so fall back to a simple view-based cue; fine for small eyebrows.
           '  vec3 sN = normalize( vNormal );',
           '  float depthCue = smoothstep( -0.6, 0.9, sN.z );',
           '  diffuseColor.rgb *= mix( 1.0 - uRootDarken, 1.0, depthCue );',
@@ -680,19 +553,13 @@ class StrandShading {
         ].join('\n')
       );
 
-      /* The hair lighting model, swapped in for the standard one.
-         Injected after lights_physical_pars_fragment because that is where
-         PhysicalMaterial and RE_Direct_Physical are declared — and the #undef
-         has to come after three's own #define, not before it. */
+      // Hair lighting replaces the standard one, inserted where three declares it.
       shader.fragmentShader = shader.fragmentShader.replace(
         '#include <lights_physical_pars_fragment>',
         [
           '#include <lights_physical_pars_fragment>',
           '',
-          // Kajiya-Kay: the highlight is strongest where the half vector is
-          // perpendicular to the strand, so it is the sine of the angle
-          // between them, not the cosine — a band across the strands rather
-          // than a point on the surface.
+          // Kajiya-Kay: the highlight is a band across the strands, strongest where the half vector is perpendicular to them.
           'float rfStrandBand( vec3 T, vec3 N, vec3 H, float shift, float expo ) {',
           '  vec3 Ts = normalize( T + shift * N );',
           '  float dotTH = dot( Ts, H );',
@@ -707,15 +574,10 @@ class StrandShading {
           '  vec3 H = normalize( L + V );',
           '  float ndl = dot( N, L );',
           '',
-          // Wrapped diffuse. Light entering a hair mass scatters forward
-          // through several strands before it leaves, so the terminator is
-          // soft and the shadow side keeps a fraction of the light. The
-          // denominator is the usual energy correction, so widening the wrap
-          // spreads the light rather than adding more of it.
+          // Wrapped diffuse: light scatters through the hair, so the shadow edge is soft.
           '  float wrapped = clamp( ( ndl + uScatter ) / ( ( 1.0 + uScatter ) * ( 1.0 + uScatter ) ), 0.0, 1.0 );',
           '#ifdef USE_ALPHAMAP',
-          // A fibre is cylindrical: its diffuse response follows its axis.
-          // Flat card normals otherwise expose every quad as a separate slab.
+          // A fibre is a cylinder, so its diffuse follows its axis instead of the flat card.
           '  float tl = dot(gStrandT, L);',
           '  float cylinder = sqrt(max(0.0, 1.0 - tl * tl)) * 0.40;',
           '  wrapped = mix(wrapped, cylinder, 0.55);',
@@ -725,70 +587,23 @@ class StrandShading {
           '#endif',
           '  reflectedLight.directDiffuse += directLight.color * wrapped * BRDF_Lambert( material.diffuseColor );',
           '',
-          /* Both bands are scaled by the same wrapped term as the diffuse.
-             A specular that is not tied to whether the light actually reaches
-             the strand is what turned the first pass into steel wool: with a
-             constant floor under it, every card kept a white band whichever
-             way it faced, including the ones the key light never reached, and
-             a broad Kajiya-Kay lobe put that band nearly everywhere. Sharing
-             the diffuse's visibility keeps the highlight on the lit side and
-             still lets it carry a little past the terminator, which is the
-             one thing hair genuinely does. */
-          // Scaled by the same occlusion as the albedo: a strand buried in the
-          // mass does not catch a highlight either, and leaving the bands out
-          // of it puts a full-strength glint on hair that should be in the
-          // dark, which reads as the whole mass being made of surface.
+          // Scale both bands by the light visibility and the mass occlusion, so highlights stay on lit, outer hair.
           '  float vis = wrapped * gStrandOpen;',
           '',
-          /* R — off the cuticle, the light's own colour, shifted toward the
-           * root.
-           *
-           * The jitter is wide, and that is the whole reason the band works
-           * on cards. A card is flat, so its strand direction barely changes
-           * across it, so an unjittered lobe evaluates to almost the same
-           * number over the entire quad and the hair renders as slabs with a
-           * hard step at every card boundary. Scattering the shift per strand
-           * puts neighbouring strands at different points on the same band,
-           * which is what a card cannot do with geometry and real hair gets
-           * for free from having actual separate strands. */
+          // R band, shifted per strand so flat cards don't show a hard step between them.
           '  float shiftR = uSheenShift + ( gStrandId - 0.5 ) * 0.38;',
           '  float bandR = rfStrandBand( gStrandT, N, H, shiftR, uSheenExp );',
           '  reflectedLight.directSpecular += directLight.color * uSheenTint * ( uSheenStrength * bandR * vis );',
           '',
-          // TRT — through the strand and back out, so it carries the hair's
-          // pigment, sits lower down the strand, and glints on the ones that
-          // happen to face right.
+          // TRT band: carries the hair colour and sits lower down the strand.
           '  float shiftT = uTrtShift + ( gStrandId - 0.5 ) * 0.50;',
           '  float bandT = rfStrandBand( gStrandT, N, H, shiftT, uTrtExp );',
-          /* A narrow spread, because this multiplies a lobe that is already
-             scattered per strand by the shift above. Stacking a 2.6x glint
-             range on top of that made every lit strand either full copper or
-             nothing, and a head of those reads as rust stripes rather than as
-             hair catching light. */
+          // A narrow glint range, since the band is already varied per strand.
           '  float glint = 0.72 + 0.56 * gStrandId;',
-          /* Tinted by the hair's HUE, at full value — not by its albedo.
-           *
-           * Multiplying by diffuseColor is the obvious move and it is wrong:
-           * dark brown sits around 0.02 in linear, so the band came out at
-           * two per cent of the light and the lobe may as well not have been
-           * there. This is transmitted light, not reflected — the pigment
-           * filters its colour, it does not attenuate it to the albedo. So
-           * take the albedo's hue and normalise the value back to 1, which
-           * for a dark brown gives the strong copper that dark hair actually
-           * flares in a key light. */
+          // Tint by the hair's hue at full brightness, since transmitted light is filtered, not darkened.
           '  vec3 alb = material.diffuseColor;',
           '  float peak = max( alb.r, max( alb.g, alb.b ) );',
-          /* Pulled back toward the light's own colour, and a long way back.
-           *
-           * A fully saturated hue is what ONE pass through a pigment gives.
-           * Light crossing a real strand mass takes many paths of different
-           * lengths and the average is nowhere near as saturated as the
-           * deepest of them — so the physical argument for normalising the
-           * albedo's hue to full value is also the argument for not stopping
-           * there. Near the saturated end a dark brown flares copper and the
-           * crown reads as gold streaks painted on, which is worse than the
-           * flat slabs this replaced. uTrtDesat is the control; it wants to
-           * sit high. */
+          // Pull the tint back toward the light's colour, as light through many strands is much less saturated.
           '  vec3 trtTint = mix( alb / max( peak, 1e-4 ), vec3( 1.0 ), uTrtDesat );',
           '  reflectedLight.directSpecular += directLight.color * trtTint * ( uTrtStrength * bandT * glint * vis );',
           '}',
@@ -798,18 +613,14 @@ class StrandShading {
         ].join('\n')
       );
 
-      /* Build the strand frame just before the light loop consumes it — after
-         normal_fragment_maps, so the normal already carries the strand normal
-         map, and after lights_physical_fragment, so nothing later overwrites
-         it. */
+      // Build the strand direction just before the light loop, after the normal map is applied.
       shader.fragmentShader = shader.fragmentShader.replace(
         '#include <roughnessmap_fragment>',
         '#include <roughnessmap_fragment>\n#ifdef USE_ALPHAMAP\n' +
         'roughnessFactor = clamp(roughnessFactor + (gStrandId - 0.5) * 0.16, 0.32, 0.72);\n#endif'
       );
 
-      // Three r160 only discards alpha below the threshold. Remap the narrow
-      // edge to MSAA coverage so tapered fibres keep a soft, stable outline.
+      // Turn the thin edge into MSAA coverage so tapered fibres keep a soft outline.
       shader.fragmentShader = shader.fragmentShader.replace(
         '#include <alphamap_fragment>',
         '#ifdef HAIR_FIBRES\n' +
@@ -835,8 +646,7 @@ class StrandShading {
         'if (diffuseColor.a <= 0.001) discard;\n#endif'
       );
 
-      // r160's OPAQUE chunk resets alpha to 1 even with alphaToCoverage on.
-      // Preserve the fibre coverage through that final output assignment.
+      // Keep the fibre coverage, which three's opaque output would reset to 1.
       shader.fragmentShader = shader.fragmentShader.replace(
         '#include <opaque_fragment>',
         'float strandCoverage = diffuseColor.a;\n#include <opaque_fragment>\n' +
@@ -848,28 +658,20 @@ class StrandShading {
         [
           '#ifdef USE_ALPHAMAP',
           '{',
-          /* dP/dv from screen-space derivatives.
-             P varies with (u,v), so dP/dx = dP/du * du/dx + dP/dv * dv/dx and
-             likewise for y; solving that 2x2 for dP/dv gives the direction
-             along which v increases on the surface, which for a hair card is
-             the strand. vViewPosition is the negated view position, and the
-             sign cancels under normalisation. */
+          // Strand direction from screen-space derivatives: the way v increases across the card.
           '  vec3 dPdx = dFdx( - vViewPosition );',
           '  vec3 dPdy = dFdy( - vViewPosition );',
           '  vec2 dUx = dFdx( vAlphaMapUv );',
           '  vec2 dUy = dFdy( vAlphaMapUv );',
           '  float det = dUx.x * dUy.y - dUy.x * dUx.y;',
           '  vec3 tv = dPdy * dUx.x - dPdx * dUy.x;',
-          // Degenerate UVs (a collapsed shell, a seam pixel) make det tiny and
-          // tv garbage; keep the default up-axis frame rather than a random
-          // one that would flicker per pixel.
+          // Bad UVs give a garbage direction, so keep the default instead of flickering.
           '  if ( abs( det ) > 1e-9 && dot( tv, tv ) > 1e-12 ) {',
           '    gStrandT = normalize( tv / det );',
           '  }',
           '}',
           '#else',
-          // No UV: shift the normal toward view-up and use that as a stand-in
-          // strand direction. See the class comment.
+          // No UV: use the normal nudged toward view-up as a stand-in direction.
           '  gStrandT = normalize( normal + vec3( 0.0, 0.55, 0.0 ) );',
           '#endif',
           '#ifdef HAIR_FIBRES',
@@ -879,17 +681,13 @@ class StrandShading {
         ].join('\n')
       );
 
-      /* Fresnel rim, kept separate from the two bands.
-         It is not a strand effect — it is the mass catching light at grazing
-         angles, and without it a head of hair reads as a solid shell. It goes
-         in after the light loop so it is not scaled by any one light. */
+      // Fresnel rim so the hair mass catches light at grazing angles, added after the light loop.
       shader.fragmentShader = shader.fragmentShader.replace(
         '#include <aomap_fragment>',
         [
           '#include <aomap_fragment>',
           '#ifdef USE_ALPHAMAP',
-          // Keep ambient fill, but suppress the isotropic plastic reflection
-          // inherited from MeshStandardMaterial. Directional lobes supply it.
+          // Keep ambient fill but reduce the plastic-looking reflection.
           'reflectedLight.indirectSpecular *= 0.45;',
           '#endif',
           '#ifndef FLAT_SHADED',
@@ -903,29 +701,11 @@ class StrandShading {
       );
     };
 
-    // Likewise for the cache key: two materials whose programs differ must not
-    // collide on one key, or the second renders with the first's shader.
+    // Give each variant its own cache key so they don't share a compiled shader.
     material.customProgramCacheKey = () =>
       'strand-v4' + (typeof priorKey === 'function' ? '|' + priorKey.call(material) : '');
     material.needsUpdate = true;
     return material;
-  }
-
-  /** Live update of the sheen parameters on an attached material. */
-  static setSheenParams(material, params) {
-    const s = material && material.userData && material.userData.strandSheen;
-    if (!s) return;
-    const named = {
-      sheenStrength: 'uSheenStrength', sheenExponent: 'uSheenExp', sheenShift: 'uSheenShift',
-      trtStrength: 'uTrtStrength', trtExponent: 'uTrtExp', trtShift: 'uTrtShift',
-      trtDesat: 'uTrtDesat',
-      rimStrength: 'uRimStrength', rootDarken: 'uRootDarken',
-      scatter: 'uScatter', toneStrength: 'uToneStrength',
-    };
-    for (const key in named) {
-      if (params[key] !== undefined) s.uniforms[named[key]].value = params[key];
-    }
-    if (params.sheenTint !== undefined) s.uniforms.uSheenTint.value.set(params.sheenTint);
   }
 }
 

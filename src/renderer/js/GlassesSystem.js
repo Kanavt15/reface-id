@@ -1,19 +1,6 @@
-/**
- * GlassesSystem.js – GLB-based glasses/spectacles for forensic facial reconstruction.
- *
- * Loads a glasses GLB model and aligns it to the nose bridge / temples.
- * Mirrors the patterns used by EyeSystem.js and HairSystem.js so it follows
- * head tracking automatically (HeadTracker reparents glassesGroup into the
- * pivot group).
- *
- * Note (export): The glasses GLB is a separate scene object from the head
- * mesh. Screenshots capture it automatically because it lives in the same
- * Three.js scene. For future Blender export support, the glasses container
- * matrix can be merged with the head mesh — see getRenderTransform().
- */
+// Loads a glasses model and fits it to the nose bridge and temples, following the face as it changes.
 
-// ── Asset path constants ────────────────────────────────────────────────────
-// Update these paths if the GLB files are moved.
+// Glasses model paths; update these if the files move.
 const GLASSES_MODEL_PATH_DEFAULT = '../../assets/Glasses/Glasses_01.obj';
 const GLASSES_MODEL_PATH_STYLE2  = '../../assets/Glasses/glasses.obj';
 const GLASSES_MODEL_PATH_STYLE3  = '../../assets/Glasses/Glasses_03.obj';
@@ -23,8 +10,7 @@ class GlassesSystem {
   constructor(scene) {
     this.scene = scene;
 
-    // Scene group — HeadTracker.js looks for this.glassesGroup by name to
-    // reparent into the head-tracking pivot, matching HairSystem/EyeSystem.
+    // HeadTracker looks for this.glassesGroup by name to move it into the tracking pivot.
     this.glassesGroup = new THREE.Group();
     this.glassesGroup.name = 'GlassesSystem';
     this.scene.add(this.glassesGroup);
@@ -56,18 +42,13 @@ class GlassesSystem {
       rotZ: 0,       // -180..180 deg — roll (tilt / crooked look)
     };
 
-    // Populated during _showCached so _alignAndAdjust can independently scale
-    // lens meshes around their own bbox centers.
+    // Filled in by _showCached so each lens can be scaled around its own centre.
     this._lensMeshes = [];
 
-    // Left/right temple arm meshes, each pivoted at its hinge so a rotation
-    // around `upAxis` ('y' or 'z') yaws the arm outward. `backAxis` is the
-    // axis the arm extends along; `backDir` is its sign.
+    // Left and right temple arms, each pivoted at its hinge so it can swing outward.
     this._armMeshes = { left: null, right: null, backAxis: 'z', upAxis: 'y', backDir: 1 };
 
-    // Style configs. `loader` defaults to 'glb'; 'obj' uses THREE.OBJLoader and
-    // applies a -90° X rotation to convert Blender Z-up exports to Three.js Y-up
-    // (matches SceneManager.loadOBJ's convention for the head model).
+    // Style settings; OBJ models are rotated -90° on X to turn Blender's Z-up into Three.js Y-up.
     this.glassesModels = {
       glasses1: {
         file: GLASSES_MODEL_PATH_DEFAULT, loader: 'obj', meshName: null,
@@ -80,9 +61,7 @@ class GlassesSystem {
       },
       glasses2: {
         file: GLASSES_MODEL_PATH_STYLE2, loader: 'obj', meshName: null,
-        // Hand-tuned for the OBJ aviator: it loads in raw model space (huge
-        // and rotated) so we apply a known-good starting pose. User can still
-        // tweak any slider afterwards.
+        // Hand-tuned starting pose for the OBJ aviator, which loads large and rotated.
         defaults: {
           scale: 103, lensScale: 100, armSplay: 11, armLength: 131,
           posX: 0, posY: 7, posZ: -71,
@@ -122,8 +101,7 @@ class GlassesSystem {
     this._container = null;
     this._bboxCache = null;
 
-    // Baseline landmark positions captured on first refresh — used for
-    // delta-based morph tracking (matches EyeSystem approach).
+    // Starting bridge position, used as a fallback if the landmark stops resolving.
     this._initialBridgePos = null;
     this._initialTempleLeft = null;
     this._initialTempleRight = null;
@@ -150,6 +128,7 @@ class GlassesSystem {
 
   // ── Head binding ────────────────────────────────────────────────────────
 
+  // Connects the glasses to the head mesh and morpher.
   setHeadMesh(headGroup, regionData, morpher) {
     this._headGroup = headGroup;
     this._regionData = regionData;
@@ -161,6 +140,7 @@ class GlassesSystem {
     this._captureBaselines();
   }
 
+  // Records the starting bridge and temple positions.
   _captureBaselines() {
     if (!this._morpher || typeof this._morpher.getCurrentLandmarkPosition !== 'function') return;
     const bridge = this._morpher.getCurrentLandmarkPosition('nose_bridge_top');
@@ -174,9 +154,7 @@ class GlassesSystem {
     }
   }
 
-  /**
-   * Called by app.js on every morph update so glasses track facial changes.
-   */
+  // Refits the glasses after every face change.
   refreshFromMesh(morphValues) {
     if (morphValues) this._faceMorphValues = morphValues;
     if (this._container && this.enabled) {
@@ -186,6 +164,7 @@ class GlassesSystem {
 
   // ── Public API ──────────────────────────────────────────────────────────
 
+  // Shows or hides the glasses, loading them on first use.
   setEnabled(enabled) {
     this.enabled = !!enabled;
     if (this.enabled) {
@@ -200,6 +179,7 @@ class GlassesSystem {
     }
   }
 
+  // Switches to another glasses style and applies its tuned defaults.
   setStyle(style) {
     const config = this.glassesModels[style];
     if (!config) {
@@ -208,8 +188,7 @@ class GlassesSystem {
     }
     this.currentStyle = style;
 
-    // Apply per-style defaults (only fields that are explicitly set on the
-    // config). Falls through silently when defaults is null/undefined.
+    // Apply the style's defaults, only for fields it actually sets.
     const d = config.defaults;
     if (d) {
       for (const key of Object.keys(this.params)) {
@@ -225,16 +204,19 @@ class GlassesSystem {
     }
   }
 
+  // Sets the frame colour.
   setFrameColor(hex) {
     this.frameColor = hex;
     this._frameMat.color.set(hex);
   }
 
+  // Sets the lens colour.
   setLensColor(hex) {
     this.lensColor = hex;
     this._lensMat.color.set(hex);
   }
 
+  // Sets how tinted the lenses are.
   setLensOpacity(value) {
     this.lensOpacity = Math.max(0, Math.min(100, value));
     const o = this.lensOpacity / 100;
@@ -242,12 +224,14 @@ class GlassesSystem {
     this._lensMat.transparent = o < 0.999;
   }
 
+  // Sets one fit value and refits the glasses.
   setParam(param, value) {
     if (this.params[param] === undefined) return;
     this.params[param] = value;
     if (this._container && this.enabled) this._alignAndAdjust();
   }
 
+  // Returns the current glasses settings.
   getParams() {
     return {
       ...this.params,
@@ -261,6 +245,7 @@ class GlassesSystem {
 
   // ── Generation ──────────────────────────────────────────────────────────
 
+  // Loads the glasses model (or uses the cached one) and fits it to the face.
   generate() {
     this._clearGroup(this.glassesGroup);
     this._container = null;
@@ -287,13 +272,7 @@ class GlassesSystem {
       return;
     }
 
-    // We fetch the raw GLB ourselves so we can read node transforms from the
-    // glTF JSON. The shared GLBLoader emits a flat list of meshes and ignores
-    // node TRS — fine for the hair/beard/eyebrow GLBs (their configs are
-    // tuned around that), but the glasses model wraps each mesh in a node
-    // with scale=0.01 and translate y=-1.418. Without baking those, the
-    // geometry sits ~12 world-units above the head at 100x size and never
-    // appears on screen.
+    // Fetch the GLB ourselves to read its node transforms, which the shared loader ignores and without which the glasses end up far above the head.
     fetch(config.file)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status} for ${config.file}`);
@@ -305,8 +284,7 @@ class GlassesSystem {
         const group = loader.parse(buffer);
         const nodeXforms = this._readNodeTransforms(buffer);
 
-        // Bake node transforms onto each mesh's geometry, and skip placeholder
-        // meshes (e.g. the bare "Cube" at the origin in Glasses_1.glb).
+        // Bake node transforms into each mesh and skip placeholder meshes like a bare "Cube".
         const baked = new THREE.Group();
         baked.name = group.name;
         group.traverse(child => {
@@ -327,11 +305,12 @@ class GlassesSystem {
       .finally(() => this._loads.end());
   }
 
-  /** Resolves once no glasses model is mid-load. See AssetLoadTracker. */
+  // Resolves once no glasses model is still loading.
   whenIdle() {
     return this._loads.whenIdle();
   }
 
+  // Loads an OBJ glasses model and turns it from Z-up to Y-up.
   _loadOBJ(config, thisLoadId) {
     const loader = new THREE.OBJLoader();
     loader.load(
@@ -339,9 +318,7 @@ class GlassesSystem {
       (group) => {
         if (this._loadId !== thisLoadId) { this._loads.end(); return; }
 
-        // Blender's OBJ exporter writes Z-up; Three.js scene is Y-up. Bake a
-        // -90° X rotation onto each mesh's geometry so downstream bbox/scale
-        // logic in _alignAndAdjust sees correctly oriented coordinates.
+        // Blender's OBJ export is Z-up, so rotate the geometry to Three.js's Y-up.
         const axisFix = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
 
         const baked = new THREE.Group();
@@ -366,12 +343,14 @@ class GlassesSystem {
     );
   }
 
+  // Tells whether a mesh is an empty placeholder such as a cube or plane.
   _isPlaceholderMesh(name) {
     if (!name) return false;
     const lower = name.toLowerCase();
     return lower === 'cube' || lower === 'sphere' || lower === 'plane';
   }
 
+  // Reads each mesh's node transform from the GLB's JSON chunk.
   _readNodeTransforms(buffer) {
     try {
       const dv = new DataView(buffer);
@@ -407,6 +386,7 @@ class GlassesSystem {
     }
   }
 
+  // Places a cached glasses model in the scene, splitting lenses and arms so they can be adjusted separately.
   _showCached(style) {
     this._clearGroup(this.glassesGroup);
     this._lensMeshes = [];
@@ -419,9 +399,7 @@ class GlassesSystem {
     const offsetGroup = new THREE.Group();
     offsetGroup.name = 'GlassesOffset';
 
-    // Two passes: collect lens vs frame meshes first so we know the lens
-    // bounding box (used to decide where the arms start when splitting a
-    // bundled frame mesh like the OBJ's "the_rest").
+    // Sort meshes into lenses and frame first, so the lens box can tell where the arms begin.
     const lensSrc = [];
     const frameSrc = [];
     cached.traverse(child => {
@@ -447,11 +425,7 @@ class GlassesSystem {
       }
     }
 
-    // When no lens meshes exist by name, build a synthetic lensBBox from the
-    // "flat" frame pieces — those whose largest off-X extent is under 45 % of
-    // their X width. Arm pieces extend much farther in Y or Z and are excluded,
-    // so the result approximates the front lens region. This gives
-    // _splitFrameAndArms enough context to locate the arm territory.
+    // If no mesh is named as a lens, estimate the lens area from the flat frame pieces.
     if (lensBBox.isEmpty() && frameSrc.length > 0) {
       for (const src of frameSrc) {
         src.geometry.computeBoundingBox();
@@ -465,8 +439,7 @@ class GlassesSystem {
       }
     }
 
-    // "Largest wins": a small spurious arm split-off should not overwrite the
-    // real arm. Track vertex count and keep whichever arm piece is largest.
+    // Keep the largest arm piece per side, so a small stray piece can't replace the real arm.
     const armVertCount = { left: 0, right: 0 };
     const setArm = (side, piece) => {
       const vCount = piece.geometry.attributes.position?.count ?? 0;
@@ -499,14 +472,7 @@ class GlassesSystem {
     this._alignAndAdjust();
   }
 
-  /**
-   * Split a lens mesh into per-eye halves so each lens can be scaled around
-   * its own bbox center. Returns an array of THREE.Mesh, each with geometry
-   * recentered at origin and `mesh.position` set to the original center.
-   *
-   * If the mesh's geometry doesn't straddle x=0 (i.e. it's already a single
-   * lens), returns a single recentered mesh.
-   */
+  // Splits a lens mesh into left and right halves so each lens can be scaled around its own centre.
   _splitLensHalves(srcMesh) {
     const srcGeom = srcMesh.geometry;
     const posAttr = srcGeom.getAttribute('position');
@@ -586,17 +552,7 @@ class GlassesSystem {
     return [buildHalf(leftTris, 'left'), buildHalf(rightTris, 'right')];
   }
 
-  /**
-   * Split a frame "rest" mesh into front + left arm + right arm pieces.
-   * Triangles whose centroid extends past the lens depth on the back side AND
-   * lie clearly to the left/right of the bridge become arm meshes, recentered
-   * on their hinge point so `mesh.rotation.y` yaws each arm outward around
-   * the hinge. Triangles inside the lens-depth range stay as the front frame.
-   *
-   * If the source mesh doesn't extend meaningfully past the lens depth (e.g.
-   * it's a pure rim with no temples) the whole thing is returned as a single
-   * front-frame mesh.
-   */
+  // Splits a frame mesh into the front and the two temple arms, pivoting each arm at its hinge.
   _splitFrameAndArms(srcMesh, lensBBox) {
     const srcGeom = srcMesh.geometry;
     const posAttr = srcGeom.getAttribute('position');
@@ -611,9 +567,7 @@ class GlassesSystem {
     srcGeom.computeBoundingBox();
     const fbb = srcGeom.boundingBox;
 
-    // When no lens bbox is available (no named lens meshes in the model), try
-    // to detect a pre-separated arm by shape: it should be mostly on one side
-    // of X (off-center) and elongated along Y or Z relative to its X width.
+    // With no lens box, try to spot an arm by shape: off to one side and long front to back.
     if (lensBBox.isEmpty()) {
       const cenX  = (fbb.min.x + fbb.max.x) * 0.5;
       const xExt  = fbb.max.x - fbb.min.x;
@@ -651,9 +605,7 @@ class GlassesSystem {
       return [fallback];
     }
 
-    // Glasses are symmetric on X (left-right). The temple arms extend along
-    // either Y or Z depending on how the model was authored — pick whichever
-    // axis the frame overshoots the lens bbox by the most.
+    // The arms run along Y or Z depending on the model, so pick the axis that sticks out furthest past the lenses.
     const candidates = [
       { axis: 'y', pos: fbb.max.y - lensBBox.max.y, neg: lensBBox.min.y - fbb.min.y, range: lensBBox.max.y - lensBBox.min.y },
       { axis: 'z', pos: fbb.max.z - lensBBox.max.z, neg: lensBBox.min.z - fbb.min.z, range: lensBBox.max.z - lensBBox.min.z },
@@ -667,8 +619,7 @@ class GlassesSystem {
     }
     const pad = Math.max((best.range || 0) * 0.25, 0.005);
 
-    // Name-based override: if the mesh is explicitly labelled as an arm/temple,
-    // trust it unconditionally and skip the overshoot threshold guard.
+    // A mesh named as an arm or temple is trusted as one.
     const armNameRe = /\b(arm|arms|temple|temples|earpiece|ear[_\s]?piece)\b/i;
     const isArmByName = armNameRe.test(srcMesh.name || '');
 
@@ -678,10 +629,7 @@ class GlassesSystem {
       return [cloned];
     }
 
-    // For name-hinted arms with no real overshoot, derive the back axis from
-    // the mesh's own longest Y/Z extent. backDir is determined by comparing the
-    // arm centroid to the lens bbox centroid: if the arm sits below the lens on
-    // that axis, the arms extend in the negative direction.
+    // For named arms, work out the direction they run from the mesh's own shape.
     let backAxisResolved = best.axis;
     let backDirResolved  = best.dir;
     if (isArmByName && best.overshoot < pad * 1.2) {
@@ -768,10 +716,7 @@ class GlassesSystem {
       m.name = (srcMesh.name || 'frame') + '_' + name;
 
       if (options.armSide) {
-        // Pivot at the hinge: front-most along the back axis (toward the lens),
-        // centered on the up axis and on the side axis. After translating the
-        // geometry by -hinge and offsetting mesh.position by +hinge, a
-        // rotation around the up axis yaws the arm around its hinge.
+        // Pivot each arm at its hinge so rotating it swings the arm outward.
         g.computeBoundingBox();
         const bb = g.boundingBox;
         const hingeX = (bb.min.x + bb.max.x) * 0.5;
@@ -809,11 +754,7 @@ class GlassesSystem {
     return out;
   }
 
-  /**
-   * Translate a mesh's geometry so its bbox center sits at the local origin,
-   * then offset mesh.position by that center. After this, mesh.scale grows or
-   * shrinks the geometry around its own center rather than the model origin.
-   */
+  // Recentres a mesh's geometry so scaling happens around its own centre.
   _recenterGeometry(mesh) {
     mesh.geometry.computeBoundingBox();
     const bb = mesh.geometry.boundingBox;
@@ -824,14 +765,11 @@ class GlassesSystem {
     mesh.position.set(cx, cy, cz);
   }
 
+  // Tells whether a mesh is a lens from its name.
   _isLensMesh(mesh) {
-    // Match only when a discrete token is clearly a lens word.
-    // 'glasses1 frame' must NOT match; 'glasses1 lens', 'lens1', 'lenses' must match.
-    // Token regex: 'lens' with optional trailing digits, or exactly 'glass'/'glasses'.
+    // Match only clear lens words: "lens", "lens1", "lenses", or "glass"/"glasses" on their own.
     const lensToken = /^(lens\d*|lenses?|glass(es)?)$/;
-    // Structural words that override a bare 'glass/glasses' token — e.g.
-    // "Large_Framed_Glasses__Arms_1_0001" must not be classified as a lens
-    // just because it contains the word "glasses".
+    // Structural words such as "frame" or "arms" override a bare "glasses".
     const nonLensToken = /^(frame|frames|arm|arms|temple|temples|earpiece|bridge|rim|rims|hinge)$/;
     const nameTokens = (mesh.name || '').toLowerCase().split(/[\s_.]+/);
     if (nameTokens.some(t => nonLensToken.test(t))) return false;
@@ -842,6 +780,7 @@ class GlassesSystem {
     return false;
   }
 
+  // Fits the glasses to the bridge and temples, then applies the user's offsets.
   _alignAndAdjust() {
     if (!this._container || !this._headGroup) return;
 
@@ -897,20 +836,11 @@ class GlassesSystem {
     if (!templeL) templeL = new THREE.Vector3(-0.60, 0.35, 0.70);
     if (!templeR) templeR = new THREE.Vector3(0.60, 0.35, 0.70);
 
-    // Base scale: match current temple span so frame fits the face width
+    // Scale to the temple span so the frame fits the face width.
     const templeSpan = Math.max(0.0001, Math.abs(templeR.x - templeL.x));
     const baseScale = templeSpan / Math.max(size.x, 0.0001);
 
-    // ── Morph-driven offsets (delta from baseline landmarks) ──
-    // Use post-morph landmark deltas for X/Y/Z drift (same approach as EyeSystem).
-    let morphDeltaY = 0;
-    let morphDeltaZ = 0;
-    if (this._initialBridgePos) {
-      morphDeltaY = bridge.y - this._initialBridgePos.y;
-      morphDeltaZ = bridge.z - this._initialBridgePos.z;
-    }
-
-    // Morph-value driven scale adjustments (refine fit beyond raw landmark drift)
+    // Morph values fine-tune the fit beyond what the landmarks give.
     const mv = this._faceMorphValues || (this._morpher ? this._morpher.morphValues : null) || {};
     const neutral = 50;
     const t = (key) => ((mv[key] ?? neutral) - neutral) / 50; // -1..+1
@@ -922,11 +852,10 @@ class GlassesSystem {
     const noseLT  = t('noseLength');
     const noseBHT = t('noseBridgeHeight');
 
-    // X scale: face/head width + nose bridge width all push frame wider/narrower
+    // Wider face, head, nose bridge or eye spacing widens the frame.
     const widthScale = 1.0 + faceWT * 0.10 + headWT * 0.08 + noseBWT * 0.05 + eyeSpT * 0.06;
 
-    // Y/Z fine offsets — landmark delta already captures most movement, these
-    // sharpen the response so glasses don't lag noticeably during fast slider drags.
+    // Small offsets from the morph values so the glasses keep up during fast slider drags.
     const morphYOffset = noseLT * -0.02 + noseBHT * 0.015;
     const morphZOffset = noseBHT * 0.015;
 
@@ -940,8 +869,7 @@ class GlassesSystem {
     const userRotY  = this.params.rotY * DEG;
     const userRotZ  = this.params.rotZ * DEG;
 
-    // Forward offset so glasses sit just in front of the bridge surface.
-    // Half the (scaled) model depth plus a small clearance avoids face clipping.
+    // Push the glasses forward by half their depth plus a gap so they don't clip the face.
     const sizeZ = size.z;
     const forwardOffset = sizeZ * baseScale * 0.5 + 0.012;
 
@@ -957,14 +885,11 @@ class GlassesSystem {
     );
     container.rotation.set(userRotX, userRotY, userRotZ);
 
-    // Per-lens local scale (grows/shrinks around the lens bbox center thanks
-    // to the geometry-translate done in _showCached).
+    // Scale each lens around its own centre.
     const lensScale = (this.params.lensScale ?? 100) / 100;
     for (const m of this._lensMeshes) m.scale.setScalar(lensScale);
 
-    // Temple arm splay: yaw each arm around the up axis at its hinge, with a
-    // sign chosen so positive `armSplay` always pushes the tips outward
-    // regardless of which axis the arms extend along or its sign.
+    // Swing each arm outward at its hinge; the sign is chosen so positive always means outward.
     const splayRad = ((this.params.armSplay ?? 0) * Math.PI) / 180;
     const armLen   = (this.params.armLength ?? 100) / 100;
     const backDir  = this._armMeshes.backDir  || 1;
@@ -982,6 +907,7 @@ class GlassesSystem {
 
   // ── State / persistence ─────────────────────────────────────────────────
 
+  // Returns the glasses settings for saving.
   exportState() {
     return {
       enabled: this.enabled,
@@ -1002,6 +928,7 @@ class GlassesSystem {
     };
   }
 
+  // Restores glasses settings from a saved case.
   loadState(state) {
     if (!state) return;
     if (state.style && this.glassesModels[state.style]) this.currentStyle = state.style;
@@ -1018,21 +945,17 @@ class GlassesSystem {
     if (state.rotX !== undefined) this.params.rotX = state.rotX;
     if (state.rotY !== undefined) this.params.rotY = state.rotY;
     if (state.rotZ !== undefined) this.params.rotZ = state.rotZ;
-    // Backward-compat: older saves stored a single Z-axis tilt as `rotation`.
+    // Older saves stored a single tilt as rotation.
     if (state.rotation !== undefined && state.rotZ === undefined) {
       this.params.rotZ = state.rotation;
     }
-    // Force a clean rebuild so style/param changes from undo/redo are always
-    // reflected — setEnabled skips generate() when a container already exists.
+    // Force a clean rebuild so undo/redo always shows the restored state.
     this._container = null;
     this._bboxCache = null;
     this.setEnabled(state.enabled === true);
   }
 
-  /**
-   * Apply AI-generated glasses block. Schema:
-   *   { enabled, frameColor, lensColor, lensOpacity }
-   */
+  // Applies glasses settings suggested by the AI.
   applyFromAI(data) {
     if (!data) return;
     if (data.frameColor) this.setFrameColor(data.frameColor);
@@ -1041,37 +964,16 @@ class GlassesSystem {
     this.setEnabled(!!data.enabled);
   }
 
-  /**
-   * World-space transform of the glasses container. Useful for future
-   * Blender export pipelines that want to merge glasses into the head mesh.
-   */
-  getRenderTransform() {
-    if (!this._container || !this.enabled) {
-      return { matrix: null, params: { ...this.params }, enabled: this.enabled };
-    }
-    const c = this._container;
-    const o = c.children[0];
-    c.updateWorldMatrix(true, false);
-    o?.updateWorldMatrix(true, false);
-    return {
-      matrix: Array.from((o ? o.matrixWorld : c.matrixWorld).elements),
-      params: { ...this.params },
-      enabled: this.enabled,
-      style: this.currentStyle,
-      frameColor: this.frameColor,
-      lensColor: this.lensColor,
-      lensOpacity: this.lensOpacity,
-    };
-  }
-
   // ── Cleanup ────────────────────────────────────────────────────────────
 
+  // Removes every child from a group.
   _clearGroup(group) {
     while (group.children.length > 0) {
       group.remove(group.children[0]);
     }
   }
 
+  // Removes the glasses from the scene.
   dispose() {
     this._clearGroup(this.glassesGroup);
     this.scene.remove(this.glassesGroup);

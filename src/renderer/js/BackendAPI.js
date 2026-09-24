@@ -1,7 +1,4 @@
-/**
- * BackendAPI.js
- * Handles communication with the Python/Blender backend server.
- */
+// Talks to the local Python backend over HTTP.
 
 class BackendAPI {
   constructor(baseUrl = 'http://127.0.0.1:5001') {
@@ -11,9 +8,7 @@ class BackendAPI {
     this.onStatusChange = null;
   }
 
-  /**
-   * Check backend health
-   */
+  // Pings the backend and updates the connection status.
   async checkHealth() {
     try {
       const response = await fetch(`${this.baseUrl}/api/health`, {
@@ -33,128 +28,82 @@ class BackendAPI {
     }
   }
 
-  /**
-   * Start periodic health checks
-   */
+  // Checks the backend straight away and then every few seconds.
   startHealthCheck(interval = 5000) {
     this.checkHealth();
     this.healthInterval = setInterval(() => this.checkHealth(), interval);
   }
 
-  /**
-   * Stop health checks
-   */
-  stopHealthCheck() {
-    if (this.healthInterval) clearInterval(this.healthInterval);
-  }
-
-  /**
-   * Apply morph targets via Blender
-   */
-  async applyMorphs(morphTargets) {
-    return this._post('/api/morph', { morphTargets });
-  }
-
-  /**
-   * Generate hair via Blender
-   */
-  async generateHair(hairParams) {
-    return this._post('/api/hair/generate', { hairParams });
-  }
-
-  /**
-   * Export model
-   */
+  // Asks the backend to export the model in the given format.
   async exportModel(format, caseData) {
     return this._post('/api/export', { format, caseData });
   }
 
-  /**
-   * Generate several distinct candidate faces in one call, for the variant
-   * picker. `avoid` carries morphTarget sets the witness already rejected so
-   * the next set does not repeat them.
-   */
+  // Asks the AI for several different candidate faces, skipping ones the witness already rejected.
   async generateVariants({ prompt, count = 6, avoid = [], referenceImages = [], provider, model }) {
     return this._post('/api/ai/variants', { prompt, count, avoid, referenceImages, provider, model });
   }
 
-  /**
-   * Save case
-   */
+  // Saves the case through the backend.
   async saveCase(caseData) {
     return this._post('/api/case/save', caseData);
   }
 
-  /**
-   * Load case
-   */
+  // Loads a saved case through the backend.
   async loadCase(path) {
     return this._post('/api/case/load', { path });
   }
 
-  /**
-   * List every case held in the database.
-   */
-  async listCases() {
-    return this._post('/api/case/list', {});
-  }
+  // Snapshot calls throw on failure so SnapshotManager can tell "backend offline" apart from "request rejected".
 
-  // ─── Snapshots ──────────────────────────────────────────────────────────
-  //
-  // These deliberately throw instead of resolving to { error } like _post
-  // does. SnapshotManager has to tell "the backend is down, queue this
-  // locally" apart from "the backend rejected this", and a resolved value
-  // cannot express the difference without every caller re-checking a field.
-
+  // Lists the snapshots saved for a case.
   async listSnapshots(caseId) {
     const res = await this._request(
       `/api/snapshots?caseId=${encodeURIComponent(caseId)}`);
     return res.snapshots || [];
   }
 
+  // Fetches one snapshot by its id.
   async getSnapshot(id) {
     const res = await this._request(`/api/snapshots/${id}`);
     return res.snapshot;
   }
 
+  // Saves a new snapshot.
   async createSnapshot(payload) {
     const res = await this._request('/api/snapshots', {
       method: 'POST', body: payload });
     return res.snapshot;
   }
 
+  // Renames a snapshot.
   async renameSnapshot(id, name) {
     const res = await this._request(`/api/snapshots/${id}`, {
       method: 'PATCH', body: { name } });
     return res.snapshot;
   }
 
+  // Deletes a snapshot.
   async deleteSnapshot(id) {
     await this._request(`/api/snapshots/${id}`, { method: 'DELETE' });
     return true;
   }
 
+  // Moves snapshots saved before the database existed onto this case.
   async adoptPendingSnapshots(caseId, caseMeta) {
     const res = await this._request('/api/snapshots/adopt', {
       method: 'POST', body: { caseId, caseMeta } });
     return res.adopted || 0;
   }
 
+  // Removes every snapshot for a case.
   async clearSnapshots(caseId) {
     const res = await this._request('/api/snapshots/clear', {
       method: 'POST', body: { caseId } });
     return res.cleared || 0;
   }
 
-  async dbStats() {
-    return this._request('/api/db/stats');
-  }
-
-  /**
-   * Request that rejects on transport failure or a non-2xx reply, so callers
-   * can branch on it. Errors carry `.offline` when the request never reached
-   * the server, which is the case the snapshot outbox exists for.
-   */
+  // Sends a request and throws on failure, marking the error as offline when the server can't be reached.
   async _request(endpoint, { method = 'GET', body = null, timeout = 15000 } = {}) {
     let response;
     try {
@@ -181,37 +130,7 @@ class BackendAPI {
     return result;
   }
 
-  /**
-   * Set Blender path
-   */
-  async setBlenderPath(path) {
-    return this._post('/api/blender/config', { path });
-  }
-
-  /**
-   * Render scene with Blender
-   */
-  async renderScene(params) {
-    return this._post('/api/render', params);
-  }
-
-  /**
-   * Upload morphed mesh OBJ data so Blender render uses it
-   */
-  async uploadMorphedMesh(objData) {
-    return this._post('/api/render/upload-mesh', { objData });
-  }
-
-  /**
-   * AI face generation
-   */
-  async aiGenerateFace(prompt, currentState, history) {
-    return this._post('/api/ai/generate', { prompt, currentState, history });
-  }
-
-  /**
-   * Generic POST request
-   */
+  // Sends a POST request and returns the JSON, or an error object instead of throwing.
   async _post(endpoint, data) {
     try {
       console.log(`[API] POST ${endpoint}`, data);

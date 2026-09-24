@@ -1,7 +1,4 @@
-/**
- * CaseManager.js
- * Handles forensic case data — save, load, new case, and state management.
- */
+// Holds the current case and its undo/redo history, and saves, loads, imports and exports cases.
 
 class CaseManager {
   constructor(api) {
@@ -13,23 +10,17 @@ class CaseManager {
     this._pendingSnapshot = null;
   }
 
-  /**
-   * A case gets its identity the moment it exists, not when it first reaches
-   * the backend. The id used to be filled in from the save response, so
-   * anything keyed by it before the first successful save — snapshots, most
-   * of all — was filed under a placeholder and orphaned the moment a real id
-   * arrived. Minting here makes that window zero-width.
-   */
+  // Makes a new case id straight away, so anything saved before the first backend save is never orphaned.
   static newCaseId() {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
       return crypto.randomUUID();
     }
-    // file:// is a secure context in Chromium so the branch above normally
-    // wins; this keeps a plain browser or an older runtime working.
+    // Fallback for runtimes without crypto.randomUUID.
     return 'case-' + Date.now().toString(36) + '-' +
            Math.random().toString(36).slice(2, 10);
   }
 
+  // Returns a blank case with every field set to its default.
   newCaseTemplate() {
     return {
       caseId: CaseManager.newCaseId(),
@@ -71,9 +62,7 @@ class CaseManager {
           posZ: 0,
           rotation: 0,
         },
-        // Mirrors FaceMaskSystem's mask1 defaults. app.js overwrites this with
-        // the live exportState() once the systems are wired, so it only has to
-        // be a sane placeholder for a case created before that happens.
+        // Placeholder matching FaceMaskSystem's defaults; app.js replaces it with the live state.
         faceMask: {
           enabled: false,
           style: 'mask1',
@@ -96,8 +85,7 @@ class CaseManager {
           rotY: 0,
           rotZ: 0,
         },
-        // Mirrors EarringSystem's hoop defaults, same placeholder role as
-        // faceMask above.
+        // Placeholder matching EarringSystem's defaults.
         earrings: {
           enabled: false,
           style: 'hoop',
@@ -117,8 +105,7 @@ class CaseManager {
           spinL: -29,
           spinR: -29,
         },
-        // Mirrors BandanaSystem's paisley defaults, same placeholder role as
-        // faceMask above.
+        // Placeholder matching BandanaSystem's defaults.
         bandana: {
           enabled: false,
           style: 'paisley',
@@ -135,7 +122,7 @@ class CaseManager {
           rotY: 0,
           rotZ: 0,
         },
-        // Mirrors EyebrowPiercingSystem's defaults, same placeholder role.
+        // Placeholder matching EyebrowPiercingSystem's defaults.
         browPiercing: {
           enabled: false,
           sideMode: 'both',
@@ -160,9 +147,7 @@ class CaseManager {
     };
   }
 
-  /**
-   * Start a new case
-   */
+  // Starts a fresh case.
   newCase() {
     this.currentCase = this.newCaseTemplate();
     this.undoStack = [];
@@ -170,11 +155,7 @@ class CaseManager {
     return this.currentCase;
   }
 
-  /**
-   * Save current case state to undo stack.
-   * IMPORTANT: Call this BEFORE modifying currentCase so the snapshot
-   * captures the state the user can revert to.
-   */
+  // Saves the current state for undo; call it before changing the case.
   pushState(description = '') {
     const snapshot = JSON.parse(JSON.stringify(this.currentCase));
     snapshot._description = description;
@@ -185,13 +166,9 @@ class CaseManager {
     this.redoStack = [];
   }
 
-  /**
-   * Capture current state BEFORE a continuous change begins (e.g. slider drag).
-   * Call this on mousedown / first input, then call endAction() when done.
-   */
+  // Takes an undo snapshot when a continuous change such as a slider drag begins.
   beginAction(description = '') {
-    // If there's already a pending snapshot that wasn't committed, commit it first
-    // This prevents the undo system from getting stuck
+    // Commit any leftover snapshot first so undo can't get stuck.
     if (this._pendingSnapshot) {
       this.endAction();
     }
@@ -199,10 +176,7 @@ class CaseManager {
     this._pendingSnapshot._description = description;
   }
 
-  /**
-   * Commit the before-snapshot captured by beginAction() to the undo stack.
-   * Call this on mouseup / change event when the continuous operation ends.
-   */
+  // Commits the snapshot from beginAction() once the drag ends.
   endAction() {
     if (!this._pendingSnapshot) return;
     this.undoStack.push(this._pendingSnapshot);
@@ -213,17 +187,7 @@ class CaseManager {
     this._pendingSnapshot = null;
   }
 
-  /**
-   * Cancel any pending action without committing it.
-   * Use this when an action is abandoned (e.g., escape key pressed).
-   */
-  cancelAction() {
-    this._pendingSnapshot = null;
-  }
-
-  /**
-   * Undo last change
-   */
+  // Undoes the last change.
   undo() {
     if (this.undoStack.length === 0) return null;
     const snapshot = JSON.parse(JSON.stringify(this.currentCase));
@@ -232,9 +196,7 @@ class CaseManager {
     return this.currentCase;
   }
 
-  /**
-   * Redo last undo
-   */
+  // Redoes the last undone change.
   redo() {
     if (this.redoStack.length === 0) return null;
     const snapshot = JSON.parse(JSON.stringify(this.currentCase));
@@ -243,57 +205,43 @@ class CaseManager {
     return this.currentCase;
   }
 
-  /**
-   * Update case data
-   */
+  // Updates one case detail field.
   updateCaseInfo(field, value) {
     this.currentCase[field] = value;
     this.currentCase.modifiedAt = new Date().toISOString();
   }
 
-  /**
-   * Update morph targets
-   */
+  // Stores the current morph values.
   updateMorphTargets(morphValues) {
     this.currentCase.morphTargets = { ...morphValues };
     this.currentCase.modifiedAt = new Date().toISOString();
   }
 
-  /**
-   * Update hair params
-   */
+  // Stores the current hair settings.
   updateHairParams(hairParams) {
     this.currentCase.hairParams = { ...hairParams };
     this.currentCase.modifiedAt = new Date().toISOString();
   }
 
-  /**
-   * Update appearance
-   */
+  // Stores one appearance setting.
   updateAppearance(key, value) {
     this.currentCase.appearance[key] = value;
     this.currentCase.modifiedAt = new Date().toISOString();
   }
 
-  /**
-   * Update skin marks data
-   */
+  // Stores the skin marks.
   updateSkinMarks(marksArray) {
     this.currentCase.skinMarks = marksArray ? [...marksArray] : [];
     this.currentCase.modifiedAt = new Date().toISOString();
   }
 
-  /**
-   * Update decals data
-   */
+  // Stores the decals.
   updateDecals(decalsArray) {
     this.currentCase.decals = decalsArray ? [...decalsArray] : [];
     this.currentCase.modifiedAt = new Date().toISOString();
   }
 
-  /**
-   * Save case to backend
-   */
+  // Saves the case through the backend.
   async save() {
     this.currentCase.modifiedAt = new Date().toISOString();
     const result = await this.api.saveCase(this.currentCase);
@@ -303,9 +251,7 @@ class CaseManager {
     return result;
   }
 
-  /**
-   * Load case from file
-   */
+  // Loads a case file through the backend.
   async load(filePath) {
     const result = await this.api.loadCase(filePath);
     if (result && !result.error) {
@@ -316,19 +262,7 @@ class CaseManager {
     return result;
   }
 
-  /**
-   * Get complete case data for export
-   */
-  getExportData() {
-    return {
-      ...this.currentCase,
-      exportedAt: new Date().toISOString(),
-    };
-  }
-
-  /**
-   * Get case title for display
-   */
+  // Returns the case title for display.
   getTitle() {
     const num = this.currentCase.caseNumber ? `${this.currentCase.caseNumber} — ` : '';
     return `${num}${this.currentCase.caseName || 'Untitled Case'}`;
@@ -336,11 +270,7 @@ class CaseManager {
 
   // ─── Export / Import ─────────────────────────────────────────────────
 
-  /**
-   * Export the complete current case to a downloadable .json file.
-   * Includes all case details: metadata, morphTargets, hairParams, appearance,
-   * skinMarks, decals, and camera state.
-   */
+  // Downloads the whole current case as a .json file.
   exportToFile() {
     const exportData = {
       ...this.currentCase,
@@ -368,12 +298,7 @@ class CaseManager {
     return true;
   }
 
-  /**
-   * Import a case from a .json file selected by the user.
-   * Opens a file picker, parses the JSON, and loads the complete case.
-   * Saves current case to undo stack before loading.
-   * @returns {Promise<object|null>}  The imported case data, or null on failure
-   */
+  // Lets the user pick a .json case file and loads it, keeping the current case in undo history.
   importFromFile() {
     return new Promise((resolve) => {
       const input = document.createElement('input');
@@ -412,9 +337,7 @@ class CaseManager {
             this.currentCase = {
               ...template,
               ...parsed,
-              // An imported case is a new case in this install's database,
-              // so it takes a fresh id immediately rather than waiting for a
-              // save to hand it one.
+              // An imported case gets a fresh id right away.
               caseId: CaseManager.newCaseId(),
               createdAt: parsed.createdAt || new Date().toISOString(),
               modifiedAt: new Date().toISOString(),

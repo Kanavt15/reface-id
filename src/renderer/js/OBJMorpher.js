@@ -1,14 +1,4 @@
-/**
- * OBJMorpher.js
- * Landmark-based vertex deformation for loaded GLB/OBJ face meshes.
- * Ported from the proven Python FaceDeformer logic with Gaussian weight
- * falloff, smooth directional functions, and face mask boundaries.
- *
- * Coordinate system: Y-up (glTF standard)
- *   X = left(-) / right(+)
- *   Y = down(-) / up(+)  (height)
- *   Z = back(-) / front(+)  (positive Z = face front / nose tip)
- */
+// Reshapes the head mesh from the face sliders, using landmark-based weights that fade smoothly (Y is up, +Z is the front of the face).
 
 class OBJMorpher {
   constructor() {
@@ -51,6 +41,7 @@ class OBJMorpher {
     this.params.forEach(p => this.morphValues[p] = this.defaultValue);
   }
 
+  // Tuning constants for the head model: face bounds, scale and weight falloff.
   static get MODEL_CONFIG() {
     return {
       face_y_min: -0.80,
@@ -63,6 +54,7 @@ class OBJMorpher {
     };
   }
 
+  // Approximate positions of the named face landmarks on the stock head.
   static get LANDMARKS() {
     return {
       chin:             [0.0, -0.60, 1.08],
@@ -144,10 +136,9 @@ class OBJMorpher {
     };
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // SETUP
-  // ═══════════════════════════════════════════════════════════════════════
+  // Setup
 
+  // Takes the loaded head meshes, saves their original shape and finds the landmarks.
   setMeshGroup(group) {
     this.meshGroup = group;
     this.meshes = [];
@@ -173,12 +164,14 @@ class OBJMorpher {
     this._createFaceMask();
   }
 
+  // Stores the per-vertex face region data.
   setRegionData(data) {
     this.regionData = data;
     this.perVertexRegion = data.per_vertex_region;
     console.log(`OBJMorpher: region data loaded, ${data.vertex_count} vertices`);
   }
 
+  // Copies all original vertex positions into one flat array.
   _buildVertexArray() {
     const N = this.totalVertices;
     this._allVerts = new Float64Array(N * 3);
@@ -194,6 +187,7 @@ class OBJMorpher {
     }
   }
 
+  // Snaps each landmark to its nearest vertex and warns about any that land too far away.
   _detectLandmarks() {
     const verts = this._allVerts;
     const N = this.totalVertices;
@@ -223,13 +217,7 @@ class OBJMorpher {
       this._landmarkSnapDistance[name] = Math.sqrt(bestDist);
     }
 
-    // Nearest-vertex snapping cannot tell a good target from a bad one — it
-    // returns the closest vertex to whatever coordinate it was given, however
-    // wrong. A landmark authored off the mesh therefore lands on the wrong
-    // feature in silence, which is how `chin` ended up a quarter of a unit up
-    // the jaw and `ear_*_bottom` above the lobe. Anything that snapped further
-    // than a couple of vertex spacings is suspect, both for placing
-    // accessories and for centring the morph falloff weights.
+    // A landmark that snapped a long way is probably on the wrong feature, so report it.
     const suspect = Object.entries(this._landmarkSnapDistance)
       .filter(([, d]) => d > OBJMorpher.LANDMARK_SNAP_TOLERANCE)
       .sort((a, b) => b[1] - a[1]);
@@ -253,18 +241,10 @@ class OBJMorpher {
     }
   }
 
-  /**
-   * How far a landmark may snap before it is reported as misplaced.
-   *
-   * On the stock head every landmark lands within 0.082, and those largest
-   * few (eye and brow points authored a little in front of the lid surface)
-   * still snap onto the right feature — so this is deliberately set above
-   * them. It is a guard for a swapped or rescaled head mesh, where landmarks
-   * would start missing their features by a wide margin, not a nit-picker for
-   * the normal case.
-   */
+  // How far a landmark may snap before it is reported as misplaced; set above the normal case on purpose.
   static get LANDMARK_SNAP_TOLERANCE() { return 0.12; }
 
+  // Builds a mask that fades the morphs out beyond the face area.
   _createFaceMask() {
     const N = this.totalVertices;
     const cfg = OBJMorpher.MODEL_CONFIG;
@@ -286,10 +266,9 @@ class OBJMorpher {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // WEIGHT FUNCTIONS
-  // ═══════════════════════════════════════════════════════════════════════
+  // Weight functions
 
+  // Returns a smooth weight per vertex based on distance from the given landmarks.
   _getRegionWeights(landmarkNames, radius) {
     const cfg = OBJMorpher.MODEL_CONFIG;
     radius *= cfg.radius_scale;
@@ -319,6 +298,7 @@ class OBJMorpher {
     return weights;
   }
 
+  // Returns region weights plus a left/right direction per vertex.
   _getDirectionalWeights(landmarkNames, radius) {
     const weights = this._getRegionWeights(landmarkNames, radius);
     const N = this.totalVertices;
@@ -332,10 +312,9 @@ class OBJMorpher {
     return { weights, directions };
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // MORPH APPLICATION
-  // ═══════════════════════════════════════════════════════════════════════
+  // Morph application
 
+  // Sets one morph value and rebuilds the face.
   setMorphValue(param, value) {
     if (this.params.includes(param)) {
       this.morphValues[param] = value;
@@ -343,15 +322,18 @@ class OBJMorpher {
     }
   }
 
+  // Counts how many morphs differ from the default.
   getModifiedCount() {
     return Object.values(this.morphValues).filter(v => v !== this.defaultValue).length;
   }
 
+  // Resets every morph to the default.
   resetAll() {
     this.params.forEach(p => this.morphValues[p] = this.defaultValue);
     this.applyAllMorphs();
   }
 
+  // Resets one group of morphs, such as the nose or jaw.
   resetGroup(groupName) {
     const groupMap = {
       skull:    ['faceWidth', 'faceLength', 'headWidth', 'headLength', 'faceTaper'],
@@ -372,6 +354,7 @@ class OBJMorpher {
     this.applyAllMorphs();
   }
 
+  // Rebuilds the face from its original shape by applying every morph slider.
   applyAllMorphs() {
     if (!this.meshes.length || !this._allVerts) return;
 
@@ -873,22 +856,7 @@ class OBJMorpher {
     }
 
     // ─── ASYMMETRY ─────────────────────────────────────────────────────
-    /* No real face is symmetric, and perfect bilateral symmetry is one of the
-       clearest signals that an image was generated rather than photographed.
-       Every other control here is mirrored across the midline by construction,
-       so without this the reconstruction cannot help but be symmetric.
-       
-       Signed like every other parameter: 50 is symmetric, below 50 makes the
-       left side dominant and above 50 the right. It stays an explicit,
-       recorded control rather than a hidden randomisation, because this app
-       stamps every adjustment onto its exports and an unlogged deviation in a
-       forensic likeness would be indefensible.
-       
-       Magnitudes are deliberately small. Ordinary facial asymmetry is on the
-       order of 1-2mm; at twice these values the head stops reading as a person
-       and starts reading as an injury, and the vertical eye offset in
-       particular outruns the eyelid opening and exposes sclera. Even at the
-       slider's extreme this should look like somebody, not like damage. */
+    // Asymmetry: small, recorded left/right differences, since real faces are never perfectly symmetric (50 = symmetric).
     if (active.asymmetry !== undefined) {
       const t = active.asymmetry;
       const disp = t * scale;
@@ -943,6 +911,7 @@ class OBJMorpher {
     this._finalizeGeometry();
   }
 
+  // Updates normals and bounds after a morph and tells other systems the face changed.
   _finalizeGeometry() {
     for (let m = 0; m < this.meshes.length; m++) {
       this.meshes[m].geometry.attributes.position.needsUpdate = true;
@@ -951,9 +920,7 @@ class OBJMorpher {
       this.meshes[m].geometry.computeBoundingSphere();
     }
 
-    /* Cavity occlusion is derived from the deformed positions, so it goes
-       stale the moment a slider moves. Debounced rather than immediate: a drag
-       fires this dozens of times a second and only the final shape matters. */
+    // Cavity shading depends on the shape, so refresh it, debounced because only the final shape matters.
     if (window.SkinShader) SkinShader.scheduleCavity(this.meshes);
 
     // Refresh skin marks after morphing is complete
@@ -964,14 +931,9 @@ class OBJMorpher {
     if (typeof this.onMorphApplied === 'function') this.onMorphApplied();
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // STATE
-  // ═══════════════════════════════════════════════════════════════════════
+  // State
 
-  /**
-   * Get the current (post-morph) position of a named landmark vertex.
-   * Returns [x, y, z] or null if not found.
-   */
+  // Returns a landmark's current position after morphing, or null.
   getCurrentLandmarkPosition(name) {
     const idx = this._landmarkIndices[name];
     if (idx === undefined) return null;
@@ -988,8 +950,10 @@ class OBJMorpher {
     return null;
   }
 
+  // Returns the morph values for saving.
   exportState() { return { ...this.morphValues }; }
 
+  // Restores morph values, converting old 0-1 values to 0-100.
   loadState(state) {
     if (!state) return;
     for (const [key, value] of Object.entries(state)) {

@@ -1,12 +1,4 @@
-/**
- * LipPainter.js
- * Manual lip color painting tool — draw lip color onto the 3D face by
- * clicking and dragging with a pen, or remove color with an eraser.
- *
- * Works by raycasting to find the vertex closest to the cursor, then
- * modifying that vertex's lip weight in SceneManager._lipWeights.
- * After each stroke, calls SceneManager._updateVertexColors() to refresh.
- */
+// Lets the user paint or erase lip colour directly on the 3D face.
 
 class LipPainter {
   constructor(sceneManager) {
@@ -47,6 +39,7 @@ class LipPainter {
 
   // ─── Enable / Disable ──────────────────────────────────────────────────
 
+  // Starts listening for paint strokes on the canvas.
   enable() {
     if (this.enabled) return;
     this.enabled = true;
@@ -56,6 +49,7 @@ class LipPainter {
     this.canvas.style.cursor = 'crosshair';
   }
 
+  // Stops listening for paint strokes.
   disable() {
     if (!this.enabled) return;
     this.enabled = false;
@@ -68,6 +62,7 @@ class LipPainter {
     this.controls.enabled = true;
   }
 
+  // Turns the lip brush on or off.
   toggle() {
     if (this.enabled) { this.disable(); } else { this.enable(); }
     return this.enabled;
@@ -75,15 +70,14 @@ class LipPainter {
 
   // ─── Raycasting ────────────────────────────────────────────────────────
 
+  // Converts the mouse position to normalised screen coordinates.
   _getNDC(event) {
     const rect = this.canvas.getBoundingClientRect();
     this._mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this._mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
   }
 
-  /**
-   * Raycast the face mesh and return the hit info (world point + mesh).
-   */
+  // Casts a ray from the mouse and returns where it hits the face.
   _raycastHit(event) {
     this._getNDC(event);
     this._raycaster.setFromCamera(this._mouse, this.camera);
@@ -107,6 +101,7 @@ class LipPainter {
 
   // ─── Pointer Events ────────────────────────────────────────────────────
 
+  // Starts a stroke where the user pressed on the face.
   _handlePointerDown(event) {
     if (event.button !== 0) return;
 
@@ -129,6 +124,7 @@ class LipPainter {
     this._paintAtPoint(hit.point, hit.mesh);
   }
 
+  // Paints along the stroke as the mouse moves.
   _handlePointerMove(event) {
     if (!this._isPainting) return;
     event.preventDefault();
@@ -161,6 +157,7 @@ class LipPainter {
     this._lastHit = hit.point;
   }
 
+  // Ends the stroke and saves it for undo.
   _handlePointerUp(event) {
     if (!this._isPainting) return;
     this._isPainting = false;
@@ -181,10 +178,7 @@ class LipPainter {
 
   // ─── Painting Logic ────────────────────────────────────────────────────
 
-  /**
-   * Ensure lip weights are computed in SceneManager.
-   * If no lip color is set, we still need weights for manual painting.
-   */
+  // Makes sure lip weights exist so painting works even before a lip colour is chosen.
   _ensureLipWeights() {
     const sm = this.sceneManager;
     if (!sm._lipWeights) {
@@ -199,10 +193,7 @@ class LipPainter {
     }
   }
 
-  /**
-   * Paint (or erase) lip color at a world-space point.
-   * Modifies vertex lip weights directly.
-   */
+  // Paints or erases lip colour around a point on the face.
   _paintAtPoint(worldPoint, targetMesh) {
     const sm = this.sceneManager;
     if (!sm._lipWeights) return;
@@ -274,6 +265,7 @@ class LipPainter {
 
   // ─── Undo ──────────────────────────────────────────────────────────────
 
+  // Undoes the last stroke.
   undo() {
     if (this._undoStack.length === 0) return;
     const deltas = this._undoStack.pop();
@@ -301,6 +293,7 @@ class LipPainter {
 
   // ─── Clear ─────────────────────────────────────────────────────────────
 
+  // Clears all painted lip colour.
   clearAll() {
     const sm = this.sceneManager;
     sm._lipPaintOverrides = null;
@@ -317,6 +310,7 @@ class LipPainter {
 
   // ─── Persistence ───────────────────────────────────────────────────────
 
+  // Returns the painted lip weights for saving.
   exportState() {
     const sm = this.sceneManager;
     if (!sm._lipPaintOverrides) return null;
@@ -342,6 +336,7 @@ class LipPainter {
     };
   }
 
+  // Restores painted lip weights from a saved case.
   loadState(state) {
     if (!state) return;
     const sm = this.sceneManager;
@@ -370,6 +365,7 @@ class LipPainter {
 
   // ─── Dispose ───────────────────────────────────────────────────────────
 
+  // Turns the brush off and drops its history.
   dispose() {
     this.disable();
     this._undoStack = [];

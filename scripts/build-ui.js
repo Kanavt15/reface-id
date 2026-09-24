@@ -1,14 +1,5 @@
 #!/usr/bin/env node
-/**
- * build-ui.js — render scripts/ui-manifest.json through the new component
- * system and write src/renderer/index.html.
- *
- * The output is plain static markup with no runtime dependency on this
- * script: `npm start` never runs a build. Regenerate by hand after editing
- * the manifest or the components below:
- *
- *   node scripts/build-ui.js
- */
+// Builds src/renderer/index.html from ui-manifest.json and the components below; run it by hand with `node scripts/build-ui.js` after editing either.
 'use strict';
 
 const fs = require('fs');
@@ -18,10 +9,7 @@ const ROOT = path.join(__dirname, '..');
 const manifest = require('./ui-manifest.json');
 const OUT = path.join(ROOT, 'src', 'renderer', 'index.html');
 
-/* ══ Sections ═══════════════════════════════════════════════════════════
-   The panel ids are fixed by UIController.bindPanelTabs(), which resolves
-   'panel-' + tab.dataset.panel. The names shown to the operator are not,
-   so they are chosen here for what the section actually does. */
+// Sections of the side panel; ids are fixed by UIController, labels are chosen here.
 
 const SECTIONS = [
   { key: 'face',        label: 'Face',   icon: 'face',        title: 'Facial structure' },
@@ -33,10 +21,7 @@ const SECTIONS = [
   { key: 'case',        label: 'Case',   icon: 'case',        title: 'Case record and export' },
 ];
 
-/* FontAwesome glyph → sprite symbol. The old markup chose glyphs
-   decoratively; these are picked by what the control does. Anything
-   unmapped simply renders without an icon, which is preferable to a
-   wrong one. */
+// Maps old FontAwesome names to sprite icons by what the control does; unmapped ones get no icon.
 const ICON_MAP = {
   'undo': 'undo', 'undo-alt': 'undo', 'rotate-left': 'undo', 'redo': 'redo',
   'sync-alt': 'rotate', 'sync': 'rotate', 'refresh': 'rotate', 'arrows-rotate': 'rotate',
@@ -68,23 +53,21 @@ const ICON_MAP = {
   'hand-pointer': 'crosshair', 'wind': 'hair', 'scissors': 'hair', 'cut': 'hair',
 };
 
-/* ══ Helpers ════════════════════════════════════════════════════════════ */
+// Helpers
 
+// Escapes text for safe use in HTML.
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;');
 
-/* Icons are <use> references into one sprite, so the browser parses the
-   geometry once regardless of how many times an icon appears. */
+// Returns an icon as a <use> reference into the shared SVG sprite.
 const icon = (name, cls = '') =>
   name ? `<svg class="i${cls ? ' ' + cls : ''}" aria-hidden="true"><use href="#i-${name}"/></svg>` : '';
 
+// Returns the sprite icon for an old FontAwesome class name.
 const faIcon = (fa, cls) => icon(ICON_MAP[fa] || null, cls);
 
-/* Re-emit only the attributes that carry meaning to the controller.
-   `omit` skips keys already written by the caller — without it a slider
-   emitted data-param twice, which is malformed markup (the browser keeps
-   the first and silently drops the second). */
+// Writes only the data attributes the controller uses, skipping ones the caller already wrote.
 function dataStr(data, omit = []) {
   if (!data) return '';
   return Object.entries(data)
@@ -92,29 +75,27 @@ function dataStr(data, omit = []) {
     .map(([k, v]) => ` ${k}="${esc(v)}"`).join('');
 }
 
+// Writes an HTML attribute, or nothing if the value is empty.
 const attr = (name, v) => (v == null || v === '') ? '' : ` ${name}="${esc(v)}"`;
 
-/* Merge the classes the controller selects on with the ones the design
-   needs, dropping the legacy presentational names that no longer exist. */
+// Old presentational class names that are dropped.
 const DEAD_CLASSES = new Set([
   'rf-full', 'rf-stack-6', 'rf-row-gap', 'btn-icon', 'panel-actions',
 ]);
 
+// Keeps the useful classes, drops the old presentational ones, and adds extras.
 function keepClasses(list, extra = []) {
   const kept = (list || []).filter((c) => c && !DEAD_CLASSES.has(c));
   return [...new Set([...kept, ...extra])].join(' ');
 }
 
-/* ══ Control components ═════════════════════════════════════════════════ */
+// Control components
 
+// Renders a slider in the exact shape UIController expects.
 function cSlider(b) {
-  /* .slider-control[data-param] > label + .slider-row > input + .slider-value
-     is the exact shape UIController.bindMorphSliders() walks. */
   const cls = keepClasses(['slider-control'], b.value === '50' ? ['k-centred'] : []);
   const inputCls = keepClasses(b.sliderClass);
-  /* `disabled` is a real starting state for a couple of controls that a
-     toggle governs — the under-eye intensity is inert until under-eye
-     wrinkles are switched on, and _syncSkinTextureUI() keeps it that way. */
+  // Some controls start disabled because a toggle controls them.
   const dis = b.disabled ? ' disabled' : '';
   return `
             <div class="${cls}"${attr('id', b.controlId)}${attr('data-param', b.param)}${attr('title', b.title)}${dataStr(b.data, ['data-param'])}>
@@ -128,6 +109,7 @@ function cSlider(b) {
             </div>`;
 }
 
+// Renders a dropdown.
 function cSelect(b) {
   const opts = b.options.map((o) =>
     `<option value="${esc(o.value)}"${o.selected ? ' selected' : ''}>${esc(o.label)}</option>`
@@ -141,6 +123,7 @@ function cSelect(b) {
             </div>`;
 }
 
+// Renders a checkbox.
 function cCheckbox(b) {
   return `
             <div class="input-control">
@@ -151,6 +134,7 @@ function cCheckbox(b) {
             </div>`;
 }
 
+// Renders a row of colour swatches with an optional colour picker.
 function cColorRow(b) {
   const swatches = b.swatches.map((s) =>
     `<button type="button" class="color-swatch${s.active ? ' active' : ''}"` +
@@ -172,6 +156,7 @@ function cColorRow(b) {
             </div>`;
 }
 
+// Renders a colour picker.
 function cColorPicker(b) {
   return `
             <div class="input-control">
@@ -180,10 +165,7 @@ function cColorPicker(b) {
             </div>`;
 }
 
-/* The old markup gave each style card a different decorative glyph, and
-   most of them have no equivalent in a semantic set. A grid where some
-   tiles carry an icon and some do not looks broken, so every tile in a
-   grid gets the same one, chosen from what the grid is picking. */
+// Picks one icon for every card in a grid, based on what the grid chooses.
 function gridFallbackIcon(gridId = '') {
   const id = gridId.toLowerCase();
   if (id.includes('hair') || id.includes('beard')) return 'hair';
@@ -197,6 +179,7 @@ function gridFallbackIcon(gridId = '') {
   return 'grid';
 }
 
+// Renders a grid of style cards.
 function cCardGrid(b) {
   const isSkin = (b.gridClass || []).includes('skin-tone-grid');
   const fallback = gridFallbackIcon(b.gridId || '');
@@ -215,6 +198,7 @@ function cCardGrid(b) {
             </div>`;
 }
 
+// Renders a text field.
 function cText(b) {
   return `
             <div class="k-field">
@@ -223,6 +207,7 @@ function cText(b) {
             </div>`;
 }
 
+// Renders a multi-line text field.
 function cTextarea(b) {
   return `
             <div class="k-field">
@@ -231,6 +216,7 @@ function cTextarea(b) {
             </div>`;
 }
 
+// Renders a button, styled as primary or danger from its classes and label.
 function cButton(b, bare = false) {
   const primary = (b.btnClass || []).some((c) => /primary|cta/.test(c));
   const danger = (b.btnClass || []).some((c) => /danger|delete|clear|remove/.test(c))
@@ -250,6 +236,7 @@ function cButton(b, bare = false) {
             <div class="k-btn-row">${html}</div>`;
 }
 
+// Renders a row of buttons.
 function cButtonRow(b) {
   return `
             <div class="k-btn-row"${attr('id', b.id)}>
@@ -257,10 +244,7 @@ function cButtonRow(b) {
             </div>`;
 }
 
-/* Actions that live in a group or sub-group header. The reset control gets
-   the .btn-reset-group treatment (hidden until hover); anything else is a
-   quiet icon button that stays visible, because save/copy are not
-   destructive and hiding them would make them undiscoverable. */
+// Renders the buttons in a group header; reset hides until hover, other actions stay visible.
 function cHeaderActions(actions, resetGroup) {
   return (actions || []).map((a) => {
     const isReset = (a.btnClass || []).includes('btn-reset-group');
@@ -271,10 +255,7 @@ function cHeaderActions(actions, resetGroup) {
   }).join('\n            ');
 }
 
-/* A caption between controls. Short ones are section eyebrows and set in
-   tracked uppercase; anything sentence-length is explanatory prose and is
-   set as running text, because a 60-character sentence in tracked caps is
-   unreadable and shouts. */
+// Renders a caption: short ones as uppercase labels, longer ones as normal text.
 function cLabel(b) {
   const text = String(b.text || '');
   const isProse = text.length > 30 || /[.!?]\s|[.!?]$/.test(text);
@@ -285,10 +266,7 @@ function cLabel(b) {
             <div class="sub-group-label">${esc(text)}</div>`;
 }
 
-/* Icon-font tags left inside carried-over markup. FontAwesome is gone, so
-   every one of these renders as an empty inline box — which is why a row
-   of icon buttons came out looking like a run of bare text. They are
-   rewritten into sprite references here, once, for all carried blocks. */
+// FontAwesome is gone, so rewrite leftover icon tags in carried-over markup into sprite icons.
 const FA_EXTRA = {
   'robot': 'ai', 'paper-plane': 'send', 'microphone': 'mic', 'pen': 'brush',
   'users-viewfinder': 'users', 'user-group': 'users', 'wand-magic': 'wand',
@@ -300,6 +278,7 @@ const FA_EXTRA = {
   'rotate-right': 'redo', 'rotate': 'rotate', 'repeat': 'rotate',
 };
 
+// Replaces old <i class="fa…"> icon tags with sprite icons.
 function rewriteIcons(html) {
   return html.replace(
     /<i\s+[^>]*class="([^"]*)"[^>]*>\s*<\/i>/gi,
@@ -308,15 +287,12 @@ function rewriteIcons(html) {
       if (!m) return whole;
       const key = m[1];
       const name = ICON_MAP[key] || FA_EXTRA[key];
-      /* An unmapped glyph becomes nothing rather than a wrong picture —
-         the button keeps its label and stays perfectly usable. */
+      // An unmapped icon is dropped rather than shown wrong.
       return name ? icon(name) : '';
     });
 }
 
-/* A block the inventory could not type. Its markup is carried through so
-   no behaviour is lost, with icon tags rewritten and the wrapper giving
-   it the sheet's gutter. Appearance comes from styles/carried.css. */
+// Carries over a block the manifest couldn't type, with icons rewritten; styled by carried.css.
 function cVerbatim(b) {
   return `
             <div class="k-verbatim">
@@ -324,6 +300,7 @@ function cVerbatim(b) {
             </div>`;
 }
 
+// Renders a vertical stack of blocks.
 function cStack(b) {
   return `
             <div class="k-stack">
@@ -331,6 +308,7 @@ function cStack(b) {
             </div>`;
 }
 
+// Renders one block by its type.
 function renderBlock(b) {
   if (!b) return '';
   switch (b.type) {
@@ -351,29 +329,15 @@ function renderBlock(b) {
   }
 }
 
-/* ══ Structure ══════════════════════════════════════════════════════════ */
+// Structure
 
+// Renders a sub-group, open by default, with its header directly before its body.
 function renderSubGroup(sg) {
   const inner = sg.children.map((c) =>
     c.kind === 'subgroup' ? renderSubGroup(c) : renderBlock(c.block)
   ).join('');
 
-  /* header + body must stay adjacent siblings: UIController toggles
-     header.nextElementSibling. The single .k-sub-inner child is what makes
-     the 0fr/1fr height transition possible.
-
-     Sub-groups render OPEN. They used to ship collapsed like their
-     parents, which meant reaching any single parameter cost two clicks —
-     open "Nose", then open "Tip" — before a slider was even on screen,
-     and the panel spent its whole height showing a table of contents of a
-     table of contents. A sub-group holds two to five controls; it is a
-     caption over a short run of rows, not a door. Opening its parent now
-     reveals actual instruments.
-
-     The header stays a real collapse control, so anything long can still
-     be folded away by hand and the contract UIController walks is
-     unchanged. The manifest's own `collapsed` flag is still ignored; it
-     carries whatever state the old document happened to be saved in. */
+  // Header and body must stay adjacent siblings with one inner child; sub-groups start open so a control is one click away.
   return `
           <div class="feature-sub-group"${attr('id', sg.id)}>
             <div class="sub-group-header">
@@ -389,25 +353,20 @@ function renderSubGroup(sg) {
           </div>`;
 }
 
+// Renders a collapsible group with its header actions and body.
 function renderGroup(g) {
   const inner = g.children.map((c) =>
     c.kind === 'subgroup' ? renderSubGroup(c) : renderBlock(c.block)
   ).join('');
 
-  /* If the group had no header buttons at all but does declare a reset
-     group, synthesise the reset control so the behaviour survives. */
+  // Add a reset button if the group declares a reset but has no header buttons.
   const actions = (g.actions && g.actions.length)
     ? cHeaderActions(g.actions, g.resetGroup)
     : (g.resetGroup
         ? `<button type="button" class="btn-reset-group" data-group="${esc(g.resetGroup)}" title="Reset ${esc(g.title || 'group')}">${icon('reset')}</button>`
         : '');
 
-  /* Every group renders collapsed. A section holds up to a dozen groups and
-     several hundred controls between them; opening one with everything
-     already expanded means the operator lands mid-list with no idea what
-     the section contains. Closed, the section reads as a table of contents
-     and one click opens the part they came for. k-shell re-collapses on
-     each section open so this stays true after the first visit. */
+  // Groups start collapsed so a section reads like a table of contents.
   return `
         <div class="control-group"${attr('id', g.id)}>
           <div class="control-group-header collapsed">
@@ -423,6 +382,7 @@ function renderGroup(g) {
         </div>`;
 }
 
+// Renders one section panel.
 function renderPanel(p) {
   const body = p.items.map((it) =>
     it.kind === 'group' ? renderGroup(it) : renderBlock(it.block)
@@ -433,7 +393,7 @@ function renderPanel(p) {
       </div>`;
 }
 
-/* ══ Shell ══════════════════════════════════════════════════════════════ */
+// Shell
 
 const sectionTabs = SECTIONS.map((s, i) => `
           <button type="button" class="panel-tab${i === 0 ? ' active' : ''}" data-panel="${s.key}" title="${esc(s.title)}">
@@ -444,8 +404,7 @@ const sheetTitles = SECTIONS.map((s) =>
   `<span class="k-sheet-title" data-for="${s.key}"${s.key === 'face' ? '' : ' hidden'}>${esc(s.title)}</span>`
 ).join('\n            ');
 
-/* Tool strip — latching modes. Each id is bound in UIController.js or
-   app.js; the strip is where they finally become reachable. */
+// Tool strip of latching modes; each id is bound in UIController or app.js.
 const TOOLS = [
   ['btnEditPoints',    'crosshair', 'Edit face points'],
   ['btnSkinMarks',     'pin',       'Skin marks'],
@@ -462,10 +421,7 @@ const TOOLS = [
   ['btnAgeProgression', 'clock',    'Age progression'],
 ];
 
-/* Every tool carries its name as markup rather than relying on the native
-   `title` tooltip. A latching mode strip whose only explanation appears
-   after a second of hovering is a strip nobody reads; the CSS flyout is
-   immediate. `title` stays for assistive technology. */
+// Each tool shows its name in a CSS flyout rather than relying on the slow native tooltip.
 const toolStrip = TOOLS.map((t) => t
   ? `\n          <button type="button" class="k-tool" id="${t[0]}" title="${esc(t[2])}" aria-label="${esc(t[2])}">${icon(t[1])}<span class="k-tool-label">${esc(t[2])}</span></button>`
   : `\n          <div class="k-tool-sep"></div>`

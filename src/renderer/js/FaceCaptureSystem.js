@@ -1,11 +1,4 @@
-/**
- * FaceCaptureSystem.js
- * Guided multi-angle face capture using MediaPipe Face Mesh.
- * Automatically detects face orientation across 7 angles (front, left/right
- * three-quarter, left/right profile, tilt up, tilt down) and walks the user
- * through capturing all views. The captured images are then sent to the AI
- * backend for agentic face reconstruction.
- */
+// Guides the user through photographing their face from seven angles using the webcam, then sends the photos to the AI.
 
 class FaceCaptureSystem {
   constructor(aiController) {
@@ -17,8 +10,7 @@ class FaceCaptureSystem {
     this.canvasCtx = null;
     this.running = false;
 
-    // Capture steps — order the user goes through
-    // Each step defines yaw (horizontal) and pitch (vertical) ranges
+    // The capture steps in order, each with the head angle range it needs.
     this.steps = [
       { id: 'front',       label: 'Front',      icon: 'i-face',           instruction: 'Look straight at the camera',                    yawRange: [-0.15, 0.15],       pitchRange: [-0.15, 0.15] },
       { id: 'left-three',  label: 'Left ¾',     icon: 'i-chevron-left',   instruction: 'Turn slightly LEFT — show your left cheekbone',  yawRange: [0.20, 0.50],        pitchRange: [-0.25, 0.25] },
@@ -41,6 +33,7 @@ class FaceCaptureSystem {
 
   // ── Public API ─────────────────────────────────────────────
 
+  // Opens the camera and the capture overlay and starts detecting the face.
   async start() {
     if (this.running) return;
     this.running = true;
@@ -59,7 +52,7 @@ class FaceCaptureSystem {
       this.videoEl.srcObject = this.stream;
       await this.videoEl.play();
 
-      // Reuse FaceMesh from CDN (already loaded for HeadTracker)
+      // Reuse the FaceMesh library already loaded from the CDN for HeadTracker.
       this.faceMesh = new FaceMesh({
         locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
       });
@@ -74,9 +67,7 @@ class FaceCaptureSystem {
       this._updateUI();
       this._detectLoop();
     } catch (err) {
-      // Tearing the overlay down without a word reads as a dead button, so
-      // say why — a denied permission and an absent camera look identical
-      // from the outside otherwise.
+      // Tell the user why the camera failed instead of silently closing.
       console.error('[FaceCapture] Camera error:', err);
       const reason = err && err.name === 'NotAllowedError'
         ? 'Camera permission denied'
@@ -86,12 +77,14 @@ class FaceCaptureSystem {
     }
   }
 
+  // Stops the capture and closes the overlay.
   cancel() {
     this._cleanup();
   }
 
   // ── Detection loop ─────────────────────────────────────────
 
+  // Sends camera frames to face detection, one after another.
   _detectLoop() {
     if (!this.running) return;
     if (this.videoEl.readyState >= 2) {
@@ -103,6 +96,7 @@ class FaceCaptureSystem {
     }
   }
 
+  // Draws the camera frame and captures the view once the head has held the right angle long enough.
   _onResults(results) {
     if (!this.running) return;
 
@@ -154,6 +148,7 @@ class FaceCaptureSystem {
 
   // ── Pose estimation (yaw + pitch) ─────────────────────────
 
+  // Estimates how far the head is turned left or right.
   _estimateYaw(landmarks) {
     const noseTip   = landmarks[1];
     const leftEdge  = landmarks[234];
@@ -165,6 +160,7 @@ class FaceCaptureSystem {
     return (noseCenterOffset / (faceWidth / 2)) * (Math.PI / 3);
   }
 
+  // Estimates how far the head is tilted up or down.
   _estimatePitch(landmarks) {
     const noseTip   = landmarks[1];   // nose tip
     const forehead  = landmarks[10];  // top of forehead
@@ -179,6 +175,7 @@ class FaceCaptureSystem {
 
   // ── Capture a frame ────────────────────────────────────────
 
+  // Grabs the current camera frame for this step and moves on to the next one.
   _captureFrame(step) {
     // Flash effect
     this._flash();
@@ -209,6 +206,7 @@ class FaceCaptureSystem {
 
   // ── Send to AI ─────────────────────────────────────────────
 
+  // Shows the success state, then sends the photos to the AI.
   _allCaptured() {
     this._setStatus('All angles captured! Sending to AI...', true);
     this._updateProgress(100);
@@ -220,6 +218,7 @@ class FaceCaptureSystem {
     }, 800);
   }
 
+  // Hands the captured photos to the AI assistant and asks it to build the face.
   _sendToAI() {
     if (!this.ai) return;
 
@@ -253,6 +252,7 @@ class FaceCaptureSystem {
 
   // ── Overlay UI ─────────────────────────────────────────────
 
+  // Builds the capture overlay with its video, steps and thumbnails.
   _buildOverlay() {
     if (this.overlay) this.overlay.remove();
 
@@ -336,6 +336,7 @@ class FaceCaptureSystem {
     document.addEventListener('keydown', this._onKeyDown);
   }
 
+  // Updates the instructions and step markers for the current step.
   _updateUI() {
     if (!this.overlay) return;
 
@@ -359,6 +360,7 @@ class FaceCaptureSystem {
     });
   }
 
+  // Shows a status message in the overlay.
   _setStatus(text, success) {
     const el = this.overlay?.querySelector('.fc-status-text');
     if (el) {
@@ -367,6 +369,7 @@ class FaceCaptureSystem {
     }
   }
 
+  // Updates the circular hold-progress ring.
   _updateProgress(pct) {
     const circle = this.overlay?.querySelector('.fc-progress-fill');
     if (!circle) return;
@@ -382,6 +385,7 @@ class FaceCaptureSystem {
     }
   }
 
+  // Shows the captured photo in its step's thumbnail.
   _renderThumbnail(stepIndex, dataUrl) {
     const thumb = this.overlay?.querySelector(`.fc-thumb[data-step="${stepIndex}"]`);
     if (!thumb) return;
@@ -392,6 +396,7 @@ class FaceCaptureSystem {
     thumb.appendChild(img);
   }
 
+  // Plays a quick camera-flash effect.
   _flash() {
     const flash = document.createElement('div');
     flash.className = 'fc-flash';
@@ -399,6 +404,7 @@ class FaceCaptureSystem {
     setTimeout(() => flash.remove(), 350);
   }
 
+  // Draws a few key face landmarks over the video.
   _drawLandmarks(landmarks, inRange) {
     const w = this.canvasEl.width;
     const h = this.canvasEl.height;
@@ -420,6 +426,7 @@ class FaceCaptureSystem {
 
   // ── Cleanup ────────────────────────────────────────────────
 
+  // Stops the camera and detection and removes the overlay.
   _cleanup() {
     this.running = false;
     if (this._onKeyDown) {

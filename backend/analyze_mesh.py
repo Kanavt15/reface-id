@@ -1,35 +1,4 @@
-"""
-analyze_mesh.py – Trimesh-based facial region classification for head.glb
-
-Coordinate system: Y-up (glTF standard)
-  X = left / right  (symmetric)
-  Y = up / down     (height, positive = top of head)
-  Z = front / back  (positive = face front / nose)
-
-Generates head_regions.json consumed by OBJMorpher.js and HairSystem.js.
-
-Region IDs:
-   0  SCALP        Top / back of head (hair growth area)
-   1  FOREHEAD     Upper face between brows and scalp
-   2  BROW         Brow ridge
-   3  EYE_LEFT     Left eye socket
-   4  EYE_RIGHT    Right eye socket
-   5  NOSE_BRIDGE  Upper nose
-   6  NOSE_TIP     Lower nose tip
-   7  NOSE_BASE    Nostrils / base of nose
-   8  CHEEKBONE    Upper cheek near eye
-   9  CHEEKS       Mid / lower cheek
-  10  UPPER_LIP    Above mouth
-  11  LOWER_LIP    Below mouth
-  12  MOUTH_AREA   Corners of mouth
-  13  JAW          Lower jaw line
-  14  JAW_ANGLE    Side of jaw
-  15  CHIN         Bottom of chin
-  16  EAR_LEFT     Left ear
-  17  EAR_RIGHT    Right ear
-  18  NECK         Neck below jaw
-  19  BACK_HEAD    Back of skull
-"""
+"""Sorts every vertex of head.glb into one of 20 face regions (by position and normal, Y up, +Z front) and writes head_regions.json for the app."""
 
 import trimesh
 import numpy as np
@@ -37,11 +6,7 @@ import json
 import os
 import sys
 
-# Half-width of the reference head, measured off head.glb. Every lateral
-# threshold in classify_vertices() is expressed in these units, so this is the
-# number that makes x_scale exactly 1.0 for the mesh those thresholds were
-# tuned against -- carrying the full precision keeps the reclassification of
-# the shipped model at zero vertices rather than a handful of boundary flips.
+# Half-width of the reference head; x thresholds below are in these units, so the shipped model classifies exactly as before.
 REFERENCE_HALF_WIDTH = 0.9566180109977722
 
 REGION_NAMES = [
@@ -54,7 +19,7 @@ REGION_NAMES = [
 
 
 def classify_vertices(vertices, normals):
-    """Assign each vertex a region ID based on position + normal in Y-up coords."""
+    """Assigns each vertex a region ID from its position and normal."""
     n = len(vertices)
     regions = np.full(n, 9, dtype=np.int32)  # default = CHEEKS
 
@@ -78,20 +43,7 @@ def classify_vertices(vertices, normals):
     # Normalized coordinates 0..1
     rel_y = (y - y_min) / height     # 0 = bottom, 1 = top
     rel_z = (z - z_min) / depth      # 0 = back, 1 = front
-    # Lateral coordinates are rescaled into REFERENCE-HEAD units before any
-    # threshold below sees them.
-    #
-    # rel_y and rel_z are normalised 0..1, but the x thresholds were raw
-    # literals (0.08, 0.25, 0.42 ...) that silently assumed the reference
-    # head's 1.913-unit width. On a mesh of any other scale every one of them
-    # misclassifies -- which would have blocked a base-mesh swap, since the
-    # region map has to be rebuilt for whatever mesh replaces head.glb.
-    #
-    # Rescaling here rather than renormalising the thresholds is deliberate:
-    # on the reference head x_scale is exactly 1.0, so this is a no-op and the
-    # shipped head_regions.json stays bit-identical. The literals also keep
-    # their tuned meaning as measurements of a real head, instead of becoming
-    # a table of six-decimal fractions nobody can sanity-check.
+    # Rescale x into reference-head units so the thresholds work on a head of any size.
     half_width = max(abs(x_min), abs(x_max)) or REFERENCE_HALF_WIDTH
     x_scale = REFERENCE_HALF_WIDTH / half_width
     xs = x * x_scale                 # signed, for the left/right splits
@@ -165,17 +117,7 @@ def classify_vertices(vertices, normals):
 
 
 def main():
-    """Regenerate the region map.
-
-    Paths are arguments now, and default to the real location of the model.
-    They were hardcoded to assets/models/head.glb, which stopped existing when
-    the models were reorganised into base/ — so this script could not be run at
-    all, which matters a great deal the moment the base mesh is replaced and
-    the region map has to be rebuilt for it.
-
-        python backend/analyze_mesh.py
-        python backend/analyze_mesh.py candidate.glb candidate_regions.json
-    """
+    """Rebuilds the region map; run `python backend/analyze_mesh.py [model.glb] [output.json]`."""
     repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     default_src = os.path.join(repo, 'assets', 'models', 'base', 'head.glb')
     default_dst = os.path.join(repo, 'assets', 'models', 'base', 'head_regions.json')

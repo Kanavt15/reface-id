@@ -1,17 +1,5 @@
 #!/usr/bin/env node
-/**
- * verify-ui.js — prove the regenerated interface still satisfies every
- * contract the engine binds to.
- *
- * The UI was rebuilt from scratch; the application logic was not. This
- * checks the seam between them:
- *
- *   · every element id resolved via getElementById() in js/ exists
- *   · every selector queried via querySelector(All) matches something
- *   · the structural shapes UIController walks are intact
- *
- *   node scripts/verify-ui.js
- */
+// Checks the generated index.html still has everything the app code relies on: ids, selectors and structure; run with `node scripts/verify-ui.js`.
 'use strict';
 
 const fs = require('fs');
@@ -22,8 +10,7 @@ const ROOT = path.join(__dirname, '..');
 const JS_DIR = path.join(ROOT, 'src', 'renderer', 'js');
 const HTML = path.join(ROOT, 'src', 'renderer', 'index.html');
 
-/* Files that were deleted in the rebuild — ids only they referenced are
-   not part of the contract any more. */
+// Files removed in the rebuild; ids only they used don't count.
 const DELETED = new Set(['EditorLayout.js', 'ui-shell.js']);
 
 const $ = cheerio.load(fs.readFileSync(HTML, 'utf8'));
@@ -31,27 +18,26 @@ const $ = cheerio.load(fs.readFileSync(HTML, 'utf8'));
 let fail = 0, pass = 0;
 const problems = [];
 
+// Records one check as passed or failed.
 function check(ok, label, detail) {
   if (ok) { pass++; return; }
   fail++;
   problems.push(detail ? `${label}\n      ${detail}` : label);
 }
 
-/* ── 1 · Element ids ──────────────────────────────────────────────────── */
+// 1. Element ids
 
 const idOwners = {};
 for (const f of fs.readdirSync(JS_DIR)) {
   if (!f.endsWith('.js') || DELETED.has(f)) continue;
   const src = fs.readFileSync(path.join(JS_DIR, f), 'utf8');
-  /* The closing paren is required so `getElementById('panel-' + key)` is
-     skipped rather than recorded as an id literally called "panel-". */
+  // Require the closing paren so built ids like 'panel-' + key are skipped.
   for (const m of src.matchAll(/getElementById\(\s*['"`]([^'"`]+)['"`]\s*\)/g)) {
     (idOwners[m[1]] ||= new Set()).add(f);
   }
 }
 
-/* Collect ids from the document once and compare as strings — ids here
-   contain characters (dots, colons) that would need CSS escaping. */
+// Compare ids as plain strings, since some contain characters CSS would need escaped.
 const presentIds = new Set($('[id]').map((_, e) => $(e).attr('id')).get());
 
 const missingIds = [];
@@ -65,19 +51,14 @@ check(missingIds.length === 0,
   `element ids  (${Object.keys(idOwners).length} referenced)`,
   missingIds.join('\n      '));
 
-/* ── 1b · Indirect id references ──────────────────────────────────────────
-   Not every lookup is a getElementById with a literal. app.js builds
-   SceneManager('viewport-canvas'), and the id only reaches the DOM through
-   a constructor argument. Rather than try to trace those, this compares
-   against the pre-rebuild document: any bare string in the JS that named
-   an element back then must still name one now. */
+// 1b. Ids passed indirectly (such as to a constructor) must still exist if they existed in the old document.
 
 const LEGACY = path.join(__dirname, 'index.legacy.html');
 if (fs.existsSync(LEGACY)) {
   const $old = cheerio.load(fs.readFileSync(LEGACY, 'utf8'));
   const legacyIds = new Set($old('[id]').map((_, e) => $old(e).attr('id')).get());
 
-  /* Ids that belonged to the deleted layout layer are not expected back. */
+  // Ids from the removed layout layer.
   const retired = new Set([
     'rf-toggle-dock', 'rf-toggle-inspector', 'rf-vp-lighting', 'rf-vp-recal',
     'rf-vp-wireframe', 'rf-viewport-info-strip', 'rf-mode-badge', 'rf-poly-count',
@@ -103,12 +84,9 @@ if (fs.existsSync(LEGACY)) {
     [...indirect].map(([id, f]) => `${id}  ← ${f}`).join('\n      '));
 }
 
-/* ── 2 · Selectors ────────────────────────────────────────────────────── */
+// 2. Selectors
 
-/* Selectors that legitimately match nothing in the static document
-   because the elements are created by JS at runtime (the face-capture
-   overlay, the beard-defaults editor, snapshot and decal tiles), or
-   because they name a state class applied later. */
+// Selectors that only match elements created at runtime, or state classes added later.
 const RUNTIME_ONLY = [
   /^\.fc-/,            /* FaceCaptureSystem builds its own overlay      */
   /^\.bd-/,            /* beard-defaults rows, built per style          */
@@ -119,20 +97,16 @@ const RUNTIME_ONLY = [
   /rf-method-selected/, /* state class toggled after load                */
   /^\.status-dot\.connected$/, /* backend state, only true once online   */
 
-  /* k-workbench.js grows these onto controls after boot: the per-row pin
-     and revert buttons, the per-group edited count, and two state classes
-     that are only ever true once something has happened. */
+  // Classes k-workbench adds to controls after boot.
   /^\.k-row-/,
   /^\.k-grp-n$/,
   /^\.slider-control\.k-modified$/,
   /^\.k-modal\.open$/,
 ];
 
-/* Selectors that matched nothing in the legacy document either — dead
-   code that predates this rebuild and is out of its scope. */
+// Selectors that matched nothing in the old document either.
 const PRE_EXISTING_DEAD = [
   '#hairStyleCards .style-card',   /* container has never existed        */
-  '#left-panel .control-group',    /* removed with the old dock          */
 ];
 
 const selectors = new Set();
@@ -159,7 +133,7 @@ check(deadSelectors.length === 0,
   `selectors  (${selectors.size} distinct)`,
   deadSelectors.join('\n      '));
 
-/* ── 3 · Structural invariants ────────────────────────────────────────── */
+// 3. Structure
 
 /* Collapse works via header.nextElementSibling. */
 let badCollapse = [];
@@ -186,9 +160,7 @@ $('.control-group-body, .sub-group-body').each((_, b) => {
 });
 check(badWrap.length === 0, 'group bodies wrap a single child', badWrap.join('\n      '));
 
-/* Every slider needs an input, and every *morph* slider additionally needs
-   the readout that bindMorphSliders() writes into. Brush sliders addressed
-   purely by id never had one. */
+// Every slider needs an input, and morph sliders also need a value readout.
 let badSliders = [];
 $('.slider-control').each((_, s) => {
   const param = $(s).attr('data-param');
@@ -243,11 +215,7 @@ const stale = ['tokens.css', 'layout.css', 'components.css', 'panels.css',
   .filter((s) => html.includes(s));
 check(stale.length === 0, 'no references to removed assets', stale.join(', '));
 
-/* ── Carried-over markup must actually be styled ───────────────────────────
-   Roughly thirty blocks come through the inventory as markup and keep the
-   old document's class names. If nothing in the stylesheets mentions one of
-   those classes it renders unstyled — which is how the assist panel ended up
-   showing a raw file input and a row of bare text where its buttons were. */
+// Every class carried over from the old markup must be styled somewhere, or it renders bare.
 
 const CSS_TEXT = ['base', 'shell', 'controls', 'overlays', 'carried']
   .map((f) => {
@@ -270,8 +238,7 @@ check(unstyled.length === 0,
   `carried classes have styles  (${carriedClasses.size} in use)`,
   unstyled.join(', '));
 
-/* Icon-font tags cannot survive: the font is gone, so each one renders as
-   an empty box where a glyph should be. */
+// FontAwesome is gone, so any icon-font tag left would render as an empty box.
 const faLeft = (html || fs.readFileSync(HTML, 'utf8')).match(/<i[^>]*class="[^"]*\bfa-/g) || [];
 check(faLeft.length === 0,
   'no icon-font tags remain',

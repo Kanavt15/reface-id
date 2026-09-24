@@ -1,21 +1,4 @@
-/**
- * SnapshotManager.js
- * Named snapshots of the face state, so an operator can save and return to
- * specific stages of a reconstruction.
- *
- * Storage is the backend SQLite database, addressed by the case id. It used
- * to be localStorage under a key rebuilt from the case id on every write,
- * with the only read happening once at boot before any case existed — so
- * every snapshot written after that point was stored correctly and never
- * loaded again. Rows in a table with a foreign key make that class of bug
- * unrepresentable.
- *
- * The backend can be down (the app is built to run without it), so captures
- * are written to a localStorage outbox *before* the network call and replayed
- * on reconnect. Each carries a client uuid that the server treats as an
- * idempotency key, so a replay of a write that already landed resolves to the
- * same row instead of duplicating it.
- */
+// Saves named snapshots of the face for each case in the backend database, queuing them locally while the backend is offline.
 
 class SnapshotManager {
   constructor(caseManager, sceneManager, api) {
@@ -23,18 +6,13 @@ class SnapshotManager {
     this.sceneManager = sceneManager;
     this.api = api;
 
-    /* Each entry: { uid, id, name, timestamp, thumbnail, state, pending }
-       - uid      client uuid, stable across the sync boundary; the UI keys on it
-       - id       server row id, null until synced
-       - state    full face state; null for server rows until fetched on demand
-       - pending  true while it exists only in the outbox */
+    // Each entry holds uid (stable client id), id (server row id), name, timestamp, thumbnail, state (loaded on demand) and pending (still queued).
     this.snapshots = [];
     this.maxSnapshots = 100;
 
     this._outboxKey = 'reface_snapshot_outbox';
     this._legacyPrefix = 'reface_snapshots_';
-    // Must match db.PENDING_CASE_ID. Snapshots recovered from localStorage
-    // park here until a case with a real identity opens and adopts them.
+    // Must match db.PENDING_CASE_ID; recovered old snapshots wait here until a real case adopts them.
     this._pendingCaseId = '__pending_migration__';
     this._caseId = null;
     this._flushing = false;
@@ -47,22 +25,7 @@ class SnapshotManager {
 
   // ─── Lifecycle ─────────────────────────────────────────────────────────
 
-  /**
-   * Load the snapshots belonging to the current case.
-   * Call this on boot and after any case change — unlike the old version,
-   * which only ever ran once at startup.
-   */
-  /**
-   * Reload only if the case this panel is showing is no longer the case the
-   * app is on, or if that case has since acquired a real identity.
-   *
-   * The intake flow does not create a case — it fills the case fields on a
-   * template that already exists, so no newCase()/loadCase() hook fires and
-   * nothing would otherwise notice that "Untitled Case" has become 2291-B.
-   * That matters because recovered snapshots are only adopted by a case with
-   * a real identity. Bound to opening the Frames panel, which is the moment
-   * the list actually has to be right.
-   */
+  // Reloads only if the app has moved to another case, or the current case has just been given a real identity.
   async refreshIfCaseChanged() {
     const caseId = this._currentCaseId();
     const real = this._isRealCase();
@@ -71,6 +34,7 @@ class SnapshotManager {
     return true;
   }
 
+  // Loads the current case's snapshots, sending queued ones first and adopting any recovered ones.
   async loadForCurrentCase() {
     const caseId = this._currentCaseId();
     this._caseId = caseId;
@@ -79,15 +43,10 @@ class SnapshotManager {
 
     this._migrateLegacyLocalStorage();
 
-    // Drain the queue before reading. Migration and any offline captures sit
-    // in the outbox, and listing first would show a case that is missing rows
-    // this call is about to write.
+    // Send the queue first so the list includes everything that is about to be written.
     await this.flushOutbox();
 
-    // Hand recovered snapshots to this case if it is a real one. The boot
-    // template is deliberately skipped: it exists for a few seconds before the
-    // operator has filled in anything, and attaching the recovery to it would
-    // strand those snapshots in a case no screen ever opens again.
+    // Only a real case adopts recovered snapshots, never the blank template the app boots with.
     let adopted = 0;
     if (this._isRealCase()) {
       try {
@@ -108,8 +67,7 @@ class SnapshotManager {
 
     this.snapshots = fromServer.map(r => this._fromServer(r));
 
-    // Anything still queued for this case is shown alongside, flagged, so a
-    // capture taken with the backend down is visible rather than apparently lost.
+    // Also show captures still queued for this case, marked as pending.
     for (const item of this._readOutbox()) {
       if (item.caseId !== caseId) continue;
       if (this.snapshots.some(s => s.uid === item.clientUuid)) continue;
@@ -135,10 +93,7 @@ class SnapshotManager {
     return this.snapshots.length;
   }
 
-  /**
-   * Has the operator actually given this case an identity, or is it still the
-   * blank template the app boots with?
-   */
+  // Tells whether the operator has given this case an identity yet.
   _isRealCase() {
     const c = this.caseManager.currentCase;
     return !!(c.caseNumber || '').trim() ||
@@ -147,11 +102,7 @@ class SnapshotManager {
 
   // ─── Capture ───────────────────────────────────────────────────────────
 
-  /**
-   * Capture the current face state as a named snapshot.
-   * Resolves once the snapshot is durable — in the database, or in the outbox
-   * if the backend is unreachable.
-   */
+  // Saves the current face as a named snapshot, in the database or in the offline queue.
   async capture(name) {
     const caseId = this._currentCaseId();
     const state = JSON.parse(JSON.stringify(this.caseManager.currentCase));
@@ -176,8 +127,7 @@ class SnapshotManager {
       pending: true,
     };
 
-    // Queue first, send second. If the app dies between the two the snapshot
-    // is replayed on next boot; the reverse order can lose it outright.
+    // Queue first, send second, so a crash in between can't lose the snapshot.
     this._enqueue({
       clientUuid: entry.uid,
       caseId,
@@ -198,6 +148,7 @@ class SnapshotManager {
 
   // ─── Outbox ────────────────────────────────────────────────────────────
 
+  // Reads the offline queue from local storage.
   _readOutbox() {
     try {
       const raw = localStorage.getItem(this._outboxKey);
@@ -209,31 +160,27 @@ class SnapshotManager {
     }
   }
 
+  // Writes the offline queue to local storage, reporting loudly if storage is full.
   _writeOutbox(items) {
     try {
       localStorage.setItem(this._outboxKey, JSON.stringify(items));
       return true;
     } catch (e) {
-      // The outbox is a staging area, not the store, so it only holds
-      // unsynced items and normally stays small. If it still overflows, say
-      // so loudly rather than dropping a capture silently the way the old
-      // thumbnail-trimming path did.
+      // If the queue can't be written, say so instead of silently dropping the capture.
       console.error('[SnapshotManager] outbox write failed — storage full', e);
       this._status('Snapshot could not be queued: local storage is full.', 'error');
       return false;
     }
   }
 
+  // Adds a capture to the offline queue.
   _enqueue(payload) {
     const items = this._readOutbox();
     items.push(payload);
     this._writeOutbox(items);
   }
 
-  /**
-   * Push every queued capture to the database, oldest first.
-   * Stops at the first transport failure so ordering is preserved.
-   */
+  // Sends every queued capture to the database, oldest first, stopping at the first network failure.
   async flushOutbox() {
     if (this._flushing) return;
     this._flushing = true;
@@ -269,8 +216,7 @@ class SnapshotManager {
             offline = true;
             remaining.push(item);
           } else {
-            // A rejection is not a transport problem — retrying forever would
-            // wedge the queue behind one bad row. Drop it and report.
+            // A rejected snapshot would block the queue forever, so drop it and report it.
             console.error('[SnapshotManager] snapshot rejected, dropping', item.name, err);
             this._status(`Snapshot "${item.name}" could not be saved: ${err.message}`, 'error');
             const local = this.snapshots.findIndex(s => s.uid === item.clientUuid);
@@ -291,11 +237,7 @@ class SnapshotManager {
 
   // ─── Read ──────────────────────────────────────────────────────────────
 
-  /**
-   * Full state for one snapshot, fetched on demand.
-   * The list call omits state so that rendering a case with 100 snapshots
-   * does not haul 100 face states across the wire.
-   */
+  // Fetches one snapshot's full state; the list leaves it out to stay light.
   async getFullState(uid) {
     const entry = this.snapshots.find(s => s.uid === uid);
     if (!entry) return null;
@@ -312,11 +254,7 @@ class SnapshotManager {
     }
   }
 
-  /**
-   * Restore a snapshot into the current case.
-   * The current state goes onto the undo stack first, so a restore is itself
-   * reversible.
-   */
+  // Restores a snapshot into the current case, putting the current state on the undo stack first.
   async restore(uid) {
     const state = await this.getFullState(uid);
     if (!state) return null;
@@ -324,18 +262,14 @@ class SnapshotManager {
     this.caseManager.pushState('Before snapshot restore');
 
     const restored = JSON.parse(JSON.stringify(state));
-    // A snapshot is a stage of *this* case, not a different case. Keeping the
-    // live case id stops a restore from silently re-filing the case — and its
-    // snapshots — under whatever id the state was captured with.
+    // Keep the live case id so restoring never moves the case under another id.
     restored.caseId = this._currentCaseId();
     this.caseManager.currentCase = restored;
 
     return restored;
   }
 
-  /**
-   * Lightweight list for the UI. No state blobs.
-   */
+  // Returns a light list of snapshots for the UI, without the full states.
   getList() {
     return this.snapshots.map(s => ({
       uid: s.uid,
@@ -352,6 +286,7 @@ class SnapshotManager {
 
   // ─── Mutate ────────────────────────────────────────────────────────────
 
+  // Renames a snapshot, rolling back if the database refuses.
   async rename(uid, newName) {
     const entry = this.snapshots.find(s => s.uid === uid);
     if (!entry) return false;
@@ -364,8 +299,7 @@ class SnapshotManager {
     this._notify();
 
     if (entry.pending) {
-      // Still queued — rewrite it in place so the eventual insert carries the
-      // new name rather than the one it was captured with.
+      // Still queued, so rename it in the queue too.
       const items = this._readOutbox();
       const queued = items.find(i => i.clientUuid === uid);
       if (queued) { queued.name = name; this._writeOutbox(items); }
@@ -383,6 +317,7 @@ class SnapshotManager {
     }
   }
 
+  // Deletes a snapshot from the database or the queue.
   async delete(uid) {
     const idx = this.snapshots.findIndex(s => s.uid === uid);
     if (idx === -1) return false;
@@ -406,6 +341,7 @@ class SnapshotManager {
     }
   }
 
+  // Deletes every snapshot for the current case.
   async deleteAll() {
     const caseId = this._currentCaseId();
     try {
@@ -422,14 +358,7 @@ class SnapshotManager {
 
   // ─── Export / Import ───────────────────────────────────────────────────
 
-  /**
-   * Write one snapshot to a .json file the operator chooses.
-   *
-   * This used to build a blob URL and click a synthetic <a download>. Electron
-   * has a real save dialog over IPC, which gives the operator a path they
-   * chose and an error they can see; the anchor route is kept only for
-   * running the renderer in a plain browser.
-   */
+  // Saves one snapshot to a .json file through the Electron save dialog, with a browser download as fallback.
   async exportToFile(uid) {
     const entry = this.snapshots.find(s => s.uid === uid);
     if (!entry) return false;
@@ -484,10 +413,7 @@ class SnapshotManager {
     return true;
   }
 
-  /**
-   * Import a snapshot from a .json file. Accepts both the current format and
-   * the older shape, which wrapped the same fields without a formatVersion.
-   */
+  // Imports a snapshot from a .json file, accepting both the current and the older format.
   async importFromFile() {
     const file = await this._pickFile();
     if (!file) return null;
@@ -534,6 +460,7 @@ class SnapshotManager {
     return { uid: entry.uid, name: entry.name, timestamp: entry.timestamp };
   }
 
+  // Opens a file picker and resolves with the chosen file, or null if cancelled.
   _pickFile() {
     return new Promise((resolve) => {
       const input = document.createElement('input');
@@ -551,8 +478,7 @@ class SnapshotManager {
       };
 
       input.addEventListener('change', () => finish(input.files[0] || null));
-      // 'cancel' is not fired by every runtime; the focus fallback keeps the
-      // promise from hanging forever and leaking the input into the document.
+      // Not every runtime fires 'cancel', so a focus fallback stops the promise hanging.
       input.addEventListener('cancel', () => finish(null));
       window.addEventListener('focus', () => setTimeout(() => finish(null), 500),
         { once: true });
@@ -563,15 +489,7 @@ class SnapshotManager {
 
   // ─── Migration ─────────────────────────────────────────────────────────
 
-  /**
-   * Move snapshots left behind by the localStorage era into the outbox, from
-   * which the normal flush files them into the database.
-   *
-   * Every historical key is swept, including the "_default" bucket that
-   * everything actually landed in, because the case id was never assigned.
-   * Migrated keys are renamed rather than deleted — if something goes wrong
-   * the original payload is still on disk.
-   */
+  // Moves snapshots from the old localStorage storage into the queue, renaming the old keys instead of deleting them.
   _migrateLegacyLocalStorage() {
     let keys;
     try {
@@ -597,9 +515,7 @@ class SnapshotManager {
 
       for (const old of list) {
         if (!old || !old.state) continue;
-        // Deterministic uuid from the legacy key and row id: re-running the
-        // migration cannot produce a second copy, because the server treats
-        // this as the idempotency key.
+        // A fixed id per old snapshot means running the migration twice can't create a duplicate.
         const uid = `legacy-${key}-${old.id}`;
         if (queued.some(i => i.clientUuid === uid)) continue;
 
@@ -632,17 +548,18 @@ class SnapshotManager {
 
   // ─── Helpers ───────────────────────────────────────────────────────────
 
+  // Returns the current case id, creating one if an old case file has none.
   _currentCaseId() {
     let id = this.caseManager.currentCase.caseId;
     if (!id) {
-      // Should not happen now that CaseManager mints one up front, but a case
-      // loaded from an old .rfc file can still arrive without one.
+      // Older .rfc files can arrive without an id.
       id = CaseManager.newCaseId();
       this.caseManager.currentCase.caseId = id;
     }
     return id;
   }
 
+  // Returns the case number and name sent along with snapshots.
   _caseMeta() {
     const c = this.caseManager.currentCase;
     return {
@@ -654,6 +571,7 @@ class SnapshotManager {
     };
   }
 
+  // Converts a database row into a snapshot entry.
   _fromServer(row) {
     return {
       uid: row.clientUuid || `server-${row.id}`,
@@ -666,6 +584,7 @@ class SnapshotManager {
     };
   }
 
+  // Converts a date string or number to milliseconds.
   _toMs(value) {
     if (!value) return 0;
     if (typeof value === 'number') return value;
@@ -673,6 +592,7 @@ class SnapshotManager {
     return Number.isNaN(parsed) ? 0 : parsed;
   }
 
+  // Sorts snapshots by time and drops the oldest past the limit.
   _sort() {
     this.snapshots.sort((a, b) => a.timestamp - b.timestamp);
     if (this.snapshots.length > this.maxSnapshots) {
@@ -680,6 +600,7 @@ class SnapshotManager {
     }
   }
 
+  // Makes a unique id for a new snapshot.
   _uuid() {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
       return crypto.randomUUID();
@@ -688,15 +609,7 @@ class SnapshotManager {
            Math.random().toString(36).slice(2, 10);
   }
 
-  /**
-   * UTF-8 text to base64, for the save-buffer IPC channel.
-   *
-   * btoa is latin1-only, so the string has to be encoded to bytes first or a
-   * non-ASCII character in a case name corrupts the file. The bytes are then
-   * walked in chunks: a snapshot carrying pigment or wrinkle paint data runs
-   * to several megabytes, and String.fromCharCode(...bytes) on an array that
-   * size overflows the argument limit and throws.
-   */
+  // Encodes UTF-8 text as base64 in chunks, so non-English names and large snapshots both work.
   _toBase64(text) {
     const bytes = new TextEncoder().encode(text);
     const CHUNK = 0x8000;
@@ -707,12 +620,12 @@ class SnapshotManager {
     return btoa(binary);
   }
 
+  // Renders the current view into a small 4:3 thumbnail.
   _generateThumbnail() {
     this.sceneManager.renderFrame();
     const fullCanvas = this.sceneManager.canvas;
 
-    // 4:3, matching the aspect the card reserves for it — the old 120x90 was
-    // drawn into a 3/4 portrait slot and cropped.
+    // 4:3 to match the space the snapshot card leaves for it.
     const thumbW = 160;
     const thumbH = 120;
     const offscreen = document.createElement('canvas');
@@ -723,11 +636,13 @@ class SnapshotManager {
     return offscreen.toDataURL('image/jpeg', 0.7);
   }
 
+  // Shows a status message to the operator, or logs it.
   _status(message, kind = 'info') {
     if (typeof this.onStatus === 'function') this.onStatus(message, kind);
     else console.log(`[SnapshotManager] ${message}`);
   }
 
+  // Tells the UI that the snapshot list changed.
   _notify() {
     if (typeof this.onSnapshotsChanged === 'function') {
       this.onSnapshotsChanged(this.getList());

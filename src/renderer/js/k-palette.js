@@ -1,27 +1,10 @@
-/**
- * ReFace ID — k-palette.js
- *
- * Ctrl/Cmd+K. Type a few letters, land on the control.
- *
- * ── Why this exists ───────────────────────────────────────────────────────
- * There are close to two hundred parameters spread over seven sections and
- * roughly fifty collapsible groups. Finding "nostril flare" by opening
- * sections and scrolling is the single worst thing about a tool this dense,
- * and no amount of grouping fixes it — the operator has to already know
- * where it lives.
- *
- * The palette indexes everything once at boot: every slider, every style
- * card, every colour row, every tool. Choosing a result switches to the
- * right section, expands the groups the control is nested inside, scrolls
- * it into view and flashes the row.
- *
- * The index is built from the DOM, so it can never drift from what is
- * actually on screen.
- */
+// Ctrl/Cmd+K command palette: type a few letters to jump straight to any control.
 ;(function KPalette() {
   'use strict';
 
+  // Finds the first element matching a selector.
   const $  = (s, r = document) => r.querySelector(s);
+  // Finds all elements matching a selector, as an array.
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 
   const SECTION_LABEL = {
@@ -37,19 +20,16 @@
 
   /* ══ Index ═════════════════════════════════════════════════════════════ */
 
+  // Returns which section a control belongs to.
   function sectionOf(node) {
     const panel = node.closest('.panel-content');
     if (panel) return panel.id.replace(/^panel-/, '');
-    /* A control pinned to the bench has been moved out of its section, so
-       walking up finds no panel. k-workbench stamps the section it came
-       from on the way out; without reading it back, pinning a parameter
-       would quietly remove it from the palette. */
+    // Pinned controls have left their section, so read the section k-workbench stored on them.
     if (node.closest('.k-bench')) return node.dataset.kSection || null;
     return null;
   }
 
-  /* The trail of groups a control sits inside — shown as context in the
-     result row, and used to expand the right things on the way there. */
+  // Lists the groups a control sits inside, shown as context and opened on the way to it.
   function trailOf(node) {
     const parts = [];
     let n = node;
@@ -63,6 +43,7 @@
     return parts;
   }
 
+  // Adds one control to the search index.
   function add(node, name, kind, icon) {
     const section = sectionOf(node);
     if (!section || !name) return;
@@ -75,6 +56,7 @@
     });
   }
 
+  // Indexes every slider, style card, colour row and tool on the page.
   function build() {
     index = [];
 
@@ -105,14 +87,12 @@
       if (span) add(r, span.textContent.trim(), 'Toggle', 'check');
     });
 
-    /* Group headings are worth finding on their own — "forehead" should
-       take you to the forehead group even though no slider is called it. */
+    // Group headings are searchable too, so "forehead" finds the forehead group.
     $$('.control-group-header > span, .sub-group-header > span').forEach((s) => {
       add(s.parentElement, s.textContent.trim(), 'Group', 'chevron-down');
     });
 
-    /* Tools live on the stage, not in the sheet, so they are indexed from
-       their own list with an explicit section. */
+    // Tools live on the stage, not in the sheet, so they are indexed separately.
     $$('.k-tool, .k-dock-btn').forEach((b) => {
       const name = (b.getAttribute('title') || b.textContent || '').trim();
       if (!name) return;
@@ -123,11 +103,9 @@
     });
   }
 
-  /* ══ Search ════════════════════════════════════════════════════════════
-     Substring, ranked. Deliberately not fuzzy: with two hundred similarly
-     named parameters ("width", "height", "depth" repeat across a dozen
-     features) fuzzy matching returns everything and ranks nothing. */
+  // Search: plain substring matching, because fuzzy matching would match almost everything here.
 
+  // Ranks index entries by where the search text appears.
   function search(q) {
     const needle = q.trim().toLowerCase();
     if (!needle) return index.slice(0, 40);
@@ -153,6 +131,7 @@
 
   /* ══ Render ════════════════════════════════════════════════════════════ */
 
+  // Highlights the matched part of a name.
   function mark(name, at, len) {
     if (at < 0) return escapeHtml(name);
     return escapeHtml(name.slice(0, at)) +
@@ -160,11 +139,13 @@
       escapeHtml(name.slice(at + len));
   }
 
+  // Escapes text so it is safe to put in HTML.
   function escapeHtml(s) {
     return String(s).replace(/[&<>"]/g, (c) =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   }
 
+  // Shows the results for the current search.
   function render(q) {
     results = search(q);
     cursor = 0;
@@ -186,6 +167,7 @@
     }).join('');
   }
 
+  // Moves the highlighted result up or down.
   function moveCursor(delta) {
     const items = $$('.k-palette-item', el.results);
     if (!items.length) return;
@@ -198,6 +180,7 @@
 
   /* ══ Go ════════════════════════════════════════════════════════════════ */
 
+  // Jumps to the chosen control: switches section, opens its groups, scrolls to it and flashes it.
   function go(r) {
     close();
     if (!r) return;
@@ -205,14 +188,12 @@
     /* A tool is on the stage — just press it. */
     if (!r.section) { r.node.click(); return; }
 
-    /* Switch section by clicking the real tab, so UIController's own
-       handler does the work and nothing here duplicates it. */
+    // Click the real tab so UIController does the switch itself.
     const tab = $(`.panel-tab[data-panel="${r.section}"]`);
     if (tab && !tab.classList.contains('active')) tab.click();
     document.body.classList.remove('k-sheet-closed');
 
-    /* Expand every collapsed ancestor, otherwise the control is scrolled
-       to inside a zero-height container. */
+    // Open every collapsed parent, or we would scroll to something with zero height.
     let n = r.node;
     while (n && n !== document.body) {
       if (n.classList?.contains('control-group-body') || n.classList?.contains('sub-group-body')) {
@@ -222,8 +203,7 @@
       n = n.parentElement;
     }
 
-    /* Two frames: one for the section swap, one for the expansions to
-       take their height. */
+    // Wait two frames: one for the section switch, one for the groups to open.
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const target = r.node.closest('.slider-control, .color-picker-row, .select-control, .input-control, .feature-sub-group, .control-group') || r.node;
       const scroller = $('#k-sheet-body');
@@ -248,6 +228,7 @@
 
   /* ══ Open / close ══════════════════════════════════════════════════════ */
 
+  // Opens the palette with an empty search.
   function open() {
     if (!index.length) build();
     el.root.classList.add('open');
@@ -256,6 +237,7 @@
     el.input.focus();
   }
 
+  // Closes the palette.
   function close() {
     el.root.classList.remove('open');
     el.input.blur();
@@ -263,6 +245,7 @@
 
   /* ══ Bind ══════════════════════════════════════════════════════════════ */
 
+  // Finds the palette elements and binds the shortcut and events.
   function init() {
     el.root = $('#k-palette');
     el.input = $('#k-palette-input');
@@ -305,8 +288,7 @@
       }
     });
 
-    /* Rebuild after the engine has finished populating any grids it fills
-       at runtime, so those entries are searchable too. */
+    // Rebuild the index later so grids filled at runtime are searchable too.
     setTimeout(build, 1500);
 
     console.log('[KPalette] ready');

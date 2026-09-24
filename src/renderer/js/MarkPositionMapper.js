@@ -1,24 +1,11 @@
-/**
- * MarkPositionMapper.js
- * Converts face region + offset coordinates (from AI) to 3D world positions on the face mesh.
- * Supports regions like "cheek", "nose", "chin" with normalized offsets (-1 to 1).
- */
+// Turns an AI mark description (region, side, offset) into a point on the face mesh.
 
 class MarkPositionMapper {
   constructor(objMorpher) {
     this.morpher = objMorpher;
   }
 
-  /**
-   * Map a facial mark from region + side + offset to world position.
-   *
-   * @param {string} region - Region name (cheek, nose, chin, temple, forehead, jaw, mouth, ear, eye, brow, bridge)
-   * @param {string} side - Side: 'left', 'right', or 'center'
-   * @param {number} offsetX - Normalized offset X (-1 to 1, where 0 = center of region)
-   * @param {number} offsetY - Normalized offset Y (-1 to 1, where 0 = center of region)
-   * @param {number} size - Mark size (0.01-0.1)
-   * @returns {object} { position: [x, y, z], normal: [nx, ny, nz] } or null if invalid
-   */
+  // Maps a mark's region, side and offset to a world position and surface normal.
   mapMarkPosition(region, side, offsetX, offsetY, size) {
     if (!this.morpher || !this.morpher.meshes) return null;
 
@@ -26,15 +13,12 @@ class MarkPositionMapper {
     offsetX = Math.max(-1, Math.min(1, offsetX || 0));
     offsetY = Math.max(-1, Math.min(1, offsetY || 0));
 
-    // Get landmark positions for the region
     const landmarks = this._getRegionLandmarks(region, side);
     if (!landmarks || landmarks.length === 0) return null;
 
-    // Calculate center of region from landmarks
     const center = this._calculateRegionCenter(landmarks);
     if (!center) return null;
 
-    // Calculate region bounds
     const bounds = this._calculateRegionBounds(landmarks);
 
     // Apply offset to center
@@ -42,11 +26,9 @@ class MarkPositionMapper {
     offsetPos.x += offsetX * bounds.width * 0.5;
     offsetPos.y += offsetY * bounds.height * 0.5;
 
-    // Project position onto face mesh surface
     const surfacePoint = this._projectOntoSurface(offsetPos);
     if (!surfacePoint) return null;
 
-    // Estimate surface normal
     const normal = this._estimateSurfaceNormal(surfacePoint.position);
     if (!normal) return null;
 
@@ -56,6 +38,7 @@ class MarkPositionMapper {
     };
   }
 
+  // Returns the landmark positions that make up a face region, filtered by side.
   _getRegionLandmarks(region, side) {
     const landmarks = OBJMorpher.LANDMARKS;
     const region_lower = region.toLowerCase();
@@ -93,6 +76,7 @@ class MarkPositionMapper {
       .filter(pos => pos !== undefined);
   }
 
+  // Averages the landmarks to find the region's centre.
   _calculateRegionCenter(landmarks) {
     if (!landmarks || landmarks.length === 0) return null;
 
@@ -106,6 +90,7 @@ class MarkPositionMapper {
     return center;
   }
 
+  // Measures the width and height of the region.
   _calculateRegionBounds(landmarks) {
     if (!landmarks || landmarks.length === 0) return { width: 0.1, height: 0.1 };
 
@@ -125,6 +110,7 @@ class MarkPositionMapper {
     };
   }
 
+  // Snaps a point onto the face surface with a ray, or returns it unchanged if nothing is hit.
   _projectOntoSurface(worldPos) {
     if (!this.morpher || !this.morpher.meshes) return null;
 
@@ -149,6 +135,7 @@ class MarkPositionMapper {
     return { position: worldPos.clone() };
   }
 
+  // Estimates the surface normal at a point on the face.
   _estimateSurfaceNormal(position) {
     if (!this.morpher || !this.morpher.meshes) return null;
 

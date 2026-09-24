@@ -1,22 +1,7 @@
-/**
- * TurntableRecorder.js – export a rotating clip of the reconstruction.
- *
- * A still image gives one view of a face. Moving footage gives structure:
- * recognition of an unfamiliar face is measurably better from a rotating view
- * than from a single frame, because the motion reveals depth and profile that
- * a front-on still flattens away. A 3D tool can produce that trivially, which
- * a sketch artist cannot — so it is capability the app already has and was not
- * using.
- *
- * Recorded straight off the WebGL canvas with MediaRecorder, which is built
- * into Chromium. No encoder dependency, nothing to install, works offline.
- *
- * Two consequences of capturing the canvas rather than the window, both
- * wanted: the reference photo overlay is a DOM layer so it never leaks into
- * the clip, and neither does any UI chrome.
- */
+// Records a rotating video of the head straight from the 3D canvas.
 
 class TurntableRecorder {
+  // Default settings for a recording.
   static get DEFAULTS() {
     return {
       duration: 6,     // seconds for a full pass
@@ -32,13 +17,14 @@ class TurntableRecorder {
     this.onProgress = null;   // (fraction 0..1) => void
   }
 
-  /** Chromium always has these, but fail loudly rather than mysteriously. */
+  // Checks that the browser can record the canvas.
   static isSupported() {
     return typeof MediaRecorder !== 'undefined' &&
       typeof HTMLCanvasElement !== 'undefined' &&
       typeof HTMLCanvasElement.prototype.captureStream === 'function';
   }
 
+  // Picks the best video format the browser supports.
   _pickMimeType() {
     const candidates = [
       'video/webm;codecs=vp9',
@@ -51,11 +37,7 @@ class TurntableRecorder {
     return '';
   }
 
-  /**
-   * Orbit the camera once and record it.
-   * Resolves to { blob, mimeType, seconds, fps } — saving is the caller's
-   * business.
-   */
+  // Orbits the camera once and records it, returning the video blob.
   async record(options = {}) {
     if (this.recording) throw new Error('Already recording');
     if (!TurntableRecorder.isSupported()) {
@@ -87,9 +69,7 @@ class TurntableRecorder {
     if (controls) controls.enabled = false;
 
     try {
-      // Orbit around whatever the camera is currently looking at, keeping its
-      // present distance and height, so the clip starts from the view the
-      // operator already framed.
+      // Orbit around the current target at the current distance, starting from the view the operator framed.
       const target = controls ? controls.target.clone() : new THREE.Vector3(0, 0.2, 0);
       const offset = camera.position.clone().sub(target);
       const radius = Math.hypot(offset.x, offset.z);
@@ -121,8 +101,7 @@ class TurntableRecorder {
         requestAnimationFrame(step);
       });
 
-      // The recorder works off the canvas's own frame callbacks, so give the
-      // last drawn frame a moment to reach it before cutting.
+      // Wait a moment so the last frame reaches the recorder before stopping.
       await new Promise(r => setTimeout(r, 120));
       rec.stop();
       await done;
@@ -130,10 +109,7 @@ class TurntableRecorder {
       return {
         blob: new Blob(chunks, { type: mimeType || 'video/webm' }),
         mimeType: mimeType || 'video/webm',
-        // Seconds of footage, not the animation tick count. The orbit runs on
-        // requestAnimationFrame, which fires far more often than the capture
-        // rate, so counting those ticks would report several times the number
-        // of frames the clip actually contains.
+        // Report seconds of footage, not animation ticks, which fire more often than the capture rate.
         seconds: +(opts.duration).toFixed(1),
         fps: opts.fps,
       };

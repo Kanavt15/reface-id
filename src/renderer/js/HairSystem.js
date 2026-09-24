@@ -1,31 +1,21 @@
-/**
- * HairSystem.js – Guided strand hair for forensic facial reconstruction.
- *
- * Loads 14 hair GLB models (Hair1-14.glb) and aligns them to the head.
- * Loads eyebrow GLB model and aligns to brow region.
- * Adjustment sliders (length, density, volume, curl) control transforms.
- * Hair and facial hair grow curved fibres with style-specific pigment textures.
- * Auto-refreshes when head morphs change.
- */
+// Loads the hair, beard and eyebrow models, fits them to the head, and refits them whenever the face changes.
 
 class HairSystem {
-  // One shell of fibres per 100. The ceiling is whatever HairStrands
-  // actually builds layers for; going past it would index off the end of
-  // the aHairLayer attribute and add nothing.
+  // Density ceiling: one extra layer of strands per 100, up to what HairStrands builds.
   static get MAX_HAIR_DENSITY() { return HairStrands.MAX_LAYERS * 100; }
-  /** Clearance kept between the bottom of the brow and the upper eyelid. */
+  // Gap kept between the bottom of the brow and the upper eyelid.
   static get BROW_EYE_GAP() { return 0.02; }
 
-  /** Most the brow may be lifted to clear the eye, so it cannot reach the forehead. */
+  // Most the brow may be lifted to clear the eye.
   static get MAX_BROW_LIFT() { return 0.08; }
 
-  /** Landmarks under the beard, used to check the surface has not outrun it. */
+  // Landmarks under the beard, used to check the skin hasn't moved past it.
   static get BEARD_SURFACE_LANDMARKS() {
     return ['chin', 'chin_left', 'chin_right', 'jaw_left', 'jaw_right',
             'lower_cheek_left', 'lower_cheek_right'];
   }
 
-  /** Cap on that correction, so one bad landmark cannot float the beard off. */
+  // Cap on that correction so one bad landmark can't float the beard off.
   static get MAX_BEARD_CLEARANCE() { return 0.06; }
 
   constructor(scene) {
@@ -87,14 +77,7 @@ class HairSystem {
     this._eyebrowGroup.name = 'EyebrowSystem';
     this.scene.add(this._eyebrowGroup);
 
-    /* Opaque, not 0.85 alpha.
-     *
-     * eyebrows.glb is 35k vertices of real individual strands, not a card. At
-     * 0.85 opacity every strand blended against every strand behind it in
-     * whatever order the index buffer happened to give, which is what turned a
-     * detailed brow into a flat translucent smear sitting above the brow
-     * ridge. Opaque lets the strands occlude each other properly and read as
-     * separate hairs. */
+    // Opaque so the 35k individual brow strands hide each other properly instead of blending into a smear.
     this._eyebrowMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(this.eyebrowColor),
       roughness: 0.42,
@@ -104,11 +87,7 @@ class HairSystem {
       opacity: 1,
       depthWrite: true,
     });
-    /* Restrained settings, and not because brows are less hairy than hair.
-       This asset has no UVs, so it takes the no-tangent fallback path: the
-       strand direction is guessed from the normal, and a band placed off a
-       guessed direction is only convincing while it stays quiet. The wrap is
-       pulled in too — 3mm of brow has no mass for light to scatter through. */
+    // Quiet settings, because this model has no UVs and its strand direction is only guessed.
     if (window.StrandShading) {
       StrandShading.attachSheen(this._eyebrowMat, {
         sheenStrength: 0.12, trtStrength: 0.10, rimStrength: 0.08,
@@ -122,8 +101,7 @@ class HairSystem {
     this._beardGroup.name = 'BeardSystem';
     this.scene.add(this._beardGroup);
 
-    // Strand coverage supplies the transparency; each surviving hair writes
-    // depth so overlapping fibres occlude one another correctly.
+    // Strand coverage gives the transparency; each hair writes depth so overlapping strands sort correctly.
     this._beardMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(this.beardColor),
       roughness: 0.45,
@@ -141,8 +119,7 @@ class HairSystem {
       });
     }
 
-    // Hair model configs with per-model default positions/scales
-    // defaults: { posx, posy, posz, roty, scale } - calibrated values
+    // Hair model settings with calibrated default position and scale.
     this.hairModels = {
       hair1: { file: '../../assets/models/hair/Hair1.glb', meshName: null,
                defaults: { posx: 49, posy: 38, posz: 41, roty: 50, scale: 48 } },
@@ -178,9 +155,7 @@ class HairSystem {
     // Eyebrow model config
     this.eyebrowModel = { file: '../../assets/models/facial/eyebrows.glb', meshName: null };
 
-    // Beard model configs with per-model defaults
-    // defaults: { scale, posX, posY, posZ, rotX, rotY, rotZ } - calibrated values
-    // NOTE: rotX=100 is neutral (no rotation). Values < 100 tilt forward, > 100 tilt backward.
+    // Beard model settings with calibrated defaults; rotX 100 means no tilt.
     this.beardModels = {
       none: { file: null, defaults: null },
       beard1: { file: '../../assets/models/facial/Beard1.glb', meshName: null,
@@ -204,8 +179,7 @@ class HairSystem {
     // Override defaults from localStorage (user-set in-app defaults)
     this._loadBeardDefaultsFromStorage();
 
-    // Individual fibre coverage controls opacity, with depth-writing cutouts
-    // and MSAA to keep overlapping cards and their edges stable.
+    // Strand coverage sets the opacity, with MSAA to keep overlapping cards and edges stable.
     this._hairMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(this.hairColor),
       roughness: 0.38,
@@ -220,19 +194,9 @@ class HairSystem {
     if (window.StrandShading) {
       StrandShading.attachSheen(this._hairMat, {
         sheenStrength: 0.065, trtStrength: 0.065, rimStrength: 0.012,
-        /* Read these two together; on its own either one is wrong.
-           Saturated AND strong put gold streaks across the crown. Answering
-           that with desaturation alone only trades the fault: a near-white
-           transmission lobe is just a second white specular, and it washed the
-           brown out to charcoal. So the tint stays warm and the lobe goes
-           quiet instead — a sheen that carries a hint of the hair's colour and
-           never flares far enough to become a highlight in its own right. */
+        // Warm but quiet: strong and saturated gave gold streaks, and too desaturated washed the brown to charcoal.
         trtDesat: 0.45,
-        // Drives the mass occlusion for the hair, not the view-space stand-in
-        // the brow and lashes get: this style is deep enough that the inside
-        // has to go down noticeably or the fall reads as a single printed
-        // sheet. Not further: the albedo is already near-black, so past about
-        // this the interior stops being dark hair and becomes a hole.
+        // Darken the inside of the hair mass so it has depth, but not so far it looks like a hole.
         rootDarken: 0.42,
         scatter: 0.50, toneStrength: 1.0,
       });
@@ -241,6 +205,7 @@ class HairSystem {
 
   // ── Head binding ──
 
+  // Connects the hair system to the head mesh and morpher and fits everything.
   setHeadMesh(headGroup, regionData, morpher) {
     this._headGroup = headGroup;
     this._regionData = regionData;
@@ -248,6 +213,7 @@ class HairSystem {
     this._computeHeadMetrics();
   }
 
+  // Refits hair, eyebrows and beard after the face changes.
   refreshFromMesh(morphValues) {
     if (!this._headGroup) return;
     if (morphValues) this._faceMorphValues = morphValues;
@@ -263,6 +229,7 @@ class HairSystem {
     }
   }
 
+  // Measures the head and tracks how far the brow landmarks have moved.
   _computeHeadMetrics() {
     const box = new THREE.Box3().setFromObject(this._headGroup);
     box.getCenter(this.modelCenter);
@@ -270,18 +237,7 @@ class HairSystem {
     this.headTop = box.max.y;
     this.headWidth = box.max.x - box.min.x;
 
-    // Track the brow line so the eyebrows move with the ridge they sit on.
-    //
-    // getCurrentLandmarkPosition returns an ARRAY [x, y, z]. Reading .x/.y/.z
-    // off it yields undefined, so the midpoint came out NaN and the isNaN guard
-    // in _alignAndAdjustEyebrows then quietly dropped the offset to zero —
-    // which is why the eyebrows stayed pinned at browRegionY while the brow
-    // ridge moved underneath them.
-    //
-    // Averaged over all six brow landmarks rather than the two centres: the
-    // centre vertex is displaced at full weight by the brow morphs while the
-    // ends of the brow move less, so following it alone would over-travel, the
-    // same way the eyeball used to (see EyeSystem._measureEyeOpening).
+    // Follow the average of all six brow landmarks (returned as [x, y, z] arrays) so the eyebrows move with the brow ridge.
     if (this._morpher && typeof this._morpher.getCurrentLandmarkPosition === 'function') {
       const names = [
         'brow_left_inner', 'brow_left_center', 'brow_left_outer',
@@ -302,12 +258,7 @@ class HairSystem {
         }
         this._browLandmarkDelta = centre.clone().sub(this._initialBrowCenter);
 
-        // Vertical position follows the average, but DEPTH follows whichever
-        // landmark came forward the most. The brow ridge is curved — its inner
-        // end sits ~0.16 further forward than its outer — while the eyebrow
-        // mesh is placed at a single Z, so a morph that pushes the inner brow
-        // forward moves the average less than the inner end and the mesh's
-        // inner end ends up behind the skin. See _maxForwardDelta.
+        // Depth follows whichever brow landmark came furthest forward, so the brow never sinks into the skin.
         this._browLandmarkDelta.z = this._maxForwardDelta('brow', names);
       }
     }
@@ -315,6 +266,7 @@ class HairSystem {
 
   // ── Public API ──
 
+  // Switches hairstyle, applies its defaults and returns them for the sliders.
   setStyle(style) {
     this.currentStyle = style;
     // Apply model-specific defaults if available
@@ -331,21 +283,25 @@ class HairSystem {
     return config?.defaults || null;
   }
 
+  // Sets the hair colour.
   setColor(color) {
     this.hairColor = color;
     this._applyHairTint();
   }
 
+  // Sets the hair tint colour.
   setHairTintColor(color) {
     this.hairTintColor = color;
     this._applyHairTint();
   }
 
+  // Sets how strong the hair tint is (0-1).
   setHairTintIntensity(intensity) {
     this.hairTintIntensity = Math.max(0, Math.min(1, intensity));
     this._applyHairTint();
   }
 
+  // Applies the blended hair colour and refreshes any painted tint.
   _applyHairTint() {
     const blended = this._blendColors(this.hairColor, this.hairTintColor, this.hairTintIntensity);
     this._hairMat.color.set(blended);
@@ -355,6 +311,7 @@ class HairSystem {
     }
   }
 
+  // Sets one hair setting, clamping density to its limit.
   setParam(param, value) {
     if (param === 'density') {
       value = Number(value);
@@ -365,10 +322,9 @@ class HairSystem {
     if (this._hairContainer) this._applyAdjustments();
   }
 
-  setCustomParam(param, value) { /* no-op for model-based hair */ }
-
   // ── Main generation ──
 
+  // Loads the current hairstyle (or uses the cached one) and fits it to the head.
   generate() {
     console.log('[HairSystem] generate() called for style:', this.currentStyle);
     // Notify tint painter to clean up before clearing old meshes
@@ -426,13 +382,14 @@ class HairSystem {
     );
   }
 
-  /** Resolves once no hair model is mid-load. See AssetLoadTracker. */
+  // Resolves once no hair model is still loading.
   async whenIdle() {
     await this._loads.whenIdle();
     await Promise.all([this._hairMat.userData.strandTexturesReady,
       this._beardMat.userData.strandTexturesReady]);
   }
 
+  // Shows a cached hairstyle, building its strands and textures.
   _showCachedModel(style) {
     this._clearGroup(this.hairGroup);
     const cached = this._modelCache[style];
@@ -447,9 +404,7 @@ class HairSystem {
     const meshes = [];
     cached.traverse(child => { if (child.isMesh) meshes.push(child); });
 
-    // Prepare the cached guides together so their UV direction and mass-depth
-    // field agree. The visible meshes below use a separate, bounded cache of
-    // curved fibres; original guide bounds preserve calibrated placement.
+    // Prepare the guides together so their texture direction and depth field match; placement uses the original bounds.
     if (window.StrandShading) {
       StrandShading.prepareStrandGeometry(meshes.map(m => m.geometry), style);
       StrandShading.applyStyle(this._hairMat, style);
@@ -477,6 +432,7 @@ class HairSystem {
     this._alignAndAdjust();
   }
 
+  // Fits the hair to the scalp and applies length, volume, curl, position and density.
   _alignAndAdjust() {
     if (!this._hairContainer || !this._headGroup) return;
 
@@ -542,8 +498,7 @@ class HairSystem {
     // Rotation: curl + user rotation
     container.rotation.y = (curlF > 0 ? curlF * 0.15 : 0) + rotOffsetY;
 
-    // Density changes fibre coverage and roughness. Surviving strands stay
-    // solid instead of blending every overlapping card against the scalp.
+    // Density changes strand coverage and roughness while keeping the strands solid.
     const d = Math.max(0, Math.min(HairSystem.MAX_HAIR_DENSITY, density)) / 100;
     const baseDensity = Math.min(1, d);
     const uniforms = this._hairMat.userData.strandSheen?.uniforms;
@@ -556,47 +511,43 @@ class HairSystem {
       m.opacity = 1;
       m.depthWrite = true;
       m.roughness = 0.58 - baseDensity * 0.12;
-      // Thin strand coverage, including the matching shadow cutouts, instead
-      // of fading the entire mass and revealing every overlapping card.
+      // Thin the strands (shadows too) instead of fading the whole mass.
       if (m.alphaMap) m.alphaTest = 0.56 - baseDensity * 0.42;
-      // Beyond 100, add independently offset fibres using the same buffers.
-      // Fractional layers are selected in the shader without rebuilding hair.
+      // Above 100, add extra offset strand layers using the same buffers.
       if (child.geometry.isInstancedBufferGeometry) {
         const layers = child.geometry.getAttribute('aHairLayer')?.count || 1;
         child.geometry.instanceCount = Math.min(layers, Math.max(1, Math.ceil(d)));
       }
-      /* No needsUpdate. It used to be set here and it was always unnecessary:
-         roughness and opacity are uniforms, and transparent and depthWrite are
-         draw state three reads every frame — none of them change the program.
-         What it did do was force a full shader recompile, on a material shared
-         by every mesh of the style, on every input event from the density
-         slider. That was survivable while the hair ran the stock shader; the
-         strand model is several times the size to compile, and leaving it in
-         turned a drag of the slider into a stutter. */
+      // No needsUpdate here: these are uniforms, and forcing a recompile made the density slider stutter.
     });
   }
 
+  // Refits the hair after a setting changes.
   _applyAdjustments() {
     this._alignAndAdjust();
   }
 
   // ── Eyebrows (GLB model) ──
 
+  // Sets the eyebrow colour.
   setEyebrowColor(color) {
     this.eyebrowColor = color;
     this._applyEyebrowTint();
   }
 
+  // Sets the eyebrow tint colour.
   setEyebrowTintColor(color) {
     this.eyebrowTintColor = color;
     this._applyEyebrowTint();
   }
 
+  // Sets how strong the eyebrow tint is (0-1).
   setEyebrowTintIntensity(intensity) {
     this.eyebrowTintIntensity = Math.max(0, Math.min(1, intensity));
     this._applyEyebrowTint();
   }
 
+  // Applies the blended eyebrow colour and refreshes any painted tint.
   _applyEyebrowTint() {
     const blended = this._blendColors(this.eyebrowColor, this.eyebrowTintColor, this.eyebrowTintIntensity);
     this._eyebrowMat.color.set(blended);
@@ -605,11 +556,13 @@ class HairSystem {
     }
   }
 
+  // Sets one eyebrow setting and refits the brows.
   setEyebrowParam(param, value) {
     this.eyebrowParams[param] = value;
     if (this._eyebrowContainer) this._alignAndAdjustEyebrows();
   }
 
+  // Loads the eyebrow model (or uses the cached one) and fits it to the brow.
   generateEyebrows() {
     console.log('[HairSystem] generateEyebrows() called');
     if (this.hairTintPainter) this.hairTintPainter.onModelChanged('eyebrow');
@@ -658,6 +611,7 @@ class HairSystem {
     );
   }
 
+  // Shows the cached eyebrow model in the scene.
   _showCachedEyebrows() {
     this._clearGroup(this._eyebrowGroup);
     const cached = this._modelCache['eyebrows'];
@@ -698,16 +652,7 @@ class HairSystem {
     console.log('[HairSystem] Eyebrows displayed successfully');
   }
 
-  /**
-   * How far the most-forward landmark in `names` has moved since the neutral
-   * face, in +Z. Baselines are captured on the first call.
-   *
-   * The furthest-forward point rather than the average, deliberately. These
-   * meshes are placed at a single depth while the surface under them is curved
-   * and moves unevenly; tracking the average lets whichever part moved most
-   * forward end up behind the skin. Erring forward leaves a mesh floating
-   * slightly proud at worst, which reads as hair. Erring back buries it.
-   */
+  // How far the most-forward of these landmarks has moved in Z since the neutral face, so meshes float slightly proud rather than sink.
   _maxForwardDelta(key, names) {
     const m = this._morpher;
     if (!m || typeof m.getCurrentLandmarkPosition !== 'function') return 0;
@@ -724,7 +669,7 @@ class HairSystem {
     return max === null ? 0 : max;
   }
 
-  /** Highest point of either upper eyelid on the live mesh, or null. */
+  // Highest point of either upper eyelid on the current mesh, or null.
   _upperLidY() {
     const m = this._morpher;
     if (!m || typeof m.getCurrentLandmarkPosition !== 'function') return null;
@@ -736,6 +681,7 @@ class HairSystem {
     return y;
   }
 
+  // Fits the eyebrows to the brow ridge and applies the brow sliders.
   _alignAndAdjustEyebrows() {
     if (!this._eyebrowContainer || !this._headGroup) {
       console.warn('[HairSystem] _alignAndAdjustEyebrows early return - container or headGroup missing');
@@ -782,8 +728,7 @@ class HairSystem {
 
     const browSize = this._eyebrowBboxCache.size;
 
-    // Target: brow region on the head (from OBJMorpher landmarks)
-    // brow_left/right_center Y≈0.40, Z≈1.00; outer brows span ~0.90 in X
+    // Target the brow region from the landmarks (about Y 0.40, Z 1.00, 0.90 wide).
     const browRegionWidth = 0.90;
     const browRegionY = 0.39;
     const browRegionZ = 1.02;
@@ -832,15 +777,7 @@ class HairSystem {
     let finalY = browRegionY + archF + posOffsetY + landmarkOffsetY;
     const finalZ = browRegionZ + posOffsetZ + landmarkOffsetZ;
 
-    // Keep the brow off the eye.
-    //
-    // thickness scales the mesh vertically about its centre, so a thick brow
-    // grows DOWNWARD as well as up. Past roughly thickness 62 its lower edge
-    // reaches below the upper eyelid, and the brow reads as merged into the eye
-    // rather than sitting above it. Rather than trusting a fixed number, this
-    // measures the lid on the live morphed mesh and lifts the brow just enough
-    // to clear it — bounded, so a bad landmark can never fling the brow up onto
-    // the forehead.
+    // Keep the brow off the eye: a thick brow grows downward, so measure the lid and lift the brow just enough, within a limit.
     const lidY = this._upperLidY();
     if (lidY !== null) {
       const halfHeight = (browSize.y / 2) * (baseScale * thicknessF);
@@ -864,29 +801,27 @@ class HairSystem {
     this._eyebrowMat.transparent = opacity < 1.0;
   }
 
-  clearEyebrows() {
-    this._clearGroup(this._eyebrowGroup);
-    this._eyebrowContainer = null;
-    this._eyebrowBboxCache = null;
-  }
-
   // ── Beard (GLB model) ──
 
+  // Sets the beard colour.
   setBeardColor(color) {
     this.beardColor = color;
     this._applyBeardTint();
   }
 
+  // Sets the beard tint colour.
   setBeardTintColor(color) {
     this.beardTintColor = color;
     this._applyBeardTint();
   }
 
+  // Sets how strong the beard tint is (0-1).
   setBeardTintIntensity(intensity) {
     this.beardTintIntensity = Math.max(0, Math.min(1, intensity));
     this._applyBeardTint();
   }
 
+  // Applies the blended beard colour and refreshes any painted tint.
   _applyBeardTint() {
     const blended = this._blendColors(this.beardColor, this.beardTintColor, this.beardTintIntensity);
     this._beardMat.color.set(blended);
@@ -895,11 +830,13 @@ class HairSystem {
     }
   }
 
+  // Sets one beard setting and refits the beard.
   setBeardParam(param, value) {
     this.beardParams[param] = value;
     if (this._beardContainer) this._alignAndAdjustBeard();
   }
 
+  // Switches beard style, applies its defaults and returns them for the sliders.
   setBeard(style) {
     this.beardStyle = style;
     // Apply model-specific defaults if available
@@ -918,6 +855,7 @@ class HairSystem {
     return config?.defaults || null;
   }
 
+  // Loads the current beard model (or uses the cached one) and fits it to the face.
   generateBeard() {
     if (this.hairTintPainter) this.hairTintPainter.onModelChanged('beard');
     this._clearGroup(this._beardGroup);
@@ -964,6 +902,7 @@ class HairSystem {
     );
   }
 
+  // Shows a cached beard, building its strands and textures.
   _showCachedBeard() {
     this._clearGroup(this._beardGroup);
     const cacheKey = `beard_${this.beardStyle}`;
@@ -1009,6 +948,7 @@ class HairSystem {
     this._alignAndAdjustBeard();
   }
 
+  // Fits the beard to the jaw, chin, cheeks and mouth from the face sliders, then applies the beard sliders.
   _alignAndAdjustBeard() {
     if (!this._beardContainer || !this._headGroup) return;
 
@@ -1060,13 +1000,11 @@ class HairSystem {
     const posOffsetY = ((bp.posY - 100) / 100) * 0.8;    // Up/Down: increased range ±0.8
     const posOffsetZ = ((bp.posZ - 100) / 100) * 0.8;    // Fwd/Back: increased range ±0.8
 
-    // ── Jaw/chin-aware beard synchronization ──
-    // Face morph values are 0-100 with 50 as neutral
+    // Jaw and chin aware fit; face slider values are 0-100 with 50 as neutral.
     const mv = this._faceMorphValues || {};
     const neutral = 50;
 
-    // jawWidth (regions 13,14): scale beard X to match jaw spread
-    // morphMap range [0.85, 1.2] → at slider 0: 0.85x, at 50: ~1.025x, at 100: 1.2x
+    // Jaw width scales the beard's width.
     const jawT = ((mv.jawWidth ?? neutral) - neutral) / 50;        // -1 to 1
     const jawScaleX = 1.0 + jawT * 0.18;  // beard widens/narrows with jaw
 
@@ -1157,14 +1095,7 @@ class HairSystem {
       baseScale * scaleF * faceScaleZ
     );
 
-    // Everything above estimates how far the jaw and cheeks moved from the
-    // morph sliders. Those coefficients are hand-tuned approximations, and one
-    // of them (nasolabialDepth) pulls BACKWARD — so a face whose surface has
-    // actually come forward further than the estimate swallows the beard.
-    //
-    // Measure what the surface really did and add only the shortfall, so this
-    // never double-counts an offset that was already applied and never pulls
-    // the beard back.
+    // The slider-based estimate can fall short, so measure the real skin and add only the missing forward offset.
     const modelledZ = chinZOffset + jawDefZOffset + cheekZOffset
                     + cheekBoneZOffset + nasoZOffset + lipZOffset + lipZShift;
     const surfaceZ = this._maxForwardDelta('beard', HairSystem.BEARD_SURFACE_LANDMARKS);
@@ -1182,28 +1113,7 @@ class HairSystem {
     container.rotation.set(rotX, rotY, rotZ);
   }
 
-  clearBeard() {
-    this._clearGroup(this._beardGroup);
-    this._beardContainer = null;
-    this._beardBboxCache = null;
-  }
-
-  // ── Utility ──
-
-  _rand(seed) {
-    const x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
-    return x - Math.floor(x);
-  }
-
-  updateColor() { this.setColor(this.hairColor); }
-
-  /**
-   * Blend two hex colors by lerping RGB channels.
-   * @param {string} baseHex - Base color (#rrggbb)
-   * @param {string} tintHex - Tint/overlay color (#rrggbb)
-   * @param {number} t - Blend factor (0 = all base, 1 = all tint)
-   * @returns {string} Blended hex color
-   */
+  // Blends two hex colours; t = 0 gives the base, 1 gives the tint.
   _blendColors(baseHex, tintHex, t) {
     if (t <= 0) return baseHex;
     if (t >= 1) return tintHex;
@@ -1215,6 +1125,7 @@ class HairSystem {
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
   }
 
+  // Converts a hex colour to an RGB object.
   _hexToRgbObj(hex) {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? {
@@ -1224,6 +1135,7 @@ class HairSystem {
     } : { r: 44, g: 27, b: 14 }; // fallback to dark brown
   }
 
+  // Removes everything from a group, freeing any geometry copied for tint painting.
   _clearGroup(group) {
     while (group.children.length) {
       const c = group.children[0];
@@ -1236,12 +1148,7 @@ class HairSystem {
     }
   }
 
-  clearHair() { this._loadId++; this._clearGroup(this.hairGroup); this._hairContainer = null; this._hairBboxCache = null; }
-
-  /**
-   * Save current hair position/scale as the new default for this model.
-   * Logs the config to console so you can copy it into the code.
-   */
+  // Saves the current hair position and scale as this style's default and logs it for copying into the code.
   saveHairDefault() {
     const style = this.currentStyle;
     if (!style || style === 'bald') {
@@ -1266,10 +1173,7 @@ class HairSystem {
     return defaults;
   }
 
-  /**
-   * Save current beard position/scale as the new default for this model.
-   * Logs the config to console so you can copy it into the code.
-   */
+  // Saves the current beard position and scale as this style's default and logs it for copying into the code.
   saveBeardDefault() {
     const style = this.beardStyle;
     if (!style || style === 'none') {
@@ -1298,9 +1202,7 @@ class HairSystem {
     return defaults;
   }
 
-  /**
-   * Save a single style's defaults to localStorage.
-   */
+  // Saves one beard style's defaults to local storage.
   _saveBeardDefaultToStorage(style, defaults) {
     try {
       const stored = JSON.parse(localStorage.getItem('rf_beardDefaults') || '{}');
@@ -1311,10 +1213,7 @@ class HairSystem {
     }
   }
 
-  /**
-   * Save all current model defaults to localStorage at once (batch set).
-   * Called from the in-app Defaults Editor modal.
-   */
+  // Saves every beard style's defaults to local storage at once, from the Defaults Editor.
   saveAllBeardDefaultsToStorage(allDefaults) {
     try {
       const stored = JSON.parse(localStorage.getItem('rf_beardDefaults') || '{}');
@@ -1331,10 +1230,7 @@ class HairSystem {
     }
   }
 
-  /**
-   * Load defaults from localStorage and override the built-in defaults.
-   * Called on construction so user-set defaults take effect immediately.
-   */
+  // Loads saved beard defaults from local storage over the built-in ones.
   _loadBeardDefaultsFromStorage() {
     try {
       const stored = JSON.parse(localStorage.getItem('rf_beardDefaults') || '{}');
@@ -1349,10 +1245,7 @@ class HairSystem {
     }
   }
 
-  /**
-   * Get all current defaults (in-memory, which includes localStorage overrides).
-   * Used by the Defaults Editor modal to pre-populate fields.
-   */
+  // Returns every beard style's current defaults, for the Defaults Editor.
   getAllBeardDefaults() {
     const result = {};
     for (const [style, config] of Object.entries(this.beardModels)) {
@@ -1362,27 +1255,7 @@ class HairSystem {
     return result;
   }
 
-  /**
-   * Get current defaults for all hair/beard models (for debugging/inspection)
-   */
-  getAllDefaults() {
-    const hairDefaults = {};
-    for (const [style, config] of Object.entries(this.hairModels)) {
-      if (config.defaults) {
-        hairDefaults[style] = config.defaults;
-      }
-    }
-    const beardDefaults = {};
-    for (const [style, config] of Object.entries(this.beardModels)) {
-      if (config.defaults) {
-        beardDefaults[style] = config.defaults;
-      }
-    }
-    console.log('[HairSystem] All Hair Defaults:', hairDefaults);
-    console.log('[HairSystem] All Beard Defaults:', beardDefaults);
-    return { hair: hairDefaults, beard: beardDefaults };
-  }
-
+  // Returns the hair, beard and eyebrow settings for saving.
   getParams() {
     return {
       style: this.currentStyle, color: this.hairColor,
@@ -1399,103 +1272,7 @@ class HairSystem {
     };
   }
 
-  /**
-   * Return the final world-space transform so Blender can replicate it.
-   * Computes the combined matrix of container * offsetGroup and decomposes
-   * it into position, quaternion, scale so Blender can apply it directly.
-   * Falls back to raw slider parameters if the container isn't ready.
-   */
-  getRenderTransform() {
-    // Always include the raw params so Blender can recompute if needed
-    const raw = {
-      length: this.params.length,
-      density: this.params.density,
-      volume: this.params.volume,
-      curl: this.params.curl,
-      posx: this.params.posx,
-      posy: this.params.posy,
-      posz: this.params.posz,
-      roty: this.params.roty,
-      scale: this.params.scale,
-      headWidth: this.headWidth,
-      headTop: this.headTop,
-      modelCenterX: this.modelCenter.x,
-      modelCenterY: this.modelCenter.y,
-      modelCenterZ: this.modelCenter.z,
-      modelHeight: this.modelHeight,
-      /* Kept at 1 so the Blender render matches the viewport, which draws
-         hair opaque. `density` is already in this payload, so Blender can
-         still express density through its own shader rather than by
-         thinning the whole surface. */
-      opacity: 1.0,
-    };
-
-    if (!this._hairContainer || !this._headGroup || this.currentStyle === 'bald') {
-      // Return raw params so Blender can compute alignment itself
-      return { rawParams: raw, matrix: null };
-    }
-
-    const c = this._hairContainer;
-    const o = c.children[0]; // offsetGroup
-
-    // Compute the combined world matrix of container → offset
-    c.updateWorldMatrix(true, false);
-    o.updateWorldMatrix(true, false);
-    const combinedMatrix = o.matrixWorld;
-
-    return {
-      // Raw matrix elements (column-major, as Three.js stores them)
-      matrix: Array.from(combinedMatrix.elements),
-      rawParams: raw,
-      opacity: raw.opacity,
-    };
-  }
-
-  /**
-   * Return the beard's world-space transform so Blender can replicate it.
-   */
-  getBeardRenderTransform() {
-    if (!this._beardContainer || this.beardStyle === 'none') {
-      return { matrix: null, params: this.beardParams };
-    }
-
-    const c = this._beardContainer;
-    const o = c.children[0]; // offsetGroup
-
-    c.updateWorldMatrix(true, false);
-    o.updateWorldMatrix(true, false);
-    const combinedMatrix = o.matrixWorld;
-
-    return {
-      matrix: Array.from(combinedMatrix.elements),
-      params: { ...this.beardParams },
-      style: this.beardStyle,
-      color: this.beardColor,
-    };
-  }
-
-  /**
-   * Return the eyebrow's world-space transform so Blender can replicate it.
-   */
-  getEyebrowRenderTransform() {
-    if (!this._eyebrowContainer) {
-      return { matrix: null, params: this.eyebrowParams };
-    }
-
-    const c = this._eyebrowContainer;
-    const o = c.children[0]; // offsetGroup
-
-    c.updateWorldMatrix(true, false);
-    o.updateWorldMatrix(true, false);
-    const combinedMatrix = o.matrixWorld;
-
-    return {
-      matrix: Array.from(combinedMatrix.elements),
-      params: { ...this.eyebrowParams },
-      color: this.eyebrowColor,
-    };
-  }
-
+  // Restores hair, beard and eyebrow settings from a saved case.
   loadState(state) {
     if (!state) return;
     if (state.style) this.currentStyle = state.style;

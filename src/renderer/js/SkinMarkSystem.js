@@ -1,12 +1,4 @@
-/**
- * SkinMarkSystem.js
- * Manages placement, selection, movement, and deletion of skin marks
- * (moles, pimples, scars, birthmarks, wounds) on the 3D face mesh.
- *
- * Marks are small Three.js meshes placed on the face surface via raycasting.
- * They track their position using barycentric coordinates within the hit
- * triangle, so they survive face morphing (vertex deformation).
- */
+// Places, selects, moves and deletes skin marks (moles, scars, birthmarks, wounds), keeping them stuck to the face as it morphs.
 
 class SkinMarkSystem {
   constructor(sceneManager, objMorpher) {
@@ -59,9 +51,7 @@ class SkinMarkSystem {
     this._nextId = 1;
   }
 
-  /**
-   * Attach the mark group to the head mesh so marks move with the model.
-   */
+  // Attaches the marks to the head mesh so they move with the model.
   _attachToHeadMesh() {
     const headMesh = this.sceneManager.headMesh;
 
@@ -83,9 +73,7 @@ class SkinMarkSystem {
     }
   }
 
-  /**
-   * Ensure marks are attached to head mesh (call after model loads).
-   */
+  // Makes sure the marks are attached to the head; call it after the model loads.
   ensureAttachedToHead() {
     const headMesh = this.sceneManager.headMesh;
     if (!this._isAttachedToHead && headMesh) {
@@ -101,9 +89,7 @@ class SkinMarkSystem {
     }
   }
 
-  /**
-   * Convert existing marks from world space to local space relative to head mesh.
-   */
+  // Converts existing marks from world space into the head mesh's local space.
   _convertMarksToLocalSpace() {
     const headMesh = this.sceneManager.headMesh;
     if (!headMesh) return;
@@ -133,6 +119,7 @@ class SkinMarkSystem {
 
   // ─── Mark Type Definitions ──────────────────────────────────────────────
 
+  // Every mark type with its label, default size, colour and shape.
   static get MARK_TYPES() {
     return {
       mole: {
@@ -201,6 +188,7 @@ class SkinMarkSystem {
 
   // ─── Enable / Disable ───────────────────────────────────────────────────
 
+  // Turns on mark placement mode.
   enable() {
     if (this.enabled) return;
     this.enabled = true;
@@ -210,6 +198,7 @@ class SkinMarkSystem {
     window.addEventListener('keydown', this._onKeyDown);
   }
 
+  // Turns off mark placement mode.
   disable() {
     if (!this.enabled) return;
     this.enabled = false;
@@ -222,6 +211,7 @@ class SkinMarkSystem {
     this.controls.enabled = true;
   }
 
+  // Turns placement mode on or off.
   toggle() {
     if (this.enabled) this.disable(); else this.enable();
     return this.enabled;
@@ -229,12 +219,14 @@ class SkinMarkSystem {
 
   // ─── Raycasting ─────────────────────────────────────────────────────────
 
+  // Converts the mouse position to normalised screen coordinates.
   _getNDC(event) {
     const rect = this.canvas.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
   }
 
+  // Casts a ray from the mouse and returns where it hits the head.
   _raycastHead() {
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const headMesh = this.sceneManager.headMesh;
@@ -247,6 +239,7 @@ class SkinMarkSystem {
     return hits.length > 0 ? hits[0] : null;
   }
 
+  // Casts a ray from the mouse and returns the mark it hits, if any.
   _raycastMarks() {
     this.raycaster.setFromCamera(this.mouse, this.camera);
     if (this.markGroup.children.length === 0) return null;
@@ -256,6 +249,7 @@ class SkinMarkSystem {
 
   // ─── Adding Marks ───────────────────────────────────────────────────────
 
+  // Adds a new mark where the ray hit the face.
   addMark(intersection) {
     const typeDef = SkinMarkSystem.MARK_TYPES[this.activeMarkType];
     if (!typeDef) return null;
@@ -323,6 +317,7 @@ class SkinMarkSystem {
 
   // ─── Mesh Creation ──────────────────────────────────────────────────────
 
+  // Builds the mesh for one mark.
   _createMarkMesh(markData) {
     const typeDef = SkinMarkSystem.MARK_TYPES[markData.type];
     if (!typeDef) return null;
@@ -348,6 +343,7 @@ class SkinMarkSystem {
     return mesh;
   }
 
+  // Places and turns a mark mesh so it lies flat on the skin.
   _orientMark(mesh, markData) {
     const pos = new THREE.Vector3().fromArray(markData.position);
     const normal = new THREE.Vector3().fromArray(markData.normal);
@@ -370,6 +366,7 @@ class SkinMarkSystem {
 
   // ─── Selection Size Ring (3D outline around selected mark) ──────────
 
+  // Creates the ring that outlines the selected mark.
   _createSelectionRing() {
     const geo = new THREE.RingGeometry(0.014, 0.016, 32);
     const mat = new THREE.MeshBasicMaterial({
@@ -388,6 +385,7 @@ class SkinMarkSystem {
     this.scene.add(this._selectionRing);
   }
 
+  // Resizes and moves the selection ring to match the selected mark.
   _updateSelectionRing() {
     if (!this._selectionRing) return;
     if (this.selectedMarkIndex < 0) {
@@ -445,12 +443,14 @@ class SkinMarkSystem {
     this._selectionRing.visible = true;
   }
 
+  // Hides the selection ring.
   _hideSelectionRing() {
     if (this._selectionRing) this._selectionRing.visible = false;
   }
 
   // ─── Selection ──────────────────────────────────────────────────────────
 
+  // Selects a mark and highlights it.
   selectMark(index) {
     this._clearSelection();
     if (index < 0 || index >= this.marks.length) return;
@@ -464,6 +464,7 @@ class SkinMarkSystem {
     if (this.onMarkChanged) this.onMarkChanged();
   }
 
+  // Clears the current selection highlight.
   _clearSelection() {
     if (this.selectedMarkIndex >= 0 && this.selectedMarkIndex < this.markMeshes.length) {
       console.log('[SkinMarkSystem] _clearSelection: clearing index', this.selectedMarkIndex);
@@ -480,6 +481,7 @@ class SkinMarkSystem {
 
   // ─── Update / Delete ────────────────────────────────────────────────────
 
+  // Changes a property of the selected mark, such as size or rotation.
   updateSelectedMark(property, value) {
     if (this.selectedMarkIndex < 0) return;
     const markData = this.marks[this.selectedMarkIndex];
@@ -511,6 +513,7 @@ class SkinMarkSystem {
     if (this.onMarkChanged) this.onMarkChanged();
   }
 
+  // Deletes the selected mark.
   deleteSelectedMark() {
     const idx = this.selectedMarkIndex;
     if (idx < 0 || idx >= this.marks.length) {
@@ -542,6 +545,7 @@ class SkinMarkSystem {
 
   // ─── Pointer Events ─────────────────────────────────────────────────────
 
+  // Selects, deselects or places a mark depending on what was clicked.
   _onPointerDown(event) {
     if (event.button !== 0) return;
     this._getNDC(event);
@@ -588,6 +592,7 @@ class SkinMarkSystem {
     }
   }
 
+  // Drags the selected mark across the face.
   _onPointerMove(event) {
     if (!this.isDragging || this.selectedMarkIndex < 0) return;
     event.preventDefault();
@@ -636,6 +641,7 @@ class SkinMarkSystem {
     this._updateSelectionRing();
   }
 
+  // Ends a mark drag.
   _onPointerUp(event) {
     if (event.button !== 0) return;
     if (this.isDragging) {
@@ -646,6 +652,7 @@ class SkinMarkSystem {
     if (this.onMarkChanged) this.onMarkChanged();
   }
 
+  // Deletes the selected mark when Delete or Backspace is pressed.
   _onKeyDown(event) {
     if (!this.enabled) return;
     if (event.key === 'Delete' || event.key === 'Backspace') {
@@ -662,6 +669,7 @@ class SkinMarkSystem {
 
   // ─── Vertex / Barycentric Helpers ───────────────────────────────────────
 
+  // Finds the mesh vertex closest to a point.
   _findNearestVertex(worldPoint) {
     if (!this.morpher || !this.morpher.meshes) return 0;
 
@@ -692,6 +700,7 @@ class SkinMarkSystem {
     return bestGlobal;
   }
 
+  // Works out the barycentric coordinates of a hit inside its triangle, so the mark can follow morphs.
   _computeBarycentricCoords(intersection) {
     if (!intersection.face || intersection.faceIndex === undefined) return null;
 
@@ -742,6 +751,7 @@ class SkinMarkSystem {
 
   // ─── Morph Tracking ─────────────────────────────────────────────────────
 
+  // Moves every mark to follow the face after a morph.
   refreshMarksAfterMorph() {
     if (!this.morpher || !this.morpher.meshes) return;
 
@@ -828,6 +838,7 @@ class SkinMarkSystem {
     this._updateSelectionRing();
   }
 
+  // Fallback that snaps a mark to its nearest vertex when its triangle can't be used.
   _refreshMarkFallback(markData, mesh, invMatrix, invNormalMatrix) {
     const worldPos = this._getVertexWorldPosition(markData.anchorVertexIndex);
     if (worldPos) {
@@ -853,6 +864,7 @@ class SkinMarkSystem {
     }
   }
 
+  // Estimates the surface normal at a point on the face.
   _estimateNormalAtPoint(worldPoint) {
     if (!this.morpher || !this.morpher.meshes) return null;
 
@@ -872,6 +884,7 @@ class SkinMarkSystem {
     return null;
   }
 
+  // Returns the current world position of a vertex by its global index.
   _getVertexWorldPosition(globalIndex) {
     if (!this.morpher || !this.morpher.meshes) return null;
 
@@ -892,10 +905,12 @@ class SkinMarkSystem {
 
   // ─── Serialization ──────────────────────────────────────────────────────
 
+  // Returns the marks for saving.
   exportState() {
     return this.marks.map(m => ({ ...m }));
   }
 
+  // Restores marks from a saved case.
   loadState(marksArray) {
     this.clearAll();
     if (!marksArray || !Array.isArray(marksArray)) return;
@@ -917,6 +932,7 @@ class SkinMarkSystem {
     if (this.onMarkChanged) this.onMarkChanged();
   }
 
+  // Removes every mark.
   clearAll() {
     this._clearSelection();
     for (const mesh of this.markMeshes) {
@@ -929,6 +945,7 @@ class SkinMarkSystem {
     if (this.onMarkChanged) this.onMarkChanged();
   }
 
+  // Returns how many marks are placed.
   getMarkCount() {
     return this.marks.length;
   }

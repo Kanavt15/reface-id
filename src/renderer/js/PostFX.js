@@ -1,35 +1,7 @@
-/**
- * PostFX.js
- * A small hand-rolled post-processing chain: bloom, filmic grade, vignette,
- * chromatic aberration, grain.
- *
- * WHY HAND-ROLLED
- * ---------------
- * three's EffectComposer lives in `examples/jsm`, which is ESM. This app loads
- * the UMD global build from a plain <script> under file:// with no bundler, so
- * those modules are not reachable without vendoring and converting several
- * files. The pipeline needed here is two render targets and three shader
- * passes — less code than the conversion would be.
- *
- * Default tiers preserve facial detail with no bloom and a subtle vignette.
- * Grain and chromatic aberration remain available as shader parameters but
- * default to zero so they do not obscure pores or alter feature edges.
- *
- * Tone mapping moves here from the renderer, because bloom has to be gathered
- * in linear light — bloom applied after tone mapping blooms the compressed
- * values and looks like a glow filter rather than lens flare.
- */
+// Small hand-written post-processing chain (bloom, tone mapping, vignette, grain), since three's EffectComposer needs ES modules.
 
 class PostFX {
-  /**
-   * Per-tier grade settings — the ONLY place these numbers live.
-   *
-   * setTier() runs at the end of the constructor and used to assign its own
-   * hardcoded literals over params, so the values written in the constructor
-   * were dead on arrival and editing the obvious one changed nothing. That is
-   * the same trap that hid the duplicated exposure and the duplicated skin
-   * constants; the constructor now seeds itself from this table instead.
-   */
+  // Settings for each quality tier; this is the only place these numbers live.
   static get TIERS() {
     return {
       // Keep pores and feature edges free of animated grain and colour fringing.
@@ -50,36 +22,17 @@ class PostFX {
     this._savedExposure = renderer.toneMappingExposure;
 
     this.params = {
-      /* Taken from the renderer, not written here.
-         setEnabled() swaps the renderer to NoToneMapping and this pass applies
-         the operator instead, so while post is on — which is all of photoreal
-         mode — renderer.toneMappingExposure is inert and THIS is the exposure.
-         Two independent copies of that number meant changing the obvious one
-         in SceneManager did nothing at all to the photoreal image. */
+      // Exposure is read from the renderer, because this pass does the tone mapping while it is on.
       exposure: renderer.toneMappingExposure,
       bloomStrength: PostFX.TIERS.medium.bloomStrength,
       bloomThreshold: 0.75,
       bloomKnee: 0.35,
-      /* Seeded from the tier table; setTier() sets the live values.
-         Grain is weighted toward the shadows (see the composite pass), so its
-         amplitude is governed by how it looks in the DARKEST part of the
-         frame, not the average. It came down from 0.032 because the shadow
-         side of a jaw was carrying visibly stippled noise that re-randomised
-         every frame. */
+      // Seeded from the tier table; grain is kept low so shadows don't look speckled.
       grain: PostFX.TIERS.medium.grain,
       vignette: PostFX.TIERS.medium.vignette,
       aberration: PostFX.TIERS.medium.aberration,
       contrast: 1.0,
-      /* 1.0 — no chroma boost.
-         This was 1.09. A global saturation lift is a normal look-development
-         move, but it lands hardest on whatever is already most saturated, and
-         in a head-and-shoulders frame that is always the skin. It was pushing
-         rendered skin from the albedo's R/B of 1.69 up towards 1.9, i.e. into
-         a deep tan the operator never selected.
-         That is a correctness problem before it is an aesthetic one: skin tone
-         is part of the description this tool exists to produce, so the pipeline
-         must show the tone that was set, not a graded interpretation of it.
-         Grade for accuracy here; leave taste to the viewer. */
+      // No saturation boost, so the skin tone shown is exactly the one the operator chose.
       saturation: 1.0,
     };
 
@@ -91,11 +44,7 @@ class PostFX {
     this.setTier('medium');
   }
 
-  /**
-   * A single oversized triangle rather than a quad: no diagonal seam, one
-   * fewer vertex, and no risk of the two triangles being shaded inconsistently
-   * along the shared edge.
-   */
+  // Builds one oversized triangle that covers the screen, which avoids a seam down the middle.
   _createFullscreenTriangle() {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(
@@ -105,33 +54,19 @@ class PostFX {
     return new THREE.Mesh(geo, null);
   }
 
+  // Creates the render targets for the scene and the bloom passes.
   _buildTargets(width, height) {
     const opts = {
       minFilter: THREE.LinearFilter,
       magFilter: THREE.LinearFilter,
-      // Half float so highlights can exceed 1.0 and actually have something
-      // for the bloom threshold to find. An 8-bit target clips them away
-      // before the bright pass ever runs.
+      // Half-float so highlights can go above 1.0 for the bloom to find.
       type: THREE.HalfFloatType,
       colorSpace: THREE.NoColorSpace,
       depthBuffer: true,
       stencilBuffer: false,
     };
 
-    /* Multisampling a half-float target is the most bandwidth-hungry thing in
-       this chain, and on Apple silicon that bandwidth is shared with the CPU —
-       at devicePixelRatio 2 it was half the frame budget on its own.
-
-       Dropping it altogether is not an option: the brows and hair are drawn as
-       individual strands, each one thinner than a pixel at the tail, and with
-       no samples to catch them they break into a dotted stipple. That is the
-       one thing on this face that must not degrade. Halving the samples keeps
-       the strands continuous — indistinguishable from 4x at this density —
-       for most of the saving, because the buffer above 1.25 is already
-       supersampled relative to CSS pixels and doing part of the work.
-
-       At or below 1.25, where the displays this app already ran smoothly on
-       sit, the full 4x is untouched. */
+    // 2x multisampling on high-DPI screens to save bandwidth, 4x otherwise; hair strands need some to stay smooth.
     const samples = this.renderer.getPixelRatio() > 1.25 ? 2 : 4;
 
     this.sceneRT = new THREE.WebGLRenderTarget(width, height,
@@ -145,6 +80,7 @@ class PostFX {
       Object.assign({}, opts, { depthBuffer: false }));
   }
 
+  // Frees the render targets.
   _disposeTargets() {
     if (this.sceneRT) this.sceneRT.dispose();
     if (this.bloomA) this.bloomA.dispose();
@@ -152,6 +88,7 @@ class PostFX {
     this.sceneRT = this.bloomA = this.bloomB = null;
   }
 
+  // Vertex shader shared by every pass.
   static get VERTEX() {
     return [
       'varying vec2 vUv;',
@@ -162,10 +99,9 @@ class PostFX {
     ].join('\n');
   }
 
+  // Builds the bright-pass, blur and final composite shaders.
   _buildMaterials() {
-    // ── Bright pass ──
-    // Soft knee rather than a hard cutoff, so a highlight easing past the
-    // threshold ramps into the bloom instead of popping on.
+    // Bright pass with a soft knee so highlights fade into the bloom instead of popping on.
     this._brightMat = new THREE.ShaderMaterial({
       uniforms: {
         tDiffuse: { value: null },
@@ -254,9 +190,7 @@ class PostFX {
         'uniform vec2 uResolution;',
         'varying vec2 vUv;',
         '',
-        // Narkowicz's ACES fit. Cheap, and close enough to the renderer's
-        // ACESFilmicToneMapping that moving the operator here does not shift
-        // the look, only the point in the chain where it happens.
+        // ACES tone curve, close to the renderer's own so moving it here doesn't change the look.
         'vec3 acesFilm( vec3 x ) {',
         '  return clamp( ( x * ( 2.51 * x + 0.03 ) ) / ( x * ( 2.43 * x + 0.59 ) + 0.14 ), 0.0, 1.0 );',
         '}',
@@ -264,26 +198,7 @@ class PostFX {
         '  return clamp( ( x * ( 2.51 * x + 0.03 ) ) / ( x * ( 2.43 * x + 0.59 ) + 0.14 ), 0.0, 1.0 );',
         '}',
         '',
-        /* Hue-preserving tone mapping.
-           Applying ACES per channel does not preserve chromaticity, and on skin
-           the error is large and systematic. Measured on this app's own albedo
-           (sRGB 203,154,120, R/B = 1.70), per-channel ACES renders it at:
-
-               illumination 0.4  ->  R/B 1.99      (shadow: orange)
-               illumination 0.8  ->  R/B 1.59
-               illumination 1.7  ->  R/B 1.28      (highlight: pale)
-
-           So one skin tone comes out a different hue depending only on how
-           brightly that part of the face happens to be lit, which is why the
-           neck read as golden while the forehead read as pale. That is a
-           colour-accuracy fault rather than a look: skin tone is part of the
-           description this tool produces, and it has to survive the lighting.
-
-           Tone mapping the LUMINANCE and rescaling the channels around it
-           holds the hue fixed (measured 1.68-1.73 from shadow to midtone).
-           The per-channel curve is blended back in only above the point where
-           the image is genuinely blowing out, because there the desaturation
-           toward white is real sensor behaviour and not an artefact. */
+        // Tone map brightness only, so skin keeps the same hue whether it is in shadow or light.
         'vec3 toneMapHuePreserving( vec3 x ) {',
         '  float l = dot( x, vec3( 0.2126, 0.7152, 0.0722 ) );',
         '  vec3 hueSafe = x * ( acesFilm1( l ) / max( l, 1e-5 ) );',
@@ -295,8 +210,7 @@ class PostFX {
         '}',
         '',
         'void main() {',
-        // Real lenses disperse more toward the edges of the frame, so the
-        // offset scales with distance from centre rather than being uniform.
+        // Colour fringing grows toward the edges, like a real lens.
         '  vec2 centered = vUv - 0.5;',
         '  float r2 = dot( centered, centered );',
         '  vec2 caOffset = centered * r2 * uAberration;',
@@ -318,47 +232,16 @@ class PostFX {
         '  float vig = 1.0 - uVignette * smoothstep( 0.25, 0.85, length( centered ) * 1.35 );',
         '  color *= vig;',
         '',
-        // Grain is strongest in the midtones and shadows, as on real film and
-        // on a real sensor: bright areas carry more signal per grain.
-        /* Grain is quantised to cells ~1.5 CSS pixels across, not to single
-           device pixels.
-
-           Measured on a real frame, the grain was per-device-pixel white
-           noise with about half its energy above 70% of Nyquist, fully
-           re-randomised every frame. Noise sitting right on the sampling grid
-           is the worst place to put it: it has nowhere to alias except into
-           the pixel grid itself, it sizzles rather than reading as grain, and
-           it is the only thing in the whole frame that changes when the camera
-           is completely still (verified: with grain off, two consecutive
-           frames are pixel-identical).
-
-           Sizing the cell above one pixel puts the noise below Nyquist, which
-           is also the more physical model — film grain is a particle of fixed
-           size, not something that gets finer because the panel is denser.
-           Scaling by the pixel ratio keeps the apparent size constant across
-           displays. */
+        // Grain is strongest in shadows and midtones, like real film.
+        // Grain cells are about 1.5 pixels wide, so it looks like film grain instead of flickering pixel noise.
         '  vec2 grainCell = floor( gl_FragCoord.xy / max( uGrainSize, 1.0 ) );',
         '  float g = hash( grainCell + vec2( uTime * 37.0, uTime * 19.0 ) ) - 0.5;',
-        /* The shadow weighting is gentler than it was: 0.35 + 0.65 * w gave
-           the darkest pixels almost three times the grain of the brightest.
-           Photon noise really is relatively stronger in shadow, so some of
-           this is right, but applied here — after tone mapping and the sRGB
-           encode — the perceptual effect in the dark end is exaggerated well
-           past what a sensor does.
-           The visible failure was at SHADING BOUNDARIES. Along a jawline or
-           the side of a neck the luminance crosses the smoothstep range over a
-           few pixels, so the grain amplitude jumped across that same edge and
-           laid a band of strong, fully re-randomised noise along it. Those
-           boundaries are diagonal on a three-quarter view, and noise boiling
-           along a diagonal edge reads as a diagonal line crawling across the
-           face. Flattening the ratio keeps grain in the shadows without
-           drawing it along every terminator. */
+        // Gentle shadow weighting so grain doesn't crawl along shading edges such as the jawline.
         '  float grainWeight = 1.0 - smoothstep( 0.15, 1.0, lum );',
         '  color += g * uGrain * ( 0.62 + 0.38 * grainWeight );',
         '',
         '  color = max( color, vec3( 0.0 ) );',
-        // Manual sRGB encode: a raw ShaderMaterial does not get three's
-        // output colour-space conversion.
+        // Encode to sRGB by hand, since a raw ShaderMaterial skips three's conversion.
         '  vec3 srgb = mix( color * 12.92,',
         '                   1.055 * pow( max( color, vec3( 1e-5 ) ), vec3( 1.0 / 2.4 ) ) - 0.055,',
         '                   step( vec3( 0.0031308 ), color ) );',
@@ -372,11 +255,7 @@ class PostFX {
     });
   }
 
-  /**
-   * Quality tiers. Low skips the whole chain — `enabled` false means
-   * SceneManager.renderFrame() draws straight to the canvas and no render
-   * targets are touched.
-   */
+  // Sets the quality tier; Low turns the whole chain off.
   setTier(tier) {
     this.tier = tier;
     const p = this.params;
@@ -398,10 +277,10 @@ class PostFX {
     return this.tier;
   }
 
+  // Turns the effects on or off, moving tone mapping between the renderer and this pass.
   setEnabled(on) {
     this.enabled = !!on;
-    // The renderer must not tone map into the float target as well; that would
-    // apply the curve twice.
+    // Don't let the renderer tone map as well, or the curve is applied twice.
     if (this.enabled) {
       this.renderer.toneMapping = THREE.NoToneMapping;
     } else {
@@ -411,12 +290,10 @@ class PostFX {
     return this.enabled;
   }
 
+  // Resizes the render targets to match the canvas.
   setSize(width, height) {
     const pr = this.renderer.getPixelRatio();
-    /* Refreshed here, not just at construction: dragging the window to a
-       monitor with different scaling changes the pixel ratio, and the grain
-       should keep the same apparent size rather than growing or shrinking
-       with the panel. */
+    // Update grain size here too, since moving to another monitor can change the pixel ratio.
     this._compositeMat.uniforms.uGrainSize.value = 1.5 * Math.max(1, pr);
 
     const w = Math.max(1, Math.floor(width * pr));
@@ -430,18 +307,20 @@ class PostFX {
     this._compositeMat.uniforms.uResolution.value.set(w, h);
   }
 
-  /** Advance the grain animation. Called once per frame by SceneManager. */
+  // Moves the grain animation on by one frame.
   tick() {
     this._time += 1 / 60;
     this._compositeMat.uniforms.uTime.value = this._time;
   }
 
+  // Draws a full-screen pass with the given material into a target.
   _blit(material, target) {
     this._quad.material = material;
     this.renderer.setRenderTarget(target || null);
     this.renderer.render(this._quad, this._camera);
   }
 
+  // Renders the scene through the effects chain, or straight to the screen when it is off.
   render(scene, camera) {
     if (!this.enabled || this._disposed || !this.sceneRT) {
       this.renderer.setRenderTarget(null);
@@ -481,6 +360,7 @@ class PostFX {
     this.renderer.setRenderTarget(prevTarget);
   }
 
+  // Frees every GPU resource the chain uses.
   dispose() {
     this._disposed = true;
     this._disposeTargets();

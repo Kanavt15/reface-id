@@ -1,11 +1,4 @@
-"""Author the facial crease layers and an editable Blender skin study.
-
-Run with Blender in background mode:
-  blender --background --factory-startup --python scripts/build-skin-surface.py
-
-The app samples the same authored surface fields in undeformed head coordinates.
-The existing head and its morph topology are preserved.
-"""
+"""Blender script that authors the facial crease maps and an editable skin study; run `blender --background --factory-startup --python scripts/build-skin-surface.py`."""
 from pathlib import Path
 import json
 import math
@@ -29,7 +22,7 @@ mature = np.zeros_like(X)
 
 
 def stroke(field, points, width, depth, ridge=0.16):
-    """Tapered, curved crease with a narrow trough and a soft raised shoulder."""
+    """Draws one tapered, curved crease with a narrow trough and a soft raised edge."""
     points = np.asarray(points, dtype=np.float32)
     margin = width * 5
     ix0 = max(0, int((points[:, 0].min() - margin - x0) / (x1 - x0) * (RES - 1)))
@@ -123,6 +116,7 @@ for i in range(2):
 
 
 def save_image(name, array, float_buffer=False):
+    """Saves an array as a non-colour PNG image."""
     assert np.isfinite(array).all(), f'Non-finite surface values in {name}'
     image = bpy.data.images.new(name, width=array.shape[1], height=array.shape[0], alpha=True, float_buffer=float_buffer)
     image.colorspace_settings.name = 'Non-Color'
@@ -134,6 +128,7 @@ def save_image(name, array, float_buffer=False):
 
 
 def encode(field, name):
+    """Turns a height field into an encoded normal map image."""
     gy, gx = np.gradient(field, (y1 - y0) / (RES - 1), (x1 - x0) / (RES - 1))
     data = np.ones((RES, RES, 4), dtype=np.float32)
     data[:, :, 0] = 0.5 - np.clip(gx, -1, 1) * 0.5
@@ -169,6 +164,7 @@ sculpt = head.shape_key_add(name='Mature crease study')
 
 
 def sample(field, px, py):
+    """Samples a field at a point with bilinear interpolation."""
     u = np.clip((px - x0) / (x1 - x0) * (RES - 1), 0, RES - 1.001)
     v = np.clip((py - y0) / (y1 - y0) * (RES - 1), 0, RES - 1.001)
     ix, iy = int(u), int(v)
@@ -194,8 +190,7 @@ bsdf.inputs['Roughness'].default_value = 0.62
 bsdf.inputs['Subsurface Weight'].default_value = 0.08
 bsdf.inputs['Subsurface Scale'].default_value = 0.025
 bsdf.inputs['Subsurface Radius'].default_value = (1.0, 0.4, 0.2)
-# The same original pore source is packed into this editable native material.
-# Object-space box projection avoids stretching the nose's small UV island.
+# Pack the same pore source into an editable Blender material, using box projection so the nose isn't stretched.
 nodes, links = mat.node_tree.nodes, mat.node_tree.links
 coords = nodes.new('ShaderNodeTexCoord')
 coords.location = (-850, 0)
@@ -218,8 +213,7 @@ bump.inputs['Strength'].default_value = 0.35
 bump.inputs['Distance'].default_value = 0.015
 bump.location = (-160, -150)
 links.new(pore.outputs['Color'], bump.inputs['Height'])
-# Preserve narrow creases between mesh vertices using the full-resolution
-# height field as a bump layer, in addition to the editable shape key.
+# Also add the full-resolution height field as a bump layer so narrow creases survive between vertices.
 height_data = np.ones((RES, RES, 4), dtype=np.float32)
 height_data[:, :, :3] = (0.5 + (fine + mature * 0.5) / 0.025)[:, :, None]
 height_image = bpy.data.images.new('Authored anatomy height - packed', width=RES, height=RES, alpha=True, float_buffer=True)

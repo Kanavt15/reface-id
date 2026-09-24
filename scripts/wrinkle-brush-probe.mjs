@@ -1,7 +1,4 @@
-/**
- * Real pointer-stroke and render checks without opening or writing a case.
- * node scripts/wrinkle-brush-probe.mjs [--missing] [--label=name]
- */
+// Checks the wrinkle brush with real mouse strokes and renders, without opening or saving a case; run with `node scripts/wrinkle-brush-probe.mjs [--missing] [--label=name]`.
 import { chromium } from 'playwright-core';
 import express from 'express';
 import * as fs from 'node:fs';
@@ -88,9 +85,12 @@ try {
     window.baseline = capture();
     painter.enable();
   });
+  // Saves a picture of the skin canvas.
   const shot = async name => page.locator('#skin').screenshot({path: path.join(out, name + '.png')});
   await shot('no-default-wrinkles');
+  // Builds a slightly wavy stroke path at a given height.
   const pathAt = y => Array.from({length: 41}, (_, i) => [325 + i * 8.75, y + 8 * Math.sin(i / 40 * Math.PI) + 2 * Math.sin(i / 4)]);
+  // Draws a stroke with the real mouse.
   async function draw(points) {
     await page.mouse.move(...points[0]); await page.mouse.down();
     for (const point of points.slice(1)) await page.mouse.move(...point);

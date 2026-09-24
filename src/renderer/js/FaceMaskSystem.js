@@ -1,29 +1,11 @@
-/**
- * FaceMaskSystem.js – OBJ-based face coverings (cloth / medical mask).
- *
- * Loads a mask OBJ and fits it to the lower face using live post-morph
- * landmarks: nose_bridge (top edge), chin (bottom edge), jaw angles (width)
- * and nose_tip (forward clearance). Mirrors GlassesSystem so head tracking
- * works automatically — HeadTracker reparents maskGroup into the pivot group.
- *
- * Model space note: both mask OBJs export Y-up with +Z facing forward, which
- * already matches the Three.js scene and head.glb. Unlike GlassesSystem no
- * axis-fix rotation is baked onto the geometry.
- *
- * Strap meshes (Mask2's ear cords) are kept out of the fit bounding box so the
- * mask body drives scale and placement, then ride along with the body.
- */
+// Loads a face mask model and fits it to the lower face from the live landmarks, with adjustable ear loops.
 
-// ── Asset path constants ────────────────────────────────────────────────────
-// Update these paths if the OBJ files are moved.
+// Mask model paths; update these if the files move.
 const FACEMASK_MODEL_PATH_STYLE1 = '../../assets/models/face_mask/Mask1.obj';
 const FACEMASK_MODEL_PATH_STYLE2 = '../../assets/models/face_mask/Mask2.obj';
 
 class FaceMaskSystem {
-  /**
-   * Neutral slider values, before any per-style tuning is layered on top.
-   * Every key here is a valid `setParam` target.
-   */
+  // Neutral slider values before any per-style tuning.
   static get BASE_PARAMS() {
     return {
       scale: 100,    // 50..200  — uniform fit
@@ -35,10 +17,7 @@ class FaceMaskSystem {
       rotX: 0,       // -180..180 deg — pitch
       rotY: 0,       // -180..180 deg — yaw
       rotZ: 0,       // -180..180 deg — roll
-      // Ear loops are tuned per side — the cords are not perfect mirrors in
-      // the source assets, and a morphed face pushes them further apart.
-      // "left" is the subject's left, i.e. the -X cheek, matching the
-      // eye_left / jaw_angle_left convention in OBJMorpher.LANDMARKS.
+      // Ear loops are tuned per side because the cords aren't perfect mirrors; "left" means the subject's left.
       strapScaleL: 100, // 50..200 — left ear-loop length
       strapScaleR: 100, // 50..200 — right ear-loop length
       strapAngleL: 0,   // -60..+60 deg — swings the left loop's free end up/down
@@ -51,8 +30,7 @@ class FaceMaskSystem {
   constructor(scene) {
     this.scene = scene;
 
-    // Scene group — HeadTracker.js looks for this.maskGroup by name to
-    // reparent into the head-tracking pivot, matching GlassesSystem.
+    // HeadTracker looks for this.maskGroup by name to move it into the tracking pivot.
     this.maskGroup = new THREE.Group();
     this.maskGroup.name = 'FaceMaskSystem';
     this.scene.add(this.maskGroup);
@@ -70,8 +48,7 @@ class FaceMaskSystem {
     this.strapColor = '#e6e6e6';
     this.opacity = 100;      // 0..100 — 100 = fully opaque
 
-    // User fine-tune sliders — seeded from the active style's defaults at the
-    // end of this constructor.
+    // Seeded from the active style's defaults at the end of the constructor.
     this.params = FaceMaskSystem.BASE_PARAMS;
 
     // Body meshes drive the fit bbox; strap meshes only ride along.
@@ -83,9 +60,7 @@ class FaceMaskSystem {
       mask1: {
         file: FACEMASK_MODEL_PATH_STYLE1,
         label: 'Cloth Mask',
-        // posY lift: this model's top edge dips hard at the midline (its bbox
-        // top comes from the flared cheek corners), so a neutral fit leaves the
-        // nose uncovered. +10 puts the nose-bridge edge back over the nose.
+        // This model's top edge dips at the middle, so lift it to cover the nose.
         defaults: {
           scale: 100, width: 100, coverage: 100,
           posX: 0, posY: 10, posZ: 0,
@@ -100,10 +75,7 @@ class FaceMaskSystem {
       mask2: {
         file: FACEMASK_MODEL_PATH_STYLE2,
         label: 'Medical Mask',
-        // Hand-tuned against the neutral head. The landmark fit gets the mask
-        // close, but this model's cords are not perfect mirrors of each other
-        // in the source asset, so the two ear loops need slightly different
-        // lengths to both land on the ear.
+        // Hand-tuned; the two ear loops need slightly different lengths to reach the ears.
         defaults: {
           scale: 127, width: 98, coverage: 87,
           posX: -2, posY: 2, posZ: 3,
@@ -127,8 +99,7 @@ class FaceMaskSystem {
     this._container = null;
     this._fitCache = null;
 
-    // Baseline landmark positions captured on first refresh — used so the fit
-    // degrades gracefully if a landmark stops resolving mid-session.
+    // Starting landmark positions, used as a fallback if a landmark stops resolving.
     this._initialNoseBridge = null;
     this._initialChin = null;
     this._initialJawSpan = null;
@@ -147,20 +118,13 @@ class FaceMaskSystem {
       side: THREE.DoubleSide,
     });
 
-    // Seed params/colours from the starting style's defaults. Without this the
-    // tuned values only land once a style card is clicked, so simply ticking
-    // "Show face mask" would render an untuned fit. Safe to call here: the
-    // materials exist and setStyle only reaches generate() when enabled.
+    // Apply the starting style's defaults now so the first "show mask" already uses the tuned fit.
     this.setStyle(this.currentStyle);
 
     console.log('[FaceMaskSystem] Initialized');
   }
 
-  /**
-   * Full default state for a style, ready to hand to loadState(). Reset paths
-   * use this so "reset" restores the tuned per-style fit rather than a flat
-   * neutral pose that no style actually wants.
-   */
+  // Returns a style's full default state, so reset restores the tuned fit.
   getStyleDefaults(style) {
     const name = this.maskModels[style] ? style : 'mask1';
     const d = this.maskModels[name].defaults || {};
@@ -177,6 +141,7 @@ class FaceMaskSystem {
 
   // ── Head binding ────────────────────────────────────────────────────────
 
+  // Connects the mask to the head mesh and morpher.
   setHeadMesh(headGroup, regionData, morpher) {
     this._headGroup = headGroup;
     this._regionData = regionData;
@@ -187,6 +152,7 @@ class FaceMaskSystem {
     this._captureBaselines();
   }
 
+  // Records the starting positions of the landmarks the fit uses.
   _captureBaselines() {
     if (!this._morpher || typeof this._morpher.getCurrentLandmarkPosition !== 'function') return;
     const bridge = this._morpher.getCurrentLandmarkPosition('nose_bridge');
@@ -198,9 +164,7 @@ class FaceMaskSystem {
     if (jawL && jawR) this._initialJawSpan = Math.abs(jawR[0] - jawL[0]);
   }
 
-  /**
-   * Called by app.js on every morph update so the mask tracks facial changes.
-   */
+  // Refits the mask after every face change.
   refreshFromMesh(morphValues) {
     if (morphValues) this._faceMorphValues = morphValues;
     if (this._container && this.enabled) {
@@ -210,6 +174,7 @@ class FaceMaskSystem {
 
   // ── Public API ──────────────────────────────────────────────────────────
 
+  // Shows or hides the mask, loading it on first use.
   setEnabled(enabled) {
     this.enabled = !!enabled;
     if (this.enabled) {
@@ -224,6 +189,7 @@ class FaceMaskSystem {
     }
   }
 
+  // Switches to another mask style and applies its tuned defaults.
   setStyle(style) {
     const config = this.maskModels[style];
     if (!config) {
@@ -247,16 +213,19 @@ class FaceMaskSystem {
     }
   }
 
+  // Sets the mask colour.
   setMaskColor(hex) {
     this.maskColor = hex;
     this._maskMat.color.set(hex);
   }
 
+  // Sets the ear-loop colour.
   setStrapColor(hex) {
     this.strapColor = hex;
     this._strapMat.color.set(hex);
   }
 
+  // Sets the mask's opacity.
   setOpacity(value) {
     this.opacity = Math.max(0, Math.min(100, value));
     const o = this.opacity / 100;
@@ -266,12 +235,14 @@ class FaceMaskSystem {
     }
   }
 
+  // Sets one fit value and refits the mask.
   setParam(param, value) {
     if (this.params[param] === undefined) return;
     this.params[param] = value;
     if (this._container && this.enabled) this._alignAndAdjust();
   }
 
+  // Returns the current mask settings.
   getParams() {
     return {
       ...this.params,
@@ -283,13 +254,9 @@ class FaceMaskSystem {
     };
   }
 
-  /** True when the current style actually has ear-loop geometry. */
-  hasStraps() {
-    return this._strapMeshes.length > 0;
-  }
-
   // ── Generation ──────────────────────────────────────────────────────────
 
+  // Loads the mask model (or uses the cached one) and fits it to the face.
   generate() {
     this._clearGroup(this.maskGroup);
     this._container = null;
@@ -335,28 +302,17 @@ class FaceMaskSystem {
     );
   }
 
-  /** Resolves once no mask model is mid-load. See AssetLoadTracker. */
+  // Resolves once no mask model is still loading.
   whenIdle() {
     return this._loads.whenIdle();
   }
 
-  /**
-   * Blender exports each sub-object as `o <name>`, which OBJLoader turns into
-   * a mesh name. Mask2's ear cords come through as "...:cord..." / "...:cord1..."
-   */
+  // Tells whether a mesh is one of the ear loops, from the name Blender exported.
   _isStrapMesh(mesh) {
     return /cord|strap|loop|band|elastic|tie|string/i.test(mesh.name || '');
   }
 
-  /**
-   * Translate a strap's geometry so its attachment end sits at the local
-   * origin, then offset mesh.position by that point. After this, mesh.scale.z
-   * lengthens the loop backwards from the mask body and mesh.rotation swings
-   * it around the attachment instead of around the model origin.
-   *
-   * `bodyCentreX` decides which cheek the strap belongs to — the raw model X
-   * is not centred on the mask, so its sign alone would misclassify both.
-   */
+  // Moves a strap's pivot to where it joins the mask, so its length and angle swing it toward the ear.
   _pivotStrapAtAttachment(mesh, bodyCentreX) {
     mesh.geometry.computeBoundingBox();
     const bb = mesh.geometry.boundingBox;
@@ -368,6 +324,7 @@ class FaceMaskSystem {
     mesh.userData.strapSide = px < bodyCentreX ? 'left' : 'right';
   }
 
+  // Places a cached mask model in the scene, separating the body from the ear loops.
   _showCached(style) {
     this._clearGroup(this.maskGroup);
     this._bodyMeshes = [];
@@ -392,18 +349,12 @@ class FaceMaskSystem {
       offsetGroup.add(mesh);
     });
 
-    // Degenerate model with only straps — treat everything as body so the fit
-    // bbox is never empty, and leave the geometry alone. Pivoting would shift
-    // it out from under the fit bbox, which reads geometry bounds directly.
+    // A model with only straps counts them all as body so the fit box is never empty.
     if (this._bodyMeshes.length === 0 && this._strapMeshes.length > 0) {
       this._bodyMeshes = this._strapMeshes.slice();
       this._strapMeshes = [];
     } else {
-      // Second pass: pivot each strap at the point where it meets the mask
-      // body (its front-most +Z end) so length and angle changes swing it
-      // toward the ear instead of dragging it away from the model origin.
-      // Needs the body centre, so it can only run once every mesh is
-      // classified.
+      // Pivot each strap where it meets the mask body, once every mesh has been sorted.
       const bodyBox = new THREE.Box3();
       for (const m of this._bodyMeshes) {
         m.geometry.computeBoundingBox();
@@ -422,6 +373,7 @@ class FaceMaskSystem {
     this._alignAndAdjust();
   }
 
+  // Fits the mask to the nose bridge, chin and jaw, then applies the user's offsets.
   _alignAndAdjust() {
     if (!this._container || !this._headGroup) return;
 
@@ -429,8 +381,7 @@ class FaceMaskSystem {
     const offsetGroup = container.children[0];
     if (!offsetGroup) return;
 
-    // Fit bbox is measured from the mask body only (straps would inflate both
-    // the depth and the width and throw the whole placement off).
+    // Measure the fit box from the mask body only; the straps would throw it off.
     if (!this._fitCache) {
       container.scale.set(1, 1, 1);
       container.position.set(0, 0, 0);
@@ -485,8 +436,7 @@ class FaceMaskSystem {
     if (!jawSpan) jawSpan = 1.20;
     if (noseTipZ === null) noseTipZ = 1.30;
 
-    // ── Vertical span the mask must cover ──
-    // Top edge rides the nose bridge, bottom edge wraps just under the chin.
+    // Top edge sits on the nose bridge and the bottom wraps just under the chin.
     const coverage = (this.params.coverage ?? 100) / 100;
     const CHIN_WRAP = 0.10;
     const coverTop = chin.y + (bridge.y - chin.y) * coverage;
@@ -502,8 +452,7 @@ class FaceMaskSystem {
       ? Math.max(0.6, Math.min(1.6, (jawSpan * JAW_WRAP) / fittedWidth))
       : 1;
 
-    // Morph-value driven refinement — landmark deltas cover most of it, these
-    // sharpen the response during fast slider drags.
+    // Morph values fine-tune the fit so it keeps up during fast slider drags.
     const mv = this._faceMorphValues || (this._morpher ? this._morpher.morphValues : null) || {};
     const neutral = 50;
     const t = (key) => ((mv[key] ?? neutral) - neutral) / 50; // -1..+1
@@ -524,8 +473,7 @@ class FaceMaskSystem {
 
     container.scale.set(scaleX, scaleY, scaleZ);
 
-    // Vertical: centre of the covered span (the recentred bbox puts the body
-    // centre at the container origin, so this lands the top edge on the bridge).
+    // Centre the mask on the covered span so its top edge lands on the nose bridge.
     const centreY = (coverTop + coverBottom) * 0.5;
 
     // Depth: push the mask so its front-most point clears the nose tip.
@@ -544,13 +492,7 @@ class FaceMaskSystem {
       this.params.rotZ * DEG
     );
 
-    // Ear loops run backwards along -Z from their attachment pivot, so scale.z
-    // lengthens them and a rotation at the pivot re-aims the free end.
-    //
-    // Positive strapAngle lifts that end (rotation about X sends a point at
-    // -Z to +Y). Positive strapSplay pushes it away from the face; rotation
-    // about Y sends -Z toward -X, so the right-hand strap needs the opposite
-    // sign for both loops to swing outward together.
+    // Ear loops scale along -Z and rotate at their pivot; the right loop uses opposite signs so both swing the same way.
     for (const m of this._strapMeshes) {
       const isLeft = m.userData.strapSide === 'left';
       const suffix = isLeft ? 'L' : 'R';
@@ -564,6 +506,7 @@ class FaceMaskSystem {
 
   // ── State / persistence ─────────────────────────────────────────────────
 
+  // Returns the mask settings for saving.
   exportState() {
     // Spread params so new sliders persist without touching this method.
     return {
@@ -576,6 +519,7 @@ class FaceMaskSystem {
     };
   }
 
+  // Restores mask settings from a saved case.
   loadState(state) {
     if (!state) return;
     if (state.style && this.maskModels[state.style]) this.currentStyle = state.style;
@@ -585,24 +529,19 @@ class FaceMaskSystem {
     for (const key of Object.keys(this.params)) {
       if (state[key] !== undefined) this.params[key] = state[key];
     }
-    // Backward-compat: strap controls used to be a single value shared by both
-    // ear loops. Fan an older save's value out to both sides.
+    // Older saves had one strap value for both loops, so copy it to both sides.
     for (const base of ['strapScale', 'strapAngle', 'strapSplay']) {
       if (state[base] === undefined) continue;
       if (state[base + 'L'] === undefined) this.params[base + 'L'] = state[base];
       if (state[base + 'R'] === undefined) this.params[base + 'R'] = state[base];
     }
-    // Force a clean rebuild so style/param changes from undo/redo are always
-    // reflected — setEnabled skips generate() when a container already exists.
+    // Force a clean rebuild so undo/redo always shows the restored state.
     this._container = null;
     this._fitCache = null;
     this.setEnabled(state.enabled === true);
   }
 
-  /**
-   * Apply AI-generated face mask block. Schema:
-   *   { enabled, style, maskColor, strapColor, opacity }
-   */
+  // Applies mask settings suggested by the AI.
   applyFromAI(data) {
     if (!data) return;
     if (data.style && this.maskModels[data.style]) this.setStyle(data.style);
@@ -612,37 +551,16 @@ class FaceMaskSystem {
     this.setEnabled(!!data.enabled);
   }
 
-  /**
-   * World-space transform of the mask container. Useful for future Blender
-   * export pipelines that want to merge the mask into the head mesh.
-   */
-  getRenderTransform() {
-    if (!this._container || !this.enabled) {
-      return { matrix: null, params: { ...this.params }, enabled: this.enabled };
-    }
-    const c = this._container;
-    const o = c.children[0];
-    c.updateWorldMatrix(true, false);
-    o?.updateWorldMatrix(true, false);
-    return {
-      matrix: Array.from((o ? o.matrixWorld : c.matrixWorld).elements),
-      params: { ...this.params },
-      enabled: this.enabled,
-      style: this.currentStyle,
-      maskColor: this.maskColor,
-      strapColor: this.strapColor,
-      opacity: this.opacity,
-    };
-  }
-
   // ── Cleanup ────────────────────────────────────────────────────────────
 
+  // Removes every child from a group.
   _clearGroup(group) {
     while (group.children.length > 0) {
       group.remove(group.children[0]);
     }
   }
 
+  // Removes the mask from the scene.
   dispose() {
     this._clearGroup(this.maskGroup);
     this.scene.remove(this.maskGroup);

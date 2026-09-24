@@ -1,17 +1,12 @@
-"""
-Blender Script: Generate Hair Particle System
-Creates realistic hair using Blender's particle system and converts to mesh for export.
-Compatible with Blender 4.x and 5.x.
-"""
+"""Blender script that grows a particle hair system on the head and converts it to a mesh for export (Blender 4 and 5)."""
 
 import bpy
 import json
 import sys
 import os
-import math
-import random
 
 def get_args():
+    """Reads the JSON arguments file passed after '--' on the Blender command line."""
     argv = sys.argv
     if '--' in argv:
         args_file = argv[argv.index('--') + 1]
@@ -20,12 +15,9 @@ def get_args():
     return {}
 
 def clear_scene():
+    """Removes every object from the scene."""
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.object.delete(use_global=False)
-
-def blender_version():
-    """Return Blender major version as int (e.g. 5 for 5.0.1)."""
-    return bpy.app.version[0]
 
 # Hair style presets
 HAIR_PRESETS = {
@@ -125,7 +117,7 @@ HAIR_PRESETS = {
 }
 
 def create_scalp_vertex_group(obj):
-    """Create a vertex group limiting hair to the upper scalp region."""
+    """Creates a vertex group that limits hair to the upper scalp."""
     mesh = obj.data
     vg = obj.vertex_groups.new(name="Scalp")
 
@@ -144,7 +136,7 @@ def create_scalp_vertex_group(obj):
     return vg
 
 def create_hair_system(obj, hair_params):
-    """Add a particle hair system to the head object."""
+    """Adds a particle hair system to the head using a style preset."""
     
     style = hair_params.get('style', 'medium_straight')
     preset = HAIR_PRESETS.get(style, HAIR_PRESETS['medium_straight'])
@@ -221,7 +213,7 @@ def create_hair_system(obj, hair_params):
     pset.material_slot = obj.data.materials.find(mat.name) + 1
 
 def create_facial_hair(obj, facial_hair_params):
-    """Add facial hair (beard, mustache, etc.)."""
+    """Adds facial hair such as a beard or moustache."""
     style = facial_hair_params.get('style', 'none')
     
     if style == 'none':
@@ -253,12 +245,12 @@ def create_facial_hair(obj, facial_hair_params):
     pset.hair_step = 4
 
 def hex_to_rgb(hex_color):
-    """Convert hex color to RGB floats."""
+    """Converts a hex colour to RGB floats."""
     hex_color = hex_color.lstrip('#')
     return tuple(int(hex_color[i:i+2], 16) / 255.0 for i in (0, 2, 4))
 
 def convert_particles_to_mesh(obj):
-    """Convert particle system to mesh for export compatibility."""
+    """Converts the particle hair into a mesh so it can be exported."""
     bpy.context.view_layer.objects.active = obj
     
     dg = bpy.context.evaluated_depsgraph_get()
@@ -271,6 +263,7 @@ def convert_particles_to_mesh(obj):
     return hair_obj
 
 def main():
+    """Loads the head, adds hair and facial hair, converts it to a mesh and exports it."""
     args = get_args()
     
     base_model_path = args.get('base_model', '')

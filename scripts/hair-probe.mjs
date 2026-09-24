@@ -1,19 +1,4 @@
-/**
- * hair-probe.mjs — drive the app into the editor, fit a hair style, and
- * photograph the hair mass from the angles its realism is actually judged at.
- *
- *   node scripts/hair-probe.mjs [style] [outDir]
- *
- * face-probe.mjs frames the face. Hair fails differently: it fails at the
- * silhouette, in the specular band, and in the flat interior of the mass, and
- * none of those read at portrait distance from the front. So this shoots the
- * crown, the side fall and the back, plus a tight crop at the length where
- * strand detail either exists or does not.
- *
- * Intake navigation mirrors face-probe.mjs — real Playwright clicks, never
- * element.click() via evaluate, for the isTrusted reason documented in
- * smoke.mjs.
- */
+// Fits a hairstyle and photographs it from the front, side, crown, back and close up; run with `node scripts/hair-probe.mjs [style] [outDir]`.
 import { _electron as electron } from 'playwright-core';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -29,13 +14,12 @@ const bin = path.join(APP_DIR, 'node_modules', 'electron', 'dist',
   : process.platform === 'darwin' ? 'Electron.app/Contents/MacOS/Electron'
   : 'electron');
 
+// Waits for a number of milliseconds.
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
 
-/* A fresh profile per run, not a fixed path wiped at startup: the previous
-   run's Electron can still hold a lock on it, and rmSync then throws EPERM
-   before a single shot is taken. */
+// A new profile per run, since the last run's Electron may still hold a lock on the old one.
 const PROFILE = path.join(os.tmpdir(), 'reface-hair-profile-' + process.pid);
 
 const app = await electron.launch({
@@ -45,6 +29,7 @@ const app = await electron.launch({
   timeout: 60_000,
 });
 
+// Finds the app window by URL, since DevTools can open first.
 async function realPage() {
   const t0 = Date.now();
   for (;;) {
@@ -64,6 +49,7 @@ page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message));
 
 await page.waitForLoadState('domcontentloaded');
 
+// Waits until a condition is true in the page, or fails after a timeout.
 async function waitFor(label, fn, timeout = 45_000, arg) {
   const t0 = Date.now();
   for (;;) {
@@ -96,8 +82,7 @@ await sleep(3000);
 /* ── Pick the style ──────────────────────────────────────────────────── */
 await page.click('.panel-tab[data-panel="hair"]');
 await sleep(700);
-// Control groups ship collapsed, so the style grid is not hittable until its
-// header is opened. Toggle by class rather than assuming a starting state.
+// Groups start collapsed, so open the one holding the style grid.
 await page.evaluate(() => {
   const h = [...document.querySelectorAll('#panel-hair .control-group-header')]
     .find((n) => n.querySelector('span')?.textContent.trim() === 'Hair Style');
@@ -154,6 +139,7 @@ console.log(JSON.stringify(report, null, 2));
 await page.keyboard.press('Backslash');
 await sleep(700);
 
+// Points the camera at the hair from an angle and distance, then saves a picture.
 async function frame(name, dist, targetY, azimuth, elevation = 0) {
   await page.evaluate(({ dist, targetY, azimuth, elevation }) => {
     const sm = window.rfApp.sceneManager;
@@ -174,8 +160,7 @@ async function frame(name, dist, targetY, azimuth, elevation = 0) {
 }
 
 const T = Math.PI / 180;
-// The angles hair is judged at: the fall down the side, the crown parting,
-// the back mass, and a tight crop where individual strands either read or do not.
+// The angles hair is judged from, plus a close-up where single strands show.
 await frame('hair-front',   5.6, 0.10,   0 * T);
 await frame('hair-34',      5.6, 0.10,  35 * T);
 await frame('hair-side',    5.6, 0.10,  90 * T);

@@ -1,9 +1,4 @@
-/**
- * FaceMorpher.js
- * Handles real-time facial feature morphing in Three.js.
- * Manipulates vertex positions based on region assignments and morph parameters.
- * Provides instant visual feedback while Blender handles final high-quality output.
- */
+// Simple fallback morpher that moves vertices by face region when the main head model can't load.
 
 class FaceMorpher {
   constructor(baseFaceGeometry) {
@@ -11,7 +6,6 @@ class FaceMorpher {
     this.morphValues = {};
     this.defaultValue = 50; // 0-100 range, 50 = neutral
 
-    // Initialize all morph parameters
     this.params = [
       // Skull
       'headWidth', 'headHeight', 'headDepth',
@@ -33,7 +27,6 @@ class FaceMorpher {
       'neckWidth', 'neckLength',
     ];
 
-    // Set all to default
     this.params.forEach(p => this.morphValues[p] = this.defaultValue);
 
     // Map parameters to regions and transformations
@@ -83,9 +76,7 @@ class FaceMorpher {
     };
   }
 
-  /**
-   * Set a morph parameter value (0-100 range)
-   */
+  // Sets one morph value (0-100).
   setMorphValue(param, value) {
     if (this.params.includes(param)) {
       this.morphValues[param] = value;
@@ -93,35 +84,18 @@ class FaceMorpher {
     }
   }
 
-  /**
-   * Get all current morph values normalized to 0-1 for backend
-   */
-  getNormalizedValues() {
-    const normalized = {};
-    for (const [key, value] of Object.entries(this.morphValues)) {
-      normalized[key] = value / 100;
-    }
-    return normalized;
-  }
-
-  /**
-   * Get count of modified (non-default) parameters
-   */
+  // Counts how many morphs differ from the default.
   getModifiedCount() {
     return Object.values(this.morphValues).filter(v => v !== this.defaultValue).length;
   }
 
-  /**
-   * Reset all morphs to default
-   */
+  // Resets every morph to the default.
   resetAll() {
     this.params.forEach(p => this.morphValues[p] = this.defaultValue);
     this.baseFace.resetToOriginal();
   }
 
-  /**
-   * Reset a specific group of parameters
-   */
+  // Resets one group of morphs.
   resetGroup(groupName) {
     const groupMap = {
       skull: ['headWidth', 'headHeight', 'headDepth'],
@@ -140,9 +114,7 @@ class FaceMorpher {
     this.applyAllMorphs();
   }
 
-  /**
-   * Apply all morph values to the geometry
-   */
+  // Rebuilds the mesh from its original shape plus every morph.
   applyAllMorphs() {
     const geometry = this.baseFace.geometry;
     if (!geometry || !this.baseFace.originalPositions) return;
@@ -207,9 +179,7 @@ class FaceMorpher {
     geometry.computeVertexNormals();
   }
 
-  /**
-   * Load morph values from a saved state
-   */
+  // Loads morph values from a saved state.
   loadState(state) {
     if (!state) return;
     for (const [key, value] of Object.entries(state)) {
@@ -220,9 +190,7 @@ class FaceMorpher {
     this.applyAllMorphs();
   }
 
-  /**
-   * Export current state
-   */
+  // Returns the current morph values for saving.
   exportState() {
     return { ...this.morphValues };
   }

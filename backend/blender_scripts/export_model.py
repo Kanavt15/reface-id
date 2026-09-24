@@ -1,8 +1,4 @@
-"""
-Blender Script: Export Complete Face Reconstruction
-Combines morphed face + hair + beard + eyebrows + eyes + eyelashes into final export.
-Uses bounding-box based alignment for accurate positioning.
-"""
+"""Blender script that combines the morphed face, hair, beard, eyebrows, eyes and eyelashes into one exported model, aligned by bounding boxes."""
 
 import bpy
 import json
@@ -19,6 +15,7 @@ except Exception:
 
 
 def get_args():
+    """Reads the JSON arguments file passed after '--' on the Blender command line."""
     argv = sys.argv
     if '--' in argv:
         args_file = argv[argv.index('--') + 1]
@@ -28,6 +25,7 @@ def get_args():
 
 
 def clear_scene():
+    """Removes every object and orphaned mesh from the scene."""
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.object.delete(use_global=False)
     for block in bpy.data.meshes:
@@ -39,6 +37,7 @@ def clear_scene():
 
 
 def hex_to_rgb(hex_color):
+    """Converts a hex colour to RGB floats, with a skin-tone fallback."""
     if not hex_color:
         return (0.83, 0.65, 0.46)
     hex_color = hex_color.lstrip('#')
@@ -48,6 +47,7 @@ def hex_to_rgb(hex_color):
 
 
 def create_skin_material(skin_color='#d4a574'):
+    """Creates the skin material."""
     r, g, b = hex_to_rgb(skin_color)
     mat = bpy.data.materials.new(name="SkinMaterial")
     mat.use_nodes = True
@@ -62,6 +62,7 @@ def create_skin_material(skin_color='#d4a574'):
 
 
 def create_hair_material(color='#2c1b0e', name='HairMaterial'):
+    """Creates a hair material in the given colour."""
     r, g, b = hex_to_rgb(color)
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
@@ -78,6 +79,7 @@ def create_hair_material(color='#2c1b0e', name='HairMaterial'):
 
 
 def create_eye_material(color='#634e34', name='EyeMaterial'):
+    """Creates an eye material in the given colour."""
     r, g, b = hex_to_rgb(color)
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
@@ -90,6 +92,7 @@ def create_eye_material(color='#634e34', name='EyeMaterial'):
 
 
 def import_glb(filepath):
+    """Imports a GLB file and returns the new objects."""
     if not os.path.exists(filepath):
         print(f"[Export] GLB not found: {filepath}")
         return []
@@ -103,6 +106,7 @@ def import_glb(filepath):
 
 
 def import_obj(filepath):
+    """Imports an OBJ file and returns the new objects."""
     if not os.path.exists(filepath):
         print(f"[Export] OBJ not found: {filepath}")
         return []
@@ -116,7 +120,7 @@ def import_obj(filepath):
 
 
 def get_bbox(objects):
-    """Get bounding box of objects in world space."""
+    """Returns the world-space bounding box of some objects."""
     min_co = [1e9, 1e9, 1e9]
     max_co = [-1e9, -1e9, -1e9]
     for obj in objects:
@@ -138,7 +142,7 @@ def get_bbox(objects):
 
 
 def process_glb_import(glb_objects, mesh_filter=None, material=None):
-    """Process imported GLB - keep meshes, remove empties, apply material."""
+    """Keeps only the meshes from a GLB import, removes the empties and applies a material."""
     kept = []
     empties = []
     for obj in list(glb_objects):
@@ -173,10 +177,7 @@ def process_glb_import(glb_objects, mesh_filter=None, material=None):
 
 
 def align_hair_to_head(hair_objects, head_bbox, hair_params=None):
-    """
-    Align hair to head using bounding-box based positioning.
-    Replicates the Three.js HairSystem alignment logic.
-    """
+    """Fits the hair to the head the same way the app's HairSystem does."""
     if not hair_objects or not head_bbox:
         return
 
@@ -259,7 +260,7 @@ def align_hair_to_head(hair_objects, head_bbox, hair_params=None):
 
 
 def align_beard_to_head(beard_objects, head_bbox, beard_params=None):
-    """Align beard to lower face area."""
+    """Fits the beard to the lower face."""
     if not beard_objects or not head_bbox:
         return
 
@@ -324,11 +325,7 @@ def align_beard_to_head(beard_objects, head_bbox, beard_params=None):
 
 
 def align_eyebrows_to_head(eyebrow_objects, head_bbox, eyebrow_params=None):
-    """
-    Align eyebrows to upper face area.
-    Matches frontend HairSystem._applyEyebrowAdjustments logic.
-    Frontend uses: browRegionY=0.39 (Three.js Y=up), browRegionZ=1.02 (Three.js Z=forward)
-    """
+    """Fits the eyebrows to the brow area, matching the app's placement."""
     if not eyebrow_objects or not head_bbox:
         return
 
@@ -357,8 +354,7 @@ def align_eyebrows_to_head(eyebrow_objects, head_bbox, eyebrow_params=None):
     posY = params.get('posY', 50)
     posZ = params.get('posZ', 50)
 
-    # Frontend uses browRegionWidth=0.90 as target width
-    # Scale: match brow region width (0.90 in frontend -> relative to head)
+    # Match the app's brow width of 0.90, relative to the head width.
     browRegionWidth = head_width * 0.47  # 0.90 / ~1.9 head width
     baseScale = browRegionWidth / max(eb_sx, 0.001)
     scaleF = 0.5 + (scale_f / 100) * 1.0
@@ -369,11 +365,7 @@ def align_eyebrows_to_head(eyebrow_objects, head_bbox, eyebrow_params=None):
     posOffY = ((posY - 50) / 50) * 0.3
     posOffZ = ((posZ - 50) / 50) * 0.3
 
-    # Target position (browRegionY=0.39, browRegionZ=1.02 in Three.js)
-    # Convert: Three.js Y (up) -> Blender Z (up)
-    #          Three.js Z (forward) -> Blender Y (forward)
-    # browRegionZ=1.02 relative to model -> front of face
-    # browRegionY=0.39 -> about 39% up from bottom
+    # Target position: about 73% up the head and just behind the front surface.
     tx = head_cx + posOffX
     ty = head_front - head_depth * 0.08 + posOffZ  # Slightly behind front surface
     tz = head_bottom + head_height * 0.73 + posOffY  # Upper face area (73% up)
@@ -399,13 +391,7 @@ def align_eyebrows_to_head(eyebrow_objects, head_bbox, eyebrow_params=None):
 
 
 def align_eyes_to_head(left_eye_objects, right_eye_objects, head_bbox, eye_params=None):
-    """
-    Align eyes to eye socket area.
-    Matches frontend EyeSystem positioning:
-    eyeOffsetX = headWidth * 0.16
-    eyeY = headFront - modelDepth * 0.12
-    eyeZ = box.min.z + modelHeight * 0.57
-    """
+    """Places the eyes in the eye sockets, matching the app's EyeSystem."""
     if not head_bbox:
         return
 
@@ -428,8 +414,7 @@ def align_eyes_to_head(left_eye_objects, right_eye_objects, head_bbox, eye_param
     scaleF = 0.7 + (scale_f / 100) * 0.6
     eye_scale = 0.15 * scaleF
 
-    # Eye spacing: horizontal distance from center
-    # Frontend: eyeOffsetX = headWidth * 0.16
+    # Eye spacing from the centre, as in the app.
     eyeOffsetX = head_width * 0.16 * (0.8 + (spacing_f / 100) * 0.4)
 
     # Position offsets
@@ -437,8 +422,7 @@ def align_eyes_to_head(left_eye_objects, right_eye_objects, head_bbox, eye_param
     posOffY = ((posY - 50) / 50) * 0.15
     posOffZ = ((posZ - 50) / 50) * 0.15
 
-    # Eye Y position: headFront - modelDepth * 0.12 (slightly behind front)
-    # Eye Z position: bottom + height * 0.57 (57% up from bottom)
+    # Eyes sit slightly behind the front of the face, 57% up the head.
     eye_y = head_front - head_depth * 0.12 + posOffZ
     eye_z = head_bottom + head_height * 0.57 + posOffY
 
@@ -496,11 +480,7 @@ def align_eyes_to_head(left_eye_objects, right_eye_objects, head_bbox, eye_param
 
 
 def align_eyelashes_to_head(eyelash_objects, head_bbox, eyelash_params=None):
-    """
-    Align eyelashes to eye area.
-    Frontend uses: lashRegionY=0.34, lashRegionZ=1.04
-    Base scale: lashRegionWidth (0.90) / lash_size.x
-    """
+    """Fits the eyelashes around the eyes, a little below and in front of the brows."""
     if not eyelash_objects or not head_bbox:
         return
 
@@ -540,9 +520,7 @@ def align_eyelashes_to_head(eyelash_objects, head_bbox, eyelash_params=None):
     posOffY = ((posY - 50) / 50) * 0.3
     posOffZ = ((posZ - 50) / 50) * 0.3
 
-    # Target position (lashRegionY=0.34, lashRegionZ=1.04 in Three.js)
-    # lashRegionY=0.34 -> 34% up from bottom (slightly below eyebrows at 39%)
-    # lashRegionZ=1.04 -> slightly more forward than eyebrows
+    # Target position: slightly below the eyebrows and a little further forward.
     tx = head_cx + posOffX
     ty = head_front - head_depth * 0.06 + posOffZ  # Slightly more forward than brows
     tz = head_bottom + head_height * 0.69 + posOffY  # Eye level (69% up)
@@ -568,6 +546,7 @@ def align_eyelashes_to_head(eyelash_objects, head_bbox, eyelash_params=None):
 
 
 def main():
+    """Imports the head and every feature, fits them together and exports the combined model."""
     args = get_args()
     print("[Export] ========== EXPORT STARTED ==========")
 

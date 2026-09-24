@@ -1,24 +1,4 @@
-/**
- * ApiKeyGate.js
- * The dialog that asks for an AI provider key, and the gate every AI feature
- * passes through before it calls the backend.
- *
- * Keys used to live in a .env file read once at backend startup. An installed
- * build ships no such file and gives the operator no way to write one, so the
- * AI features were dead in every compiled copy of the app and could only be
- * revived by editing .env and building again. Now the key is asked for at the
- * moment it is first needed, verified, and stored by the backend in the user
- * data directory — entered once per machine, never at build time.
- *
- * Two entry points, and AI code should use one of them rather than reading
- * provider state itself:
- *
- *   ensure(provider)        before a call — puts the dialog up when there is
- *                           no key, resolves true once there is one.
- *   handleResponse(data)    after a call — reopens the dialog when the backend
- *                           answers `needsKey` (a revoked or exhausted key),
- *                           resolving true when the caller should retry.
- */
+// The dialog that asks for an AI provider key, and the check every AI feature goes through before calling the backend.
 
 class ApiKeyGate {
   constructor(api) {
@@ -33,6 +13,7 @@ class ApiKeyGate {
     this._busy = false;
   }
 
+  // Finds the dialog elements and wires up its buttons.
   init() {
     this.modal = document.getElementById('aiKeyModal');
     this.titleEl = document.getElementById('aiKeyTitle');
@@ -60,14 +41,12 @@ class ApiKeyGate {
       }
     });
 
-    // The key is masked by default because these dialogs get filled in with
-    // someone watching; revealing it is the operator's choice, per opening.
+    // The key is hidden by default because someone may be watching; the operator can choose to reveal it.
     this.revealEl?.addEventListener('change', () => {
       if (this.inputEl) this.inputEl.type = this.revealEl.checked ? 'text' : 'password';
     });
 
-    // Opening the provider's console in the default browser rather than in
-    // this window: the reconstruction on screen stays where it was.
+    // Open the provider's page in the browser so the reconstruction stays on screen.
     this.linkEl?.addEventListener('click', () => {
       const url = this.linkEl.dataset.url;
       if (url) window.electronAPI?.openExternal?.(url);
@@ -86,7 +65,7 @@ class ApiKeyGate {
 
   // ─── Provider state ────────────────────────────────────────────────────
 
-  /** Re-read which providers hold a key. Returns the map, or null if offline. */
+  // Re-reads which providers have a key; returns null if the backend is offline.
   async refresh() {
     try {
       const res = await fetch(`${this.api.baseUrl}/api/ai/providers`);
@@ -96,26 +75,28 @@ class ApiKeyGate {
       this._announce();
       return this.providers;
     } catch (err) {
-      // Backend still starting. Left null so the next ensure() asks again
-      // rather than caching "no key" for the rest of the session.
+      // The backend is still starting, so leave this empty and ask again next time.
       this.providers = null;
       return null;
     }
   }
 
+  // Returns what the backend knows about one provider.
   info(provider) {
     return this.providers?.[provider] || null;
   }
 
+  // Tells whether a provider has a working key.
   isReady(provider) {
     return this.info(provider)?.available === true;
   }
 
-  /** Register a listener for key changes — used to relabel the model picker. */
+  // Registers a listener for key changes, used to relabel the model picker.
   subscribe(fn) {
     if (typeof fn === 'function') this.onChange.push(fn);
   }
 
+  // Tells every listener that the keys changed.
   _announce() {
     for (const fn of this.onChange) {
       try {
@@ -128,11 +109,7 @@ class ApiKeyGate {
 
   // ─── Gates ─────────────────────────────────────────────────────────────
 
-  /**
-   * Make sure `provider` has a key before an AI call is made.
-   * Resolves true when there is one, false when the operator dismissed the
-   * dialog — in which case the caller should abandon the request quietly.
-   */
+  // Makes sure a provider has a key before an AI call; resolves false if the operator closes the dialog.
   async ensure(provider, note) {
     if (this.providers === null) await this.refresh();
     if (this.isReady(provider)) return true;
@@ -141,11 +118,7 @@ class ApiKeyGate {
     return this.open(provider, { note });
   }
 
-  /**
-   * Inspect a backend reply. When it came back `needsKey` — a key that was
-   * revoked, rotated or ran out of credit — reopen the dialog and resolve true
-   * if the caller should now retry the same request.
-   */
+  // Reopens the dialog when the backend says the key is missing or used up, and tells the caller whether to retry.
   async handleResponse(data, fallbackProvider) {
     if (!data || !data.needsKey) return false;
     await this.refresh();
@@ -154,20 +127,11 @@ class ApiKeyGate {
 
   // ─── Dialog ────────────────────────────────────────────────────────────
 
-  /**
-   * Open the dialog for a provider. `note` explains why it appeared, `error`
-   * carries a backend rejection to show in red. Resolves true once any key has
-   * been saved, false if the dialog was dismissed.
-   *
-   * "Any key" rather than this provider's: all three providers are on the
-   * strip, and an operator who holds a Groq key when Claude was asked for has
-   * answered the question. The model picker follows whichever key was saved.
-   */
+  // Opens the key dialog for a provider and resolves true once any key has been saved.
   open(provider, { note, error } = {}) {
     if (!this.modal) return Promise.resolve(false);
 
-    // A second feature asking while the dialog is up joins the same answer
-    // rather than stacking another copy of it.
+    // If the dialog is already open for this provider, share the same answer instead of opening it twice.
     if (this._isOpen() && this._wanted === provider) return this._pending;
     if (this._isOpen()) this._close(false);
 
@@ -182,7 +146,7 @@ class ApiKeyGate {
     return this._pending;
   }
 
-  /** Point every field in the dialog at one provider. */
+  // Points every field in the dialog at one provider.
   _showProvider(provider, error) {
     this._provider = provider;
     const info = this.info(provider) || {};
@@ -214,11 +178,7 @@ class ApiKeyGate {
     this._setBusy(false);
   }
 
-  /**
-   * Draw one tab per provider the backend knows about, lit where a key is
-   * already held. Built from the backend's own list rather than hard-coded,
-   * so a provider added there shows up here without a second edit.
-   */
+  // Draws one tab per provider the backend knows about, highlighting the ones that already have a key.
   _renderTabs() {
     if (!this.tabsEl) return;
     this.tabsEl.innerHTML = '';
@@ -249,6 +209,7 @@ class ApiKeyGate {
     }
   }
 
+  // Shows where the saved key came from and whether it can be removed.
   _paintSaved(info) {
     if (!this.savedEl) return;
     if (info.available) {
@@ -267,16 +228,19 @@ class ApiKeyGate {
     }
   }
 
+  // Tells whether the dialog is open.
   _isOpen() {
     return !!this.modal?.classList.contains('open');
   }
 
+  // Shows a status message under the key field.
   _setStatus(text, kind) {
     if (!this.statusEl) return;
     this.statusEl.textContent = text || '';
     this.statusEl.className = `ai-key-status${kind ? ' is-' + kind : ''}`;
   }
 
+  // Disables the buttons while a request is running.
   _setBusy(busy) {
     this._busy = busy;
     if (this.saveBtn) {
@@ -287,6 +251,7 @@ class ApiKeyGate {
     if (this.inputEl) this.inputEl.disabled = busy;
   }
 
+  // Checks the key with the provider through the backend and saves it.
   async _save() {
     if (this._busy) return;
     const key = this.inputEl?.value?.trim();
@@ -297,8 +262,7 @@ class ApiKeyGate {
     }
 
     this._setBusy(true);
-    // The backend verifies the key against the provider before storing it, so
-    // this waits on a round trip rather than accepting a typo silently.
+    // The backend checks the key with the provider first, so a typo isn't saved silently.
     this._setStatus('Verifying the key with the provider…', '');
 
     let data;
@@ -329,6 +293,7 @@ class ApiKeyGate {
     this._close(true);
   }
 
+  // Removes the saved key for the current provider.
   async _remove() {
     if (this._busy) return;
     this._setBusy(true);
@@ -354,6 +319,7 @@ class ApiKeyGate {
     this._setBusy(false);
   }
 
+  // Closes the dialog and tells the waiting caller whether a key was saved.
   _close(saved) {
     this.modal?.classList.remove('open');
     this._note = null;

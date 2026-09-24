@@ -1,13 +1,5 @@
 #!/usr/bin/env node
-/**
- * vendor-assets.js — copy runtime libraries, fonts and icons out of
- * node_modules into src/renderer/vendor so the app runs fully offline.
- *
- * A forensic tool must not fetch its typeface from a CDN at boot. Run this
- * once after `npm install`; the copied files are what ship.
- *
- *   node scripts/vendor-assets.js
- */
+// Copies libraries, fonts and icons from node_modules into src/renderer/vendor so the app runs offline; run with `node scripts/vendor-assets.js` after npm install.
 'use strict';
 
 const fs = require('fs');
@@ -17,21 +9,14 @@ const ROOT = path.join(__dirname, '..');
 const NM = path.join(ROOT, 'node_modules');
 const OUT = path.join(ROOT, 'src', 'renderer', 'vendor');
 
-/* ── Runtime libraries ──────────────────────────────────────────────────
-   All three ship a browser-global build, so they load with a plain
-   <script> tag and need no bundler:
-     gsap.min.js    → window.gsap
-     motion.js      → window.Motion
-     lenis.min.js   → window.Lenis                                        */
+// Runtime libraries, loaded as browser globals: gsap, Motion and Lenis.
 const LIBS = [
   ['gsap/dist/gsap.min.js', 'gsap.min.js'],
   ['motion/dist/motion.js', 'motion.js'],
   ['lenis/dist/lenis.min.js', 'lenis.min.js'],
 ];
 
-/* ── Typefaces ──────────────────────────────────────────────────────────
-   Archivo (variable weight) for interface text, IBM Plex Mono for every
-   number and identifier. Deliberately not Inter.                         */
+// Fonts: Archivo for text, IBM Plex Mono for numbers.
 const FONTS = [
   ['@fontsource-variable/archivo/files/archivo-latin-wght-normal.woff2', 'archivo-wght.woff2'],
   ['@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2', 'plex-mono-400.woff2'],
@@ -39,13 +24,7 @@ const FONTS = [
   ['@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-600-normal.woff2', 'plex-mono-600.woff2'],
 ];
 
-/* ── Icons ──────────────────────────────────────────────────────────────
-   A hand-picked Lucide subset, emitted as one <symbol> sprite. Lucide is
-   a single consistent 24px/1.5px stroke system — unlike the filled
-   FontAwesome glyphs it replaces, it sits correctly next to hairline
-   rules and small caps.
-
-   Keys are the names used in markup; values are lucide file names.       */
+// Lucide icons used by the UI, built into one sprite; keys are the names used in markup.
 const ICONS = {
   /* navigation + structure */
   'face':        'scan-face',
@@ -125,10 +104,12 @@ const ICONS = {
   'corner-down':   'corner-down-left',
 };
 
+// Creates a folder if it doesn't exist.
 function ensureDir(d) {
   fs.mkdirSync(d, { recursive: true });
 }
 
+// Copies one file out of node_modules, warning if it is missing.
 function copy(rel, destName, destDir) {
   const from = path.join(NM, rel);
   if (!fs.existsSync(from)) {
@@ -142,9 +123,7 @@ function copy(rel, destName, destDir) {
   return true;
 }
 
-/* Pull the inner geometry out of a Lucide file and re-emit it as a
-   <symbol>. Stroke attributes are dropped here and set once on the
-   sprite root so a single CSS rule controls every icon's weight. */
+// Builds the SVG sprite from Lucide files, with stroke settings on the root so CSS controls them.
 function buildSprite() {
   const iconDir = path.join(NM, 'lucide-static', 'icons');
   const symbols = [];
@@ -184,6 +163,7 @@ ${symbols.join('\n')}
   console.log(`  + icons.svg  (${symbols.length} symbols)`);
 }
 
+// Copies everything and writes the sprite.
 function main() {
   ensureDir(OUT);
   ensureDir(path.join(OUT, 'fonts'));

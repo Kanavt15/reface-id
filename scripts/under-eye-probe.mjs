@@ -1,4 +1,4 @@
-/** Visual and live eye-preset regression checks: node scripts/under-eye-probe.mjs */
+// Visual and live checks for the under-eye skin detail; run with `node scripts/under-eye-probe.mjs`.
 import { _electron as electron } from 'playwright-core';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -13,6 +13,7 @@ const bin = path.join(APP_DIR, 'node_modules', 'electron', 'dist',
   : process.platform === 'darwin' ? 'Electron.app/Contents/MacOS/Electron'
   : 'electron');
 
+// Waits for a number of milliseconds.
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
@@ -26,6 +27,7 @@ const app = await electron.launch({
   timeout: 60_000,
 });
 
+// Finds the app window by URL, since DevTools can open first.
 async function realPage() {
   const t0 = Date.now();
   for (;;) {
@@ -45,6 +47,7 @@ page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message));
 
 await page.waitForLoadState('domcontentloaded');
 
+// Waits until a condition is true in the page, or fails after a timeout.
 async function waitFor(label, fn, timeout = 45_000) {
   const t0 = Date.now();
   for (;;) {
@@ -72,9 +75,7 @@ await waitFor('editor mounted', () =>
   document.getElementById('rf-screen-editor')?.classList.contains('rf-screen-active') &&
   !!document.querySelector('#viewport canvas')?.width);
 
-// The skin textures generate on a deferred timer, and the cavity pass is
-// debounced behind the first morph; wait until both are ready.
-// Captures should use the fully initialized skin material.
+// Wait for the skin textures and crease shading to finish before taking pictures.
 await sleep(3500);
 await page.evaluate(() => Promise.all([SkinShader._detailReady,SkinShader._anatomyReady,SkinShader._microfoldReady,SkinShader._faceColourReady]));
 
@@ -129,6 +130,7 @@ try {
   });
   const report = {};
   report.base = await page.evaluate(() => eyeTest.measure());
+  // Saves a picture of the 3D view.
   const shot = async name => page.locator('#viewport canvas').screenshot({path:path.join(OUT,name+'.png')});
   await shot('close-100');
   await page.evaluate(() => eyeTest.sts.setParam('underEyeIntensity',50)); await shot('close-50');
@@ -220,8 +222,7 @@ try {
   assert.deepEqual(errors,[]);
   console.log('PASS: fine crease visibility, lid placement, intensity, rendered eye tracking, immediate morph tracking, size/tilt, head pose, and case restore');
 } finally {
-  // Destroy this test profile's windows without the unsaved-case quit prompt.
-  // window-all-closed also stops the backend spawned by this Electron instance.
+  // Close the test windows directly, skipping the unsaved-case prompt; this also stops the backend.
   const closed = app.waitForEvent('close');
   await app.evaluate(({BrowserWindow}) => {
     setTimeout(() => BrowserWindow.getAllWindows().forEach(window => window.destroy()), 50);

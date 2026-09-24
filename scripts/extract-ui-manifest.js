@@ -1,41 +1,18 @@
 #!/usr/bin/env node
-/**
- * extract-ui-manifest.js
- *
- * Reads the control inventory out of the legacy index.html and writes it to
- * scripts/ui-manifest.json as pure data — parameter names, ranges, option
- * lists, element ids, swatch values.
- *
- * This exists so the new interface can be authored as a fresh component
- * system rather than transcribed by hand: build-ui.js renders this manifest
- * through new markup. Nothing about the old presentation survives the trip —
- * only the binding contract UIController.js relies on:
- *
- *   .slider-control[data-param] > input.morph-slider + .slider-value
- *   .control-group > .control-group-header + .control-group-body
- *   .btn-reset-group[data-group]
- *   #<name>Presets .color-swatch[data-color]
- *   #<name>Grid .hair-style-card[data-style]
- *   element ids referenced via getElementById
- *
- *   node scripts/extract-ui-manifest.js
- */
+// Reads the control inventory (names, ranges, options, ids, swatches) out of the old index.legacy.html into ui-manifest.json; run with `node scripts/extract-ui-manifest.js`.
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
 const cheerio = require('cheerio');
 
-/* Reads the pre-rebuild document, kept alongside this script. index.html is
-   now generated output, so extracting from it would be circular. */
+// Read the old document, since index.html is now generated.
 const SRC = path.join(__dirname, 'index.legacy.html');
 const OUT = path.join(__dirname, 'ui-manifest.json');
 
 const $ = cheerio.load(fs.readFileSync(SRC, 'utf8'), { decodeEntities: false });
 
-/* Blocks that carry bespoke internal structure the controller drives in a
-   one-off way. Their inner markup is captured verbatim and re-wrapped by the
-   generator; everything else is rebuilt from typed data. */
+// Blocks with one-off structure that are copied as markup instead of rebuilt.
 const VERBATIM = new Set([
   'lip-paint-section',
   'age-progression-grid',
@@ -58,10 +35,10 @@ const VERBATIM = new Set([
   'rf-note',
 ]);
 
+// Returns an element's text with whitespace collapsed.
 const text = (el) => $(el).text().replace(/\s+/g, ' ').trim();
 
-/* FontAwesome class → semantic icon name in the new sprite. The old markup
-   picked glyphs decoratively; the new set is chosen by meaning. */
+// Maps an element's FontAwesome class to a sprite icon name.
 function iconOf(el) {
   const i = $(el).find('i[class*="fa-"]').first();
   if (!i.length) return null;
@@ -69,6 +46,7 @@ function iconOf(el) {
   return m ? m[1] : null;
 }
 
+// Returns an element's attributes that pass a filter.
 function attrs(el, keep) {
   const out = {};
   const a = $(el).attr() || {};
@@ -78,10 +56,12 @@ function attrs(el, keep) {
   return out;
 }
 
+// Returns an element's data attributes.
 const dataAttrs = (el) => attrs(el, (k) => k.startsWith('data-'));
 
-/* ── Typed readers for each control block ─────────────────────────────── */
+// Typed readers for each control block
 
+// Reads a slider's parameter, range, value and ids.
 function readSlider(el) {
   const input = $(el).find('input[type=range]').first();
   if (!input.length) return null;
@@ -92,8 +72,7 @@ function readSlider(el) {
     param: $(el).attr('data-param') || null,
     label: text($(el).find('label').first()) || null,
     id: input.attr('id') || null,
-    /* Several controls are addressed by an id on the wrapper or on the
-       readout span rather than on the input itself. */
+    // Some controls are addressed by an id on the wrapper or readout, not the input.
     controlId: $(el).attr('id') || null,
     valueId: readout.attr('id') || null,
     sliderClass: cls,
@@ -106,6 +85,7 @@ function readSlider(el) {
   };
 }
 
+// Reads a dropdown and its options.
 function readSelect(el) {
   const sel = $(el).find('select').first();
   if (!sel.length) return null;
@@ -123,6 +103,7 @@ function readSelect(el) {
   };
 }
 
+// Reads a checkbox.
 function readCheckbox(el) {
   const box = $(el).find('input[type=checkbox]').first();
   if (!box.length) return null;
@@ -136,6 +117,7 @@ function readCheckbox(el) {
   };
 }
 
+// Reads a colour row: swatches, picker and any actions.
 function readColorRow(el) {
   const presets = $(el).find('.color-presets').first();
   const picker = $(el).find('input[type=color]').first();
@@ -158,8 +140,7 @@ function readColorRow(el) {
   };
 }
 
-/* A bare .color-presets strip, plus the colour input that immediately
-   follows it if there is one. Scoped strictly to those two elements. */
+// Reads a bare swatch strip plus the colour input right after it.
 function readPresets(el) {
   const next = $(el).next();
   const picker = next.is('input[type=color]') ? next : $();
@@ -180,6 +161,7 @@ function readPresets(el) {
   };
 }
 
+// Reads a grid of style cards.
 function readCardGrid(el) {
   const cardSel = '.hair-style-card, .style-card, .age-card';
   return {
@@ -198,6 +180,7 @@ function readCardGrid(el) {
   };
 }
 
+// Reads a text or number field.
 function readTextInput(el) {
   const input = $(el).find('input[type=text], input[type=number]').first();
   if (!input.length) return null;
@@ -214,6 +197,7 @@ function readTextInput(el) {
   };
 }
 
+// Reads a multi-line text field.
 function readTextarea(el) {
   const ta = $(el).find('textarea').first();
   if (!ta.length) return null;
@@ -228,6 +212,7 @@ function readTextarea(el) {
   };
 }
 
+// Reads a button.
 function readButton(el) {
   return {
     type: 'button',
@@ -240,7 +225,7 @@ function readButton(el) {
   };
 }
 
-/* A bare <input type=color> with a label and no preset row. */
+// Reads a colour input with a label and no swatches.
 function readColorPicker(el) {
   const picker = $(el).find('input[type=color]').first();
   if (!picker.length) return null;
@@ -253,10 +238,7 @@ function readColorPicker(el) {
   };
 }
 
-/* A row of buttons (.panel-actions, or an unclassed wrapper div).
-   Only valid when the container holds nothing but buttons — otherwise it
-   is a mixed toolbar (selects, readouts) and re-emitting just the buttons
-   would silently drop the rest. */
+// Reads a row of buttons, but only if it holds nothing else.
 function readButtonRow(el) {
   const btns = $(el).find('button').map((_, b) => readButton(b)).get();
   if (!btns.length) return null;
@@ -272,8 +254,9 @@ function readButtonRow(el) {
   };
 }
 
-/* ── Block dispatch ───────────────────────────────────────────────────── */
+// Block dispatch
 
+// Reads one block by working out what kind of control it is.
 function readBlock(el) {
   const cls = ($(el).attr('class') || '').split(/\s+/).filter(Boolean);
   const has = (c) => cls.includes(c);
@@ -281,9 +264,7 @@ function readBlock(el) {
   if (has('slider-control'))    return readSlider(el);
   if (has('select-control'))    return readSelect(el);
   if (has('color-picker-row'))  return readColorRow(el);
-  /* A preset strip that is not wrapped in a .color-picker-row. Read it on
-     its own terms — reading its *parent* here would sweep in every other
-     control in the surrounding group and emit them a second time. */
+  // Read a loose swatch strip on its own, not its parent, or controls get read twice.
   if (has('color-presets'))     return readPresets(el);
   if (has('hair-style-grid'))   return readCardGrid(el);
   if (has('sub-group-label'))   return { type: 'label', text: text(el) };
@@ -302,8 +283,7 @@ function readBlock(el) {
     if (row) return row;
   }
 
-  /* An unclassed wrapper is layout-only in the old markup — unwrap it and
-     read what it actually holds, so the new system lays it out itself. */
+  // An unclassed wrapper is just layout, so read what's inside it.
   if (!cls.length) {
     const kids = $(el).children().map((_, c) => readBlock(c)).get().filter(Boolean);
     if (kids.length === 1) return kids[0];
@@ -314,11 +294,11 @@ function readBlock(el) {
 
   if (has('rf-subhead')) return { type: 'label', text: text(el) };
 
-  /* Bespoke widget, or something unrecognised — keep it byte-for-byte so
-     no functionality is lost, and let the generator re-wrap it. */
+  // Anything unrecognised is kept as raw markup so nothing is lost.
   return verbatim(el);
 }
 
+// Keeps a block as raw markup.
 function verbatim(el) {
   const cls = ($(el).attr('class') || '').split(/\s+/).filter(Boolean);
   return {
@@ -331,14 +311,14 @@ function verbatim(el) {
   };
 }
 
-/* ── Structure walk ───────────────────────────────────────────────────── */
+// Structure walk
 
+// Reads a sub-group, including nested ones.
 function readSubGroup(el) {
   const header = $(el).find('> .sub-group-header').first();
   const body = $(el).find('> .sub-group-body').first();
 
-  /* Sub-groups nest one level deeper in a couple of places (accessories),
-     so this recurses rather than flattening. */
+  // Sub-groups can nest, so recurse.
   const children = body.children().map((_, c) => {
     const cls = ($(c).attr('class') || '').split(/\s+/).filter(Boolean);
     return cls.includes('feature-sub-group')
@@ -358,6 +338,7 @@ function readSubGroup(el) {
   };
 }
 
+// Reads a group with its header actions and contents.
 function readGroup(el) {
   const header = $(el).find('> .control-group-header').first();
   const body = $(el).find('> .control-group-body').first();
@@ -376,14 +357,14 @@ function readGroup(el) {
     title: text(header.find('span').first()) || null,
     icon: iconOf(header),
     resetGroup: resetBtn.attr('data-group') || null,
-    /* Group headers hold more than the reset control — per-group save,
-       clear-all and copy actions live here too, each with its own id. */
+    // Group headers can hold several actions, each with its own id.
     actions: header.find('button').map((_, b) => readButton(b)).get(),
     collapsed: (body.attr('class') || '').includes('collapsed'),
     children,
   };
 }
 
+// Reads one section panel.
 function readPanel(el) {
   const id = $(el).attr('id');
   const scroll = $(el).find('> .panel-scroll').first();
@@ -406,8 +387,9 @@ function readPanel(el) {
   };
 }
 
-/* ── Everything outside the panels that JS still binds to ─────────────── */
+// Ids outside the panels that the JS still uses
 
+// Collects every element id the renderer JS looks up.
 function collectBoundIds() {
   const jsDir = path.join(__dirname, '..', 'src', 'renderer', 'js');
   const ids = new Set();
@@ -421,6 +403,7 @@ function collectBoundIds() {
   return [...ids].sort();
 }
 
+// Reads every panel, writes the manifest and prints a summary.
 function main() {
   const panels = $('.panel-content').map((_, p) => readPanel(p)).get();
   const boundIds = collectBoundIds();

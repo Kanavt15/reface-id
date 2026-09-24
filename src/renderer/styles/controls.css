@@ -1,23 +1,6 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   ReFace ID — controls.css
-   Every instrument in the sheet.
+/* controls.css: styles for every control in the sheet; the class names are what UIController binds to, so they stay as they are. */
 
-   Class names like .slider-control, .morph-slider, .color-swatch and
-   .hair-style-card are the selectors UIController.js binds to. They are the
-   application's API and they are kept. Everything they look like is new.
-
-   ── Governing idea ────────────────────────────────────────────────────────
-   Two hundred controls in one surface only works if the eye can skip. So:
-   labels are dim and lowercase-weighted, values are mono and right-aligned
-   on a shared column, and the only bright thing in a resting row is nothing
-   at all. A row lights up when it holds a non-default value or the pointer
-   is on it — never otherwise.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* ══ Group ═══════════════════════════════════════════════════════════════
-   A collapsible section. The header sticks to the top of the scroller so
-   the operator always knows which region they are editing while deep in a
-   long list. */
+/* Group: a collapsible section whose header sticks to the top while scrolling. */
 
 .control-group { border-bottom: 1px solid var(--k-hair); }
 .control-group:last-child { border-bottom: none; }
@@ -50,10 +33,7 @@
 
 .control-group-header:hover > .i { color: var(--t-hi); }
 
-/* These headings are the section's table of contents — every group ships
-   collapsed, so this row is the only thing the operator reads when deciding
-   where to go. At 9.5px in --t-lo it was quieter than the controls it
-   indexes, which is backwards. */
+/* Group headings are the section's table of contents, so they are brighter than the controls. */
 .control-group-header > span {
   flex: 1;
   font-size: var(--s-ui);
@@ -63,8 +43,7 @@
   color: var(--t-hi);
 }
 
-/* Disclosure chevron. Rotates rather than swapping glyph, so the motion
-   reads as one object turning. */
+/* Disclosure caret that rotates when the group opens. */
 .k-caret {
   font-size: 13px;
   color: var(--t-mute);
@@ -74,10 +53,7 @@
 .control-group-header.collapsed .k-caret { transform: rotate(-90deg); }
 .control-group-header:hover .k-caret { color: var(--t-hi); }
 
-/* Collapse. Animating grid-template-rows between 1fr and 0fr is the one
-   technique that transitions to *content height* without hard-coding a
-   max-height that will be wrong for some group. Requires the single
-   wrapper child the generator emits. */
+/* Collapse by animating grid rows between 1fr and 0fr, which needs the single inner wrapper. */
 .control-group-body,
 .sub-group-body {
   display: grid;
@@ -91,10 +67,7 @@
 .control-group-body > *,
 .sub-group-body > * { min-height: 0; overflow: hidden; }
 
-/* The wrapper's own padding is NOT part of what 0fr collapses — the grid
-   row goes to zero but the padding box does not, which left every closed
-   group 14px tall and leaking the first line of its contents. So the
-   padding animates shut on the same curve. */
+/* The padding animates shut too, since 0fr doesn't collapse it. */
 .k-group-inner {
   padding: 4px 0 10px;
   transition: padding var(--t-3) var(--e);
@@ -102,10 +75,7 @@
 
 .control-group-body.collapsed > .k-group-inner { padding-top: 0; padding-bottom: 0; }
 
-/* ══ Sub-group ═══════════════════════════════════════════════════════════
-   A quieter division inside a group. Marked with a rule in the left margin
-   rather than a box, so nesting reads as indentation instead of another
-   card inside a card. */
+/* Sub-group: a quieter division marked by a rule in the left margin. */
 
 .feature-sub-group { margin-top: 6px; }
 .feature-sub-group:first-child { margin-top: 0; }
@@ -122,8 +92,7 @@
 
 .sub-group-header > .i { font-size: 12px; color: var(--t-mute); }
 
-/* Lifted alongside the group headers, but kept a step below them so the two
-   levels still read as a hierarchy rather than as one flat list. */
+/* Sub-group headings sit one step below group headings. */
 .sub-group-header > span {
   flex: 1;
   font-size: var(--s-sm);
@@ -168,12 +137,7 @@
 
 .k-sub-inner .k-note { padding-left: 0; }
 
-/* ══ Slider ══════════════════════════════════════════════════════════════
-   The workhorse — 194 of them. Label and value share a baseline above the
-   track, so scanning a column of values needs no eye movement sideways.
-
-   The fill is driven by --fill-pct, which UIController.updateSliderFill()
-   writes on input. CSS reads it; no JS touches presentation. */
+/* Slider: label and value on one row above the track; the fill comes from --fill-pct set by UIController. */
 
 .slider-control {
   padding: 5px var(--pad) 6px;
@@ -217,23 +181,17 @@
 
 .slider-control:hover .slider-value { color: var(--t-hi); }
 
-/* While a slider is under the pointer, its readout takes the chroma and
-   the row holds its hover ground — so the number the operator is watching
-   is unambiguous even with the cursor over the track. */
+/* A slider under the pointer highlights its row and readout. */
 .slider-control.k-live { background: rgba(255, 255, 255, 0.032); }
 .slider-control.k-live > label { color: var(--t-hi); }
 .slider-control.k-live .slider-value { color: var(--sig); font-weight: 500; }
 
-/* Nothing on the stage animates during a drag. An instrument that shifts
-   under your hand feels loose, and the sheet is 200 rows deep. */
+/* Nothing on the stage animates during a drag. */
 body.k-dragging .k-float,
 body.k-dragging .k-sheet { transition: none !important; }
 body.k-dragging { cursor: ew-resize; }
 
-/* ── The track ───────────────────────────────────────────────────────────
-   Height is the hit area (16px); the visible track is drawn 2px through
-   the middle with a background gradient, so the control is precise to look
-   at and forgiving to grab. */
+/* The track: a 16px hit area with a 2px line drawn through the middle. */
 
 input[type=range] {
   -webkit-appearance: none;
@@ -244,10 +202,7 @@ input[type=range] {
   background: transparent;
   cursor: pointer;
   --fill-pct: 50%;
-  /* At rest the fill is neutral. With two hundred sliders on screen,
-     painting every one of them in the signal colour turns the chroma into
-     wallpaper and it stops meaning "live". It earns the colour only under
-     the pointer. */
+  /* The fill stays neutral at rest and only takes the accent under the pointer. */
   --fill-col: var(--t-mute);
   transition: none;
 }
@@ -264,8 +219,7 @@ input[type=range]::-webkit-slider-runnable-track {
   border-radius: 1px;
 }
 
-/* A vertical bar, not a knob. Hit area is 13px wide; only the centre 3px
-   is drawn. Instrument, not toy. */
+/* The thumb is a thin vertical bar with a wider hit area. */
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
@@ -305,9 +259,7 @@ input[type=range]:focus-visible::-webkit-slider-thumb {
   pointer-events: none;
 }
 
-/* ══ Buttons ═════════════════════════════════════════════════════════════
-   Three weights: quiet (default), primary (the one chroma), danger. All
-   flat, all hairline-bordered, none with a gradient. */
+/* Buttons: quiet, primary (accent) and danger, all flat with hairline borders. */
 
 .btn,
 .btn-small,
@@ -337,11 +289,7 @@ input[type=range]:focus-visible::-webkit-slider-thumb {
   color: var(--t-hi);
 }
 
-/* A short, real press. 60ms of 1px travel is what makes a button feel
-   mechanical rather than animated. */
-/* Press and hover motion for buttons, cards and swatches is owned by
-   k-motion.js (Motion One springs). Declaring a CSS transform here too
-   would fight the spring and snap the element mid-flight. */
+/* Press and hover motion is handled by k-motion.js, so no CSS transform here. */
 
 .btn-primary,
 .k-btn-primary {
@@ -379,8 +327,7 @@ input[type=range]:focus-visible::-webkit-slider-thumb {
 .k-ibtn:hover { background: var(--k-hover); color: var(--t-hi); }
 .k-ibtn.active { color: var(--sig); }
 
-/* Reset-group button in a group header. Stays invisible until the group is
-   hovered — it is a rare, destructive action and should not advertise. */
+/* The group reset button stays hidden until the group is hovered. */
 .btn-reset-group {
   width: 22px; height: 22px;
   display: grid;
@@ -472,16 +419,12 @@ textarea.k-input {
 
 .custom-select option { background: var(--k-panel); color: var(--t-hi); }
 
-/* ══ Checkbox ════════════════════════════════════════════════════════════
-   A real box, drawn small and square. The native input stays in the DOM
-   (the controller reads .checked) but is visually replaced. */
+/* Checkbox: a small square box; the native input stays for .checked. */
 
 .input-control { padding: 5px var(--pad) 6px; }
 .k-sub-inner .input-control { padding-left: 0; padding-right: 8px; }
 
-/* Written to out-specify `.input-control > label` above (0,1,1), which
-   would otherwise set every checkbox caption as an uppercase eyebrow —
-   correct for a field label, wrong for a sentence next to a tick box. */
+/* More specific than `.input-control > label` so checkbox captions aren't set as uppercase labels. */
 .input-control > label.checkbox-label,
 label.checkbox-label {
   display: flex;
@@ -531,10 +474,7 @@ label.checkbox-label {
   transform: rotate(43deg);
 }
 
-/* ══ Colour ══════════════════════════════════════════════════════════════
-   A preset row plus a custom picker. Swatches are square with a hairline,
-   because a ring of circles reads as decoration and a grid of squares
-   reads as a palette. */
+/* Colour: a row of square swatches plus a custom picker. */
 
 .color-picker-row { padding: 7px var(--pad) 9px; }
 .k-sub-inner .color-picker-row { padding-left: 0; padding-right: 8px; }
@@ -566,8 +506,7 @@ label.checkbox-label {
 
 .color-swatch:hover { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.34); }
 
-/* Selection is a chroma ring drawn outside the swatch, so it never covers
-   the colour the operator is judging. */
+/* The selected swatch gets an outer ring so its colour stays visible. */
 .color-swatch.active {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3),
               0 0 0 1px var(--k-base),
@@ -593,9 +532,7 @@ label.checkbox-label {
 .color-input::-webkit-color-swatch-wrapper { padding: 0; }
 .color-input::-webkit-color-swatch { border: none; border-radius: 0; }
 
-/* ══ Card grids ══════════════════════════════════════════════════════════
-   Style pickers (hair, glasses, masks, earrings, bandanas, ages). A tight
-   grid of small tiles — the label sits under the tile, not on it. */
+/* Card grids: small style tiles with the label underneath. */
 
 .hair-style-grid,
 .k-card-grid {
@@ -712,12 +649,7 @@ label.checkbox-label {
 .decal-thumb.active { border-color: var(--sig); }
 .decal-thumb img { width: 100%; height: 100%; object-fit: cover; }
 
-/* ══ Snapshots ═══════════════════════════════════════════════════════════
-   A contact sheet of captured frames. UIController.renderSnapshotList()
-   builds each card as .snapshot-thumb + .snapshot-info + .snapshot-actions;
-   the rules here were written against a different structure (.snapshot-card
-   > img, .snapshot-card-meta) that the controller never emitted, so the
-   action row had no styling at all and its buttons collapsed to nothing. */
+/* Snapshots: a grid of captured frames, matching the structure renderSnapshotList() builds. */
 
 .snapshot-list {
   display: grid;
@@ -820,8 +752,7 @@ label.checkbox-label {
   white-space: nowrap;
 }
 
-/* Inline rename field — sized to the card so a long name cannot widen the
-   grid column and reflow the whole sheet while it is being typed. */
+/* The rename field fits the card so typing a long name doesn't reflow the grid. */
 .snapshot-name-input {
   width: 100%;
   padding: 0;
@@ -870,11 +801,7 @@ label.checkbox-label {
   color: var(--t-mute);
 }
 
-/* ══ Activity log ════════════════════════════════════════════════════════
-   UIController.addHistory() prepends a <div class="history-item"> holding
-   plain text. Newest first, so it reads as a tape running downward. The
-   leading rule is drawn on ::before rather than as a border so the newest
-   entry does not carry a stray line above it. */
+/* Activity log: newest entry first, with a tick in the margin drawn on ::before. */
 
 .k-history { display: flex; flex-direction: column; }
 
@@ -889,8 +816,7 @@ label.checkbox-label {
 
 .history-item:last-child { border-bottom: none; }
 
-/* A tick in the margin — cheaper to scan than a bullet, and it lines the
-   entries up into a visible column. */
+/* A tick in the margin lines the entries up. */
 .history-item::before {
   content: '';
   position: absolute;
@@ -937,24 +863,12 @@ label.checkbox-label {
   color: var(--t-hi);
 }
 
-/* Anything the inventory carried through verbatim gets the sheet's gutter
-   so it lines up with everything authored above it. */
+/* Carried-over blocks get the sheet's gutter. */
 .k-verbatim { padding: 6px var(--pad) 9px; }
 .k-sub-inner .k-verbatim { padding-left: 0; padding-right: 8px; }
 .k-verbatim > *:not(:last-child) { margin-bottom: 6px; }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   THE ROW, WORKING
-   ═══════════════════════════════════════════════════════════════════════════
-   A slider row used to be a label, a number and a track. It now also holds
-   the two things an operator needs once they are looking at it — put this
-   one back, and keep this one to hand — plus a readout that can be typed
-   into. All three are grown at runtime by k-workbench.js.
-
-   They live in the label row, ahead of the number, and are invisible until
-   the row is approached. The sheet is two hundred rows deep; a permanent
-   pair of buttons on every one of them would be four hundred glyphs
-   competing with the values they sit beside. */
+/* The working row: revert, pin and a typeable readout added by k-workbench.js, hidden until the row is hovered. */
 
 .k-row-tools {
   display: inline-flex;
@@ -982,25 +896,17 @@ label.checkbox-label {
 .slider-control:hover .k-row-btn,
 .slider-control:focus-within .k-row-btn { opacity: 1; }
 
-/* A pin that is engaged stays lit whether or not the row is hovered —
-   it is the only way back, and a control that has left its section must
-   not hide the control that returns it. */
+/* An engaged pin stays lit, since it is the way back for a benched control. */
 .k-row-pin.on {
   opacity: 1;
   color: var(--sig);
 }
 
-/* Revert appears only once there is something to revert to. Offering
-   "reset" on a parameter already sitting at its default is an invitation
-   to a no-op. */
+/* Revert only shows once the value has changed. */
 .k-row-revert { display: none; }
 .slider-control.k-modified .k-row-revert { display: grid; }
 
-/* ── Touched ─────────────────────────────────────────────────────────────
-   A parameter that has moved off its default carries a hairline tick in
-   the gutter. Not a colour on the value — with fifty changes on a finished
-   face that would light up the whole sheet — just enough to find the work
-   by scanning. */
+/* Touched: a small tick in the gutter marks a parameter that moved off its default. */
 
 .slider-control { position: relative; }
 
@@ -1016,18 +922,11 @@ label.checkbox-label {
   opacity: 0.65;
 }
 
-/* The tick sits in the row's own left padding. Two places take that
-   padding away — inside a sub-group, and on the bench — and there the mark
-   has to move out into the container's gutter instead, or it is drawn on
-   top of the first letter of the label. (It was, and "Jaw & Chin" read as
-   "aw & Chin".) */
+/* Inside sub-groups and on the bench, move the tick into the container's gutter so it doesn't cover the label. */
 .k-sub-inner .slider-control.k-modified::before,
 .k-bench-body > .slider-control.k-modified::before { left: -8px; }
 
-/* ── The readout, typed ──────────────────────────────────────────────────
-   Dragging gets you close; forensic work needs exact. Clicking the number
-   swaps it for a field in the same place, so the column of digits down the
-   right edge never jumps. */
+/* Typed readout: clicking the number swaps it for a field in the same place. */
 
 .slider-value.k-editable { cursor: text; }
 
@@ -1050,13 +949,9 @@ label.checkbox-label {
   outline: none;
 }
 
-/* ── Group heading, with its share of the work ───────────────────────────
-   How many parameters inside this group have been changed. It answers
-   "where did I do things" without opening anything. */
+/* Group heading badge showing how many of its parameters changed. */
 
-/* Specific enough to beat `.control-group-header > span { flex: 1 }`,
-   which this badge is also a direct span child of — inheriting that rule
-   made it a full-width green bar that shoved the heading onto two lines. */
+/* Specific enough to beat the header span's flex: 1 rule. */
 .control-group-header > .k-grp-n,
 .k-grp-n {
   flex: none;
@@ -1073,25 +968,18 @@ label.checkbox-label {
   line-height: 1.5;
 }
 
-/* ── Filtering ───────────────────────────────────────────────────────────
-   Hidden rather than removed: the controls keep their bindings, their
-   values and their place, and clearing the filter is instant because
-   nothing was ever torn down. */
+/* Filtering hides rows rather than removing them, so clearing is instant. */
 
 .k-filtered-out { display: none !important; }
 
-/* While a filter is on, the sheet is a flat result list, so the group
-   headings stop pretending to be doors and read as the captions they are
-   in that context. */
+/* While filtering, group headings read as captions rather than collapse controls. */
 .panel-content.k-filtering .control-group-header,
 .panel-content.k-filtering .sub-group-header { cursor: default; }
 
 .panel-content.k-filtering .control-group-header .k-caret,
 .panel-content.k-filtering .sub-group-header .k-caret { opacity: 0; }
 
-/* The group a benched control came from. Set as a real element rather than
-   folded into the label text, so unpinning restores the row exactly as it
-   left and nothing has to un-edit a string. */
+/* The group name a benched control came from. */
 .k-row-from {
   flex: none;
   color: var(--t-off);
@@ -1104,17 +992,7 @@ label.checkbox-label {
   color: var(--t-off);
 }
 
-/* ── Keeping the label row inside the sheet ──────────────────────────────
-   The row now carries up to four things — where it came from, what it is,
-   its two buttons and its value — and the sheet can be as narrow as 330px.
-   A flex row whose items default to min-width:auto does not shrink text;
-   it lets it spill, and "Jaw & Chin · Width" ran out past the gutter as
-   "aw & Chin · Width".
-
-   The value and the buttons hold their size (a truncated number is a lie,
-   and a half-drawn button is unusable). The parameter's own name holds its
-   size too, because it is what the row *is*. The origin is the one part
-   that can be inferred from context, so it is the part that gives way. */
+/* Let the origin label shrink first so the row fits a narrow sheet; the value, buttons and name keep their size. */
 
 .slider-control > label { min-width: 0; overflow: hidden; }
 

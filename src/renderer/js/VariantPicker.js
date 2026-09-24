@@ -1,108 +1,44 @@
-/**
- * VariantPicker.js – recognition-driven face building.
- *
- * Asking a witness "how wide was his nose, 1 to 10?" fights how face memory
- * works: people recall features poorly but recognise faces well. This shows a
- * set of candidates and asks which is closest, then generates a new set around
- * that choice, narrowing each round until it converges. It is the same idea as
- * the evolutionary composite systems used in police work.
- *
- * A candidate is a whole face, not just a skull: the opening call also returns
- * one `shared` block of hair, colouring, beard and worn items, built to the
- * same standard as the single-face AI builder and applied across the whole set.
- * Candidates are readings of one person, so that part is identical between them
- * either way — sending it once costs nothing and is what makes a candidate
- * resemble the person at all, since a witness judges colouring and hair long
- * before bone structure.
- *
- * Cost shape matters here and drove the design:
- *   - Opening a session is ONE call that returns every candidate at once.
- *     Asked one at a time the model converges on the same reading of the
- *     description; seeing them together is what makes it differentiate.
- *   - Every round after a pick is generated locally by jittering the chosen
- *     face — zero calls, instant.
- *   - Only "none of these" spends another call, and it sends the rejected sets
- *     back so the replacements are actually different.
- *
- * A normal session is therefore one call regardless of how long the witness
- * iterates.
- */
+// Builds a face by recognition: shows the witness six candidate faces, then narrows around the one they pick, using only one AI call per session.
 
 class VariantPicker {
-  /** Jitter width for the first round after a pick, in morph units (0-100). */
+  // How far candidates spread in the first round after a pick, in slider units.
   static get START_AMPLITUDE() { return 14; }
 
-  /** Each round narrows by this factor — wide exploration, then refinement. */
+  // Each round narrows by this factor.
   static get AMPLITUDE_DECAY() { return 0.62; }
 
-  /** Below this the candidates stop being tellable apart, so stop offering more. */
+  // Below this the candidates look the same, so stop offering new rounds.
   static get MIN_AMPLITUDE() { return 2.5; }
 
+  // Number of candidates shown per round.
   static get COUNT() { return 6; }
 
-  /** Thumbnail size. Portrait, because heads are taller than they are wide. */
+  // Thumbnail width; portrait because heads are taller than wide.
   static get THUMB_W() { return 260; }
+  // Thumbnail height.
   static get THUMB_H() { return 320; }
 
-  /**
-   * Breathing room around the head, as a multiple of the exact fitting
-   * distance. Tuned with DEPTH_CLEARANCE to leave the head filling roughly
-   * four fifths of the frame: enough air that nothing touches an edge, little
-   * enough that the face is the picture rather than a stamp in the middle of
-   * one.
-   */
+  // Extra space around the head so it fills about four fifths of the thumbnail.
   static get FRAME_MARGIN() { return 1.12; }
 
-  /** Fraction of head depth added to the camera distance. See _frameHead. */
+  // Share of the head's depth added to the camera distance.
   static get DEPTH_CLEARANCE() { return 0.15; }
 
-  /**
-   * How far above the crown the frame will stretch for hair, as a fraction of
-   * head height. Enough for a tall style; not enough for a bad bounding box to
-   * strand the face at the bottom of the picture.
-   */
+  // How far above the crown the frame may stretch for hair.
   static get MAX_HAIR_HEADROOM() { return 0.22; }
 
-  /**
-   * How far each parameter may stray from neutral.
-   *
-   * The default band exists because a witness is matching a memory of a real
-   * person: a candidate only earns its slot if it could walk past you in the
-   * street, and the ends of these sliders are caricature. A caricature matches
-   * nobody, so it wastes one of six chances at recognition.
-   *
-   * The narrower bands are where two separate meshes have to agree with each
-   * other, rather than one piece of geometry deforming on its own:
-   *
-   *  - eyeOpenness moves the eyelids directly, so below 50 the eyes simply
-   *    close. No amount of tracking helps a shut eye, so it stays pinned.
-   *  - the other eye parameters move the socket, and the eyeball is a separate
-   *    mesh that follows it (EyeSystem._measureEyeOpening). It follows a
-   *    moderate change convincingly and a large one less so, hence a band
-   *    rather than free rein.
-   *  - the brow ridge sits directly over the eye opening; pushed down or
-   *    forward it overhangs and shadows the iris.
-   *  - the nose widths mirror the high-sensitivity warning in the backend
-   *    prompt: a small change there swings the whole face.
-   */
+  // How far each setting may move from neutral, so every candidate stays a believable real person.
   static get PARAM_BANDS() {
     return {
-      // eyeOpenness still moves the lids themselves — shut eyes are shut eyes,
-      // however well the eyeball tracks them — so it stays pinned.
+      // Eye openness moves the eyelids themselves, so it stays fixed.
       eyeOpenness: [50, 50],
-      // The rest are open again now that EyeSystem measures the eye opening
-      // rather than its centre vertex, so the eyeball follows the socket's
-      // position, size and tilt. Kept modest rather than wide: this is still
-      // two meshes agreeing with each other, not one piece of geometry.
+      // The other eye settings are allowed a modest range, since the eyeball now follows the socket.
       eyeSize: [38, 62],
       eyeDepth: [40, 60],
       eyeTilt: [42, 58],
       eyeHeight: [40, 60],
       eyeSpacing: [38, 62],
-      // The brow ridge sits directly over the eye opening. Pushed down or
-      // forward it overhangs the eye, shadowing the iris into the same "asleep"
-      // look the eye morphs cause — so it gets a tight band too, and browHeight
-      // (which moves the ridge vertically, straight onto the lid) the tightest.
+      // The brow ridge gets a tight range so it never hangs over the eyes.
       browHeight: [45, 55],
       browProminence: [42, 58],
       noseWidth: [38, 62],
@@ -112,30 +48,10 @@ class VariantPicker {
     };
   }
 
-  /**
-   * Band for anything not named above.
-   *
-   * Kept well inside the slider's nominal range. These morphs displace vertices
-   * along a falloff from a landmark, and past a moderate push the surface stops
-   * reading as bone and starts reading as melted — smoothed-over brows, a
-   * swollen jaw. That is the difference between a set that looks like six
-   * people and one that looks broken.
-   */
+  // Range for any setting not listed above; past this, features start to look melted.
   static get DEFAULT_BAND() { return [30, 70]; }
 
-  /**
-   * Parameters that move together on a real face, and the direction each takes.
-   *
-   * A skull is not fifty independent measurements. Widen it and the jaw and
-   * cheekbones widen with it; lengthen the face and the nose and chin follow.
-   * Each group draws one shared pull per candidate so those relationships
-   * survive, which is what keeps a jittered face looking like a person rather
-   * than a mesh with the sliders shaken.
-   *
-   * A sign of -1 means the parameter moves the opposite way to the group: a
-   * face that grows longer grows relatively narrower, and a face that tapers
-   * hard to the chin reads as narrower at the jaw.
-   */
+  // Settings that change together on a real face, and which way each one moves.
   static get FEATURE_GROUPS() {
     return {
       // Overall breadth of the skull and everything carried on it.
@@ -174,16 +90,10 @@ class VariantPicker {
     };
   }
 
-  /**
-   * Share of a candidate's variation that comes from its group pull rather than
-   * per-parameter noise. All group and the six faces differ only in a handful
-   * of directions; all noise and the relationships break. This leans towards
-   * coherence, because an incoherent face is not merely a worse match — it is
-   * unrecognisable, and costs the witness one of six chances.
-   */
+  // How much of each candidate's change comes from the shared group pull rather than random noise.
   static get GROUP_COHERENCE() { return 0.7; }
 
-  /** Top-level scene groups holding things worn on the head, for framing. */
+  // Scene groups holding things worn on the head, used for framing.
   static get WORN_GROUPS() {
     return new Set([
       'HairSystem', 'BeardSystem', 'EyebrowSystem',
@@ -210,35 +120,28 @@ class VariantPicker {
     this.shared = null;        // non-morph face data applied across the whole set
 
     this.onUpdate = null;      // () => void, fired when the set changes
-    // Provider and model for the candidate call, set by UIController from the
-    // assist panel's picker before a session opens.
+    // Provider and model for the AI call, set from the assist panel.
     this.provider = null;
     this.model = null;
 
-    // (shared) => void — applies hair/colouring/accessories to the live face.
-    // Injected rather than built in: the picker holds only the morpher and the
-    // renderer, and the builder's apply path already handles every block.
+    // Applies the shared hair, colouring and accessories to the live face; supplied by UIController.
     this.applyShared = null;
-    // () => void — full-state restore for cancel(). Needed once a session
-    // touches more than morphs, which baseMorphs alone cannot put back.
+    // Restores the full face state when the session is cancelled.
     this.onRestore = null;
-    // Systems whose meshes must be on the head before thumbnails are captured.
-    // Injected alongside applyShared; anything without whenIdle() is ignored.
+    // Systems whose models must be loaded before thumbnails are taken.
     this.assetSystems = [];
 
     console.log('[VariantPicker] Initialized');
   }
 
+  // Tells whether another, narrower round is still useful.
   get canNarrow() {
     return this.amplitude * VariantPicker.AMPLITUDE_DECAY >= VariantPicker.MIN_AMPLITUDE;
   }
 
   // ── Session ─────────────────────────────────────────────────────────────
 
-  /**
-   * Open a session: one API call for the opening set.
-   * `referenceImages` is passed straight through to the vision model.
-   */
+  // Starts a session with one AI call for the opening set.
   async start(description, referenceImages = []) {
     this.description = (description || '').trim();
     this.referenceImages = referenceImages || [];
@@ -253,7 +156,7 @@ class VariantPicker {
     return this._requestAiSet();
   }
 
-  /** Witness rejected the whole set — spend one call on a genuinely new one. */
+  // The witness rejected the whole set, so ask the AI for a genuinely different one.
   async rejectAll() {
     for (const v of this.variants) this.rejected.push(v.morphTargets);
     // Cap what gets sent back; the model only needs the gist of what failed.
@@ -264,22 +167,19 @@ class VariantPicker {
     return this._requestAiSet();
   }
 
+  // Asks the AI for a set of candidates, applies the shared look, then renders the thumbnails.
   async _requestAiSet() {
     const res = await this.api.generateVariants({
       prompt: this.description,
       count: VariantPicker.COUNT,
       avoid: this.rejected,
       referenceImages: this.referenceImages,
-      // Set from the assist panel's model picker. Left unset the backend falls
-      // back to its own default provider, which is the wrong one to reach for
-      // on a machine that only holds a key for another.
+      // Use the provider chosen in the assist panel, not the backend's default.
       provider: this.provider,
       model: this.model,
     });
     if (res?.error) {
-      // needsKey means the call failed for want of a usable API key, which is
-      // the one failure the operator can fix on the spot — carried out on the
-      // error so the caller can put the key dialog up and try again.
+      // Pass needsKey on so the caller can show the key dialog and try again.
       const err = new Error(res.error);
       err.needsKey = !!res.needsKey;
       err.provider = res.provider;
@@ -295,17 +195,11 @@ class VariantPicker {
       thumb: null,
     }));
 
-    // Before the thumbnails, not after — the candidates are judged on those
-    // images, and a face wearing the wrong skin tone and hair reads as wrong no
-    // matter how good its structure is. Applied once for the whole set, since
-    // every candidate is the same person.
+    // Apply the shared look before the thumbnails, since hair and colouring matter as much as bone structure.
     if (res.shared && typeof this.applyShared === 'function') {
       this.shared = res.shared;
       this.applyShared(res.shared);
-      // Hair and the worn items load their meshes asynchronously and only cache
-      // them afterwards, so on a cold cache they are not on the head yet — and
-      // the capture below is one synchronous pass. Without this wait every
-      // thumbnail in the opening set photographs a bald, bare head.
+      // Wait for hair and accessories to finish loading, or the thumbnails show a bald head.
       await (window.AssetLoadTracker?.whenAllIdle(this.assetSystems) ?? Promise.resolve());
     }
 
@@ -314,10 +208,7 @@ class VariantPicker {
     return this.variants;
   }
 
-  /**
-   * Witness picked one. Everything from here is local — no API call.
-   * Returns false once the set has narrowed as far as it usefully can.
-   */
+  // The witness picked one; builds the next, narrower set locally and returns false once it has converged.
   pick(index) {
     const chosen = this.variants[index];
     if (!chosen) return false;
@@ -334,9 +225,7 @@ class VariantPicker {
     this.amplitude *= VariantPicker.AMPLITUDE_DECAY;
     this.round++;
 
-    // Carry the chosen face forward unchanged as the first slot, so the
-    // witness can never lose the best face they have found so far by picking
-    // it and getting only mutations back.
+    // Keep the chosen face as the first slot so the witness never loses their best match.
     const next = [{ label: 'Your pick', morphTargets: { ...base }, thumb: null }];
     for (let i = 1; i < VariantPicker.COUNT; i++) {
       next.push({
@@ -352,7 +241,7 @@ class VariantPicker {
     return true;
   }
 
-  /** Commit a candidate to the live face and end the session. */
+  // Applies a candidate to the live face and ends the session.
   apply(index) {
     const chosen = this.variants[index];
     if (!chosen) return null;
@@ -361,12 +250,10 @@ class VariantPicker {
     return chosen;
   }
 
-  /** Abandon the session and put the face back the way it was. */
+  // Cancels the session and puts the face back as it was.
   cancel() {
     if (this.shared && typeof this.onRestore === 'function') {
-      // The session changed hair and colouring too, so rewinding the morphs
-      // would leave the AI's version of everything else on the face. Hand back
-      // to the full restore instead.
+      // The session changed hair and colouring too, so use the full restore.
       this.onRestore();
     } else if (this.baseMorphs) {
       this._setMorphs(this.baseMorphs, true);
@@ -377,14 +264,7 @@ class VariantPicker {
     this.selectedIndex = -1;
   }
 
-  /**
-   * Expand a candidate's morphs into a complete set.
-   *
-   * The model is told to omit anything that should sit at the neutral 50, but
-   * _setMorphs only writes the keys it is given — so an omitted parameter would
-   * silently keep the previous candidate's value, and the six faces would
-   * accumulate each other's features instead of being independent readings.
-   */
+  // Fills in any settings the AI left out with neutral values, so candidates don't inherit each other's features.
   _completeMorphs(partial) {
     const src = partial || {};
     const out = {};
@@ -397,38 +277,15 @@ class VariantPicker {
     return out;
   }
 
-  /**
-   * Round a value and hold it inside the believable range for its parameter.
-   *
-   * The prompt asks for this too, but a prompt is a request and this is a
-   * guarantee — and it covers the jittered rounds, which no prompt reaches.
-   */
+  // Rounds a value and keeps it inside its believable range.
   _plausible(key, value) {
     const [lo, hi] = VariantPicker.PARAM_BANDS[key] || VariantPicker.DEFAULT_BAND;
     return Math.max(lo, Math.min(hi, Math.round(value)));
   }
 
-  // ── Jitter ──────────────────────────────────────────────────────────────
+  // Jitter
 
-  /**
-   * Build a variation of `base` by moving groups of related features together.
-   *
-   * Faces do not vary one slider at a time. A broad skull comes with a broad
-   * jaw and wide cheekbones; a long face carries a longer nose and chin. So
-   * each candidate first draws one shared pull per FEATURE_GROUPS entry, which
-   * every parameter in that group follows, and only then a smaller amount of
-   * per-parameter noise for detail.
-   *
-   * Jittering all fifty parameters independently — which is what this used to
-   * do — breaks every one of those relationships at once. The result is a face
-   * whose parts contradict each other: it stops looking like a person and
-   * starts looking like a mesh with the sliders shaken, and it gets worse every
-   * round because the errors accumulate around the previous pick.
-   *
-   * Two uniform samples averaged gives a rough bell shape, so most candidates
-   * sit near the chosen face and a few reach further out. That reads better
-   * than flat noise, where every candidate feels equally wrong.
-   */
+  // Makes a variation of a face by moving related features together, plus a little noise, so it still looks like a real person.
   _jitter(base, amplitude) {
     const bell = () => (Math.random() + Math.random()) - 1;
 
@@ -448,21 +305,13 @@ class VariantPicker {
       if (lo === hi) { out[key] = lo; continue; }
       const start = base[key] !== undefined ? base[key] : (this.morpher.morphValues[key] ?? 50);
 
-      // Scale the kick by the room this parameter has. Jittering a tightly
-      // banded parameter at full amplitude would just pile candidates against
-      // its limits, turning variation into a row of identical clamps.
+      // Scale the change by how much room the setting has, so tight ranges aren't pinned at their limits.
       const room = (hi - lo) / (dHi - dLo);
 
-      // A parameter can belong to more than one group — a cheekbone is part of
-      // how wide the skull is AND how much flesh sits on it — so take every
-      // membership and average them, keeping the pull comparable to a
-      // single-group parameter's.
+      // A setting can belong to several groups, so average its pulls.
       const memberships = groupOf[key];
       let shared = 0;
-      // Only split the amplitude when there is actually a group to share with.
-      // A parameter that belongs to no group — eye spacing, philtrum width —
-      // has nothing to correlate against, so giving it the leftover 30% would
-      // quietly freeze it and every candidate's eyes would look the same.
+      // Settings in no group get the full amount, or they would never vary.
       let soloWeight = 1;
       if (memberships && memberships.length) {
         for (const m of memberships) shared += groupPull[m.group] * m.sign;
@@ -476,10 +325,7 @@ class VariantPicker {
     return out;
   }
 
-  /**
-   * key -> [{ group, sign }, ...], built once from FEATURE_GROUPS.
-   * A list, not a single entry: several parameters sit in more than one group.
-   */
+  // Builds a lookup from each setting to the groups it belongs to.
   static _groupIndex() {
     if (!VariantPicker.__groupIndex) {
       const index = {};
@@ -493,17 +339,9 @@ class VariantPicker {
     return VariantPicker.__groupIndex;
   }
 
-  // ── Thumbnails ──────────────────────────────────────────────────────────
+  // Thumbnails
 
-  /**
-   * Render each candidate to a small image by applying it to the real head and
-   * capturing the canvas.
-   *
-   * Synchronous on purpose: applyAllMorphs writes geometry directly and the
-   * render below is forced, so the whole set is captured in one pass with
-   * nothing on screen in between. Because it never yields, the scene's own
-   * animation loop cannot interleave and see the borrowed camera or viewport.
-   */
+  // Renders each candidate to a small image in one synchronous pass on the real head.
   _renderThumbnails() {
     if (!this.scene?.renderer || !this.morpher) return;
 
@@ -513,12 +351,7 @@ class VariantPicker {
     try {
       for (const v of this.variants) {
         this._setMorphs(v.morphTargets, true);
-        // Re-fit synchronously rather than trusting onMorphApplied, which is
-        // debounced: in a burst like this each candidate cancels the previous
-        // candidate's pending re-fit, so every thumbnail would be captured with
-        // the hair, brows, beard and eyes still fitted to the face before the
-        // session — floating hair, a detached moustache, eyes in the wrong
-        // sockets. Frame only after, so the bounds see the re-fitted hair.
+        // Refit hair, eyes and accessories right away, since the normal refit is debounced.
         this._refitWorn();
         this._frameHead();
         v.thumb = this._captureThumb();
@@ -530,24 +363,14 @@ class VariantPicker {
     }
   }
 
-  /**
-   * Re-fit hair, brows, beard, eyes and accessories to the current skull, now,
-   * bypassing the debounce on the interactive path.
-   */
+  // Refits everything worn on the head to the current face immediately.
   _refitWorn() {
     if (typeof this.scene?.refitWornSystems === 'function') {
       this.scene.refitWornSystems();
     }
   }
 
-  /**
-   * Borrow the viewport for portrait capture, returning what to hand back.
-   *
-   * The renderer is resized to the thumbnail's own aspect ratio. Rendering at
-   * the window's wide aspect and cropping to portrait afterwards throws away
-   * more than half the width, which zooms every face in past the hairline and
-   * chin — a head shot cropped to a nose.
-   */
+  // Temporarily resizes the renderer to the thumbnail's shape so faces aren't cropped, and returns what to restore.
   _beginCapture() {
     const s = this.scene;
     const r = s.renderer;
@@ -562,17 +385,13 @@ class VariantPicker {
       target: s.controls?.target?.clone?.() ?? null,
     };
 
-    // The studio floor and grid are orientation aids for someone turning a head
-    // in the viewport. In a portrait they are a grey slab across the jaw, and
-    // they are the first thing that makes a set of six look like a screenshot
-    // of a tool rather than a set of faces.
+    // Hide the floor and grid, which look like a grey slab in a portrait.
     prev.hidden = [];
     for (const obj of [s.ground, s.grid]) {
       if (obj && obj.visible) { prev.hidden.push(obj); obj.visible = false; }
     }
 
-    // Cap the ratio: past 2x this is spending fill rate on detail no 260px
-    // thumbnail can show.
+    // Cap the pixel ratio at 2; small thumbnails don't need more.
     if (r.setPixelRatio) r.setPixelRatio(Math.min(prev.pixelRatio || 1, 2));
     r.setSize(VariantPicker.THUMB_W, VariantPicker.THUMB_H, false);
     if (s.camera) {
@@ -582,6 +401,7 @@ class VariantPicker {
     return prev;
   }
 
+  // Puts back the renderer size, camera and hidden objects after capture.
   _endCapture(prev) {
     const s = this.scene;
     const r = s.renderer;
@@ -602,23 +422,14 @@ class VariantPicker {
     }
   }
 
-  /**
-   * Frame the camera on the head from the front, fitted to its live bounds.
-   *
-   * Measured per candidate rather than set to one fixed distance: the whole
-   * point of the set is that these skulls differ in width and length, and a
-   * distance that frames a narrow face crops a broad one. Hair is included in
-   * the bounds so a tall style is not cut off at the crown.
-   */
+  // Points the camera at the front of the head, fitted to this candidate's size.
   _frameHead() {
     const s = this.scene;
     if (!s?.camera || !s?.controls) return;
 
     const box = this._headBounds();
     if (!box || box.isEmpty()) {
-      // Nothing measurable to fit — still face the head straight on, using the
-      // scene's own front framing. Getting the angle right matters more than
-      // getting the distance perfect.
+      // Nothing to measure, so just face the head straight on.
       const cY = s.modelCenter?.y ?? 0;
       s.camera.position.set(0, cY, 4.5);
       s.controls.target.set(0, cY, 0);
@@ -635,12 +446,7 @@ class VariantPicker {
     const aspect = s.camera.aspect || 1;
     const fitHeight = (size.y / 2) / Math.tan(fov / 2);
     const fitWidth = (size.x / 2) / (Math.tan(fov / 2) * aspect);
-    // Only a fraction of the depth is added back. Backing off by the full half
-    // depth would guarantee nothing clips even if the widest part of the head
-    // sat right at the front — but on a head it does not: the front-most point
-    // is the nose, dead centre, while the ears, crown and chin that define the
-    // silhouette sit at mid depth. Paying the full clearance for that just
-    // pushes the face away and leaves the frame half empty.
+    // Add back only part of the head's depth, since the nose is the only thing that far forward.
     const dist = Math.max(fitHeight, fitWidth) * VariantPicker.FRAME_MARGIN
                + size.z * VariantPicker.DEPTH_CLEARANCE;
 
@@ -650,17 +456,7 @@ class VariantPicker {
     s.controls.update();
   }
 
-  /**
-   * Bounds to frame on: the head itself, plus headroom for hair.
-   *
-   * Anchored on the head mesh rather than the union of every worn group. A
-   * group's box is only as tight as its meshes — a hair model with stray
-   * geometry, or a container sitting away from the head, inflates the union and
-   * pushes the face down the frame, which is what leaves a band of empty space
-   * above the crown and drops the chin off the bottom edge. Worn items are read
-   * as a hint for the top of frame only, capped to a believable amount of hair,
-   * and never allowed to move the chin, the sides, or the depth.
-   */
+  // Returns the bounds to frame: the head mesh plus a limited amount of room for hair.
   _headBounds() {
     const s = this.scene;
     if (typeof THREE === 'undefined' || !s?.scene || !s.headMesh) return null;
@@ -682,6 +478,7 @@ class VariantPicker {
     return box;
   }
 
+  // Captures the current render as a thumbnail image.
   _captureThumb() {
     const W = VariantPicker.THUMB_W, H = VariantPicker.THUMB_H;
     this.scene.renderFrame();
@@ -689,12 +486,12 @@ class VariantPicker {
     const c = document.createElement('canvas');
     c.width = W;
     c.height = H;
-    // The viewport was rendered at this exact aspect ratio, so this is a
-    // straight downscale — nothing is cropped off the edges.
+    // The render already has the thumbnail's shape, so this is a straight downscale.
     c.getContext('2d').drawImage(src, 0, 0, W, H);
     return c.toDataURL('image/png');
   }
 
+  // Writes morph values into the morpher and rebuilds the face.
   _setMorphs(values, notify) {
     for (const [k, v] of Object.entries(values)) {
       if (this.morpher.morphValues[k] !== undefined) {
@@ -707,6 +504,7 @@ class VariantPicker {
     if (!notify) this.morpher.onMorphApplied = hook;
   }
 
+  // Returns the picker's current state for the UI.
   getState() {
     return {
       active: this.active,

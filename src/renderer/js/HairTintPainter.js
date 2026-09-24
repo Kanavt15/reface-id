@@ -1,16 +1,4 @@
-/**
- * HairTintPainter.js
- * Brush-based manual tint painting on hair, beard, and eyebrow 3D meshes.
- * Uses vertex colors to apply per-vertex tint overlays on top of the base color.
- * Similar to PigmentationPainter but operates on 3D mesh vertices
- * instead of 2D UV texture pixels.
- *
- * Usage:
- *   1. Select a target (hair / beard / eyebrow)
- *   2. Pick a tint color and adjust brush size/strength
- *   3. Click & drag on the model to paint tint
- *   4. Use eraser mode to remove tint from specific areas
- */
+// Lets the user paint tint colour onto the hair, beard or eyebrows by colouring the mesh vertices.
 
 class HairTintPainter {
   constructor(sceneManager, hairSystem) {
@@ -58,6 +46,7 @@ class HairTintPainter {
 
   // ─── Enable / Disable ──────────────────────────────────────────────────
 
+  // Starts listening for paint strokes on the canvas.
   enable() {
     if (this.enabled) return;
     this.enabled = true;
@@ -67,6 +56,7 @@ class HairTintPainter {
     this.canvas.style.cursor = 'crosshair';
   }
 
+  // Stops listening for paint strokes.
   disable() {
     if (!this.enabled) return;
     this.enabled = false;
@@ -78,17 +68,20 @@ class HairTintPainter {
     this.controls.enabled = true;
   }
 
+  // Turns the tint brush on or off.
   toggle() {
     if (this.enabled) { this.disable(); } else { this.enable(); }
     return this.enabled;
   }
 
+  // Chooses whether to paint the hair, beard or eyebrows.
   setTarget(target) {
     this.target = target;
   }
 
   // ─── Target Meshes ─────────────────────────────────────────────────────
 
+  // Returns the scene group for the current target.
   _getTargetGroup() {
     switch (this.target) {
       case 'hair':    return this.hairSystem.hairGroup;
@@ -98,6 +91,7 @@ class HairTintPainter {
     }
   }
 
+  // Returns every mesh in the current target.
   _getTargetMeshes() {
     const group = this._getTargetGroup();
     if (!group) return [];
@@ -106,6 +100,7 @@ class HairTintPainter {
     return meshes;
   }
 
+  // Returns the material used by the current target.
   _getTargetMaterial() {
     switch (this.target) {
       case 'hair':    return this.hairSystem._hairMat;
@@ -115,6 +110,7 @@ class HairTintPainter {
     }
   }
 
+  // Returns the target's base colour with its global tint applied.
   _getEffectiveBaseColor() {
     const hs = this.hairSystem;
     switch (this.target) {
@@ -131,12 +127,14 @@ class HairTintPainter {
 
   // ─── Raycasting ────────────────────────────────────────────────────────
 
+  // Converts the mouse position to normalised screen coordinates.
   _getNDC(event) {
     const rect = this.canvas.getBoundingClientRect();
     this._mouse.x =  ((event.clientX - rect.left) / rect.width)  * 2 - 1;
     this._mouse.y = -((event.clientY - rect.top)  / rect.height) * 2 + 1;
   }
 
+  // Casts a ray from the mouse and returns where it hits the target.
   _raycastTarget(event) {
     this._getNDC(event);
     this._raycaster.setFromCamera(this._mouse, this.camera);
@@ -152,6 +150,7 @@ class HairTintPainter {
 
   // ─── Pointer Events ────────────────────────────────────────────────────
 
+  // Starts a stroke where the user pressed on the hair.
   _handlePointerDown(event) {
     if (event.button !== 0) return;
 
@@ -167,6 +166,7 @@ class HairTintPainter {
     this._stampBrush(hit.point);
   }
 
+  // Paints along the stroke as the mouse moves.
   _handlePointerMove(event) {
     if (!this._isPainting) return;
     event.preventDefault();
@@ -178,6 +178,7 @@ class HairTintPainter {
     this._stampBrush(hit.point);
   }
 
+  // Ends the stroke and reports the change.
   _handlePointerUp(event) {
     if (!this._isPainting) return;
     this._isPainting = false;
@@ -187,6 +188,7 @@ class HairTintPainter {
 
   // ─── Vertex Color Setup ────────────────────────────────────────────────
 
+  // Sets up tint storage for a mesh, using its own copy of the geometry.
   _ensureTintData(mesh) {
     if (this._tintData.has(mesh.uuid)) return;
 
@@ -211,6 +213,7 @@ class HairTintPainter {
     this._tintData.set(mesh.uuid, { intensities, colors, vertexCount: count });
   }
 
+  // Switches a material to use vertex colours, remembering its original colour.
   _enableVertexColorsOnMaterial(mat) {
     if (mat._hairTintPainterActive) return;
 
@@ -223,10 +226,7 @@ class HairTintPainter {
     this._vertexColorMaterials.add(mat);
   }
 
-  /**
-   * Initialize vertex colors for ALL meshes in the current target group.
-   * This is called once when painting begins on a target for the first time.
-   */
+  // Sets up vertex colours on every mesh of the target the first time painting starts.
   _initAllVertexColors() {
     const meshes = this._getTargetMeshes();
     const mat = this._getTargetMaterial();
@@ -279,6 +279,7 @@ class HairTintPainter {
 
   // ─── Brush Stamping ────────────────────────────────────────────────────
 
+  // Paints tint onto the vertices within the brush radius.
   _stampBrush(worldPoint) {
     const meshes = this._getTargetMeshes();
     const r      = this.brushRadius;
@@ -372,10 +373,7 @@ class HairTintPainter {
 
   // ─── Refresh vertex colors (called when base color changes) ────────────
 
-  /**
-   * Refresh vertex colors for a specific target (or all).
-   * Call this when base color, global tint, or style changes.
-   */
+  // Recolours the vertices of one target, or all, after the base colour or style changes.
   refreshVertexColors(target) {
     if (target) {
       const saved = this.target;
@@ -387,14 +385,7 @@ class HairTintPainter {
     }
   }
 
-  refreshAllVertexColors() {
-    for (const t of ['hair', 'beard', 'eyebrow']) {
-      if (this._hasAnyTintData(t)) {
-        this.refreshVertexColors(t);
-      }
-    }
-  }
-
+  // Tells whether a target has any painted tint.
   _hasAnyTintData(target) {
     const saved = this.target;
     this.target = target;
@@ -406,6 +397,7 @@ class HairTintPainter {
     return false;
   }
 
+  // Recolours the current target's vertices from its base colour and painted tint.
   _refreshCurrentTargetColors() {
     const meshes = this._getTargetMeshes();
     const baseHex = this._getEffectiveBaseColor();
@@ -439,10 +431,7 @@ class HairTintPainter {
 
   // ─── Model change handler ──────────────────────────────────────────────
 
-  /**
-   * Call when a model is regenerated (style change). Cleans up stale tint data
-   * and restores the material to non-vertex-color mode.
-   */
+  // Drops old tint data and restores the material when a new model is loaded for a target.
   onModelChanged(target) {
     const mat = (() => {
       switch (target) {
@@ -480,6 +469,7 @@ class HairTintPainter {
 
   // ─── Undo ──────────────────────────────────────────────────────────────
 
+  // Saves a copy of the tint data so the next change can be undone.
   _pushUndo() {
     if (this._undoStack.length >= this._maxUndo) this._undoStack.shift();
 
@@ -495,6 +485,7 @@ class HairTintPainter {
     this._undoStack.push({ target: this.target, data: snapshot });
   }
 
+  // Undoes the last change.
   undo() {
     if (this._undoStack.length === 0) return;
     const snapshot = this._undoStack.pop();
@@ -519,6 +510,7 @@ class HairTintPainter {
 
   // ─── Clear ─────────────────────────────────────────────────────────────
 
+  // Removes all painted tint from every target.
   clearAll() {
     this._pushUndo();
     this._tintData.clear();
@@ -550,6 +542,7 @@ class HairTintPainter {
     if (this.onChanged) this.onChanged();
   }
 
+  // Removes painted tint from one target.
   clearTarget(target) {
     this._pushUndo();
 
@@ -580,6 +573,7 @@ class HairTintPainter {
     if (this.onChanged) this.onChanged();
   }
 
+  // Tells whether any tint has been painted.
   hasTintData() {
     for (const [, data] of this._tintData) {
       for (let i = 0; i < data.intensities.length; i++) {
@@ -591,6 +585,7 @@ class HairTintPainter {
 
   // ─── Helpers ───────────────────────────────────────────────────────────
 
+  // Converts a hex colour to RGB.
   _hexToRgb(hex) {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? {
@@ -602,6 +597,7 @@ class HairTintPainter {
 
   // ─── Dispose ───────────────────────────────────────────────────────────
 
+  // Turns the brush off and drops its data.
   dispose() {
     this.disable();
     this._tintData.clear();

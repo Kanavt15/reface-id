@@ -1,12 +1,4 @@
-/**
- * snapshot-check.mjs — drive the snapshot panel against the real database.
- *
- *   node scripts/snapshot-check.mjs
- *
- * The point of this suite is the thing the old implementation got wrong:
- * a snapshot must still be there after the process dies. So it launches the
- * app twice, and the second launch reads back what the first one wrote.
- */
+// Snapshot test: launches the app twice and checks the second run can read back the snapshots the first one saved; run with `node scripts/snapshot-check.mjs`.
 import { _electron as electron } from 'playwright-core';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -21,9 +13,11 @@ const bin = path.join(APP_DIR, 'node_modules', 'electron', 'dist',
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
 
+// Waits for a number of milliseconds.
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let failures = 0;
 
+// Prints a check result and counts failures.
 const expect = (label, got, want) => {
   const pass = JSON.stringify(got) === JSON.stringify(want);
   if (!pass) failures++;
@@ -31,13 +25,10 @@ const expect = (label, got, want) => {
     (pass ? '' : `\n         got ${JSON.stringify(got)} want ${JSON.stringify(want)}`));
 };
 
-/* Run against a throwaway Electron profile so the suite writes to its own
-   reface.db instead of the operator's real one. main.js derives REFACE_DATA_DIR
-   from app.getPath('userData'), which --user-data-dir controls, so the whole
-   chain follows this one flag. It is kept between the two passes on purpose —
-   that shared directory is what makes the restart test meaningful. */
+// Use a throwaway profile, shared by both runs, so the test never touches the real database.
 const PROFILE = path.join(os.tmpdir(), 'reface-snapshot-check-profile');
 
+// Launches the app with the test profile and returns the app and its window.
 async function launch() {
   const app = await electron.launch({
     executablePath: bin,
@@ -64,14 +55,12 @@ async function launch() {
   return { app, page, errors };
 }
 
-/* Walk the intake flow into the editor. */
+// Walks the intake flow into the editor.
 async function toEditor(page, caseNumber) {
   await page.waitForFunction(
     () => document.querySelectorAll('.panel-tab').length === 7 && !!window.gsap,
     null, { timeout: 45_000 });
-  /* Each step waits for its screen to actually become active. Blind sleeps
-     race the entrance animations, and a click on a screen that has not
-     finished arriving lands on an invisible element. */
+  // Wait for each screen to become active instead of sleeping.
   const onScreen = (id) => page.waitForFunction(
     (s) => document.getElementById(s)?.classList.contains('rf-screen-active'),
     id, { timeout: 20_000 });
@@ -101,8 +90,7 @@ async function toEditor(page, caseNumber) {
   await sleep(600);
 }
 
-/* Wait for the backend main.js spawned to answer, so a slow Python start does
-   not read as a storage failure. */
+// Waits until the backend answers, so a slow start isn't mistaken for a storage failure.
 async function waitForBackend(page) {
   const ok = await page.evaluate(async () => {
     for (let i = 0; i < 40; i++) {
@@ -119,8 +107,7 @@ async function waitForBackend(page) {
 
 // ─── Pass 1: capture ─────────────────────────────────────────────────────────
 
-/* Start from nothing, so a stale row from an earlier run cannot make a broken
-   persistence path look like it worked. */
+// Start from an empty profile so old rows can't hide a broken save.
 fs.rmSync(PROFILE, { recursive: true, force: true });
 
 console.log('\n══ pass 1 — capture and write ══');
@@ -161,9 +148,7 @@ expect('newest first', afterCapture.names, ['Frame two', 'Frame one']);
 expect('count label', afterCapture.count, '2 snapshots');
 expect('nothing left queued', afterCapture.pending, 0);
 
-/* The regression that started this: action buttons drew as empty boxes because
-   FontAwesome is gone and these icons are built in JS, which build-ui.js never
-   rewrites. Assert on rendered geometry, not on markup. */
+// Snapshot action icons must actually render, not show as empty boxes.
 const iconState = await page.evaluate(() => {
   const btn = document.querySelector('.snapshot-card .btn-export');
   if (!btn) return { found: false };
@@ -200,12 +185,7 @@ expect('database names match', inDb.names, ['Frame one', 'Frame two']);
 expect('thumbnails stored and returned', inDb.thumbs, true);
 expect('list response omits state blobs', inDb.noState, true);
 
-/* Export: answer the native save dialog with a fixed path.
-   The stub has to go in the MAIN process — contextBridge freezes the object it
-   exposes, so assigning window.electronAPI.saveDialog from the page silently
-   does nothing and a real modal dialog opens and blocks the run forever.
-   Everything downstream of the dialog (IPC, the buffer write) is the real
-   code path. */
+// Stub the save dialog in the main process, since the page can't change the frozen electronAPI.
 const exportPath = path.join(os.tmpdir(), `reface-snapshot-${Date.now()}.json`);
 await session.app.evaluate(async ({ dialog }, p) => {
   dialog.showSaveDialog = async () => ({ canceled: false, filePath: p });
@@ -248,8 +228,7 @@ page = session.page;
 if (!await waitForBackend(page)) { console.log('  FAIL backend never came up'); process.exit(1); }
 await toEditor(page, '2291-C');
 
-/* A brand new case must start empty — snapshots are per case, which is what
-   the single "_default" bucket used to destroy. */
+// A new case must start with no snapshots.
 const freshCase = await page.evaluate(() => ({
   cards: document.querySelectorAll('.snapshot-card').length,
   emptyShown: getComputedStyle(document.getElementById('snapshotEmpty')).display !== 'none',

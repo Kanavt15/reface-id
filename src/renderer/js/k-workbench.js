@@ -1,38 +1,13 @@
-/**
- * ReFace ID — k-workbench.js
- *
- * The working layer: what an operator does to a control once they have
- * found it, and how they keep hold of the handful they are actually using.
- *
- * ── Why this exists ───────────────────────────────────────────────────────
- * The interface holds 298 controls behind seven sections and some fifty
- * groups. k-palette solved *finding* one. This solves the four things that
- * happen after that, none of which the sheet could do:
- *
- *   · setting an exact value          — the readout was a <span>
- *   · undoing a keyboard adjustment   — only mouse drags opened an undo
- *                                       action, so arrow-key edits silently
- *                                       fell out of the history
- *   · reverting one parameter         — reset was group-wide or nothing
- *   · keeping several to hand         — every return to a section meant
- *                                       reopening the same accordions
- *
- * Nothing here edits the subject directly. Every change is delivered by
- * writing a control's value and dispatching the events a real interaction
- * would have produced, so UIController and CaseManager stay the only
- * things that know what a parameter means.
- *
- * Loads after k-shell and k-palette.
- */
+// The working layer for controls: type exact values, undo keyboard changes, revert one setting, pin controls to a bench, filter a section and show the active tool.
 ;(function KWorkbench() {
   'use strict';
 
+  // Finds the first element matching a selector.
   const $  = (s, r = document) => r.querySelector(s);
+  // Finds all elements matching a selector, as an array.
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 
-  /* Leaf rows the filter reasons about. Everything the sheet can show is
-     one of these or a container of them; a filter that only understood
-     sliders would silently swallow the colour rows and style grids. */
+  // Every kind of row the filter understands, not just sliders.
   const ROW_SEL = '.slider-control, .select-control, .input-control, ' +
     '.color-picker-row, .k-field, .k-btn-row, .hair-style-grid, ' +
     '.skin-tone-grid, .k-verbatim, .k-note, .sub-group-label';
@@ -42,31 +17,20 @@
     width: 'rf.sheet.width.v1',
   };
 
+  // Reads a JSON value from local storage, or returns the fallback.
   const read = (k, fallback) => {
     try { const v = localStorage.getItem(k); return v == null ? fallback : JSON.parse(v); }
     catch { return fallback; }
   };
+  // Writes a JSON value to local storage, ignoring private-mode errors.
   const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 
+  // Returns the SVG markup for an icon from the sprite.
   const icon = (name) => `<svg class="i" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 
-  /* ══════════════════════════════════════════════════════════════════════
-     1 · Delivering a value
+  // 1. Delivering a value: a change from code must fire mousedown, input, change and mouseup, or undo and the activity log miss it.
 
-     A control changed from code has to look to the rest of the app exactly
-     like a control changed by hand, because the undo stack, the activity
-     log and the case record are all built out of the event sequence a real
-     interaction produces:
-
-       mousedown  → CaseManager.beginAction()   (opens an undo entry)
-       input      → the parameter is applied
-       change     → what the skin sliders end their action on
-       mouseup    → CaseManager.endAction() + a line in the activity log
-
-     Firing only `input` — the obvious shortcut — applies the change and
-     leaves it unundoable, which is worse than not offering the control.
-     ══════════════════════════════════════════════════════════════════════ */
-
+  // Sets a slider's value and fires the same events a real drag would.
   function deliver(input, value) {
     const min = parseFloat(input.min);
     const max = parseFloat(input.max);
@@ -75,8 +39,7 @@
     if (Number.isFinite(min)) v = Math.max(min, v);
     if (Number.isFinite(max)) v = Math.min(max, v);
 
-    /* A step of 1 is the default for range inputs and every morph
-       parameter uses it, so snap unless the control says otherwise. */
+    // Snap to the control's step, which is 1 unless it says otherwise.
     const step = parseFloat(input.step);
     if (!Number.isFinite(step) || step === 1) v = Math.round(v);
 
@@ -92,73 +55,46 @@
     return true;
   }
 
-  /* ── What "default" means ──────────────────────────────────────────────
-     Not the markup attribute. Several systems — the skin texture params,
-     the hair defaults, anything restored from a case — write their own
-     starting values into these sliders during boot, and measuring against
-     the markup instead made a freshly opened, untouched face report ten
-     edited parameters while the status strip beside it correctly said
-     none. Two contradictory counts on one screen is worse than no count.
+  // "Default" is whatever the controls hold once the app has settled, not the markup value.
 
-     So the baseline is whatever the controls hold once the app has settled
-     and stopped writing to them. On a new case that is the neutral face; on
-     a loaded one it is the case as opened. Both give "edited" and "revert"
-     the meaning the operator expects: what *I* have changed, and put it
-     back. */
-
+  // Records every slider's current value as its baseline for revert.
   function captureBaseline() {
     $$('input[type=range]').forEach((input) => {
-      /* Never overwrite the starting point of something already moved —
-         that would make its own edit the thing it reverts to. */
+      // Never reset the baseline of something the operator already moved.
       if (!touched.has(input)) input.dataset.kBase = input.value;
     });
     syncEdited();
   }
 
+  // Returns a slider's baseline value.
   const defaultOf = (input) =>
     (input.dataset.kBase !== undefined ? input.dataset.kBase : input.getAttribute('value'));
 
-  /* ── What "edited" means ───────────────────────────────────────────────
-     A value differing from the baseline is not enough on its own. The hair,
-     eye and skin systems finish loading their assets on their own schedule
-     and write starting values into the sliders as they arrive — some of
-     them well after the editor is on screen — so any baseline taken at a
-     fixed moment is a race, and losing it showed a freshly opened face as
-     seven edited parameters beside a status strip correctly reporting one.
-
-     So a control counts as edited only once the operator has actually
-     moved it. That is observable and needs no timing at all: a drag or an
-     arrow key raises a trusted `input` event, while every engine write is
-     a plain property assignment that raises nothing. The baseline is still
-     what revert returns to; it just no longer has to carry the question of
-     whether anything happened. */
+  // A control only counts as edited once the operator has moved it (a trusted input event), since engine writes raise no event.
 
   const touched = new WeakSet();
 
+  // Marks a slider as moved by the operator.
   function markTouched(el) {
     if (el && el.tagName === 'INPUT' && el.type === 'range') touched.add(el);
   }
 
+  // Tells whether the operator has moved a slider away from its baseline.
   const isModified = (input) => {
     if (!touched.has(input)) return false;
     const d = defaultOf(input);
     return d != null && String(input.value) !== String(d);
   };
 
-  /* ══════════════════════════════════════════════════════════════════════
-     2 · The slider row
+  // 2. The slider row: an editable readout, a revert button that appears once the value moves, and a pin.
 
-     Each row grows three things: a readout you can type into, a revert
-     control that appears only once the value has moved, and a pin.
-     ══════════════════════════════════════════════════════════════════════ */
-
-  /* A key stable across reloads, so the bench survives one. Morph sliders
-     are named by parameter; everything else by the id its module binds. */
+  // Returns a key for a row that stays the same across reloads, so the bench survives one.
   function keyOf(row) {
     const input = row.querySelector('input[type=range]');
     return row.dataset.param || (input && input.id) || null;
   }
 
+  // Adds the revert and pin buttons and the editable readout to a slider row.
   function equipRow(row) {
     if (row.dataset.kEquipped) return;
     const input = row.querySelector('input[type=range]');
@@ -199,20 +135,16 @@
     tools.appendChild(revert);
     tools.appendChild(pin);
 
-    /* Ahead of the readout, so the number stays hard against the right
-       edge and the column of digits down the sheet never breaks. */
+    // Put the tools before the readout so the numbers stay lined up on the right.
     label.insertBefore(tools, label.querySelector('.slider-value'));
 
     equipReadout(row, input);
     refreshRow(row);
   }
 
-  /* ── Type an exact value ───────────────────────────────────────────────
-     Forensic work is reproducible work: "nose width 62" has to be
-     enterable, not approachable by dragging. The <span> stays in the DOM
-     and keeps its id — UIController writes into it on every input event —
-     and the editor is a sibling that borrows its place while open. */
+  // Lets the operator click the readout and type an exact value.
 
+  // Makes a row's readout clickable so an exact value can be typed in.
   function equipReadout(row, input) {
     const out = row.querySelector('.slider-value');
     if (!out) return;
@@ -229,17 +161,7 @@
 
     let open = false;
 
-    /* Closing on `blur` is the obvious way to write this and it does not
-       survive contact with a real interface. The gesture that opens the
-       editor is a click on the readout, and hiding the clicked element in
-       the middle of that gesture makes the browser move focus around;
-       under a scrolling sheet the field could be focused and blurred
-       inside the same two milliseconds, so it opened and shut again before
-       a single character could be typed.
-
-       Focus is therefore not what holds the editor open. A press outside
-       it is what closes it — the pattern every inline editor uses — and
-       the listener only exists while there is something to close. */
+    // Close the editor on a press outside it rather than on blur, which fired while it was still opening.
 
     const onOutside = (e) => {
       if (e.target !== field) commit();
@@ -253,8 +175,7 @@
       field.hidden = false;
       field.focus();
       field.select();
-      /* Next task, so the very press that opened this does not also
-         close it. */
+      // Wait a tick so the press that opened the editor doesn't also close it.
       setTimeout(() => document.addEventListener('pointerdown', onOutside, true), 0);
     };
 
@@ -284,8 +205,7 @@
     field.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commit(); input.focus(); }
       else if (e.key === 'Escape') { e.preventDefault(); cancel(); input.focus(); }
-      /* Arrows inside the field would otherwise reach the slider behind it
-         and move the number the operator is in the middle of typing. */
+      // Stop arrow keys in the field from moving the slider behind it.
       else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         e.preventDefault();
         const by = (e.shiftKey ? 10 : 1) * (e.key === 'ArrowUp' ? 1 : -1);
@@ -295,22 +215,16 @@
     });
   }
 
+  // Marks a row as edited or not.
   function refreshRow(row) {
     const input = row.querySelector('input[type=range]');
     if (!input) return;
     row.classList.toggle('k-modified', isModified(input));
   }
 
-  /* ── Undo for the keyboard ─────────────────────────────────────────────
-     bindMorphSliders() opens its undo entry on mousedown and closes it on
-     mouseup. An operator nudging a slider with the arrow keys therefore
-     changed the face without opening one at all: the edit applied, and
-     Ctrl+Z stepped over it to whatever was before. The skin sliders got a
-     keydown handler for exactly this; the 56 morph sliders never did.
+  // Keyboard undo: wraps each run of arrow-key changes in a fake mousedown/mouseup so it gets its own undo step.
 
-     Rather than reach into UIController, this synthesises the mouse pair
-     around a settled keyboard run — press to open, a pause to close. */
-
+  // Gives a slider keyboard undo and double-click to reset.
   function equipKeyboardUndo(input) {
     if (input.dataset.kKeyUndo) return;
     input.dataset.kKeyUndo = '1';
@@ -330,9 +244,7 @@
       clearTimeout(settle);
     });
 
-    /* One undo entry per run of keypresses, not one per keypress —
-       holding Left for a second should be a single step back, the same as
-       one drag of the handle. */
+    // One undo step per run of keypresses, not per keypress.
     input.addEventListener('keyup', (e) => {
       if (!KEYS.has(e.key) || !holding) return;
       clearTimeout(settle);
@@ -354,9 +266,7 @@
       document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
     });
 
-    /* Double-click the track: back to default. The gesture every parameter
-       editor has, and the only per-parameter reset that costs nothing to
-       discover because it costs nothing to try. */
+    // Double-click the track to go back to the default.
     input.addEventListener('dblclick', (e) => {
       e.preventDefault();
       const d = defaultOf(input);
@@ -368,30 +278,24 @@
     });
   }
 
-  /* ══════════════════════════════════════════════════════════════════════
-     3 · The bench
-
-     Pinned controls are *moved*, not copied. A clone would be a second DOM
-     node for one parameter with none of the listeners UIController
-     attached to the original, and the two would drift apart the first time
-     anything wrote a value. Moving the real node takes its bindings with
-     it; a placeholder holds its seat so unpinning puts it back exactly
-     where it came from.
-     ══════════════════════════════════════════════════════════════════════ */
+  // 3. The bench: pinned controls are moved there, not copied, so they keep their listeners; a placeholder holds their place.
 
   let pinned = [];
   const slots = new Map();      /* key → the placeholder left behind */
 
+  // Finds the slider row with the given key.
   function rowFor(key) {
     return $$('.slider-control').find((r) => keyOf(r) === key) || null;
   }
 
+  // Pins or unpins a control and saves the bench.
   function togglePin(key) {
     if (pinned.includes(key)) unpin(key);
     else pin(key);
     write(STORE.bench, pinned);
   }
 
+  // Moves a control onto the bench, leaving a placeholder behind.
   function pin(key) {
     const row = rowFor(key);
     const host = $('#k-bench-body');
@@ -403,18 +307,11 @@
     row.before(slot);
     slots.set(key, slot);
 
-    /* Record where it came from before it leaves. k-palette works out a
-       result's section by walking up to the enclosing .panel-content, and
-       a control sitting on the bench has no such ancestor — without this
-       it would silently drop out of the palette index the moment it was
-       pinned, which is the exact opposite of what pinning is for. */
+    // Remember the section it came from so the palette can still find it.
     const panel = row.closest('.panel-content');
     if (panel) row.dataset.kSection = panel.id.replace(/^panel-/, '');
 
-    /* The label alone does not survive the move. These parameters are
-       named for their group — a bench holding nose width and jaw width
-       shows two rows both called "Width" and the operator has to drag one
-       to find out which. The group's name goes with it. */
+    // Take the group name along, so two rows both called "Width" can be told apart.
     const from = row.closest('.control-group')
       ?.querySelector(':scope > .control-group-header > span')?.textContent.trim();
     if (from) {
@@ -430,6 +327,7 @@
     syncBench();
   }
 
+  // Moves a control from the bench back to where it came from.
   function unpin(key) {
     const slot = slots.get(key);
     const host = $('#k-bench-body');
@@ -446,6 +344,7 @@
     syncBench();
   }
 
+  // Shows or hides the bench and updates its count and pin buttons.
   function syncBench() {
     const bench = $('#k-bench');
     const count = $('#k-bench-count');
@@ -453,8 +352,7 @@
     bench.hidden = pinned.length === 0;
     if (count) count.textContent = String(pinned.length);
 
-    /* A pinned control has left its section, so its own pin button is the
-       only way back — say so on it. */
+    // A pinned control's own pin button is the only way back, so label it.
     $$('.slider-control').forEach((r) => {
       const btn = r.querySelector('.k-row-pin');
       if (!btn) return;
@@ -464,6 +362,7 @@
     });
   }
 
+  // Re-pins the controls saved from last time.
   function restoreBench() {
     const saved = read(STORE.bench, []);
     if (!Array.isArray(saved)) return;
@@ -471,28 +370,21 @@
     syncBench();
   }
 
-  /* ══════════════════════════════════════════════════════════════════════
-     4 · Filtering in place
-
-     The palette jumps you somewhere and closes. This narrows the section
-     you are in and leaves you there — which is what you want when the job
-     is "adjust every width parameter on this face", not "go to one".
-
-     Both modes (text, edited-only) collapse into one predicate so the two
-     can be combined: type "eye" with Edited on and you get the eye
-     parameters you have already touched.
-     ══════════════════════════════════════════════════════════════════════ */
+  // 4. Filtering in place: narrows the current section by text and/or edited-only, and leaves you there.
 
   let query = '';
   let editedOnly = false;
   let stash = null;             /* collapse state from before filtering */
 
+  // Returns the active section panel.
   const activePanel = () => $('.panel-content.active');
 
+  // Returns a row's searchable text.
   function rowText(row) {
     return ((row.textContent || '') + ' ' + (row.dataset.param || '')).toLowerCase();
   }
 
+  // Tells whether any control in a row differs from its default.
   function rowEdited(row) {
     const inputs = row.querySelectorAll('input[type=range], input[type=color], input[type=checkbox], select');
     for (const el of inputs) {
@@ -509,11 +401,10 @@
     return false;
   }
 
+  // Tells whether a filter is active.
   const filtering = () => query.length > 0 || editedOnly;
 
-  /* Remember what was open before the first filter of a run, so clearing
-     it returns the operator to the sheet they had arranged rather than to
-     everything-expanded. */
+  // Remembers which groups were open before filtering, so clearing it restores them.
   function stashCollapse(panel) {
     if (stash) return;
     stash = new Map();
@@ -522,6 +413,7 @@
     });
   }
 
+  // Restores the open/closed groups saved before filtering.
   function restoreCollapse() {
     if (!stash) return;
     stash.forEach((wasCollapsed, h) => {
@@ -532,6 +424,7 @@
     stash = null;
   }
 
+  // Hides rows and groups that don't match the current filter and opens the ones that do.
   function applyFilter() {
     const panel = activePanel();
     if (!panel) return;
@@ -557,8 +450,7 @@
     let hits = 0;
 
     $$(ROW_SEL, panel).forEach((row) => {
-      /* A row nested inside another matched row (a button inside a colour
-         picker) is carried by its parent, not judged on its own. */
+      // A row inside another matching row is carried by its parent.
       const textOk = !query || rowText(row).includes(query);
       const editOk = !editedOnly || rowEdited(row);
       const show = textOk && editOk;
@@ -566,9 +458,7 @@
       if (show) hits++;
     });
 
-    /* A group heading is itself a search target: typing "forehead" should
-       leave the whole forehead group standing even though no control in it
-       is called that. */
+    // A matching group heading keeps its whole group visible.
     $$('.feature-sub-group, .control-group', panel).forEach((g) => {
       const head = g.querySelector(':scope > .control-group-header > span, :scope > .sub-group-header > span');
       const titleHit = !editedOnly && query &&
@@ -583,9 +473,7 @@
 
       g.classList.toggle('k-filtered-out', !kept);
 
-      /* Whatever survives is opened — a match hidden inside a collapsed
-         group is a match the operator cannot see, which reads as no match
-         at all. */
+      // Open whatever survives, so matches aren't hidden in collapsed groups.
       if (kept) {
         const h = g.querySelector(':scope > .control-group-header, :scope > .sub-group-header');
         h?.classList.remove('collapsed');
@@ -610,14 +498,9 @@
     void hits;
   }
 
-  /* ══════════════════════════════════════════════════════════════════════
-     5 · What has been touched
+  // 5. Edited counts: shows the total and each group's share of edits.
 
-     The status strip counted the edits and stopped there. The count is now
-     a way in, and every group heading carries its own share of it, so the
-     operator can see where the work has landed without filtering at all.
-     ══════════════════════════════════════════════════════════════════════ */
-
+  // Updates the edited count on the status strip and on each group heading.
   function syncEdited() {
     let total = 0;
 
@@ -649,19 +532,14 @@
     if (chip) chip.classList.toggle('has', total > 0);
   }
 
-  /* ══════════════════════════════════════════════════════════════════════
-     6 · The latched mode
+  // 6. The latched mode: names the active tool over the 3D view, with a way out.
 
-     Nine of the tools put the stage into a mode where clicking the face
-     does something. UIController already keeps exactly one .k-tool marked
-     .active; this reads that and says it out loud over the render, with
-     the way out attached.
-     ══════════════════════════════════════════════════════════════════════ */
-
+  // Returns the active tool button, if any.
   function activeTool() {
     return $$('.k-tool').find((t) => t.classList.contains('active')) || null;
   }
 
+  // Shows or hides the mode banner for the active tool.
   function syncMode() {
     const banner = $('#k-mode');
     const name = $('#k-mode-name');
@@ -675,6 +553,7 @@
     document.body.classList.toggle('k-mode-on', !!tool);
   }
 
+  // Turns off the active tool.
   function exitMode() {
     const tool = activeTool();
     if (!tool) return false;
@@ -683,16 +562,16 @@
     return true;
   }
 
-  /* ══════════════════════════════════════════════════════════════════════
-     7 · Bind
-     ══════════════════════════════════════════════════════════════════════ */
+  // 7. Bind
 
+  // Equips every slider row and refreshes the edited counts.
   function equipAll() {
     $$('.slider-control').forEach(equipRow);
     $$('input[type=range]').forEach(equipKeyboardUndo);
     syncEdited();
   }
 
+  // Wires the filter box, the edited-only chip and the clear button.
   function bindFilter() {
     const input = $('#k-filter-input');
     const clear = $('#k-filter-clear');
@@ -727,8 +606,7 @@
       applyFilter();
     });
 
-    /* Arriving from the status strip turns the view on and opens the sheet
-       on it, rather than just toggling something the operator cannot see. */
+    // The status strip link turns on edited-only and opens the sheet on it.
     $('#k-edited-jump')?.addEventListener('click', () => {
       document.body.classList.remove('k-sheet-closed');
       editedOnly = true;
@@ -737,15 +615,7 @@
       applyFilter();
     });
 
-    /* The filter belongs to the section it was typed in. Carrying it
-       across would mean switching to Hair and finding it apparently empty
-       because "nostril" is still in the box.
-
-       Both modes are cleared, and applyFilter() is what does the clearing:
-       it puts the previous section's groups back the way they were before
-       the filter forced them open (restoreCollapse works from the stashed
-       elements, so it does the right thing even though the active panel
-       has already changed underneath it). */
+    // A filter belongs to its section, so clear it when switching sections.
     $('#k-sections')?.addEventListener('click', () => {
       requestAnimationFrame(() => {
         if (input) input.value = '';
@@ -757,6 +627,7 @@
     });
   }
 
+  // Wires the bench's clear button.
   function bindBench() {
     $('#k-bench-clear')?.addEventListener('click', () => {
       [...pinned].forEach(unpin);
@@ -764,6 +635,7 @@
     });
   }
 
+  // Keeps the mode banner in sync and lets Escape leave the active tool.
   function bindMode() {
     const tools = $('#k-tools');
     if (tools) {
@@ -773,9 +645,7 @@
     }
     $('#k-mode-exit')?.addEventListener('click', exitMode);
 
-    /* Capture, so this runs before k-shell's own Escape handling and the
-       key closes the mode the operator is in rather than the sheet behind
-       it. Only when a mode is actually latched. */
+    // Capture phase, so Escape leaves the tool before k-shell closes the sheet.
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
       if ($('#k-palette')?.classList.contains('open')) return;
@@ -786,9 +656,7 @@
     syncMode();
   }
 
-  /* A value can change without anyone touching the row — loading a case,
-     the assist writing a whole face, a group reset. Re-read after the DOM
-     settles so the modified marks and counts never lie. */
+  // Re-checks the edited marks after values change without anyone touching them, such as loading a case.
   function watchValues() {
     let queued = 0;
     const bump = () => {
@@ -796,8 +664,7 @@
       queued = setTimeout(() => { syncEdited(); if (filtering()) applyFilter(); }, 180);
     };
     document.addEventListener('input', (e) => {
-      /* isTrusted separates a hand on the control from the engine writing
-         to it. Synthetic events raised by deliver() are marked at source. */
+      // Only trusted events mean a person moved the control.
       if (e.isTrusted) markTouched(e.target);
       bump();
     }, true);
@@ -805,9 +672,7 @@
     return bump;
   }
 
-  /* The editor screen is never unmounted — the head loads behind the
-     intake flow — so "arrived" is the moment it becomes active, plus a
-     beat for the systems that populate on arrival. */
+  // Runs a function once the editor screen is active and its systems have finished loading.
   function whenEditorSettles(fn) {
     const editor = document.getElementById('rf-screen-editor');
     if (!editor) { setTimeout(fn, 1800); return; }
@@ -823,6 +688,7 @@
     mo.observe(editor, { attributes: true, attributeFilter: ['class'] });
   }
 
+  // Starts every workbench feature once the page is ready.
   function init() {
     if (!$('#k-sheet')) return;
 
@@ -833,24 +699,10 @@
     watchValues();
     restoreBench();
 
-    /* The engine fills several grids and a few panels after boot. Equip
-       once more when the dust settles so those controls are no poorer than
-       the ones that shipped in the markup, and take the baseline at the
-       same moment.
-
-       "When the dust settles" is not a fixed delay from page load. The
-       operator spends as long as they like on the intake screens, and
-       several systems — skin texture, hair, the eye defaults — only write
-       their starting values into the sliders once the editor is actually
-       mounted. Measured from page load, the baseline was taken while the
-       case form was still on screen, and every one of those later writes
-       then read as an operator edit: a freshly opened face reported seven
-       changed parameters next to a status strip correctly saying one. */
+    // Equip again and take the baseline once the editor has settled, since some systems write their starting values late.
     whenEditorSettles(() => { equipAll(); restoreBench(); captureBaseline(); });
 
-    /* Re-baselining belongs to whatever knows a new subject has been
-       loaded — opening a case, or the assist generating a face — so it is
-       exposed rather than guessed at from here. */
+    // Re-baselining is triggered by whatever loads a new face, so it is exposed here.
     window.kWorkbench = {
       deliver, applyFilter, syncEdited, pin, unpin, exitMode,
       rebaseline: captureBaseline,

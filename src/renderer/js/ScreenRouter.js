@@ -1,16 +1,4 @@
-/* ══════════════════════════════════════════════════════════════════════
-   ScreenRouter.js — Application Screen Transition Manager
-   ReFace ID UI Redesign — Phase 2
-
-   Manages transitions between:
-     'hero'          → Full-screen landing page
-     'case-setup'    → Case metadata form
-     'input-method'  → Reconstruction method selection
-     'editor'        → Main 3D editor (existing app)
-
-   Designed to be non-destructive: the editor screen is always
-   initialized in the DOM. Showing/hiding just controls visibility.
-   ══════════════════════════════════════════════════════════════════════ */
+// Moves between the app's screens: landing page, case setup, method choice and the editor.
 
 class ScreenRouter {
   constructor() {
@@ -41,11 +29,7 @@ class ScreenRouter {
 
   /* ─── Public API ──────────────────────────────────────────────────── */
 
-  /**
-   * Navigate to a named screen with optional data payload.
-   * @param {string} screenName  One of: 'hero', 'case-setup', 'input-method', 'editor'
-   * @param {object} [data]      Optional data to merge into this.caseData
-   */
+  // Switches to a named screen, merging in any data passed along.
   navigateTo(screenName, data = {}) {
     if (this._transitioning) return;
     if (screenName === this.current) return;
@@ -81,27 +65,9 @@ class ScreenRouter {
     });
   }
 
-  /**
-   * Show the hero screen (entry point of the app).
-   * Called once on startup when hero is ready.
-   */
-  showHero() {
-    if (this.current === 'hero') return;
-    const editorEl = this.screens['editor'];
-    const heroEl   = this.screens['hero'];
-
-    // Instantly hide editor, show hero (no animation on initial load)
-    editorEl.classList.remove('rf-screen-active');
-    editorEl.classList.add('rf-screen-hidden');
-
-    heroEl.classList.remove('rf-screen-hidden');
-    heroEl.classList.add('rf-screen-active');
-
-    this.current = 'hero';
-  }
-
   /* ─── Private Transition Helpers ─────────────────────────────────── */
 
+  // Fades a screen out and hides it.
   _fadeOut(el, done) {
     el.classList.add('rf-screen-exit');
     el.classList.remove('rf-screen-active');
@@ -113,6 +79,7 @@ class ScreenRouter {
     }, this.TRANSITION_MS);
   }
 
+  // Shows a screen and fades it in.
   _fadeIn(el) {
     el.classList.remove('rf-screen-hidden');
     el.classList.add('rf-screen-enter');
@@ -128,6 +95,7 @@ class ScreenRouter {
 
   /* ─── Screen Enter Hooks ──────────────────────────────────────────── */
 
+  // Runs any setup a screen needs when it opens.
   _onEnter(screenName, _fromScreen) {
     switch (screenName) {
       case 'editor':
@@ -145,11 +113,7 @@ class ScreenRouter {
     }
   }
 
-  /**
-   * Called when transitioning INTO the editor screen.
-   * Populates the Case Panel fields with data from the setup form,
-   * then dispatches method-specific actions (open AI, start capture, etc.)
-   */
+  // Fills the case panel from the setup form, then starts the chosen input methods.
   _onEnterEditor(_fromScreen) {
     // Populate Case Panel fields from gathered caseData
     const fieldMap = {
@@ -183,9 +147,7 @@ class ScreenRouter {
     }
   }
 
-  /**
-   * Trigger UI actions based on which input methods the user selected.
-   */
+  // Opens the panels and tools for the input methods the user picked.
   _dispatchMethodActions() {
     // Always open the relevant panel first based on priority
     if (this.selectedMethods.has('text-description') ||
@@ -224,10 +186,7 @@ class ScreenRouter {
 
   /* ─── Form Data Collectors ────────────────────────────────────────── */
 
-  /**
-   * Read case setup form values into this.caseData.
-   * Called before navigating away from the case-setup screen.
-   */
+  // Reads the case setup form into caseData.
   collectCaseSetupData() {
     this.caseData.caseNumber  = this._val('rf-form-case-number');
     this.caseData.caseName    = this._val('rf-form-case-name');
@@ -236,9 +195,7 @@ class ScreenRouter {
     this.caseData.notes       = this._val('rf-form-notes');
   }
 
-  /**
-   * Read selected method cards into this.selectedMethods.
-   */
+  // Reads which method cards are selected.
   collectSelectedMethods() {
     this.selectedMethods.clear();
     document.querySelectorAll('.rf-method-card.rf-method-selected').forEach(card => {
@@ -249,6 +206,7 @@ class ScreenRouter {
 
   /* ─── Utility ─────────────────────────────────────────────────────── */
 
+  // Returns an input's trimmed value by id.
   _val(id) {
     const el = document.getElementById(id);
     return el ? el.value.trim() : '';
@@ -256,10 +214,7 @@ class ScreenRouter {
 
   /* ─── Button Bindings ─────────────────────────────────────────────── */
 
-  /**
-   * Wire up all navigation buttons.
-   * Called from app.js after DOM is ready.
-   */
+  // Wires up every navigation button; called from app.js once the page is ready.
   bindNavigation() {
     // Hero screen
     this._on('rf-hero-new-case', 'click', () => {
@@ -336,6 +291,7 @@ class ScreenRouter {
 
   /* ─── Validation ──────────────────────────────────────────────────── */
 
+  // Checks the required case fields and shows an error for each empty one.
   _validateCaseSetup() {
     let valid = true;
 
@@ -362,6 +318,7 @@ class ScreenRouter {
     return valid;
   }
 
+  // Enables Continue once the case number and name are filled in.
   _updateContinueButton() {
     const btn = document.getElementById('rf-case-setup-continue');
     if (!btn) return;
@@ -376,6 +333,7 @@ class ScreenRouter {
     }
   }
 
+  // Enables Begin once at least one method is selected.
   _updateBeginButton() {
     const btn = document.getElementById('rf-input-method-begin');
     if (!btn) return;
@@ -391,16 +349,17 @@ class ScreenRouter {
 
   /* ─── Event Helper ────────────────────────────────────────────────── */
 
+  // Adds an event listener to an element by id, if it exists.
   _on(id, event, handler) {
     const el = document.getElementById(id);
     if (el) el.addEventListener(event, handler);
   }
 
+  // Adds an input listener to an element by id, if it exists.
   _onInput(id, handler) {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', handler);
   }
 }
 
-// Expose globally so app.js and other modules can use it
 window.ScreenRouter = ScreenRouter;

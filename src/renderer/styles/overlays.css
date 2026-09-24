@@ -1,19 +1,6 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   ReFace ID — overlays.css
-   Command palette, modals, popovers, toasts, and the AI transcript.
+/* overlays.css: command palette, modals, popovers, toasts and face capture; all close on Escape and backdrop click. */
 
-   Everything here sits above the stage. All of it dismisses on Escape and
-   on backdrop click, without exception — an operator should never have to
-   hunt for the way out of a surface they opened by accident.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* ══ Command palette ═════════════════════════════════════════════════════
-   The answer to two hundred controls. Typing "jaw" finds every jaw
-   parameter across every section, jumps to it, and flashes the row.
-
-   Placed high in the window rather than dead-centre: a centred dialog that
-   grows downward as results arrive makes the first result move, which is
-   the one thing a keyboard user cannot tolerate. */
+/* Command palette: jump to any control by typing; placed high so results don't push the first row around. */
 
 .k-palette {
   position: fixed;
@@ -96,9 +83,7 @@
   transition: background var(--t-1) var(--e), color var(--t-1) var(--e);
 }
 
-/* Selection is driven by keyboard as well as pointer, so hover and the
-   active row must look identical — otherwise arrowing down and moving the
-   mouse produce two different "current" rows. */
+/* Hover and keyboard selection look identical, so there is only ever one current row. */
 .k-palette-item:hover,
 .k-palette-item.sel { background: var(--k-hover); color: var(--t-hi); }
 .k-palette-item.sel .k-palette-where { color: var(--sig); }
@@ -212,15 +197,11 @@
 
 .k-modal-foot .k-spacer { margin-right: auto; }
 
-/* ══ Provider key sheet ══════════════════════════════════════════════════
-   Narrower than the picker. It asks for one thing, and it turns up in front
-   of an operator who was in the middle of something else. */
+/* Provider key dialog: narrower than the other modals. */
 
 .k-modal-box.k-modal-slim { width: min(460px, 100%); }
 
-/* Every provider the backend knows, always visible: the key that is wanted
-   right now is one of three, and an operator who holds a different one should
-   see that it is accepted rather than closing the dialog. */
+/* Every provider tab is always visible. */
 .ai-key-tabs {
   display: flex;
   gap: 5px;
@@ -250,9 +231,7 @@
   color: var(--t-hi);
 }
 
-/* Lit when that provider holds a key — the one piece of state worth carrying
-   on a tab, so the strip doubles as the answer to "which of these am I set
-   up for". */
+/* A tab's dot lights when that provider has a key. */
 .ai-key-dot {
   width: 6px; height: 6px;
   border-radius: 50%;
@@ -270,8 +249,7 @@
   color: var(--t-mute);
 }
 
-/* Monospaced: a key is read character by character when it is checked
-   against the one on the provider's console. */
+/* Monospaced so a key can be checked character by character. */
 .ai-key-input {
   font-family: var(--f-num);
   font-size: var(--s-sm);
@@ -311,9 +289,7 @@
 
 .ai-key-link:hover { color: var(--sig-hi); text-decoration: underline; }
 
-/* ══ Variant picker ══════════════════════════════════════════════════════
-   A grid of candidate faces. Larger tiles than a style card because the
-   operator is comparing likenesses, not picking an icon. */
+/* Variant picker: a grid of candidate faces with larger tiles. */
 
 .k-variant-grid {
   display: grid;
@@ -350,8 +326,7 @@
   border-radius: var(--r-1);
 }
 
-/* ══ Popover ═════════════════════════════════════════════════════════════
-   Anchored to the status strip (activity) and the sheet head. */
+/* Popover anchored to the status strip and sheet header. */
 
 .k-popover {
   position: fixed;
@@ -392,9 +367,7 @@
 
 .k-popover-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 13px 11px; }
 
-/* ══ Toast ═══════════════════════════════════════════════════════════════
-   Bottom-left, above the status strip. Stacked, hairline-bordered, and
-   never wider than a sentence. */
+/* Toasts: stacked bottom-left, above the status strip. */
 
 .k-toasts {
   position: fixed;
@@ -435,21 +408,7 @@
 .k-toast.info  { border-left-color: var(--info); }
 .k-toast.info .i { color: var(--info); }
 
-/* ══ Assist ═════════════════════════════════════════════════════════════
-   The assist panel's markup is carried over from the inventory, so its
-   class names come from the old document and it is styled in
-   carried.css alongside the other carried blocks. Nothing for it here.
-   ═══════════════════════════════════════════════════════════════════════ */
-
-/* ══ Multi-angle face capture ════════════════════════════════════════════
-   FaceCaptureSystem builds this overlay itself and appends it to the body,
-   so nothing here matches the static document — see the RUNTIME_ONLY list
-   in scripts/verify-ui.js.
-
-   The camera feed is the subject, so it gets the room: steps above it,
-   status below, captured thumbnails at the foot. The guide ring and the
-   progress ring sit on the feed rather than beside it, because the operator
-   is watching their own face, not the chrome. */
+/* Face capture overlay, built at runtime by FaceCaptureSystem; the camera feed gets most of the space. */
 
 #face-capture-overlay {
   position: fixed;
@@ -537,10 +496,7 @@
   padding: 16px 18px;
 }
 
-/* ── Step rail ──────────────────────────────────────────────────────────
-   Seven steps across a 600px box, so the labels are tiny and the icons
-   carry the meaning. Completed steps stay lit at half strength: the
-   operator should be able to see how far they have come without counting. */
+/* Step rail: seven small steps, with completed ones half lit. */
 
 .fc-step-indicators {
   display: flex;
@@ -586,9 +542,7 @@
 
 .fc-step-line.completed { background: var(--sig-line); }
 
-/* ── Camera ─────────────────────────────────────────────────────────────
-   The video element itself stays hidden: every frame is drawn to the canvas
-   mirrored, with landmarks composited on top. */
+/* The camera is drawn mirrored to a canvas with landmarks on top; the video itself stays hidden. */
 
 .fc-camera-area {
   position: relative;
@@ -678,10 +632,7 @@
   to   { opacity: 0; }
 }
 
-/* ── Status and captures ────────────────────────────────────────────────
-   The status line carries the instruction for the current angle and the
-   hold countdown, so it is reserved a fixed height — text swapping between
-   one and two lines must not shift the camera above it. */
+/* Status and captures; the status line has a fixed height so the camera doesn't shift. */
 
 .fc-status {
   display: grid;

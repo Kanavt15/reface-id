@@ -1,8 +1,4 @@
-"""
-REface ID — Python Backend Server
-Handles Blender engine integration, mesh operations, 3D export, and AI face generation.
-Uses Flask API to communicate with the Electron/Three.js frontend.
-"""
+"""Flask backend for the app: AI face generation, snapshot and case storage, AI keys, speech-to-text, and Blender export and render jobs."""
 
 import os
 import sys
@@ -22,12 +18,7 @@ import speech_recognition as sr
 import db
 import ai_keys
 
-# Windows gives a piped stdout the cp1252 codepage, and this file prints box
-# drawing and check/cross marks. Under Electron — which always pipes — the
-# startup banner therefore raised UnicodeEncodeError and killed the server
-# before app.run() was ever reached, so the whole backend looked "offline"
-# while python exited 1. Force UTF-8 and never let an unprintable character
-# take the process down again.
+# Force UTF-8 output; on Windows a piped cp1252 stdout used to crash the server on its first special character.
 for _stream in (sys.stdout, sys.stderr):
     try:
         _stream.reconfigure(encoding='utf-8', errors='replace')
@@ -40,28 +31,20 @@ load_dotenv(Path(__file__).parent.parent / '.env')
 app = Flask(__name__)
 CORS(app)
 
-# Open the SQLite store at import time rather than under __main__, so the
-# schema exists whether this file is run directly or imported by a WSGI host.
+# Open the database at import time so the tables exist however this file is started.
 try:
     _DB_PATH = db.init()
     print(f"[DB] SQLite ready: {_DB_PATH}")
 except Exception as _db_err:
     print(f"[DB] FAILED to initialize: {_db_err}")
 
-# ─── AI Clients (Anthropic & Gemini) ─────────────────────────────────────────
-# Both are built per request by ai_keys rather than once at import. Keys are
-# entered in the app and can change at any point in a session; a client made at
-# import time would pin whichever key existed when the backend started and make
-# every key change need a restart — which a packaged build cannot offer.
+# AI clients are built per request by ai_keys, so a key changed in the app works without a restart.
 
-# Models used when a request doesn't name one. The picker in the app sends a
-# model with every request; these only cover a caller that names none.
+# Default models for requests that don't name one; the app normally sends a model every time.
 DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash'
 DEFAULT_GROQ_MODEL = 'openai/gpt-oss-120b'
 
-# Groq hosts open-weight models, and the ones offered here read text only —
-# checked before a call so an operator with reference photos attached is told
-# to switch provider rather than watching the images be silently ignored.
+# Groq models that can read images; others refuse reference photos with a clear message.
 GROQ_VISION_MODELS = set()
 
 # Default AI provider (can be overridden per request)
@@ -70,8 +53,7 @@ DEFAULT_AI_PROVIDER = os.getenv('AI_PROVIDER', 'anthropic')  # anthropic | gemin
 # Claude model used when the request doesn't specify one
 DEFAULT_ANTHROPIC_MODEL = os.getenv('ANTHROPIC_MODEL', 'claude-opus-5')
 
-# Models that take adaptive thinking plus output_config.effort.
-# Older models (Haiku 4.5) reject both parameters.
+# Models that support adaptive thinking and an effort setting; older ones reject both.
 ADAPTIVE_THINKING_MODELS = {
     'claude-opus-5',
     'claude-sonnet-5',
@@ -362,9 +344,7 @@ Tint hints:
   }
 }"""
 
-# Variant mode reuses every parameter definition above and replaces only the
-# task and the output shape, so the shared prefix stays identical between the
-# two prompts and keeps hitting the prompt cache.
+# Variant mode reuses the whole prompt above and only changes the task, so the prompt cache still hits.
 AI_VARIANTS_PROMPT = AI_SYSTEM_PROMPT + """
 
 # ══════════════════════════════════════════════════════════════════════
@@ -495,7 +475,7 @@ for p in POSSIBLE_BLENDER_PATHS:
 
 
 def run_blender_script(script_name, args_dict=None):
-    """Execute a Blender Python script in background mode."""
+    """Runs a Blender Python script in the background with JSON arguments and returns its JSON result."""
     if not BLENDER_PATH:
         return {"error": "Blender not found. Please install Blender and update the path."}
 
@@ -571,6 +551,7 @@ def run_blender_script(script_name, args_dict=None):
 
 @app.route('/api/health', methods=['GET'])
 def health():
+    """Reports that the server is running and whether Blender was found."""
     return jsonify({
         "status": "running",
         "blender_available": BLENDER_PATH is not None,
@@ -582,7 +563,7 @@ def health():
 
 @app.route('/api/morph', methods=['POST'])
 def apply_morph():
-    """Apply morph targets to the base face mesh using Blender."""
+    """Applies morph targets to the base face mesh using Blender."""
     data = request.json
     morph_params = data.get('morphTargets', {})
     
@@ -599,7 +580,7 @@ def apply_morph():
 
 @app.route('/api/hair/generate', methods=['POST'])
 def generate_hair():
-    """Generate hair particle system using Blender and return downloadable OBJ."""
+    """Generates a hair mesh with Blender and returns a link to the OBJ."""
     data = request.json
     hair_params = data.get('hairParams', {})
     
@@ -621,7 +602,7 @@ def generate_hair():
 
 @app.route('/api/hair/download/<filename>', methods=['GET'])
 def download_hair(filename):
-    """Serve a generated hair mesh OBJ file."""
+    """Serves a generated hair OBJ file."""
     file_path = EXPORTS_DIR / filename
     if file_path.exists():
         return send_file(str(file_path), mimetype='text/plain')
@@ -632,7 +613,7 @@ def download_hair(filename):
 
 @app.route('/api/export', methods=['POST'])
 def export_model():
-    """Export the reconstructed face as OBJ/FBX/GLB with all edited features."""
+    """Exports the reconstructed face as OBJ, FBX or GLB using Blender."""
     data = request.json
     format_type = data.get('format', 'obj')
     case_data = data.get('caseData', {})
@@ -715,9 +696,7 @@ def export_model():
 
 @app.route('/api/decal/bake', methods=['POST'])
 def bake_decals():
-    """Bake decal textures onto the face mesh skin diffuse map.
-    Accepts base OBJ + array of decal texture/projection params.
-    Returns baked texture PNG + updated OBJ/MTL."""
+    """Bakes decal images into the face texture with Blender and returns the baked texture and updated OBJ."""
     data = request.json
     if not data:
         return jsonify({"error": "No data provided"}), 400
@@ -773,7 +752,7 @@ def bake_decals():
 
 @app.route('/api/export/download/<filename>', methods=['GET'])
 def download_export(filename):
-    """Download an exported file."""
+    """Downloads an exported file."""
     file_path = EXPORTS_DIR / filename
     if file_path.exists():
         file_size = file_path.stat().st_size
@@ -799,18 +778,10 @@ def download_export(filename):
 
 @app.route('/api/case/save', methods=['POST'])
 def save_case():
-    """Save current reconstruction state to the database and a .rfc file.
-
-    The database is the working store; the .rfc file stays because Open Case
-    and the export flow both address cases by path.
-    """
+    """Saves the case to the database and to a .rfc file, which Open Case and export still use."""
     data = request.json
 
-    # `data.get('caseId', <uuid>)` used to sit here, and the default never
-    # fired: currentCase always *has* a caseId key, so a brand new case sent
-    # an explicit null and this returned None. Every unsaved case wrote to
-    # "None.rfc" and reported caseId None back to the renderer, which is why
-    # no case ever acquired an id. Treat null and '' as absent too.
+    # Use `or`, not a .get default: the app always sends caseId, sometimes as null.
     case_id = data.get('caseId') or str(uuid.uuid4())
 
     case_file = CASES_DIR / f"{case_id}.rfc"
@@ -834,8 +805,7 @@ def save_case():
         db.upsert_case(case_id, case_data)
         db.log_event(case_id, 'case.save', case_data.get('caseName', ''))
     except Exception as e:
-        # A database problem must not cost the operator their .rfc file, which
-        # is already on disk by this point.
+        # A database error mustn't lose the .rfc file, which is already written.
         print(f"[DB] case save failed: {e}")
 
     return jsonify({"success": True, "caseId": case_id, "path": str(case_file)})
@@ -843,7 +813,7 @@ def save_case():
 
 @app.route('/api/case/load', methods=['POST'])
 def load_case():
-    """Load a case file."""
+    """Loads a case file."""
     data = request.json
     case_path = data.get('path', '')
 
@@ -858,22 +828,18 @@ def load_case():
 
 @app.route('/api/case/list', methods=['GET'])
 def list_cases_route():
-    """Every case the database knows about, newest activity first."""
+    """Lists every case in the database, most recently changed first."""
     try:
         return jsonify({"success": True, "cases": db.list_cases()})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-# ─── Snapshots ────────────────────────────────────────────────────────────────
-#
-# Snapshots used to live in renderer localStorage under a key rebuilt on every
-# write from the case id, while the only load happened once at boot before any
-# case existed. Anything written after that point was never read back. They are
-# rows now, addressed by a case id the renderer mints up front.
+# Snapshots: stored as database rows, addressed by the case id the app creates up front.
 
 @app.route('/api/snapshots', methods=['GET'])
 def list_snapshots_route():
+    """Lists a case's snapshots."""
     case_id = request.args.get('caseId', '').strip()
     if not case_id:
         return jsonify({"error": "caseId is required"}), 400
@@ -885,6 +851,7 @@ def list_snapshots_route():
 
 @app.route('/api/snapshots/<int:snapshot_id>', methods=['GET'])
 def get_snapshot_route(snapshot_id):
+    """Returns one snapshot with its full state."""
     try:
         snap = db.get_snapshot(snapshot_id)
     except Exception as e:
@@ -896,6 +863,7 @@ def get_snapshot_route(snapshot_id):
 
 @app.route('/api/snapshots', methods=['POST'])
 def create_snapshot_route():
+    """Saves a new snapshot; a repeated client id returns the existing one."""
     data = request.json or {}
     case_id = (data.get('caseId') or '').strip()
     if not case_id:
@@ -921,6 +889,7 @@ def create_snapshot_route():
 
 @app.route('/api/snapshots/<int:snapshot_id>', methods=['PATCH'])
 def rename_snapshot_route(snapshot_id):
+    """Renames a snapshot."""
     data = request.json or {}
     name = (data.get('name') or '').strip()
     if not name:
@@ -935,6 +904,7 @@ def rename_snapshot_route(snapshot_id):
 
 @app.route('/api/snapshots/<int:snapshot_id>', methods=['DELETE'])
 def delete_snapshot_route(snapshot_id):
+    """Soft-deletes a snapshot."""
     try:
         if not db.delete_snapshot(snapshot_id):
             return jsonify({"error": "Snapshot not found"}), 404
@@ -945,7 +915,7 @@ def delete_snapshot_route(snapshot_id):
 
 @app.route('/api/snapshots/adopt', methods=['POST'])
 def adopt_snapshots_route():
-    """Attach snapshots recovered from localStorage to a real case."""
+    """Attaches snapshots recovered from old localStorage storage to a real case."""
     data = request.json or {}
     case_id = (data.get('caseId') or '').strip()
     if not case_id:
@@ -959,6 +929,7 @@ def adopt_snapshots_route():
 
 @app.route('/api/snapshots/clear', methods=['POST'])
 def clear_snapshots_route():
+    """Soft-deletes every snapshot of a case."""
     data = request.json or {}
     case_id = (data.get('caseId') or '').strip()
     if not case_id:
@@ -971,7 +942,7 @@ def clear_snapshots_route():
 
 @app.route('/api/db/stats', methods=['GET'])
 def db_stats_route():
-    """Where the database file is and what is in it — useful from DevTools."""
+    """Returns the database location and row counts, handy from DevTools."""
     try:
         return jsonify({"success": True, **db.stats()})
     except Exception as e:
@@ -986,8 +957,7 @@ RENDERS_DIR.mkdir(parents=True, exist_ok=True)
 
 @app.route('/api/render/upload-mesh', methods=['POST'])
 def upload_morphed_mesh():
-    """Receive the morphed head mesh OBJ from the frontend and save it
-    so the Blender render script can import it instead of the base model."""
+    """Receives the morphed head OBJ from the app so the Blender render uses it instead of the base model."""
     data = request.json
     obj_data = data.get('objData', '')
     if not obj_data:
@@ -1002,9 +972,7 @@ def upload_morphed_mesh():
 
 @app.route('/api/render', methods=['POST'])
 def render_scene():
-    """Render the current scene with Blender for a realistic output image.
-    If a morphed mesh was uploaded via /api/render/upload-mesh, it will be
-    used in place of the base head.glb."""
+    """Renders the scene with Blender, using the uploaded morphed head if there is one."""
     data = request.json
     hair_style = data.get('hairStyle', 'hair1')
     hair_color = data.get('hairColor', '#2c1b0e')
@@ -1051,7 +1019,7 @@ def render_scene():
 
 @app.route('/api/render/download/<filename>', methods=['GET'])
 def download_render(filename):
-    """Serve a rendered image."""
+    """Serves a rendered image."""
     file_path = RENDERS_DIR / filename
     if file_path.exists():
         return send_file(str(file_path), mimetype='image/png')
@@ -1061,13 +1029,7 @@ def download_render(filename):
 # ─── AI Face Generation ───────────────────────────────────────────────────────
 
 def _groq_post(payload):
-    """
-    One Groq chat completion. Returns (text, problem); exactly one is set.
-
-    Groq speaks the OpenAI shape, so this is a plain POST rather than another
-    SDK in the environment — the backend already has to be installable on a
-    machine that only runs the app.
-    """
+    """Sends one chat completion to Groq and returns (text, problem), with exactly one of them set."""
     headers = ai_keys.groq_headers()
     if not headers:
         return None, 'No Groq API key set yet.'
@@ -1099,19 +1061,13 @@ def _groq_post(payload):
 
 
 def _groq_complete(model, system_prompt, user_content, max_tokens, history=None):
-    """
-    Run one structured request through Groq and hand back the raw text.
-
-    Raises RuntimeError with the provider's own wording on failure, so the
-    endpoint's handler can tell a rejected key from anything else.
-    """
+    """Runs one JSON request through Groq and returns the raw text, raising RuntimeError with Groq's own message on failure."""
     messages = [{"role": "system", "content": system_prompt}]
 
     for msg in history or []:
         content = msg.get('content')
         if isinstance(content, list):
-            # Earlier turns may carry image blocks. Only their text is resent —
-            # the same economy the Anthropic path makes with its history.
+            # Resend only the text of earlier turns, like the Anthropic path.
             content = ' '.join(
                 block.get('text', '') for block in content
                 if isinstance(block, dict) and block.get('type') == 'text'
@@ -1125,21 +1081,16 @@ def _groq_complete(model, system_prompt, user_content, max_tokens, history=None)
         "model": model,
         "messages": messages,
         "max_completion_tokens": max_tokens,
-        # Every caller parses this reply as JSON, and this is what stops the
-        # model wrapping it in prose or a fenced block.
+        # Ask for a JSON object so the reply isn't wrapped in prose.
         "response_format": {"type": "json_object"},
     }
-    # gpt-oss reasons before it answers; low is right for filling in a
-    # parameter set, and the field is rejected outright by models that do not
-    # reason at all — hence the retry below rather than a hard-coded list.
+    # gpt-oss models reason first, and low effort is enough here; models that reject the field are retried without it.
     if model.startswith('openai/gpt-oss'):
         payload["reasoning_effort"] = "low"
 
     text, problem = _groq_post(payload)
 
-    # A model that supports neither switch should still answer: drop whichever
-    # one it named and ask again, leaving the reply to the fenced-block
-    # stripping every provider's output already goes through.
+    # If the model rejects an optional setting, drop it and try again.
     optional = ('response_format', 'reasoning_effort')
     if problem and any(field in problem for field in optional):
         for field in optional:
@@ -1153,7 +1104,7 @@ def _groq_complete(model, system_prompt, user_content, max_tokens, history=None)
 
 
 def _text_only_provider_response(provider, model, image_payloads):
-    """Refuse reference images on a provider whose selected model cannot read them."""
+    """Refuses reference images when the chosen model can't read them."""
     if not image_payloads or provider != 'groq':
         return None
     if (model or DEFAULT_GROQ_MODEL) in GROQ_VISION_MODELS:
@@ -1166,13 +1117,7 @@ def _text_only_provider_response(provider, model, image_payloads):
 
 
 def _missing_key_response(provider):
-    """
-    A `needsKey` reply for a provider with no key, or None when one is in force.
-
-    Flagged rather than merely worded so the frontend can put its key dialog up
-    and retry the request. The old message told the operator to edit .env — a
-    file an installed build does not ship and they could not create.
-    """
+    """Returns a needsKey reply when the provider has no key, so the app can show its key dialog; otherwise None."""
     if ai_keys.get(provider):
         return None
     label = ai_keys.PROVIDERS[provider]['label']
@@ -1184,13 +1129,7 @@ def _missing_key_response(provider):
 
 
 def _rejected_key_response(provider, exc):
-    """
-    A `needsKey` reply when a call failed on the key itself, or None otherwise.
-
-    A key verified months ago can be revoked, rotated or run dry mid-session.
-    That is the one API failure the operator can actually fix, so it reopens
-    the dialog instead of leaving an SDK message in the chat.
-    """
+    """Returns a needsKey reply when a call failed because of the key, so the app can ask for a new one; otherwise None."""
     if not ai_keys.is_auth_error(exc):
         return None
     label = ai_keys.PROVIDERS[provider]['label']
@@ -1204,7 +1143,7 @@ def _rejected_key_response(provider, exc):
 
 @app.route('/api/ai/providers', methods=['GET'])
 def ai_providers():
-    """Which providers have a key in force, and where that key came from."""
+    """Lists which providers have a key and where it came from."""
     return jsonify({
         "providers": ai_keys.status(),
         "default": DEFAULT_AI_PROVIDER,
@@ -1213,13 +1152,7 @@ def ai_providers():
 
 @app.route('/api/ai/keys', methods=['POST'])
 def ai_save_key():
-    """
-    Store a key the operator entered in the app.
-
-    Verified against the provider before it is written, so a mistyped key is
-    reported in the dialog they are still looking at rather than surfacing
-    later as a failed generation they cannot attribute to it.
-    """
+    """Checks a key with the provider and saves it, so a typo is reported right away in the dialog."""
     data = request.get_json(silent=True) or {}
     try:
         provider = ai_keys.normalize(data.get('provider'))
@@ -1245,7 +1178,7 @@ def ai_save_key():
 
 @app.route('/api/ai/keys', methods=['DELETE'])
 def ai_clear_key():
-    """Forget a saved key. A key in the environment, if any, takes over again."""
+    """Forgets a saved key, so any environment key takes over again."""
     data = request.get_json(silent=True) or {}
     try:
         provider = ai_keys.normalize(data.get('provider') or request.args.get('provider'))
@@ -1263,19 +1196,19 @@ def ai_clear_key():
 
 @app.route('/api/ai/generate', methods=['POST'])
 def ai_generate_face():
-    """Use AI (Claude or Gemini) to interpret a face description and return parameter values."""
+    """Uses the chosen AI provider to turn a face description (and photos) into slider values."""
     data = request.json
     prompt = data.get('prompt', '')
     current_state = data.get('currentState', None)
     conversation_history = data.get('history', [])
     reference_images = data.get('referenceImages', None)
-    generate_facial_marks = data.get('generateFacialMarks', False)  # New flag for mark generation
+    generate_facial_marks = data.get('generateFacialMarks', False)
     # Backward compatibility with previous single-image payload
     if reference_images is None:
         single_ref = data.get('referenceImage', None)
         reference_images = [single_ref] if single_ref else []
-    provider = data.get('provider', DEFAULT_AI_PROVIDER).lower()  # Allow override via request
-    model = data.get('model', None)  # Optional specific model override
+    provider = data.get('provider', DEFAULT_AI_PROVIDER).lower()
+    model = data.get('model', None)
 
     if not prompt:
         if not reference_images:
@@ -1326,8 +1259,7 @@ def ai_generate_face():
         if provider == 'anthropic':
             # Use Anthropic Claude
             messages = []
-            # Add conversation history — strip image blocks to save tokens
-            # (the AI already analyzed them on the first call)
+            # Resend earlier turns as text only, dropping images to save tokens.
             for i, msg in enumerate(conversation_history):
                 content = msg["content"]
                 if isinstance(content, list):
@@ -1382,8 +1314,7 @@ def ai_generate_face():
                 "messages": messages,
             }
 
-            # Opus 5 / Sonnet 5 / Opus 4.7 use adaptive thinking with an effort hint.
-            # Low effort keeps latency and cost down for this structured task.
+            # Newer models use adaptive thinking; low effort keeps this structured task fast and cheap.
             if anthropic_model in ADAPTIVE_THINKING_MODELS:
                 request_kwargs["thinking"] = {"type": "adaptive"}
                 request_kwargs["output_config"] = {"effort": "low"}
@@ -1409,8 +1340,7 @@ def ai_generate_face():
                 }), 500
 
         elif provider == 'gemini':
-            # Use Google Gemini
-            # For Gemini, we'll use generate_content with the full prompt including system instructions
+            # Gemini: send the system prompt, history and request as one prompt.
             full_prompt = f"{AI_SYSTEM_PROMPT}\n\n"
             
             # Add conversation history if exists
@@ -1489,24 +1419,7 @@ def ai_generate_face():
 
 @app.route('/api/ai/variants', methods=['POST'])
 def ai_variants():
-    """
-    Generate several distinct candidate faces in a single call.
-
-    Returns a "shared" block — hair, eyebrows, beard, colouring, age, sex,
-    marks, accessories — alongside the per-candidate morph sets. Candidates are
-    readings of one person, so everything but bone structure is identical
-    between them; emitting it once keeps the response the same size while
-    letting the picker build faces to the same standard as the single-face
-    builder, which is the only reason a candidate looks like anyone at all.
-
-    Backs the witness variant picker. The picker only calls this twice at most
-    in a normal session — once to open, and again if the witness rejects the
-    whole set — because every round after a pick is generated locally by
-    jittering the chosen face. Producing the candidates in one response rather
-    than one call each is deliberate: asked separately the model tends to
-    converge on the same reading of the description, and seeing all of them
-    together is what lets it deliberately differentiate.
-    """
+    """Generates several different candidate faces in one call, plus one shared block (hair, colouring, accessories) for the whole set; backs the witness variant picker."""
     data = request.json or {}
     prompt = (data.get('prompt') or '').strip()
     count = max(2, min(8, int(data.get('count', 6))))
@@ -1542,8 +1455,7 @@ def ai_variants():
         n = len(image_payloads)
         user_content += f"\n\n{n} reference image{'s are' if n > 1 else ' is'} attached."
     if avoid:
-        # Without this the model re-derives the same reading of an unchanged
-        # description and the second set looks like the first.
+        # Tell the model which sets were rejected so the new set is actually different.
         user_content += (
             "\n\nThe witness has already looked at these candidates and said none "
             "of them resemble the person. Produce a set that is clearly different "
@@ -1576,8 +1488,7 @@ def ai_variants():
             anthropic_model = model if model else DEFAULT_ANTHROPIC_MODEL
             request_kwargs = {
                 "model": anthropic_model,
-                # Several full morph sets in one response needs far more room
-                # than the single-face path.
+                # Several full morph sets need far more output room than one face.
                 "max_tokens": 16384 if anthropic_model in ADAPTIVE_THINKING_MODELS else 8192,
                 "system": [
                     {
@@ -1612,8 +1523,7 @@ def ai_variants():
                 model or DEFAULT_GROQ_MODEL,
                 AI_VARIANTS_PROMPT,
                 user_content,
-                # Several complete morph sets in one reply, like the
-                # Anthropic path above, need far more room than one face.
+                # Several full morph sets need far more output room than one face.
                 max_tokens=16384,
             )
 
@@ -1643,11 +1553,7 @@ def ai_variants():
 
         parsed = json.loads(ai_text)
         variants = parsed.get('variants') if isinstance(parsed, dict) else parsed
-        # Colouring, hair and worn items come back once and apply to the whole
-        # set. Passed through unvalidated, exactly like /api/ai/generate does —
-        # each frontend system checks its own payload in applyFromAI. Only
-        # morphTargets is stripped, so a stray copy here cannot fight the
-        # per-candidate values.
+        # The shared block applies to the whole set and is checked by each system in the app; only morphTargets is removed from it.
         shared = parsed.get('shared') if isinstance(parsed, dict) else None
         if isinstance(shared, dict):
             shared = {k: v for k, v in shared.items() if k != 'morphTargets'}
@@ -1660,8 +1566,7 @@ def ai_variants():
                 "provider": provider,
             }), 500
 
-        # Keep only well-formed entries so one malformed candidate cannot break
-        # the whole set.
+        # Keep only well-formed candidates so one bad one can't break the set.
         clean = []
         for v in variants:
             if not isinstance(v, dict):
@@ -1701,7 +1606,7 @@ def ai_variants():
 
 
 def _parse_reference_images(reference_images):
-    """Validate and parse frontend-provided image payloads for multimodal models."""
+    """Checks and parses the reference images sent by the app."""
     if not isinstance(reference_images, list):
         raise ValueError("Invalid reference images payload")
     if len(reference_images) == 0:
@@ -1718,7 +1623,7 @@ def _parse_reference_images(reference_images):
 
 
 def _parse_reference_image(reference_image):
-    """Validate and parse a single frontend-provided image payload."""
+    """Checks and parses one reference image."""
     if not isinstance(reference_image, dict):
         raise ValueError("Invalid reference image payload")
 
@@ -1765,7 +1670,7 @@ def _parse_reference_image(reference_image):
 
 @app.route('/api/speech/transcribe', methods=['POST'])
 def transcribe_speech():
-    """Transcribe audio to text using Google Speech Recognition."""
+    """Transcribes recorded audio to text with Google Speech Recognition."""
     if 'audio' not in request.files:
         return jsonify({"error": "No audio file provided"}), 400
 
@@ -1809,7 +1714,7 @@ def transcribe_speech():
 
 @app.route('/api/blender/config', methods=['POST'])
 def set_blender_path():
-    """Manually set the Blender executable path."""
+    """Sets the Blender executable path by hand."""
     global BLENDER_PATH
     data = request.json
     path = data.get('path', '')

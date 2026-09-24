@@ -1,14 +1,4 @@
-/**
- * smoke.mjs — launch the app, drive the intake flow into the editor, and
- * report every renderer console message and page error along the way.
- *
- *   node scripts/smoke.mjs
- *
- * Screenshots land in scripts/shots/. This is a one-shot script rather
- * than a REPL: the interesting failure mode after a UI rebuild is "the
- * document loads but something throws", and that shows up in the console
- * log without any interaction.
- */
+// Smoke test: launches the app, walks the intake flow into the editor, checks the shell and reports console errors; run with `node scripts/smoke.mjs` (screenshots go to scripts/shots/).
 import { _electron as electron } from 'playwright-core';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -18,8 +8,7 @@ const APP_DIR = path.resolve(import.meta.dirname, '..');
 const SHOTS = process.env.SCREENSHOT_DIR || path.join(APP_DIR, 'scripts', 'shots');
 fs.mkdirSync(SHOTS, { recursive: true });
 
-/* The macOS build ships an .app bundle rather than a bare binary, so the
-   path is not just a different filename. */
+// The macOS build is an .app bundle, so the binary path differs.
 const bin = path.join(APP_DIR, 'node_modules', 'electron', 'dist',
   process.platform === 'win32' ? 'electron.exe'
   : process.platform === 'darwin' ? 'Electron.app/Contents/MacOS/Electron'
@@ -28,26 +17,21 @@ const bin = path.join(APP_DIR, 'node_modules', 'electron', 'dist',
 const logs = [];
 const errors = [];
 
+// Waits for a number of milliseconds.
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Saves a screenshot of the page.
 async function shot(page, name) {
   const f = path.join(SHOTS, name + '.png');
   await page.screenshot({ path: f });
   console.log('  shot → ' + path.relative(APP_DIR, f));
 }
 
-/* ELECTRON_RUN_AS_NODE makes the binary behave as plain Node, which turns
-   require('electron') into a path string and crashes the main process on
-   its first ipcMain call. Some shells export it; strip it here. */
+// Remove ELECTRON_RUN_AS_NODE, which makes Electron run as plain Node and crash.
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
 
-/* A throwaway Electron profile, so a smoke run never touches the operator's
-   real reface.db. main.js derives REFACE_DATA_DIR from app.getPath('userData'),
-   which this flag controls, so the database follows the profile. Without it
-   this suite walks the intake flow with a real case number and the app quite
-   correctly files things against it — including adopting snapshots recovered
-   from the pre-database era, which then belong to a test case. */
+// Use a throwaway profile so the test never touches the operator's real database.
 const PROFILE = path.join(os.tmpdir(), 'reface-smoke-profile');
 fs.rmSync(PROFILE, { recursive: true, force: true });
 
@@ -58,10 +42,7 @@ const app = await electron.launch({
   timeout: 60_000,
 });
 
-/* main.js opens DevTools, and firstWindow() resolves to whichever window
-   appears first — intermittently that is the DevTools window, whose URL
-   looks like "…&can_dock=true&toolbarColor=…". Pick the renderer by URL
-   instead, retrying until it exists. */
+// Finds the app window by URL, since DevTools can open first.
 async function realPage() {
   const t0 = Date.now();
   for (;;) {
@@ -87,9 +68,7 @@ page.on('pageerror', (e) =>
 
 await page.waitForLoadState('domcontentloaded');
 
-/* Wait for a real ready signal rather than a fixed sleep. A blind sleep
-   races the app on a slow or contended machine and reports an empty DOM
-   as a failure, which is worse than no check at all. */
+// Waits for a real ready condition instead of a fixed sleep.
 async function waitFor(label, fn, timeout = 45_000) {
   const t0 = Date.now();
   for (;;) {
@@ -122,8 +101,7 @@ console.log('\n── boot ──');
 console.log('  title:', await page.title());
 console.log('  url  :', page.url().split('/').pop());
 
-/* Did the stylesheets and fonts actually apply? A rebuilt UI that loads
-   with no CSS still "works" by every selector check. */
+// Check the stylesheets and fonts really applied.
 const applied = await page.evaluate(() => {
   const cs = getComputedStyle(document.body);
   const mark = document.querySelector('.k-mark-text');
@@ -148,10 +126,7 @@ await shot(page, '01-start');
 /* ── Drive the intake flow ─────────────────────────────────────────── */
 console.log('\n── intake ──');
 
-/* Everything below uses real Playwright clicks and typing, never
-   element.click() via evaluate. Synthetic clicks carry isTrusted=false and
-   skip any code path that checks it — which is exactly how a tab-switching
-   bug survived an entire green run of this script. */
+// Use real Playwright clicks throughout, since synthetic clicks skip code that checks isTrusted.
 
 await page.click('#rf-hero-new-case');
 await sleep(900);
@@ -223,16 +198,10 @@ const slider = await page.evaluate(() => {
 });
 console.log('  slider drive  ', JSON.stringify(slider));
 
-/* ── Section nav ─────────────────────────────────────────────────────
-   Three assertions, all with real clicks:
-     switching to another section must switch the panel and LEAVE the
-     sheet open; clicking the section you are already in must close it;
-     clicking it once more must bring it back. */
+// Section nav: switching keeps the sheet open, clicking the current section closes it, clicking again reopens it.
 console.log('\n── section nav ──');
 
-/* `open` is what the operator can actually see and click, NOT the body
-   class. Asserting on the class is how a bug that reopened the sheet at
-   scale(0) — invisible, unclickable — passed this suite repeatedly. */
+// "Open" means visible and clickable, not just the body class.
 const navState = async () => page.evaluate(() => {
   const s = document.getElementById('k-sheet');
   const cs = getComputedStyle(s);
@@ -246,6 +215,7 @@ const navState = async () => page.evaluate(() => {
 });
 
 let ok = true;
+// Prints a check result and records any failure.
 const expect = (label, got, want) => {
   const pass = JSON.stringify(got) === JSON.stringify(want);
   if (!pass) ok = false;
@@ -288,8 +258,7 @@ await page.click('.panel-tab[data-panel="hair"]');
 await sleep(500);
 await shot(page, '05-hair');
 
-/* Command palette — opened by the real keyboard shortcut and typed into
-   for real, so the keydown handlers are actually exercised. */
+// Command palette, opened with the real shortcut and real typing.
 console.log('\n── palette ──');
 await page.keyboard.press('Control+K');
 await sleep(400);
@@ -309,8 +278,7 @@ console.log('  after palette go:', await page.evaluate(
   () => document.querySelector('.panel-content.active')?.id));
 await shot(page, '07-located');
 
-/* Sheet dismiss — the whole point of floating it. Escape must clear the
-   sheet off the render without changing the section. */
+// Escape hides the sheet without changing section.
 await page.keyboard.press('Escape');
 await sleep(600);
 const dismissed = await navState();
@@ -322,10 +290,7 @@ await page.keyboard.press('Backslash');
 await sleep(700);
 expect('Backslash restores the sheet', (await navState()).open, true);
 
-/* Close and reopen repeatedly through every route. Each of these once
-   left the sheet mounted-but-invisible; they are cheap to check and the
-   failure mode is "the button does nothing", which is expensive to
-   diagnose from a bug report. */
+// Close and reopen the sheet by every route, since each once left it invisible.
 await page.click('#k-sheet-close');
 await sleep(700);
 expect('X button closes', (await navState()).open, false);
@@ -348,10 +313,7 @@ console.log('\n── console ──');
 const counts = logs.reduce((a, l) => (a[l.type] = (a[l.type] || 0) + 1, a), {});
 console.log('  ' + Object.entries(counts).map(([k, v]) => `${k}:${v}`).join('  '));
 
-/* The Flask backend is optional — the app is designed to run with morphing
-   done locally when it is absent, and says so in the banner. Its refused
-   connections are environmental, not a UI fault, so they are reported but
-   do not fail the run. */
+// The backend is optional, so its refused connections are reported but don't fail the run.
 const backendOffline = errors.filter((e) => e.includes('ERR_CONNECTION_REFUSED'));
 const real = errors.filter((e) => !e.includes('ERR_CONNECTION_REFUSED'));
 

@@ -1,19 +1,10 @@
-/**
- * ReFace ID — k-shell.js
- *
- * Behaviour for the interface shell: the sheet, the section nav, the
- * subject readout, the activity log, toasts and the backend banner.
- *
- * This file owns presentation state only. It never edits the subject —
- * every control that changes the face is bound in UIController.js or
- * app.js, and this layer does not wrap, proxy or re-implement any of it.
- *
- * Loads after app.js so all engine bindings are already attached.
- */
+// Presentation behaviour for the interface shell (sheet, section nav, activity log, toasts, backend banner); it never changes the face itself.
 ;(function KShell() {
   'use strict';
 
+  // Finds the first element matching a selector.
   const $  = (sel, root = document) => root.querySelector(sel);
+  // Finds all elements matching a selector, as an array.
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
   /* Section keys → the label shown in the sheet header. */
@@ -27,42 +18,27 @@
     case: 'Case record and export',
   };
 
-  /* ══ Sheet ═════════════════════════════════════════════════════════════
-     Open/closed is a class on <body> so the stage, dock and nav can all
-     respond without knowing about each other. */
+  // Sheet: open/closed is a class on <body> so the stage, dock and nav can all react to it.
 
   const body = document.body;
 
+  // Tells whether the sheet is open.
   function sheetOpen()  { return !body.classList.contains('k-sheet-closed'); }
 
+  // Opens or closes the sheet.
   function setSheet(open) {
     body.classList.toggle('k-sheet-closed', !open);
-    /* The render sizes itself from its container. Nothing about the
-       viewport changes when the sheet moves — it is an overlay — but the
-       announcement is cheap and keeps SceneManager honest if that ever
-       stops being true. */
+    // Announce a resize so the 3D view can re-measure itself.
     requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
   }
 
+  // Returns the key of the active section tab.
   function activeSection() {
     const tab = $('.panel-tab.active');
     return tab ? tab.dataset.panel : null;
   }
 
-  /* Section tabs are the real .panel-tab elements UIController binds, so
-     switching sections is already handled. All this adds is: clicking the
-     section you are already in closes the sheet, and clicking any other
-     one opens it. One control does both jobs, and the face stays reachable
-     at all times.
-
-     This listens in the CAPTURE phase on the container, which matters.
-     UIController.bindPanelTabs() attached its own click listener to each
-     tab first, and that listener moves .active onto the clicked tab. A
-     bubble listener here would therefore always observe the clicked tab as
-     the current one and read every click as "clicked the active section",
-     which closed the sheet on every switch. Capturing on the container
-     runs before any listener on the tab itself, so the state read here is
-     the state from before the switch. */
+  // Clicking the current section closes the sheet and any other opens it; listens in the capture phase so it sees the state before UIController switches tabs.
   function bindSections() {
     const nav = $('#k-sections');
     if (nav) {
@@ -73,25 +49,14 @@
         const wasCurrent = tab.classList.contains('active');
         const wasOpen = sheetOpen();
 
-        /* Only a real click toggles. ScreenRouter opens the editor by
-           clicking a tab programmatically to reach the section the
-           operator asked for; treating that as a toggle would land them
-           in the editor with the sheet shut. */
+        // Only real clicks toggle, because ScreenRouter clicks tabs from code to open a section.
         const collapse = e.isTrusted && wasCurrent && wasOpen;
         setSheet(!collapse);
 
-        /* UIController swaps the panel in its own listener, which has not
-           run yet at capture time. */
+        // UIController swaps the panel in its own listener, which hasn't run yet.
         requestAnimationFrame(() => {
           syncSheetHead();
-          /* The section comes back the way it was left. It used to be
-             force-collapsed on every entry, on the reasoning that a
-             section should read as a table of contents — which is right
-             the first time and wrong every time after. Reconstruction
-             moves between features constantly, and re-shutting the three
-             groups an operator had arranged meant paying the full cost of
-             finding them again on every return. What they left open is
-             what they meant to have open. */
+          // Bring the section back the way the operator left it.
           if (!collapse) restoreGroups(activePanel());
         });
       }, true);
@@ -100,8 +65,7 @@
     $('#k-sheet-close')?.addEventListener('click', () => setSheet(false));
   }
 
-  /* The header shows which section is open and how many groups it holds —
-     a small thing that tells the operator whether scrolling is worth it. */
+  // Shows the open section's name and how many groups it has in the sheet header.
   function syncSheetHead() {
     const key = activeSection();
     $$('.k-sheet-title').forEach((el) => {
@@ -116,40 +80,36 @@
     if (badge) badge.textContent = count ? `${count}` : '';
   }
 
-  /* ══ Group collapse ════════════════════════════════════════════════════
-     UIController toggles .collapsed on the body and header already. This
-     only adds the bulk operation, and keeps the caret in step for groups
-     it collapses itself. */
+  // Group collapse: UIController handles single groups; this adds collapse-all and remembering.
 
+  // Returns the panel element for the active section.
   function activePanel() {
     const key = activeSection();
     return key ? document.getElementById('panel-' + key) : null;
   }
 
-  /* ── Remembering the arrangement ────────────────────────────────────────
-     Which groups are open is workspace state, not case data — it describes
-     how this operator likes to work, so it belongs in local storage and
-     survives a restart. Keyed by section and by the group's heading, since
-     the generated markup gives most groups no id. */
+  // Which groups are open is saved in local storage per section, keyed by the group heading.
 
   const GROUPS_KEY = 'rf.groups.v1';
 
+  // Reads the saved open/closed groups.
   function loadGroups() {
     try { return JSON.parse(localStorage.getItem(GROUPS_KEY)) || {}; }
     catch { return {}; }
   }
 
+  // Saves the open/closed groups.
   function saveGroups(state) {
     try { localStorage.setItem(GROUPS_KEY, JSON.stringify(state)); } catch { /* private mode */ }
   }
 
+  // Builds a storage key from a group's heading.
   function headKey(h) {
     const name = h.querySelector('span')?.textContent.trim() || '';
     return (h.classList.contains('sub-group-header') ? 'sub:' : 'grp:') + name;
   }
 
-  /* Written on every toggle rather than on a timer, so a crash or a reload
-     mid-session still comes back to the sheet the operator built. */
+  // Records which groups are open in a panel, on every toggle so a reload keeps them.
   function rememberGroups(panel) {
     const key = activeSection();
     if (!panel || !key) return;
@@ -162,17 +122,13 @@
     saveGroups(all);
   }
 
+  // Reopens the groups the operator had open in this section.
   function restoreGroups(panel) {
     const key = activeSection();
     if (!panel || !key) return;
     const mine = loadGroups()[key];
 
-    /* Never been here before. Every group ships closed, which means a
-       first visit to a section is a column of headings above six hundred
-       pixels of nothing — the operator has learned the section's contents
-       but still has to click before a single control exists. Opening the
-       first group makes the section arrive with work in it, and the choice
-       is recorded like any other so it is only ever made once. */
+    // First visit: open the first group so the section doesn't arrive as a list of closed headings.
     if (!mine) {
       const first = $('.control-group-header', panel);
       if (first) {
@@ -191,20 +147,7 @@
     });
   }
 
-  /* UIController owns the toggle itself; this only notices that one
-     happened.
-
-     Watching the class rather than the click matters, because a click is
-     not the only way a group opens. The command palette expands every
-     group between the sheet and whatever it was asked to find, and a
-     click listener never sees that — so a group the operator reached
-     through Ctrl+K was open on screen and closed again on their next
-     visit, which reads as the palette not having worked.
-
-     Skipped while a filter is on: filtering forces matching groups open
-     as a temporary view of the section, and recording that would overwrite
-     the arrangement the operator actually built. k-workbench restores it
-     when the filter clears, and this then records the restored state. */
+  // Watches group classes rather than clicks so groups opened by the palette are remembered too; skipped while filtering.
   function bindGroupMemory() {
     const bodyEl = $('#k-sheet-body');
     if (!bodyEl) return;
@@ -229,6 +172,7 @@
     });
   }
 
+  // Wires the collapse-all button.
   function bindCollapseAll() {
     const btn = $('#k-sheet-collapse-all');
     if (!btn) return;
@@ -239,8 +183,7 @@
       if (!panel) return;
 
       const groups = $$('.control-group-header', panel);
-      /* If anything is open, collapse everything; otherwise open it all.
-         One button, and its meaning is always the obvious one. */
+      // If anything is open, collapse everything; otherwise open it all.
       const anyOpen = groups.some((h) => !h.classList.contains('collapsed'));
 
       groups.forEach((h) => {
@@ -253,11 +196,9 @@
     });
   }
 
-  /* ══ Activity log ══════════════════════════════════════════════════════
-     #historyList is appended to by UIController.addHistory(). It lives in
-     a popover anchored to the status strip rather than taking permanent
-     space, because it is reference material, not a control. */
+  // Activity log: a popover by the status strip listing what UIController.addHistory() recorded.
 
+  // Wires the activity log popover.
   function bindActivity() {
     const btn = $('#k-activity-btn');
     const pop = $('#k-activity');
@@ -286,24 +227,15 @@
     window.addEventListener('resize', () => { if (pop.classList.contains('open')) place(); });
   }
 
-  /* ══ Stage sizing ══════════════════════════════════════════════════════
-     SceneManager sizes the renderer from #viewport when app.js constructs
-     it — which happens while the editor screen is still hidden, so the
-     canvas is created 0×0. Something has to re-announce the size once the
-     screen is actually laid out.
+  // Stage sizing: the canvas is created while the editor is hidden, so announce its size once the editor is shown.
 
-     Arriving via the method screen used to do this by accident (selecting a
-     method clicks a section tab, which dispatched a resize). "Skip to
-     editor" selects no method, clicks no tab, and landed the operator on a
-     blank stage. This makes the announcement explicit and unconditional. */
-
+  // Sends a resize whenever the editor screen becomes visible.
   function bindStageSizing() {
     const editor = $('#rf-screen-editor');
     if (!editor) return;
 
     const announce = () => {
-      /* Two frames: one for the screen to become visible, one for the
-         grid to settle at its final size. */
+      // Wait two frames: one for the screen to appear, one for the layout to settle.
       requestAnimationFrame(() =>
         requestAnimationFrame(() => window.dispatchEvent(new Event('resize'))));
     };
@@ -317,15 +249,12 @@
 
     if (wasActive) announce();
 
-    /* The stage also changes size when the window does; SceneManager
-       already listens for that, so nothing more is needed here. */
+    // Window resizes are already handled by SceneManager.
   }
 
-  /* ══ Backend banner ════════════════════════════════════════════════════
-     UIController.bindBackendStatus() toggles .connected on the dot inside
-     #backendStatus. Watching that one element keeps this layer out of the
-     API's business entirely. */
+  // Backend banner: follows the connection dot that UIController updates.
 
+  // Shows the offline banner while the backend is disconnected.
   function bindBackendBanner() {
     const source = $('#backendStatus');
     const banner = $('#k-backend-banner');
@@ -342,13 +271,11 @@
     sync();
   }
 
-  /* ══ Toasts ════════════════════════════════════════════════════════════
-     Exposed as window.kToast so any module can report without reaching
-     into the DOM. Nothing calls it yet; it replaces the container the old
-     layout owned and gives future work somewhere to go. */
+  // Toasts: small pop-up messages, available to any module as window.kToast.
 
   const ICONS = { ok: 'ok', err: 'error', warn: 'warn', info: 'info' };
 
+  // Shows a short pop-up message that disappears on its own.
   function toast(message, kind = 'info', ms = 3600) {
     const host = $('#k-toasts');
     if (!host) return;
@@ -373,19 +300,14 @@
 
   window.kToast = toast;
 
-  /* ══ Keyboard ══════════════════════════════════════════════════════════
-     Guarded so nothing fires while the operator is typing into a case
-     field or the assist prompt. UIController already owns the number keys
-     for camera views; this only adds shell-level keys. */
+  // Keyboard: shell shortcuts, ignored while the operator is typing.
 
-  /* Only *text entry* should swallow a shortcut. A focused slider, swatch
-     or checkbox is still an <input>, and treating those as typing meant
-     Escape stopped working the moment the palette focused the control it
-     had just jumped to. */
+  // Only text fields count as typing, so Escape still works when a slider has focus.
   const TEXT_TYPES = new Set([
     'text', 'search', 'email', 'password', 'url', 'tel', 'number', 'date', 'time',
   ]);
 
+  // Tells whether the focused element is a text field.
   function typing(t) {
     if (!t) return false;
     if (t.isContentEditable) return true;
@@ -394,6 +316,7 @@
     return false;
   }
 
+  // Binds the shell shortcuts: Escape closes things and backslash toggles the sheet.
   function bindKeys() {
     document.addEventListener('keydown', (e) => {
       /* Escape closes whatever is on top, innermost first. */
@@ -410,10 +333,7 @@
 
       if (typing(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
 
-      /* Backslash toggles the sheet, following the "hide the interface"
-         convention. Tab deliberately does NOT do this: it is the focus
-         traversal key, and with roughly two hundred controls in the sheet
-         stealing it would strand anyone working by keyboard. */
+      // Backslash toggles the sheet; Tab is never used because it moves focus between controls.
       if (e.key === '\\') {
         e.preventDefault();
         setSheet(!sheetOpen());
@@ -421,15 +341,12 @@
     });
   }
 
-  /* ══ Modals ════════════════════════════════════════════════════════════
-     The two modals in the document are opened by other modules, which do
-     it by setting style.display. Normalising that onto a class here means
-     the overlay CSS has one way in and one way out. */
+  // Modals: other modules open them with style.display, which is mirrored onto an .open class.
 
+  // Keeps each modal's .open class in step with its display style and closes it on a backdrop click.
   function bindModals() {
     $$('.k-modal').forEach((modal) => {
-      /* Mirror an inline display change onto .open so either mechanism
-         works, whichever the owning module happens to use. */
+      // Mirror inline display changes onto .open, whichever way the owner opens it.
       new MutationObserver(() => {
         const shown = modal.style.display && modal.style.display !== 'none';
         if (shown) {
@@ -445,28 +362,20 @@
     });
   }
 
-  /* ══ Sheet width ═══════════════════════════════════════════════════════
-     368px was sized for a column of headings. Now that opening a group
-     shows live controls — labels, readouts, tracks and the row's own
-     buttons — the same width is tight, and the right width depends on the
-     screen and on which section the operator lives in. So it is theirs to
-     set: drag the right edge.
-
-     The width is a custom property on the root because the camera dock
-     positions itself from it (`left: calc(50% + (var(--w-sheet) + 28px)/2)`)
-     — writing it anywhere else would leave the dock centred on the wrong
-     half of the stage. */
+  // Sheet width: drag the right edge to resize; stored as a CSS variable the camera dock also uses.
 
   const WIDTH_KEY = 'rf.sheet.width.v1';
   const W_MIN = 330;
   const W_MAX = 660;
 
+  // Sets the sheet width within its limits.
   function setSheetWidth(px) {
     const w = Math.round(Math.min(W_MAX, Math.max(W_MIN, px)));
     document.documentElement.style.setProperty('--w-sheet', w + 'px');
     return w;
   }
 
+  // Lets the operator drag the sheet edge to resize it, and double-click to reset.
   function bindSheetResize() {
     const grip = $('#k-sheet-grip');
     const sheet = $('#k-sheet');
@@ -480,8 +389,7 @@
 
     const move = (e) => {
       if (!dragging) return;
-      /* The sheet is pinned 14px from the left edge, so its width is
-         simply how far right of that the pointer is. */
+      // The sheet sits 14px from the left, so its width is just the pointer's distance from there.
       setSheetWidth(e.clientX - sheet.getBoundingClientRect().left);
     };
 
@@ -505,8 +413,7 @@
       document.addEventListener('mouseup', end);
     });
 
-    /* Double-click the grip for the default, so a drag that went somewhere
-       silly is one gesture to undo rather than a hunt for the old number. */
+    // Double-click the grip to go back to the default width.
     grip.addEventListener('dblclick', () => {
       setSheetWidth(368);
       try { localStorage.setItem(WIDTH_KEY, '368'); } catch { /* private mode */ }
@@ -516,6 +423,7 @@
 
   /* ══ Boot ══════════════════════════════════════════════════════════════ */
 
+  // Starts every shell behaviour once the page is ready.
   function init() {
     bindSections();
     bindCollapseAll();
@@ -528,14 +436,10 @@
     bindKeys();
     syncSheetHead();
 
-    /* Put the sheet back the way this operator last had it. The generated
-       markup ships every group closed, which is the right first run; from
-       the second onwards the stored arrangement wins. */
+    // Restore the operator's last group layout.
     requestAnimationFrame(() => restoreGroups(activePanel()));
 
-    /* Anything the engine reveals by clearing an inline display — the
-       recalibrate control is the current example — should not occupy the
-       tool strip until it is live. */
+    // Keep controls the engine hides off the tool strip until they are live.
     const recal = $('#btnRecalibrateHead');
     if (recal && !recal.style.display) recal.style.display = 'none';
 

@@ -1,9 +1,4 @@
-/**
- * app.js
- * Main application entry point.
- * Loads the OBJ model + trimesh region data, then wires OBJMorpher,
- * HairSystem, and UIController together.
- */
+// App entry point: creates every system, loads the head model, then wires the UI, AI and case handling together.
 
 (function () {
   'use strict';
@@ -20,27 +15,20 @@
   // OBJ-based morpher (primary)
   const objMorpher = new OBJMorpher();
 
-  // Hair system
   const hairSystem = new HairSystem(sceneManager.scene);
 
-  // Eye system
   const eyeSystem = new EyeSystem(sceneManager.scene);
 
-  // Glasses system
   const glassesSystem = new GlassesSystem(sceneManager.scene);
 
-  // Face mask system
   const faceMaskSystem = new FaceMaskSystem(sceneManager.scene);
 
-  // Earring system — takes the SceneManager, not the bare scene: it needs the
-  // renderer to build the PMREM environment map its metal shading depends on.
+  // Earrings take the SceneManager because they need the renderer for their metal reflections.
   const earringSystem = new EarringSystem(sceneManager);
 
-  // Bandana system
   const bandanaSystem = new BandanaSystem(sceneManager.scene);
 
-  // Eyebrow piercing — takes the SceneManager for the same reason as the
-  // earrings: it needs the renderer to build its metal environment map.
+  // Eyebrow piercings need the renderer too, for the same reason.
   const browPiercingSystem = new EyebrowPiercingSystem(sceneManager);
 
   // Reference photo overlay — a DOM layer over the viewport, not a scene object
@@ -50,7 +38,6 @@
   const api = new BackendAPI('http://127.0.0.1:5001');
   const caseManager = new CaseManager(api);
 
-  // Skin Texture System
   const skinTextureSystem = new SkinTextureSystem(sceneManager);
 
   // Face Point Editor (initialized after model loads)
@@ -62,8 +49,7 @@
   let pigmentationPainter = null;
   let hairTintPainter = null;
 
-  // Use OBJMorpher as the default morpher passed to UI
-  // (falls back to FaceMorpher only if OBJ load fails)
+  // OBJMorpher is the main morpher; FaceMorpher is only used if the model fails to load.
   let activeMorpher = objMorpher;
 
   // UI Controller — will be initialized after we decide the active morpher
@@ -121,9 +107,7 @@
         `Vertices: ${vertexCount.toLocaleString()}`;
       console.log(`OBJ loaded: ${vertexCount} vertices, region data: ${!!regionData}`);
 
-      // ── Auto-refresh hair, eyes, glasses, mask, earrings when morphs change ──
-      // Everything worn on the head is fitted to the head's measurements, so it
-      // has to be re-fitted whenever the skull changes shape.
+      // Everything worn on the head is fitted to its shape, so refit it whenever the face changes.
       const refitWornSystems = () => {
         hairSystem.refreshFromMesh(objMorpher.morphValues);
         eyeSystem.refreshFromMesh();
@@ -133,16 +117,11 @@
         bandanaSystem.refreshFromMesh(objMorpher.morphValues);
         browPiercingSystem.refreshFromMesh(objMorpher.morphValues);
       };
-      // Dragging a slider fires this on every frame, so the interactive path is
-      // debounced. Callers that change the face and then immediately read the
-      // result — thumbnail capture, offscreen render — must call
-      // refitWornSystems() directly instead: each new change cancels the
-      // pending timer, so a synchronous burst would land zero re-fits.
+      // The slider path is debounced, so code that changes the face and reads the result straight away must call refitWornSystems() itself.
       sceneManager.refitWornSystems = refitWornSystems;
       let _morphTimer = null;
       objMorpher.onMorphApplied = () => {
-        // Eyes and their skin folds must follow a moving slider immediately;
-        // the more expensive accessory refits can remain debounced.
+        // Eyes follow the slider immediately; the heavier accessory refits stay debounced.
         eyeSystem.refreshFromMesh();
         if (_morphTimer) clearTimeout(_morphTimer);
         _morphTimer = setTimeout(refitWornSystems, 120);
@@ -234,33 +213,31 @@
     // NOW create and init UI with the correct morpher
     console.log('[App] Creating UIController...');
     ui = new UIController(sceneManager, activeMorpher, hairSystem, api, caseManager);
-    ui.facePointEditor = facePointEditor;   // expose for render pipeline
-    ui.skinMarkSystem = skinMarkSystem;     // expose for skin marks UI
-    ui.decalSystem = decalSystem;           // expose for decal/tattoo UI
-    ui.eyeSystem = eyeSystem;               // expose eye system for UI control
-    ui.glassesSystem = glassesSystem;        // expose glasses system for UI control
-    ui.faceMaskSystem = faceMaskSystem;      // expose face mask system for UI control
-    ui.earringSystem = earringSystem;        // expose earring system for UI control
-    ui.bandanaSystem = bandanaSystem;        // expose bandana system for UI control
-    ui.browPiercingSystem = browPiercingSystem; // expose eyebrow piercing for UI control
-    ui.referenceOverlay = referenceOverlay;  // expose reference photo overlay for UI control
-    ui.turntableRecorder = new TurntableRecorder(sceneManager); // rotating-clip export
-    // Witness variant picker — needs the live morpher and the renderer so it
-    // can capture a thumbnail per candidate off the real head.
+    ui.facePointEditor = facePointEditor;
+    ui.skinMarkSystem = skinMarkSystem;
+    ui.decalSystem = decalSystem;
+    ui.eyeSystem = eyeSystem;
+    ui.glassesSystem = glassesSystem;
+    ui.faceMaskSystem = faceMaskSystem;
+    ui.earringSystem = earringSystem;
+    ui.bandanaSystem = bandanaSystem;
+    ui.browPiercingSystem = browPiercingSystem;
+    ui.referenceOverlay = referenceOverlay;
+    ui.turntableRecorder = new TurntableRecorder(sceneManager);
+    // The variant picker needs the live morpher and renderer to capture a thumbnail of each candidate.
     ui.variantPicker = new VariantPicker(sceneManager, activeMorpher, api);
-    ui.skinTextureSystem = skinTextureSystem; // expose for skin texture UI
-    ui.wrinklePainter = wrinklePainter;       // expose for wrinkle painting UI
-    ui.lipPainter = lipPainter;               // expose for lip painting UI
-    ui.pigmentationPainter = pigmentationPainter; // expose for pigmentation painting UI
-    ui.hairTintPainter = hairTintPainter;           // expose for manual hair tint painting UI
+    ui.skinTextureSystem = skinTextureSystem;
+    ui.wrinklePainter = wrinklePainter;
+    ui.lipPainter = lipPainter;
+    ui.pigmentationPainter = pigmentationPainter;
+    ui.hairTintPainter = hairTintPainter;
     console.log('[App] Initializing UIController...');
     ui.init();
     console.log('[App] UIController initialized successfully');
     ui.updatePropertyPanel();
     ui.addHistory(group ? 'Base face model loaded (OBJ)' : 'Using procedural head');
 
-    // ── Sync initial state to case manager ──
-    // Initialize case with default values from all systems
+    // Seed the case with the starting values from every system.
     caseManager.updateMorphTargets(activeMorpher.exportState());
     caseManager.updateHairParams(hairSystem.getParams());
     if (eyeSystem) {
@@ -289,24 +266,16 @@
     console.log('[App] Initializing Snapshot Manager...');
     const snapshotManager = new SnapshotManager(caseManager, sceneManager, api);
     ui.snapshotManager = snapshotManager;
-    // Bind before loading: the load is a database round trip that fires
-    // onSnapshotsChanged when it lands, and that callback is installed here.
+    // Bind before loading, because the load calls back into these controls when it finishes.
     ui.bindSnapshotControls();
     snapshotManager.loadForCurrentCase()
       .then((n) => console.log(`[App] Snapshot Manager initialized (${n} snapshot(s))`))
       .catch((e) => console.error('[App] Snapshot load failed', e));
 
-    // ── Debug handle ──
-    // main.js opens DevTools on every launch and there was no way to reach the
-    // live controllers from that console; scripts/snapshot-check.mjs drives the
-    // app through this too. It must live inside this callback — the systems it
-    // names are scoped to it, and referencing them from the outer body throws
-    // a ReferenceError that takes the rest of app.js down with it.
+    // Debug handle for DevTools and the test scripts; it must stay inside this callback where these variables exist.
     window.rfApp = { ui, api, caseManager, sceneManager, snapshotManager };
 
-    // ── AI provider keys ──
-    // Built before the AI controller: every AI feature asks this for a key
-    // before it calls the backend, and it is what puts the key dialog up.
+    // Built before the AI controller, since every AI feature asks it for a key first.
     const apiKeys = new ApiKeyGate(api);
     apiKeys.init();
     ui.apiKeys = apiKeys;
@@ -314,18 +283,18 @@
     // ── Initialize AI Controller ──
     console.log('[App] Initializing AI Controller...');
     const aiController = new AIController(api, activeMorpher, hairSystem, caseManager, ui);
-    aiController.eyes = eyeSystem;  // set eye system reference
-    aiController.glasses = glassesSystem;  // set glasses system reference
-    aiController.faceMask = faceMaskSystem;  // set face mask system reference
-    aiController.earrings = earringSystem;  // set earring system reference
-    aiController.bandana = bandanaSystem;  // set bandana system reference
-    aiController.browPiercing = browPiercingSystem;  // set eyebrow piercing reference
-    aiController.scene = sceneManager;  // set scene reference for lip color
-    aiController.skinMarkSystem = skinMarkSystem;  // set skin mark system reference
-    aiController.markPositionMapper = new MarkPositionMapper(activeMorpher);  // set mark position mapper
+    aiController.eyes = eyeSystem;
+    aiController.glasses = glassesSystem;
+    aiController.faceMask = faceMaskSystem;
+    aiController.earrings = earringSystem;
+    aiController.bandana = bandanaSystem;
+    aiController.browPiercing = browPiercingSystem;
+    aiController.scene = sceneManager;
+    aiController.skinMarkSystem = skinMarkSystem;
+    aiController.markPositionMapper = new MarkPositionMapper(activeMorpher);
     aiController.keys = apiKeys;  // set before init(): the model picker reads it
     aiController.init();
-    ui.aiController = aiController;  // expose for quick prompts etc.
+    ui.aiController = aiController;
     console.log('[App] AI Controller initialized');
 
     // ── Bind quick prompt buttons ──
@@ -404,6 +373,7 @@
 
   // ─── Point Editor UI Bindings ──────────────────────────────────────────
 
+  // Wires the point-editor buttons and sliders, turning off other tools while it is active.
   function _bindPointEditorUI(editor, uiCtrl) {
     const btnToolbar = document.getElementById('btnEditPoints');
     const btnToggle = document.getElementById('btnTogglePointEdit');
@@ -535,31 +505,9 @@
     window.electronAPI.onImportModel((filePath) => ui?.importModelFromPath(filePath));
   }
 
-  // ─── Screen Router ────────────────────────────────────────────────────
-  // Initialize and show the hero landing screen.
-  // The 3D editor is fully initialized in the background while hero is visible.
+  // Screen router: shows the landing screen while the editor finishes loading behind it.
   window.rfRouter = new ScreenRouter();
   window.rfRouter.bindNavigation();
-
-  // ─── Panel scroll fade-in (IntersectionObserver) ─────────────────────────
-  // Adds .rf-panel-fade class to control-groups and fades them in as they
-  // scroll into view in the left panel.
-  if (typeof IntersectionObserver !== 'undefined') {
-    const panelObserver = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('rf-panel-visible');
-          panelObserver.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.05, rootMargin: '0px 0px -20px 0px' });
-
-    // Observe all control-groups inside the left panel scroll area
-    document.querySelectorAll('#left-panel .control-group').forEach(el => {
-      el.classList.add('rf-panel-fade');
-      panelObserver.observe(el);
-    });
-  }
 
   console.log('REface ID initialized — loading head.glb + region data...');
 

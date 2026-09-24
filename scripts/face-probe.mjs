@@ -1,19 +1,4 @@
-/**
- * face-probe.mjs — drive the app into the editor, then inspect and photograph
- * the head at portrait framing.
- *
- *   node scripts/face-probe.mjs [outDir]
- *
- * smoke.mjs answers "does the interface still work". This answers "does the
- * face look right", which is a different question and the one the realism work
- * is judged on. It reports the scene graph (materials, shader injections,
- * cornea shell placement) and writes tight crops of the face, eyes and skin so
- * changes to shading can actually be compared between runs.
- *
- * Intake navigation mirrors smoke.mjs deliberately — real Playwright clicks,
- * never element.click() via evaluate, for the isTrusted reason documented
- * there.
- */
+// Opens the editor and reports the scene setup, then photographs the face at portrait framing so shading changes can be compared; run with `node scripts/face-probe.mjs [outDir]`.
 import { _electron as electron } from 'playwright-core';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -28,6 +13,7 @@ const bin = path.join(APP_DIR, 'node_modules', 'electron', 'dist',
   : process.platform === 'darwin' ? 'Electron.app/Contents/MacOS/Electron'
   : 'electron');
 
+// Waits for a number of milliseconds.
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
@@ -41,6 +27,7 @@ const app = await electron.launch({
   timeout: 60_000,
 });
 
+// Finds the app window by URL, since DevTools can open first.
 async function realPage() {
   const t0 = Date.now();
   for (;;) {
@@ -60,6 +47,7 @@ page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message));
 
 await page.waitForLoadState('domcontentloaded');
 
+// Waits until a condition is true in the page, or fails after a timeout.
 async function waitFor(label, fn, timeout = 45_000) {
   const t0 = Date.now();
   for (;;) {
@@ -87,13 +75,11 @@ await waitFor('editor mounted', () =>
   document.getElementById('rf-screen-editor')?.classList.contains('rf-screen-active') &&
   !!document.querySelector('#viewport canvas')?.width);
 
-// The skin textures generate on a deferred timer, and the cavity pass is
-// debounced behind the first morph — shooting before both land photographs a
-// half-built material and wastes the run.
+// Wait for the skin textures and crease shading to finish before taking pictures.
 await sleep(3500);
 await page.evaluate(() => window.SkinShader && SkinShader._detailReady);
 
-/* ── Scene graph report ──────────────────────────────────────────────── */
+// Scene report
 const report = await page.evaluate(() => {
   const sm = window.rfApp && window.rfApp.sceneManager;
   if (!sm) return { error: 'no SceneManager on window' };
@@ -177,12 +163,12 @@ const report = await page.evaluate(() => {
 
 console.log(JSON.stringify(report, null, 2));
 
-/* ── Portrait framing ────────────────────────────────────────────────── */
-// Close the control sheet so the face is unobstructed, then push the camera
-// in to a head-and-shoulders portrait — the distance the result is judged at.
+// Portrait framing
+// Close the sheet and move the camera in to a head-and-shoulders view.
 await page.keyboard.press('Backslash');
 await sleep(600);
 
+// Points the camera at the head from a set distance and height, then saves a picture.
 async function frame(name, dist, targetY, elevation) {
   await page.evaluate(({ dist, targetY, elevation }) => {
     const sm = window.rfApp && window.rfApp.sceneManager;
@@ -200,14 +186,12 @@ async function frame(name, dist, targetY, elevation) {
   console.log('shot →', path.relative(APP_DIR, f));
 }
 
-// The default view sits at 4.5. These are the distances a reviewer actually
-// judges the likeness at: a portrait, a three-quarter, and a tight face.
+// The distances a reviewer actually judges the face at.
 await frame('face-front', 3.2, 0.30, 0);
 await frame('face-34', 3.2, 0.30, 0.6);
 await frame('face-closeup', 2.1, 0.34, 0.12);
 
-// Asymmetry: same head with the control at its extremes, so the deformation
-// can be checked for scale and for symmetry about the midline.
+// Sets a slider value in the page; used to shoot asymmetry at both extremes.
 const setSlider = (param, v) => page.evaluate(({ param, v }) => {
   const input = document.querySelector(
     '.slider-control[data-param="' + param + '"] .morph-slider');

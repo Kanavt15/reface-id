@@ -1,10 +1,4 @@
-/**
- * BaseFaceGeometry.js
- * Generates a parametric human head mesh procedurally using Three.js.
- * This serves as the default base face when no OBJ model is loaded.
- * The geometry is built with vertex groups mapped to facial regions
- * so morph parameters can deform specific areas.
- */
+// Builds a simple procedural head mesh, used only when the real head model fails to load.
 
 class BaseFaceGeometry {
   constructor() {
@@ -12,10 +6,7 @@ class BaseFaceGeometry {
     this.originalPositions = null;
   }
 
-  /**
-   * Create a detailed parametric head geometry.
-   * Returns a THREE.BufferGeometry with region metadata.
-   */
+  // Sculpts a sphere into a head and tags each vertex with its face region.
   create() {
     // Use a refined sphere as base, then sculpt it into a head shape
     const geometry = new THREE.SphereGeometry(1, 64, 48, 0, Math.PI * 2, 0, Math.PI);
@@ -61,10 +52,6 @@ class BaseFaceGeometry {
       const nx = x / len;
       const ny = y / len;
       const nz = z / len;
-
-      // Phi (vertical angle from top), Theta (horizontal angle)
-      const phi = Math.acos(nz);
-      const theta = Math.atan2(ny, nx);
 
       let scale = 1.0;
       let region = REGION.SKULL;
@@ -211,24 +198,7 @@ class BaseFaceGeometry {
     return geometry;
   }
 
-  /**
-   * Get vertex indices for a specific region
-   */
-  getRegionIndices(regionId) {
-    if (!this.geometry) return [];
-    const regions = this.geometry.attributes.region;
-    const indices = [];
-    for (let i = 0; i < regions.count; i++) {
-      if (regions.getX(i) === regionId) {
-        indices.push(i);
-      }
-    }
-    return indices;
-  }
-
-  /**
-   * Reset all vertices to original positions
-   */
+  // Puts every vertex back where it started.
   resetToOriginal() {
     if (!this.originalPositions || !this.geometry) return;
     const positions = this.geometry.attributes.position;
@@ -238,5 +208,4 @@ class BaseFaceGeometry {
   }
 }
 
-// Export for use in other modules
 window.BaseFaceGeometry = BaseFaceGeometry;

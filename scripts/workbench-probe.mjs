@@ -1,19 +1,4 @@
-/**
- * workbench-probe.mjs — drive the working layer and prove each part of it
- * actually does something.
- *
- *   node scripts/workbench-probe.mjs
- *
- * smoke.mjs covers the shell: does the app boot, do the sections switch,
- * does the sheet open and close. None of that touches what k-workbench.js
- * added, and a feature that is merely *present* in the DOM tells you
- * nothing — the whole reason this file exists is that "the markup is there"
- * and "the control works" are different claims.
- *
- * So every check here reads a real consequence: a morph value that moved,
- * a row that left its section, a count that changed, a banner that appeared.
- * Screenshots land in scripts/shots/wb-*.png.
- */
+// Tests the working layer (typed values, undo, revert, filter, bench, mode banner, sheet resize) by checking real effects on the morph engine; run with `node scripts/workbench-probe.mjs`.
 import { _electron as electron } from 'playwright-core';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -28,10 +13,12 @@ const bin = path.join(APP_DIR, 'node_modules', 'electron', 'dist',
   : process.platform === 'darwin' ? 'Electron.app/Contents/MacOS/Electron'
   : 'electron');
 
+// Waits for a number of milliseconds.
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const errors = [];
 let ok = true;
 
+// Prints a check result and records any failure.
 function expect(label, got, want) {
   const pass = JSON.stringify(got) === JSON.stringify(want);
   if (!pass) ok = false;
@@ -41,9 +28,7 @@ function expect(label, got, want) {
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
 
-/* A throwaway profile — this suite pins controls and resizes the sheet,
-   all of which persist to localStorage, and none of which should land in
-   the operator's real workspace. */
+// Use a throwaway profile, since this test pins controls and resizes the sheet.
 const PROFILE = path.join(os.tmpdir(), 'reface-wb-profile');
 fs.rmSync(PROFILE, { recursive: true, force: true });
 
@@ -54,6 +39,7 @@ const app = await electron.launch({
   timeout: 60_000,
 });
 
+// Finds the app window by URL, since DevTools can open first.
 async function realPage() {
   const t0 = Date.now();
   for (;;) {
@@ -71,6 +57,7 @@ page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 
 await page.waitForLoadState('domcontentloaded');
 
+// Waits until a condition is true in the page, or fails after a timeout.
 async function waitFor(label, fn, timeout = 45_000) {
   const t0 = Date.now();
   for (;;) {
@@ -80,6 +67,7 @@ async function waitFor(label, fn, timeout = 45_000) {
   }
 }
 
+// Saves a screenshot of the page.
 const shot = async (n) => {
   await page.screenshot({ path: path.join(SHOTS, n + '.png') });
   console.log('  shot → scripts/shots/' + n + '.png');
@@ -102,21 +90,14 @@ await page.click('#rf-input-method-begin');
 await waitFor('editor', () =>
   document.getElementById('rf-screen-editor')?.classList.contains('rf-screen-active'));
 
-/* The baseline is taken 1.8s after DOM ready; everything about "edited"
-   is meaningless before that, so wait for it rather than racing it. */
+// Wait for the workbench to finish setting its baseline.
 await waitFor('workbench', () => !!window.kWorkbench);
 await sleep(2200);
 
 console.log('\n── the row ──');
 
-/* ── 1 · Typing an exact value ─────────────────────────────────────────
-   The whole point is that it reaches the morph engine, not just the
-   readout — so the check is the value OBJMorpher holds, not the label. */
-/* Groups other than the first ship closed, and a row inside a closed one
-   still reports a box (the collapse is a 0fr grid row, not display:none),
-   so Playwright will happily aim a click at it and hit the sticky heading
-   sitting on top instead. Open the group and park the row clear of the
-   heading before touching anything in it. */
+// 1. Typing an exact value must reach the morph engine, not just the label.
+// Opens a control's group and scrolls it clear of the sticky heading before using it.
 async function focusRow(param) {
   await page.evaluate((p) => {
     const row = document.querySelector(`.slider-control[data-param="${p}"]`);
@@ -134,16 +115,12 @@ async function focusRow(param) {
   await sleep(300);
 }
 
-/* Clicking the readout should swap it for a field. Waiting on the field
-   rather than sleeping means a failure here says "the editor never opened"
-   instead of "fill timed out", which are different bugs. */
+// Clicks a readout and types a value into the field that appears.
 async function typeValue(param, value) {
   const row = `.slider-control[data-param="${param}"]`;
   await focusRow(param);
   await page.click(`${row} .slider-value`);
-  /* Wait on the editor rather than sleeping: a failure here should say
-     "the readout never opened", which is a different bug from "the value
-     did not stick". */
+  // Wait for the field so a failure says the editor never opened.
   try {
     await page.waitForSelector(`${row} .k-val-edit:not([hidden])`, { timeout: 4000 });
   } catch {
@@ -164,12 +141,8 @@ expect('typed value reaches the morph engine',
 expect('typed value reaches the readout',
   await page.evaluate((s) => document.querySelector(`${s} .slider-value`).textContent, noseRow), '73');
 
-/* ── 2 · It is undoable ────────────────────────────────────────────────
-   A change delivered from code that does not open an undo action is worse
-   than no control at all, because it silently corrupts the history. */
-/* Undo has to put the *slider* back, not just the engine — a face that
-   reverts while the panel still shows the old number is worse than one
-   that does not revert at all. */
+// 2. The change must be undoable.
+// Undo must move the slider back as well as the face.
 await page.click('#btnUndo');
 await sleep(900);
 
@@ -277,8 +250,7 @@ expect('the bench is showing',
   await page.evaluate(() => !document.getElementById('k-bench').hidden), true);
 await shot('wb-03-bench');
 
-/* The real test of moving rather than cloning: the pinned control still
-   drives the engine from its new home. */
+// The pinned control must still drive the engine from the bench.
 const benchJaw = '#k-bench-body .slider-control[data-param="jawWidth"]';
 await page.click(`${benchJaw} .slider-value`);
 await page.waitForSelector(`${benchJaw} .k-val-edit:not([hidden])`, { timeout: 5000 });
@@ -381,9 +353,6 @@ if (real.length) {
 }
 
 console.log(ok && !real.length ? '\nPASS' : '\nFAIL');
-/* app.close() does not always resolve on Windows — the renderer exits but
-   the handle is never handed back, and a run that prints a pass and then
-   hangs for ten minutes is a run nobody will wait for. The verdict is
-   already out; give the close a couple of seconds and go. */
+// app.close() can hang on Windows, so give it a moment and move on.
 await Promise.race([app.close().catch(() => {}), sleep(2500)]);
 process.exit((real.length || !ok) ? 1 : 0);

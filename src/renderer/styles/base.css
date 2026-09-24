@@ -1,35 +1,6 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   ReFace ID — base.css
-   Ground, type, tokens, reset.
+/* base.css: design tokens, fonts, reset and shared utilities for a dark, quiet interface with one accent colour reserved for live values. */
 
-   ── The idea ──────────────────────────────────────────────────────────────
-   Reconstructing a face is closer to colour grading than to filling in a
-   form: the room is dark, one image is the truth, and every control exists
-   to move that image. So the interface is built like a grading suite. The
-   render owns the screen. The instrumentation is quiet apparatus arranged
-   around it — precise, dense where it needs to be, and otherwise silent.
-
-   ── Rules this file enforces ──────────────────────────────────────────────
-   1. Monochrome first. The entire interface is neutral except for one
-      chroma, and that chroma only ever marks a *live* value — a slider
-      fill, a committed selection, focus. Never decoration, never a
-      gradient, never a brand flourish.
-   2. No glow. Depth is a hairline and one soft shadow. Blur is used in
-      exactly one place (the sheet, over the stage) and only because the
-      operator has to keep seeing the face underneath it.
-   3. Film black, not blue-black. The ground carries a faint green cast the
-      way graded blacks do; the text is warm off-white, not cold white.
-      A neutral render sits on it without a colour cast fighting the skin.
-   4. Small radii, hard corners. 3px. Nothing is a pill.
-   5. Grain. A real dark room is never a flat fill.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* ══ Typefaces ═══════════════════════════════════════════════════════════
-   Archivo for interface text — a grotesque with enough weight range to
-   build hierarchy without changing family, and squarer than the geometric
-   sans everything else defaults to. IBM Plex Mono for every number and
-   identifier, because measurements must not shift width while dragging.
-   Both are local: this app has to work in a room with no network. */
+/* Typefaces: Archivo for interface text and IBM Plex Mono for numbers, both bundled locally so the app works offline. */
 
 @font-face {
   font-family: 'Archivo';
@@ -59,11 +30,7 @@
 }
 
 :root {
-  /* ─── Ground ───────────────────────────────────────────────────────────
-     Darkest → lightest. A faint green cast (g one point above r and b)
-     keeps the blacks filmic instead of the blue-black every dark UI
-     defaults to. The stage is the darkest thing on screen so the render
-     always reads as the brightest object. */
+  /* Ground colours, darkest to lightest, with a faint green cast so the blacks look filmic. */
   --k-void:    #060707;
   --k-base:    #0b0c0c;
   --k-raise:   #101111;
@@ -73,9 +40,7 @@
   --k-active:  #2e3130;
   --k-sunken:  #030404;
 
-  /* ─── Lines ────────────────────────────────────────────────────────────
-     Hairlines are white at low alpha, never a grey hex — so they sit
-     correctly on any of the grounds above without being retuned. */
+  /* Hairlines are low-alpha white so they work on any of the grounds. */
   --k-hair:    rgba(255, 255, 255, 0.055);
   --k-edge:    rgba(255, 255, 255, 0.10);
   --k-rule:    rgba(255, 255, 255, 0.15);
@@ -88,14 +53,7 @@
   --t-mute:    #63635f;
   --t-off:     #454644;
 
-  /* ─── The one chroma ───────────────────────────────────────────────────
-     A cold acid lime. It is the complement of skin, so it separates from
-     the render instead of muddying into it, and it belongs to the family
-     of signal colours used on real broadcast and audio hardware rather
-     than to the indigo every dashboard reaches for.
-
-     Reserved for: slider fill, focus ring, active selection, live state.
-     If it is being used to make something look nice, it is being misused. */
+  /* The one accent colour, acid lime, used only for live state: slider fill, focus and active selection. */
   --sig:       #c4e04f;
   --sig-hi:    #d6ee72;
   --sig-lo:    #93a93a;
@@ -113,10 +71,7 @@
   --info:      #8fa8b8;
   --info-dim:  rgba(143, 168, 184, 0.15);
 
-  /* ─── Type ─────────────────────────────────────────────────────────────
-     Sizes are deliberately few. Hierarchy comes from weight, case and
-     colour far more than from size — a dense tool that solves hierarchy
-     with size alone ends up with sixteen sizes and no rhythm. */
+  /* Type: few sizes; hierarchy comes mostly from weight, case and colour. */
   --f-ui:   'Archivo', system-ui, sans-serif;
   --f-num:  'Plex Mono', ui-monospace, monospace;
 
@@ -156,18 +111,12 @@
   --pad:   14px;         /* sheet gutter */
   --pad-y: 11px;
 
-  /* ─── Elevation ───────────────────────────────────────────────────────
-     One shadow, three depths. Deliberately soft and very dark — on a
-     near-black ground a light shadow reads as fog. */
+  /* Elevation: one soft, dark shadow at three depths. */
   --sh-1: 0 1px 2px rgba(0, 0, 0, 0.5);
   --sh-2: 0 8px 24px -6px rgba(0, 0, 0, 0.7);
   --sh-3: 0 24px 60px -12px rgba(0, 0, 0, 0.85);
 
-  /* ─── Motion ──────────────────────────────────────────────────────────
-     Two curves. `--e` is the standard decelerate for anything that moves
-     under its own weight; `--e-out` is for things being dismissed. Every
-     duration is short — an instrument that takes 300ms to acknowledge a
-     click feels broken, not smooth. */
+  /* Motion: two easing curves and short durations so clicks feel instant. */
   --e:      cubic-bezier(0.22, 1, 0.36, 1);
   --e-out:  cubic-bezier(0.4, 0, 1, 1);
   --t-1:    90ms;
@@ -206,11 +155,7 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* ══ Grain ═══════════════════════════════════════════════════════════════
-   A dark room is never a flat fill. This is a single tiled fractal-noise
-   tile at very low opacity over the whole app — it costs one composited
-   layer and it is the difference between "dark theme" and "photographed".
-   pointer-events:none so it is invisible to interaction. */
+/* Grain: a faint noise layer over the whole app so the dark ground isn't a flat fill. */
 
 body::after {
   content: '';
@@ -248,14 +193,9 @@ a { color: var(--sig); text-decoration: none; }
 
 h1, h2, h3, h4 { font-weight: 600; line-height: var(--lh-tight); letter-spacing: var(--tr-tight); }
 
-/* ══ Icons ═══════════════════════════════════════════════════════════════
-   One sprite, one stroke weight, sized by font-size so an icon always
-   matches the text it sits beside. */
+/* Icons */
 
-/* Presentation attributes on the sprite root do NOT cross a <use>
-   boundary — the shadow content inherits from the *referencing* <svg>.
-   So the stroke system is declared here, once, on every icon. Without
-   this the paths fall back to fill:black and vanish on a dark ground. */
+/* Stroke settings live here because presentation attributes don't pass through <use>; without them icons turn black. */
 .i {
   width: 1em;
   height: 1em;
@@ -272,9 +212,7 @@ h1, h2, h3, h4 { font-weight: 600; line-height: var(--lh-tight); letter-spacing:
 
 .i-lg { width: 1.25em; height: 1.25em; }
 
-/* ══ Focus ═══════════════════════════════════════════════════════════════
-   Keyboard focus has to be unmissable on a near-black ground. Pointer
-   focus must add nothing at all. */
+/* Focus: a clear ring for keyboard focus, nothing for mouse focus. */
 
 :focus { outline: none; }
 
@@ -284,8 +222,7 @@ h1, h2, h3, h4 { font-weight: 600; line-height: var(--lh-tight); letter-spacing:
   border-radius: var(--r-1);
 }
 
-/* ══ Scrollbars ══════════════════════════════════════════════════════════
-   Trackless and narrow. Visible enough to grab, quiet enough to forget. */
+/* Scrollbars: narrow and trackless. */
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -300,9 +237,7 @@ h1, h2, h3, h4 { font-weight: 600; line-height: var(--lh-tight); letter-spacing:
 
 /* ══ Type utilities ══════════════════════════════════════════════════════ */
 
-/* The uppercase eyebrow used above every section and field group. Tracked
-   wide, set small, and always in a dim colour — it labels, it never
-   competes. */
+/* The small uppercase label used above sections and field groups. */
 .k-cap {
   font-size: var(--s-micro);
   font-weight: 600;
@@ -319,8 +254,7 @@ h1, h2, h3, h4 { font-weight: 600; line-height: var(--lh-tight); letter-spacing:
   line-height: 1.3;
 }
 
-/* Every number in the app. Tabular so digits never jitter mid-drag, and
-   slightly tightened because Plex Mono sets wide by default. */
+/* Every number: tabular digits so values don't jitter while dragging. */
 .k-num {
   font-family: var(--f-num);
   font-variant-numeric: tabular-nums;
@@ -341,8 +275,7 @@ h1, h2, h3, h4 { font-weight: 600; line-height: var(--lh-tight); letter-spacing:
 .k-mute { color: var(--t-mute); }
 .k-hi   { color: var(--t-hi); }
 
-/* A hairline that stops short of the container edge. Full-bleed rules make
-   a dense panel read as a spreadsheet; inset ones let it breathe. */
+/* A hairline rule inset from the container edges. */
 .k-rule {
   height: 1px;
   background: var(--k-hair);
@@ -351,17 +284,10 @@ h1, h2, h3, h4 { font-weight: 600; line-height: var(--lh-tight); letter-spacing:
 
 .k-hidden { display: none !important; }
 
-/* The `hidden` attribute has no weight of its own — its UA rule is
-   `display: none`, which any class that sets a display beats on cascade
-   order alone. Several elements in the shell are shown and hidden through
-   the property (`el.hidden = …`) *and* laid out with flex, and those two
-   facts silently cancelled: the mode banner stayed a full-width invisible
-   flex box across the top of the stage and swallowed every click aimed at
-   the section tabs behind it. Attribute state wins here, always. */
+/* Make the hidden attribute always win, or a class that sets display keeps the element visible. */
 [hidden] { display: none !important; }
 
-/* Element exists for a binding but must never be seen. Used only for
-   <input type=file> triggers, which are driven by a visible button. */
+/* Hidden element kept only for a binding, such as a file input driven by a visible button. */
 .k-offscreen {
   position: absolute !important;
   width: 1px; height: 1px;
@@ -372,9 +298,7 @@ h1, h2, h3, h4 { font-weight: 600; line-height: var(--lh-tight); letter-spacing:
   border: 0;
 }
 
-/* ══ Reduced motion ══════════════════════════════════════════════════════
-   The JS motion layer reads this too (see motion.js) and switches springs
-   for instant sets, so this only has to cover pure-CSS transitions. */
+/* Reduced motion: the JS motion layer handles its own animations, so this only covers CSS transitions. */
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

@@ -1,16 +1,12 @@
-"""
-Blender Script: Apply Morph Targets to Base Face
-Runs in Blender's background mode via the backend server.
-"""
+"""Blender script that applies morph targets to the base face mesh; run in the background by the backend."""
 
 import bpy
 import json
 import sys
 import os
-import math
 
 def get_args():
-    """Parse arguments passed after '--' in the Blender command."""
+    """Reads the JSON arguments file passed after '--' on the Blender command line."""
     argv = sys.argv
     if '--' in argv:
         args_file = argv[argv.index('--') + 1]
@@ -19,15 +15,12 @@ def get_args():
     return {}
 
 def clear_scene():
-    """Remove all objects from the scene."""
+    """Removes every object from the scene."""
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.object.delete(use_global=False)
 
 def apply_morphs(obj, morph_targets):
-    """
-    Apply morph deformations to the face mesh.
-    Each morph target maps to specific vertex groups and transformations.
-    """
+    """Applies the morph values to the face mesh, using shape keys if present or simple scaling otherwise."""
     
     # Morph region definitions — maps parameter names to vertex manipulation rules
     morph_regions = {
@@ -117,6 +110,7 @@ def apply_morphs(obj, morph_targets):
                         obj.scale.z *= mapped_value
 
 def main():
+    """Loads the base model (or a sphere), applies the morphs and exports the result."""
     args = get_args()
     
     base_model_path = args.get('base_model', '')
