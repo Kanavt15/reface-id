@@ -858,6 +858,7 @@ class HairSystem {
   // Loads the current beard model (or uses the cached one) and fits it to the face.
   generateBeard() {
     if (this.hairTintPainter) this.hairTintPainter.onModelChanged('beard');
+    if (this.skinTextureSystem) this.skinTextureSystem.setBeardShadow(this.beardStyle !== 'none');
     this._clearGroup(this._beardGroup);
     this._beardContainer = null;
     const loadId = this._beardLoadId = (this._beardLoadId || 0) + 1;

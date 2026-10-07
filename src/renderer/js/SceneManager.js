@@ -157,7 +157,8 @@ class SceneManager {
   static get SKIN() {
     return {
       roughness: 0.62,
-      specularIntensity: 0.55,
+      // Well below skin's real 2.8% reflectance (about 1.4% here) so the face reads soft and matte-satin and the lit front doesn't turn whiter than the sides.
+      specularIntensity: 0.50,
       // Restrained oil and fuzz layers over the broad skin reflection.
       clearcoat: 0.025,
       clearcoatRoughness: 0.85,
@@ -612,8 +613,8 @@ class SceneManager {
     this._configureShadow(keyLight, true);
     this.scene.add(keyLight);
 
-    // A neutral fill keeps the shadowed cheek readable without a second shadow.
-    const fillLight = new THREE.DirectionalLight(0xf4f5f7, 0.70);
+    // A gentle directional fill; a strong one lit only the front plane, leaving a visible colour edge down the cheek in side views.
+    const fillLight = new THREE.DirectionalLight(0xf4f5f7, 0.30);
     fillLight.position.set(-2.7, 0.65, 2.3);
     this.scene.add(fillLight);
 
@@ -626,16 +627,21 @@ class SceneManager {
     rimLight2.position.set(2.1, 1.2, -2.2);
     this.scene.add(rimLight2);
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.18);
+    // A warm bounce from below, like a reflector under the chin, so the downward-facing lower cheeks and jaw don't sink into a murky band.
+    const bounceLight = new THREE.DirectionalLight(0xfff4ea, 0.32);
+    bounceLight.position.set(0.2, -2.2, 1.4);
+    this.scene.add(bounceLight);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
     this.scene.add(ambientLight);
 
-    const hemiLight = new THREE.HemisphereLight(0xf0f2f5, 0x77736d, 0.14);
+    const hemiLight = new THREE.HemisphereLight(0xf0f2f5, 0x77736d, 0.18);
     this.scene.add(hemiLight);
 
     // Keep a handle so Structure mode can raise the fill, since it has no environment light.
     this._ambientLight = ambientLight;
     this._hemiLight = hemiLight;
-    this.lights = [keyLight, fillLight, rimLight, rimLight2, ambientLight, hemiLight];
+    this.lights = [keyLight, fillLight, rimLight, rimLight2, bounceLight, ambientLight, hemiLight];
     this._applyModeLighting();
     this.updateShadowFrustums();
   }
@@ -723,9 +729,9 @@ class SceneManager {
   // Adjusts the ambient fill for the current mode.
   _applyModeLighting() {
     const photo = this.renderMode === 'photoreal';
-    // Use restrained neutral bounce in Photoreal and stronger fill in Structure.
-    if (this._ambientLight) this._ambientLight.intensity = photo ? 0.18 : 0.55;
-    if (this._hemiLight) this._hemiLight.intensity = photo ? 0.14 : 0.45;
+    // Photoreal leans on soft all-round ambient so the front and sides of the face stay one even tone; Structure gets stronger fill.
+    if (this._ambientLight) this._ambientLight.intensity = photo ? 0.45 : 0.55;
+    if (this._hemiLight) this._hemiLight.intensity = photo ? 0.18 : 0.45;
   }
 
   // Toggles between Photoreal and Structure and returns the new mode's label.
@@ -797,6 +803,8 @@ class SceneManager {
     this._hemiLight = null;
     // Empty the shadow list so old lights aren't re-aimed.
     this._shadowLights = [];
+    // The next preset's lights are placed for a front view, so the camera-follow rig re-reads them.
+    this._rigYaw = undefined;
   }
 
   // Cycles to the next lighting preset.
@@ -959,9 +967,28 @@ class SceneManager {
   animate() {
     requestAnimationFrame(() => this.animate());
     this.controls.update();
+    this._followCamera();
     if (this.postFX) this.postFX.tick();
     this._refreshShadows();
     this.renderFrame();
+  }
+
+  // Turns the light rig with the camera's orbit around the head, so whichever side you look at is lit like the front (as in Blender's and ZBrush's viewport lighting).
+  _followCamera() {
+    if (!this.lights || !this.lights.length) return;
+    const t = this.controls.target, c = this.camera.position;
+    const yaw = Math.atan2(c.x - t.x, c.z - t.z);
+    if (this._rigYaw !== undefined && Math.abs(yaw - this._rigYaw) < 1e-4) return;
+    const moved = this._rigYaw === undefined ? Infinity : Math.abs(yaw - this._rigYaw);
+    this._rigYaw = yaw;
+    const cos = Math.cos(yaw), sin = Math.sin(yaw);
+    for (const light of this.lights) {
+      if (light.isAmbientLight || light.isHemisphereLight) continue;
+      const base = light.userData.rigPos || (light.userData.rigPos = light.position.clone());
+      light.position.set(base.x * cos + base.z * sin, base.y, base.z * cos - base.x * sin);
+    }
+    // Rebuild shadows once the rig has turned visibly; the regular refresh catches the last fraction of a degree.
+    if (moved > 0.004) this.invalidateShadows();
   }
 }
 

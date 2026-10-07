@@ -40,6 +40,8 @@ class SkinTextureSystem {
 
     this.params = { ...SkinTextureSystem.DEFAULT_PARAMS };
     this._skinColorHex = '#cb9a78';
+    // Stubble shadow on the jaw and upper lip, only drawn while a beard is selected.
+    this._beardShadow = false;
     this._seed = 42;
     this._initialized = false;
 
@@ -60,6 +62,8 @@ class SkinTextureSystem {
       microRelief: 50,
       // Warm cheek flush, off by default because it reads as make-up.
       cheekFlush: false,
+      // Red blotches, capillaries and nose redness (0-100), off by default so the complexion stays even.
+      redness: 0,
     };
   }
 
@@ -79,8 +83,35 @@ class SkinTextureSystem {
     if (this._seed === 0) this._seed = 1;
   }
 
-  // Smooth, tileable value noise on a grid.
+  // Smooth value noise sampled at each pixel's 3D surface position, so the pattern runs unbroken across UV seams.
   _valueNoise(R, gridSize, seed) {
+    if (!this._hasPosMap) return this._valueNoiseUV(R, gridSize, seed);
+    const pm = this._posMap, N = R * R, out = new Float32Array(N);
+    // Match the old UV cell size: gridSize cells per UV unit, which spans _mmPerUV millimetres of skin.
+    const f = Math.max(2, gridSize) / (this._mmPerUV / 100);
+    const fade = SkinTextureSystem._fade;
+    const salt = Math.imul((seed | 0) + 1, 0x9e3779b1);
+    const hash = (x, y, z) => {
+      let h = Math.imul(x, 0x8da6b343) ^ Math.imul(y, 0xd8163841) ^ Math.imul(z, 0xcb1ab31f) ^ salt;
+      h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d);
+      h = Math.imul(h ^ (h >>> 12), 0x297a2d39);
+      return ((h ^ (h >>> 15)) >>> 0) / 4294967296;
+    };
+    for (let i = 0; i < N; i++) {
+      const x = pm[i * 3] * f + 101.3, y = pm[i * 3 + 1] * f + 211.7, z = pm[i * 3 + 2] * f + 307.1;
+      const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
+      const u = fade(x - ix), v = fade(y - iy), w = fade(z - iz);
+      const a = hash(ix, iy, iz), b = hash(ix + 1, iy, iz), c = hash(ix, iy + 1, iz), d = hash(ix + 1, iy + 1, iz);
+      const e = hash(ix, iy, iz + 1), g = hash(ix + 1, iy, iz + 1), h = hash(ix, iy + 1, iz + 1), k = hash(ix + 1, iy + 1, iz + 1);
+      const near = (a + (b - a) * u) + ((c + (d - c) * u) - (a + (b - a) * u)) * v;
+      const far = (e + (g - e) * u) + ((h + (k - h) * u) - (e + (g - e) * u)) * v;
+      out[i] = near + (far - near) * w;
+    }
+    return out;
+  }
+
+  // Flat UV-space value noise, only used if the 3D position map could not be built.
+  _valueNoiseUV(R, gridSize, seed) {
     this._resetSeed(seed);
     const gs = Math.max(2, gridSize);
     const grid = new Float32Array((gs + 1) * (gs + 1));
@@ -356,8 +387,8 @@ class SkinTextureSystem {
     const N = R * R;
     const pm = this._posMap;
 
-    const names = ['cheek', 'nose', 'ear', 'underEye', 'forehead', 'temple',
-                   'chin', 'beard', 'lip', 'tzone', 'roughCheek', 'roughLip'];
+    const names = ['cheek', 'nose', 'ear', 'underEye', 'forehead',
+                   'chin', 'beard', 'lip', 'tzone', 'roughCheek'];
     const z = {};
     for (const n of names) z[n] = new Uint8Array(N);
 
@@ -388,16 +419,13 @@ class SkinTextureSystem {
 
       z.forehead[i] = q(this._gw3d(px, py, pz, 0, 0.60, 1.07, 0.30, 0.15, 0.25));
 
-      z.temple[i] = q(Math.max(
-        this._gw3d(px, py, pz, -0.60, 0.35, 0.70, 0.15, 0.15, 0.20),
-        this._gw3d(px, py, pz, 0.60, 0.35, 0.70, 0.15, 0.15, 0.20)));
-
       z.chin[i] = q(this._gw3d(px, py, pz, 0, -0.60, 1.08, 0.15, 0.12, 0.20));
 
       z.beard[i] = q(Math.max(
         this._gw3d(px, py, pz, 0, -0.62, 1.02, 0.34, 0.16, 0.34),
         this._gw3d(px, py, pz, 0, -0.22, 1.14, 0.16, 0.05, 0.12)));
 
+      // Soft lip zone, only used to orient the procedural line direction; lip colour, gloss and pore removal are drawn per pixel in SkinShader.
       z.lip[i] = q(this._gw3d(px, py, pz, 0, -0.30, 1.12, 0.15, 0.06, 0.12));
 
       // Roughness pass zones — same regions, different radii.
@@ -410,7 +438,6 @@ class SkinTextureSystem {
         this._gw3d(px, py, pz, -0.40, -0.15, 0.95, 0.18, 0.18, 0.25),
         this._gw3d(px, py, pz, 0.40, -0.15, 0.95, 0.18, 0.18, 0.25)));
 
-      z.roughLip[i] = z.lip[i];
     }
 
     this._zoneCache = z;
@@ -528,6 +555,14 @@ class SkinTextureSystem {
     // Micro relief is a shader value, so apply it now without rebuilding maps.
     if (key === 'microRelief') this.applyMicroRelief();
     if (key === 'wrinkleDepth' || key === 'underEyeIntensity') this.applyWrinkleControls();
+    if (key === 'redness') this.applyRedness();
+  }
+
+  // Sends the redness setting to the face photo layer in the skin shader.
+  applyRedness() {
+    this.meshGroup?.traverse(child => {
+      if (child.isMesh && window.SkinShader) SkinShader.setParams(child.material, { faceRedness: this.params.redness / 100 });
+    });
   }
 
   // Sends the wrinkle and under-eye settings to the skin shader.
@@ -553,6 +588,12 @@ class SkinTextureSystem {
   // Sets the base skin colour and rebuilds the maps.
   setSkinColor(hex) {
     this._skinColorHex = hex;
+    if (this._initialized) this.regenerate();
+  }
+  // Turns the stubble shadow under a beard on or off, rebuilding the maps only when it changes.
+  setBeardShadow(on) {
+    if (this._beardShadow === !!on) return;
+    this._beardShadow = !!on;
     if (this._initialized) this.regenerate();
   }
   // Returns the skin settings.
@@ -624,6 +665,11 @@ class SkinTextureSystem {
 
     const Z = this._zones();
     const INV255 = 1 / 255;
+    // Regional tints scale with skin tone too, so a deep complexion doesn't get an orange nose or grey under-eyes.
+    const ZT = INV255 * tone;
+    const beardZT = this._beardShadow ? ZT : 0;
+    // The Redness slider scales every red layer: flush blotches, capillaries, nose, ear and chin tint.
+    const redF = this.params.redness / 100;
 
     for (let y = 0; y < R; y++) {
       for (let x = 0; x < R; x++) {
@@ -632,20 +678,21 @@ class SkinTextureSystem {
 
         let r = baseColor.r, g = baseColor.g, b = baseColor.b;
 
-        // Keep these broad tone fields near neutral so the pigment fields control the colour.
-        const cv = (colorVar[ni] - 0.5) * 36 * tone;
+        // Keep these broad tone fields near neutral so the skin reads clean and even, not blotchy.
+        const cv = (colorVar[ni] - 0.5) * 22 * tone;
         r += cv * 1.15; g += cv * 1.0; b += cv * 0.80;
-        const lv = (largeVar[ni] - 0.5) * 18 * tone;
+        const lv = (largeVar[ni] - 0.5) * 10 * tone;
         r += lv * 1.05; g += lv * 1.0; b += lv * 0.88;
         const mv = (microVar[ni] - 0.5) * 10 * tone;
         r += mv; g += mv * 0.5; b -= mv * 0.3;
 
-        // Haemoglobin: perfusion blotches. Red up, green and blue down.
-        const hv = (hemoVar[ni] - 0.5) * 2 * tone;
-        r += hv * 16.0; g -= hv * 8.0; b -= hv * 5.0;
+        // Haemoglobin: blood absorbs green and blue, so flushed patches redden while low-blood patches only pale a little (subtracting red there turned whole areas olive).
+        const hh = (hemoVar[ni] - 0.5) * 2;
+        const hv = (hh > 0 ? hh * redF : hh * 0.3) * tone;
+        r += hv * 6.0; g -= hv * 10.0; b -= hv * 7.0;
 
         // Melanin darkens and yellows, more with sun damage.
-        const melAmt = ((melVar[ni] - 0.5) * 2) * (6.0 + sunFactor * 5.0) * tone;
+        const melAmt = ((melVar[ni] - 0.5) * 2) * (4.0 + sunFactor * 5.0) * tone;
         r -= melAmt * 0.55; g -= melAmt * 0.75; b -= melAmt * 1.05;
 
         // Melanin speckle: sharpened so it is grain, not haze.
@@ -657,41 +704,35 @@ class SkinTextureSystem {
 
         if (hasPos) {
           const capW = (Z.nose[ni] * INV255) * 0.9 + (Z.cheek[ni] * INV255) * 0.45;
-          const capAmt = cap * capW * (0.5 + sunFactor * 0.8 + ageFactor * 0.6) * 26 * tone;
+          const capAmt = cap * capW * (0.5 + sunFactor * 0.8 + ageFactor * 0.6) * 26 * tone * redF;
           r += capAmt; g -= capAmt * 0.55; b -= capAmt * 0.45;
 
           // Optional cheek flush, since it reads as make-up.
           if (cheekFlush) {
-            const cheekW = Z.cheek[ni] * INV255;
+            const cheekW = Z.cheek[ni] * ZT;
             r += cheekW * 20; g -= cheekW * 3; b -= cheekW * 9;
           }
 
-          const noseW = Z.nose[ni] * INV255;
+          const noseW = Z.nose[ni] * ZT * redF;
           r += noseW * 16; g -= noseW * 3; b -= noseW * 5;
 
-          const earW = Z.ear[ni] * INV255;
+          const earW = Z.ear[ni] * ZT * redF;
           r += earW * 14; g -= earW * 2; b -= earW * 5;
 
-          // Under-eye: darker and bluer, deepening with age.
-          const dc = (Z.underEye[ni] * INV255) * (12 + ageFactor * 22);
-          r -= dc * 0.7; g -= dc * 0.9; b -= dc * 0.1;
+          // Under-eye: a faint neutral shadow that deepens with age (a bluer tint read as a bruise).
+          const dc = (Z.underEye[ni] * ZT) * (6 + ageFactor * 18);
+          r -= dc * 0.75; g -= dc * 0.85; b -= dc * 0.55;
 
-          const fhW = Z.forehead[ni] * INV255;
+          const fhW = Z.forehead[ni] * ZT;
           r += fhW * 7; g += fhW * 3;
 
-          const tmW = Z.temple[ni] * INV255;
-          r -= tmW * 9; g -= tmW * 2; b += tmW * 11;
-
-          const chinW = Z.chin[ni] * INV255;
+          const chinW = Z.chin[ni] * ZT * redF;
           r += chinW * 5; g -= chinW * 2;
 
-          // Beard shadow across jaw, chin and upper lip.
-          const beardW = Z.beard[ni] * INV255;
+          // Beard shadow across jaw, chin and upper lip, which also hides skin between the beard strands.
+          const beardW = Z.beard[ni] * beardZT;
           r -= beardW * 13; g -= beardW * 11; b -= beardW * 4;
 
-          // Lips are redder and darker than the skin around them, kept to a muted rose.
-          const lipW = Z.lip[ni] * INV255;
-          r += lipW * 26 * tone; g -= lipW * 30 * tone; b -= lipW * 16 * tone;
         }
 
         // ── Freckles ──
@@ -837,27 +878,24 @@ class SkinTextureSystem {
           const ck = Z.roughCheek[ni] * INV255;
           rough += ck * 0.08;
 
-          // Lips are the glossiest part of the face.
-          const lp = Z.roughLip[ni] * INV255;
-          rough -= lp * 0.34;
 
-          // Pores are dense on the nose, medium on the cheeks, and almost none on lips, eyelids and ears.
+          // Pores are dense on the nose and medium on the cheeks; under the eyes and on the ears they halve gradually (cutting them by 85% left smooth patches beside pored skin; SkinShader clears the lips).
           const nose = Z.nose[ni] * INV255;
           const ue = Z.underEye[ni] * INV255;
           const ear = Z.ear[ni] * INV255;
           const fh = Z.forehead[ni] * INV255;
           dens += nose * 0.55 + tz * 0.30 + ck * 0.12 + fh * 0.10;
-          dens *= (1 - lp * 0.95) * (1 - ue * 0.85) * (1 - ear * 0.8);
+          dens *= (1 - ue * 0.5) * (1 - ear * 0.5);
 
-          // Lips are heavily lined; forehead and eye corners gain lines with age.
-          lineG += lp * 0.45 + fh * 0.15 * ageFactor + ue * 0.2 * ageFactor - nose * 0.2;
+          // Forehead and eye corners gain lines with age.
+          lineG += fh * 0.15 * ageFactor + ue * 0.2 * ageFactor - nose * 0.2;
         }
 
         rough += ageFactor * 0.12;
 
-        // Keep a soft highlight at default while keeping oily and dry areas different.
-        rough = 0.48 + rough * 0.26;
-        rough = rough < 0.42 ? 0.42 : rough > 0.86 ? 0.86 : rough;
+        // Map to real skin roughness: about 0.61 on the cheeks, 0.50 on the oily T-zone and 0.40 on moist lips, a soft satin rather than a glossy sheen.
+        rough = 0.37 + rough * 0.40;
+        rough = rough < 0.24 ? 0.24 : rough > 0.85 ? 0.85 : rough;
 
         dens *= densGain;
         dens = dens < 0 ? 0 : dens > 1 ? 1 : dens;
@@ -1020,6 +1058,7 @@ class SkinTextureSystem {
           poreScale: SkinTextureSystem.microReliefToPoreScale(this.params.microRelief),
           wrinkleStrength: this.params.wrinkleDepth / 100,
           underEyeStrength: this.params.underEyeEnabled ? this.params.underEyeIntensity / 100 : 0,
+          faceRedness: this.params.redness / 100,
         });
         if (this.wrinklePainter) SkinShader.setWrinkleMap(mat, this.wrinklePainter.texture);
       }

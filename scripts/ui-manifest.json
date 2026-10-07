@@ -4842,6 +4842,29 @@
                 {
                   "kind": "block",
                   "block": {
+                    "type": "slider",
+                    "param": "skinRedness",
+                    "label": "Redness",
+                    "id": "sliderSkinRedness",
+                    "controlId": null,
+                    "valueId": "valSkinRedness",
+                    "title": "Red blotches, capillaries and nose redness",
+                    "sliderClass": [
+                      "skin-texture-slider"
+                    ],
+                    "min": "0",
+                    "max": "100",
+                    "step": null,
+                    "value": "0",
+                    "valueText": "0",
+                    "data": {
+                      "data-param": "skinRedness"
+                    }
+                  }
+                },
+                {
+                  "kind": "block",
+                  "block": {
                     "type": "checkbox",
                     "id": "cheekFlushToggle",
                     "label": "Cheek flush",

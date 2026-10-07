@@ -474,15 +474,7 @@ textarea.k-field-input { height: auto; min-height: 84px; padding: 10px 12px; lin
 #viewport { position: absolute; inset: 0; }
 #viewport canvas { width: 100% !important; height: 100% !important; display: block; }
 
-/* A vignette that keeps floating controls readable over bright skin. */
-.k-stage::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  background: radial-gradient(78% 68% at 50% 46%, transparent 46%, rgba(0, 0, 0, 0.46) 100%);
-}
+/* No overlay on the stage: a vignette here darkened and muddied the skin anywhere off-centre, and every floating control already has its own dark backing. */
 
 /* Everything that floats sits above the vignette. */
 .k-float { position: absolute; z-index: var(--z-hud); }

@@ -1207,6 +1207,7 @@ class UIController {
       // shaderOnly settings change a uniform, so they apply on the same frame.
       sliderMicroRelief:   { param: 'microRelief',  valId: 'valMicroRelief', shaderOnly: true },
       sliderSunDamage:     { param: 'sunDamage',    valId: 'valSunDamage' },
+      sliderSkinRedness:   { param: 'redness',      valId: 'valSkinRedness' },
     };
   }
 

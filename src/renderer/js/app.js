@@ -177,6 +177,8 @@
       console.log('[App] Initializing Skin Texture System...');
       skinTextureSystem.init(group);
       sceneManager.skinTextureSystem = skinTextureSystem;
+      hairSystem.skinTextureSystem = skinTextureSystem;
+      skinTextureSystem.setBeardShadow(hairSystem.beardStyle !== 'none');
       console.log('[App] Skin Texture System initialized');
 
       // ── Initialize Wrinkle Painter ──
