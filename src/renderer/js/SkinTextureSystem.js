@@ -554,7 +554,8 @@ class SkinTextureSystem {
     this.params[key] = Math.max(0, Math.min(100, value));
     // Micro relief is a shader value, so apply it now without rebuilding maps.
     if (key === 'microRelief') this.applyMicroRelief();
-    if (key === 'wrinkleDepth' || key === 'underEyeIntensity') this.applyWrinkleControls();
+    // if (key === 'wrinkleDepth' || key === 'underEyeIntensity') this.applyWrinkleControls();
+    if (key === 'age' || key === 'wrinkleDepth' || key === 'underEyeIntensity') this.applyWrinkleControls();
     if (key === 'redness') this.applyRedness();
   }
 
@@ -570,10 +571,18 @@ class SkinTextureSystem {
     this.meshGroup?.traverse(child => {
       if (child.isMesh && window.SkinShader) SkinShader.setParams(child.material, {
         wrinkleStrength: this.params.wrinkleDepth / 100,
+        ageWrinkleStrength: SkinTextureSystem.ageToWrinkleStrength(this.params.age),
         underEyeStrength: this.params.underEyeEnabled ? this.params.underEyeIntensity / 100 : 0,
       });
     });
     // Wrinkles use their own shader maps, so no CPU rebuild is needed.
+  }
+
+  // Soft human folds exist at the starting age and deepen continuously with age.
+  static ageToWrinkleStrength(age) {
+    const years = Number.isFinite(Number(age)) ? Number(age) : 30;
+    // return 0.12 + Math.max(0, Math.min(1, (years - 18) / 62)) * 0.90;
+    return 0.12 + Math.max(0, Math.min(1, years / 100)) * 0.90;
   }
 
   // Applies the micro relief to every skin material.
@@ -1057,6 +1066,7 @@ class SkinTextureSystem {
         SkinShader.setParams(mat, {
           poreScale: SkinTextureSystem.microReliefToPoreScale(this.params.microRelief),
           wrinkleStrength: this.params.wrinkleDepth / 100,
+          ageWrinkleStrength: SkinTextureSystem.ageToWrinkleStrength(this.params.age),
           underEyeStrength: this.params.underEyeEnabled ? this.params.underEyeIntensity / 100 : 0,
           faceRedness: this.params.redness / 100,
         });

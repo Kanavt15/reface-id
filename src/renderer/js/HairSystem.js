@@ -499,7 +499,10 @@ class HairSystem {
     container.rotation.y = (curlF > 0 ? curlF * 0.15 : 0) + rotOffsetY;
 
     // Density changes strand coverage and roughness while keeping the strands solid.
-    const d = Math.max(0, Math.min(HairSystem.MAX_HAIR_DENSITY, density)) / 100;
+    // const d = Math.max(0, Math.min(HairSystem.MAX_HAIR_DENSITY, density)) / 100;
+    // Keep the saved slider value; every hairstyle renders at half its density.
+    const d = Math.max(0, Math.min(HairSystem.MAX_HAIR_DENSITY, density)) / 200;
+    container.visible = d > 0;
     const baseDensity = Math.min(1, d);
     const uniforms = this._hairMat.userData.strandSheen?.uniforms;
     if (uniforms) uniforms.uHairDensity.value = Math.max(1, d);

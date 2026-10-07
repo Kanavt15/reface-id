@@ -819,6 +819,8 @@ class SkinShader {
       // Broader complexion detail remains readable at full-face framing.
       complexionDetail: 0.10,
       wrinkleStrength: 1.0,
+      // ageWrinkleStrength: 0.29419354838709677,
+      ageWrinkleStrength: 0.39,
       underEyeStrength: 0.0,
       fineCreaseStrength: 1.0,
       faceColourStrength: 0.65,
@@ -866,6 +868,7 @@ class SkinShader {
       uAnatomyAge: { value: anatomy.age },
       uAnatomyReady: { value: anatomy.ready },
       uWrinkleStrength: { value: cfg.wrinkleStrength },
+      uAgeWrinkleStrength: { value: cfg.ageWrinkleStrength },
       uUnderEyeStrength: { value: cfg.underEyeStrength },
       uUnderEyeMap: { value: SkinShader.getUnderEyeMap() },
       // Neutral eye positions and sizes; EyeSystem updates these as the eyes move.
@@ -946,6 +949,7 @@ class SkinShader {
         'uniform sampler2D uAnatomyAge;\n' +
         'uniform float uAnatomyReady;\n' +
         'uniform float uWrinkleStrength;\n' +
+        'uniform float uAgeWrinkleStrength;\n' +
         'uniform float uUnderEyeStrength;\n' +
         'uniform sampler2D uUnderEyeMap;\n' +
         'uniform vec4 uUnderEyeLeft;\n' +
@@ -1089,6 +1093,7 @@ class SkinShader {
           skinSpecOcclusion = clamp( pit * resolved * uPoreScale * 3.0 * uPoreSpecOcclusion, 0.0, 0.85 ) * uSkinEnabled;
           vec2 anatomyUv = ( vSkinPosition.xy - vec2( -1.05, -1.80 ) ) / vec2( 2.10, 3.25 );
           vec4 fineCrease = texture2D( uAnatomyFine, anatomyUv );
+          vec4 ageCrease = texture2D( uAnatomyAge, anatomyUv );
           float anatomyMask = smoothstep( 0.10, 0.60, vSkinPosition.z ) * uAnatomyReady;
           float lipRegion = 1.0 - smoothstep( -0.12, -0.06, vSkinPosition.y );
           float fineStrength = lipRegion * uFineCreaseStrength;
@@ -1097,6 +1102,16 @@ class SkinShader {
           vec2 creaseGradient = ( fineCrease.xy - vec2( 128.0 / 255.0 ) ) * 2.0 * fineStrength;
           skinAnatomyGradient = vec3( creaseGradient, 0.0 ) * anatomyMask;
           float creaseDepth = fineCrease.z * fineStrength;
+          // Forehead, brow compression, smile lines and cheek folds follow rest space.
+          // Eye creases use the live eye frames below, so they move with the eyes.
+          float atlasEyeRegion = smoothstep( 0.10, 0.16, abs( vSkinPosition.x ) )
+            * ( 1.0 - smoothstep( 0.64, 0.72, abs( vSkinPosition.x ) ) )
+            * smoothstep( -0.02, 0.02, vSkinPosition.y )
+            * ( 1.0 - smoothstep( 0.32, 0.36, vSkinPosition.y ) );
+          float ageStrength = uAgeWrinkleStrength * ( 1.0 - atlasEyeRegion );
+          skinAnatomyGradient += vec3( ( ageCrease.xy - vec2( 128.0 / 255.0 ) ) * 2.0, 0.0 )
+            * ageStrength * anatomyMask;
+          creaseDepth += ageCrease.z * ageStrength;
           // A restrained contact term keeps fine folds readable under diffuse fill.
           diffuseColor.rgb *= 1.0 - clamp( creaseDepth * 0.32, 0.0, 0.22 ) * anatomyMask * uSkinEnabled;
           float eyeSide = vSkinCurrentPosition.x < ( uUnderEyeLeft.x + uUnderEyeRight.x ) * 0.5 ? -1.0 : 1.0;
@@ -1109,7 +1124,9 @@ class SkinShader {
           vec2 eyeUv = ( eyeLocal - vec2( -0.20, -0.18 ) ) / vec2( 0.52, 0.26 );
           float liveEyeRegion = smoothstep( 0.0, 0.06, eyeUv.x ) * ( 1.0 - smoothstep( 0.94, 1.0, eyeUv.x ) )
             * smoothstep( 0.0, 0.06, eyeUv.y ) * ( 1.0 - smoothstep( 0.94, 1.0, eyeUv.y ) );
-          float eyeStrength = liveEyeRegion * smoothstep( 0.10, 0.60, vSkinPosition.z ) * uUnderEyeStrength;
+          // float eyeStrength = liveEyeRegion * smoothstep( 0.10, 0.60, vSkinPosition.z ) * uUnderEyeStrength;
+          float eyeStrength = liveEyeRegion * smoothstep( 0.10, 0.60, vSkinPosition.z )
+            * ( 0.08 + uAgeWrinkleStrength * 0.35 + uUnderEyeStrength );
           vec3 eyeFold = texture2D( uUnderEyeMap, eyeUv ).rgb;
           vec2 eyeGradient = ( eyeFold.rg * 255.0 - 128.0 ) / 127.0;
           skinEyeGradient = vec3( eyeAxisX * eyeGradient.x + eyeAxisY * eyeGradient.y, 0.0 ) * eyeStrength;
@@ -1316,6 +1333,7 @@ class SkinShader {
       albedoDetail: 'uAlbedoDetail',
       complexionDetail: 'uComplexionDetail',
       wrinkleStrength: 'uWrinkleStrength',
+      ageWrinkleStrength: 'uAgeWrinkleStrength',
       underEyeStrength: 'uUnderEyeStrength',
       fineCreaseStrength: 'uFineCreaseStrength',
       faceColourStrength: 'uFaceColourStrength',

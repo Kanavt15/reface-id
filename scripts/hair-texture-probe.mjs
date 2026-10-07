@@ -150,7 +150,8 @@ try {
       });
       const { samples, sameGeometry, noRecompile } = result.density;
       assert(sameGeometry && noRecompile, 'density changes reuse geometry and shaders');
-      assert(samples.slice(0, 5).every(s => s.layers === Math.ceil(s.value / 100) && s.densityUniform === s.value / 100), 'extended density reaches geometry and shader');
+      // assert(samples.slice(0, 5).every(s => s.layers === Math.ceil(s.value / 100) && s.densityUniform === s.value / 100), 'extended density reaches geometry and shader');
+      assert(samples.slice(0, 5).every(s => s.layers === Math.ceil(s.value / 200) && s.densityUniform === Math.max(1, s.value / 200)), 'half slider density reaches geometry and shader');
       assert(samples[4].coverage > samples[0].coverage, style + ' gets more actual fibre coverage at 300');
       assert(samples.slice(1, 5).every((s, i) => s.coverage >= samples[i].coverage * 0.999), style + ' coverage increases through fractional density levels');
       assert.equal(samples[5].coverage, samples[0].coverage, 'returning to 100 restores the original coverage');

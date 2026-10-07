@@ -227,6 +227,8 @@ class UIController {
 
     // Reset group buttons
     document.querySelectorAll('.btn-reset-group').forEach(btn => {
+      // Close buttons share this class but have no morph group to reset.
+      if (!btn.dataset.group) return;
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const group = btn.dataset.group;
@@ -1114,6 +1116,10 @@ class UIController {
         if (valEl) valEl.textContent = v;
 
         if (this.skinTextureSystem) {
+          if (cfg.param === 'age' || cfg.param === 'poreDetail') {
+            this.caseManager.updateAppearance('ageProgression', null);
+            this._syncAgeProgressionUI();
+          }
           this.skinTextureSystem.setParam(cfg.param, v);
 
           // setParam already sent this one to the shader, so there's no need to rebuild the maps.
@@ -1184,6 +1190,7 @@ class UIController {
     // Reset button
     document.getElementById('btnResetSkinTexture')?.addEventListener('click', () => {
       this.caseManager.pushState('Reset skin texture');
+      this.caseManager.updateAppearance('ageProgression', null);
       if (this.skinTextureSystem) {
         this.skinTextureSystem.params = { ...SkinTextureSystem.DEFAULT_PARAMS };
         this.skinTextureSystem.regenerate();
@@ -1227,10 +1234,12 @@ class UIController {
     if (underEyeToggle) underEyeToggle.checked = !!p.underEyeEnabled;
     const underEyeIntensity = document.getElementById('sliderUnderEyeIntensity');
     if (underEyeIntensity) underEyeIntensity.disabled = !p.underEyeEnabled;
+    this._syncAgeProgressionUI();
   }
 
   // ─── Age Progression Controls ────────────────────────────────────────────
 
+  /* Previous overlay-only age controls retained for reference.
   // Wires the age progression overlay's age cards, undo, redo and close buttons.
   bindAgeProgressionControls() {
     // Use event delegation on the overlay container since buttons are initially hidden
@@ -1348,6 +1357,97 @@ class UIController {
 
     this.caseManager.updateAppearance('skinTextureParams', this.skinTextureSystem.getParams());
     this.addHistory(`Applied +${years} years age progression (pores)`);
+    this.updatePropertyPanel();
+  }
+  */
+
+  // Both the side panel and legacy overlay use the same preview controls.
+  bindAgeProgressionControls() {
+    for (const id of ['ageProgressionPanel', 'ageProgressionOverlay']) {
+      document.getElementById(id)?.addEventListener('click', event => {
+        const card = event.target.closest('.age-card');
+        if (card) this.applyAgeProgression(Number(card.dataset.years));
+        else if (event.target.closest('#btnResetAgeProgression')) this.resetAgeProgression();
+        else if (event.target.closest('#btnAgeUndo')) this.undo();
+        else if (event.target.closest('#btnAgeRedo')) this.redo();
+        else if (event.target.closest('#btnCloseAgeProgression, #btnCloseAgeOverlay')) {
+          event.stopPropagation();
+          this.toggleAgeProgressionPanel(false);
+        }
+      });
+    }
+    this._syncAgeProgressionUI();
+  }
+
+  toggleAgeProgressionPanel(open) {
+    const panel = document.getElementById('ageProgressionPanel');
+    const header = panel?.querySelector('.control-group-header');
+    const body = panel?.querySelector('.control-group-body');
+    if (!header || !body) return;
+    const show = open ?? body.classList.contains('collapsed');
+    if (show) document.querySelector('.panel-tab[data-panel="appearance"]')?.click();
+    panel.style.display = '';
+    header.classList.toggle('collapsed', !show);
+    body.classList.toggle('collapsed', !show);
+    document.getElementById('btnAgeProgression')?.classList.toggle('active', show);
+    // if (show) panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    // The shell restores saved group visibility on the next frame after a tab switch.
+    if (show) requestAnimationFrame(() => {
+      header.classList.remove('collapsed');
+      body.classList.remove('collapsed');
+      panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+  }
+
+  // Persist the original values with the case so reset, undo and redo agree.
+  _getAgeProgressionState() {
+    const state = this.caseManager.currentCase.appearance.ageProgression;
+    const params = this.skinTextureSystem?.params;
+    if (!state || !params || ![state.baseAge, state.basePoreDetail, state.years].every(Number.isFinite)) return null;
+    const age = Math.min(100, state.baseAge + state.years);
+    const pores = Math.min(100, state.basePoreDetail + Math.min(40, state.years * 1.6));
+    return params.age === age && params.poreDetail === pores ? state : null;
+  }
+
+  _syncAgeProgressionUI() {
+    const state = this._getAgeProgressionState();
+    document.querySelectorAll('.age-card').forEach(card => {
+      const active = !!state && Number(card.dataset.years) === state.years;
+      card.classList.toggle('active', active);
+      card.setAttribute('aria-pressed', String(active));
+    });
+    const reset = document.getElementById('btnResetAgeProgression');
+    if (reset) reset.disabled = !state;
+  }
+
+  applyAgeProgression(years) {
+    if (!this.skinTextureSystem || ![5, 10, 15, 20, 25].includes(years)) return;
+    const state = this._getAgeProgressionState();
+    if (state?.years === years) return;
+    const baseAge = state?.baseAge ?? this.skinTextureSystem.params.age;
+    const basePoreDetail = state?.basePoreDetail ?? this.skinTextureSystem.params.poreDetail;
+    this.caseManager.pushState(`Age progression: +${years} years`);
+    this.skinTextureSystem.setParam('age', Math.min(100, baseAge + years));
+    this.skinTextureSystem.setParam('poreDetail', Math.min(100, basePoreDetail + Math.min(40, years * 1.6)));
+    this.skinTextureSystem.regenerate();
+    this.caseManager.updateAppearance('ageProgression', { baseAge, basePoreDetail, years });
+    this.caseManager.updateAppearance('skinTextureParams', this.skinTextureSystem.getParams());
+    this._syncSkinTextureUI(this.skinTextureSystem.getParams());
+    this.addHistory(`Applied +${years} years age progression (wrinkles and pores)`);
+    this.updatePropertyPanel();
+  }
+
+  resetAgeProgression() {
+    const state = this._getAgeProgressionState();
+    if (!state || !this.skinTextureSystem) return;
+    this.caseManager.pushState('Reset age progression');
+    this.skinTextureSystem.setParam('age', state.baseAge);
+    this.skinTextureSystem.setParam('poreDetail', state.basePoreDetail);
+    this.skinTextureSystem.regenerate();
+    this.caseManager.updateAppearance('ageProgression', null);
+    this.caseManager.updateAppearance('skinTextureParams', this.skinTextureSystem.getParams());
+    this._syncSkinTextureUI(this.skinTextureSystem.getParams());
+    this.addHistory('Reset to original age');
     this.updatePropertyPanel();
   }
 
@@ -4580,6 +4680,7 @@ class UIController {
   // Resets every feature on the face to its default, as one undo step.
   resetAllFeatures() {
     this.caseManager.pushState('Reset all features');
+    this.caseManager.updateAppearance('ageProgression', null);
 
     // Reset facial morphs
     this.morpher.resetAll();
@@ -5161,7 +5262,9 @@ class UIController {
         if (state.appearance.pigmentPaintData) {
           this.pigmentationPainter.loadState(state.appearance.pigmentPaintData);
         } else {
-          this.pigmentationPainter.clearAll();
+          // this.pigmentationPainter.clearAll();
+          // Restoring empty pigment must not push a new action and erase redo.
+          this.pigmentationPainter.loadState({ data: {} });
         }
       }
 
