@@ -13,6 +13,7 @@ let mainWindow;
 let pythonProcess;
 
 // Starts the Python backend as a child process.
+/* Original source-only backend launch retained for reference.
 function startBackend() {
   const backendPath = path.join(__dirname, '..', '..', 'backend', 'server.py');
   const condaPython = path.join(
@@ -39,10 +40,51 @@ function startBackend() {
     console.log(`[Backend] Process exited with code ${code}`);
   });
 }
+*/
+
+function startBackend() {
+  const fs = require('fs');
+  const projectRoot = path.join(__dirname, '..', '..');
+  const backendDir = app.isPackaged
+    ? path.join(process.resourcesPath, 'backend')
+    : path.join(projectRoot, 'backend');
+  const dataDir = app.getPath('userData');
+  const assetsDir = app.isPackaged
+    ? path.join(process.resourcesPath, 'app.asar.unpacked', 'assets')
+    : path.join(projectRoot, 'assets');
+  const userHome = process.env.USERPROFILE || process.env.HOME || '';
+  const candidates = [
+    path.join(projectRoot, 'venv', 'Scripts', 'python.exe'),
+    path.join(projectRoot, 'venv', 'bin', 'python'),
+    path.join(userHome, 'miniforge3', 'envs', 'reface', 'python.exe'),
+    path.join(userHome, 'miniforge3', 'envs', 'reface', 'bin', 'python'),
+  ];
+  const command = app.isPackaged
+    ? path.join(backendDir, 'reface-backend.exe')
+    : candidates.find(candidate => fs.existsSync(candidate)) || 'python';
+  const args = app.isPackaged ? [] : [path.join(backendDir, 'server.py')];
+
+  console.log(`[Backend] data dir: ${dataDir}`);
+  pythonProcess = spawn(command, args, {
+    cwd: backendDir,
+    windowsHide: true,
+    env: { ...process.env, REFACE_DATA_DIR: dataDir, REFACE_ASSETS_DIR: assetsDir },
+  });
+  const relay = data => console.log(`[Backend] ${data}`);
+  pythonProcess.stdout?.on('data', relay);
+  pythonProcess.stderr?.on('data', relay);
+  pythonProcess.on('error', error => console.error(`[Backend] Unable to start: ${error.message}`));
+  pythonProcess.on('close', code => console.log(`[Backend] Process exited with code ${code}`));
+}
+
+// Honour an isolated profile supplied by the executable's smoke test.
+const profileDir = app.commandLine.getSwitchValue('user-data-dir');
+if (profileDir) app.setPath('userData', path.resolve(profileDir));
 
 // Creates the main window and the application menu.
 function createWindow() {
   mainWindow = new BrowserWindow({
+    show: !app.commandLine.hasSwitch('smoke-test'),
     width: 1600,
     height: 1000,
     minWidth: 1200,
@@ -62,7 +104,8 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
 
   // Open DevTools in development
-  mainWindow.webContents.openDevTools();
+  // mainWindow.webContents.openDevTools();
+  if (!app.isPackaged && !app.commandLine.hasSwitch('smoke-test')) mainWindow.webContents.openDevTools();
 
   // Build application menu
   const menuTemplate = [

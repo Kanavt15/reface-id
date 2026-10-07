@@ -35,7 +35,8 @@
   const referenceOverlay = new ReferenceOverlay(document.getElementById('viewport'));
 
   // Backend API + Case Manager
-  const api = new BackendAPI('http://127.0.0.1:5001');
+  // const api = new BackendAPI('http://127.0.0.1:5001');
+  const api = new BackendAPI(window.electronAPI?.backendUrl || 'http://127.0.0.1:5001');
   const caseManager = new CaseManager(api);
 
   const skinTextureSystem = new SkinTextureSystem(sceneManager);

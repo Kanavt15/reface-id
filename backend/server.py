@@ -26,7 +26,9 @@ for _stream in (sys.stdout, sys.stderr):
         pass  # already a UTF-8 stream, or not reconfigurable
 
 # Load .env from project root
-load_dotenv(Path(__file__).parent.parent / '.env')
+# load_dotenv(Path(__file__).parent.parent / '.env')
+if not getattr(sys, 'frozen', False):
+    load_dotenv(Path(__file__).parent.parent / '.env')
 
 app = Flask(__name__)
 CORS(app)
@@ -433,11 +435,14 @@ Rules for this mode:
 
 # Paths
 BASE_DIR = Path(__file__).parent
-ASSETS_DIR = BASE_DIR.parent / 'assets'
+# ASSETS_DIR = BASE_DIR.parent / 'assets'
+ASSETS_DIR = Path(os.getenv('REFACE_ASSETS_DIR', str(BASE_DIR.parent / 'assets')))
 MODELS_DIR = ASSETS_DIR / 'models'
-EXPORTS_DIR = BASE_DIR / 'exports'
+# EXPORTS_DIR = BASE_DIR / 'exports'
+EXPORTS_DIR = (db.DATA_DIR if getattr(sys, 'frozen', False) else BASE_DIR) / 'exports'
 BLENDER_SCRIPTS_DIR = BASE_DIR / 'blender_scripts'
-CASES_DIR = BASE_DIR / 'cases'
+# CASES_DIR = BASE_DIR / 'cases'
+CASES_DIR = (db.DATA_DIR if getattr(sys, 'frozen', False) else BASE_DIR) / 'cases'
 
 # Ensure directories exist
 for d in [EXPORTS_DIR, CASES_DIR, MODELS_DIR]:
@@ -951,7 +956,8 @@ def db_stats_route():
 
 # ─── Blender Render ────────────────────────────────────────────────────────────
 
-RENDERS_DIR = BASE_DIR / 'renders'
+# RENDERS_DIR = BASE_DIR / 'renders'
+RENDERS_DIR = (db.DATA_DIR if getattr(sys, 'frozen', False) else BASE_DIR) / 'renders'
 RENDERS_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -1736,4 +1742,5 @@ if __name__ == '__main__':
                   else '✗ No API key — enter one in the app')
         print(f"  - {_info['label']}: {_state}")
     print("=" * 60)
-    app.run(host='127.0.0.1', port=5001, debug=False)
+    # app.run(host='127.0.0.1', port=5001, debug=False)
+    app.run(host='127.0.0.1', port=int(os.getenv('REFACE_BACKEND_PORT', '5001')), debug=False)

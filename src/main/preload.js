@@ -1,8 +1,12 @@
 // Exposes a small, safe set of Electron features (dialogs, files, menu events) to the page.
 
 const { contextBridge, ipcRenderer } = require('electron');
+const requestedPort = Number(process.env.REFACE_BACKEND_PORT || 5001);
+const backendPort = Number.isInteger(requestedPort) && requestedPort > 0 && requestedPort <= 65535
+  ? requestedPort : 5001;
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  backendUrl: `http://127.0.0.1:${backendPort}`,
   // Window controls
   minimize: () => ipcRenderer.invoke('window:minimize'),
   maximize: () => ipcRenderer.invoke('window:maximize'),

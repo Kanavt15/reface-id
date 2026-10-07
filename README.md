@@ -380,6 +380,22 @@ npm run dev            # backend and Electron together
 
 Or run the halves separately with `npm run start:backend` and `npm start`.
 
+### Windows executables
+
+With the project dependencies installed, build an installer and a portable executable:
+
+```powershell
+.\venv\Scripts\python.exe -m pip install -r scripts/build-requirements.txt
+npm run build -- --win nsis portable --x64
+node scripts/packaged-smoke.mjs
+```
+
+The outputs are `dist/REface ID Setup 1.0.0.exe` and `dist/REface ID 1.0.0.exe`.
+Both include the Python backend, models, and textures. Cases, keys, exports, and
+renders stay in the user's app-data directory. Blender remains an external
+requirement for Blender renders and mesh exports. The smoke test uses a hidden
+window, a separate backend port, and an isolated profile under `dist`.
+
 **Shortcuts.** `Ctrl/Cmd+K` command palette, `Esc` dismiss, `\` toggle the
 control sheet, `Ctrl+Z` / `Ctrl+Y` undo and redo, `Ctrl+S` save case,
 `Ctrl+Shift+S` export screenshot.
