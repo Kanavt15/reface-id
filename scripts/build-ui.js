@@ -93,6 +93,10 @@ function keepClasses(list, extra = []) {
 
 // Renders a slider in the exact shape UIController expects.
 function cSlider(b) {
+  // The historical manifest is retained; current hairstyle defaults use 500.
+  if (b.param === 'hairDensity') b = { ...b, value: '500', valueText: '500', max: '1200' };
+  // Preserve the manifest's previous age value while starting progression at zero.
+  if (b.param === 'skinAge') b = { ...b, value: '0', valueText: '0' };
   const cls = keepClasses(['slider-control'], b.value === '50' ? ['k-centred'] : []);
   const inputCls = keepClasses(b.sliderClass);
   // Some controls start disabled because a toggle controls them.
@@ -294,6 +298,16 @@ function rewriteIcons(html) {
 
 // Carries over a block the manifest couldn't type, with icons rewritten; styled by carried.css.
 function cVerbatim(b) {
+  /* Exact-age label overrides retained after reverting to increments.
+  // Retain the historical manifest while rendering exact-age labels.
+  if (b.html?.includes('age-progression-grid')) {
+    b = { ...b, html: b.html.replace(/(<span class="age-label">)\+(\d+ Years<\/span>)/g, '$1$2') };
+  }
+  if (b.html?.includes('Select a time period to see how the face may appear after aging:')) {
+    b = { ...b, html: b.html.replace('Select a time period to see how the face may appear after aging:',
+      'Select the target age for the face preview:') };
+  }
+  */
   return `
             <div class="k-verbatim">
               ${rewriteIcons(b.html)}

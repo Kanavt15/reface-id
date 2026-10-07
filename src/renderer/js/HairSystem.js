@@ -3,6 +3,7 @@
 class HairSystem {
   // Density ceiling: one extra layer of strands per 100, up to what HairStrands builds.
   static get MAX_HAIR_DENSITY() { return HairStrands.MAX_LAYERS * 100; }
+  static get DEFAULT_HAIR_DENSITY() { return 500; }
   // Gap kept between the bottom of the brow and the upper eyelid.
   static get BROW_EYE_GAP() { return 0.02; }
 
@@ -35,7 +36,9 @@ class HairSystem {
     this.hairColor = '#2c1b0e';
     this.hairTintColor = '#8b2500';  // default tint color (auburn)
     this.hairTintIntensity = 0;      // 0 = no tint, 1 = full tint
-    this.params = { length: 50, density: 50, volume: 50, curl: 0,
+    // this.params = { length: 50, density: 50, volume: 50, curl: 0,
+    //                  posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 };
+    this.params = { length: 50, density: HairSystem.DEFAULT_HAIR_DENSITY, volume: 50, curl: 0,
                      posx: 50, posy: 50, posz: 50, roty: 50, scale: 50 };
     this.beardStyle = 'none';
     this.beardParams = { scale: 100, posX: 100, posY: 100, posZ: 100, rotX: 100, rotY: 100, rotZ: 100 };
@@ -151,6 +154,10 @@ class HairSystem {
                defaults: { posx: 48, posy: 23, posz: 38, roty: 50, scale: 53 } },
       bald:  { file: null, defaults: null },
     };
+    // All fourteen hairstyles start at the same density when selected.
+    for (const config of Object.values(this.hairModels)) {
+      if (config.defaults) config.defaults.density = HairSystem.DEFAULT_HAIR_DENSITY;
+    }
 
     // Eyebrow model config
     this.eyebrowModel = { file: '../../assets/models/facial/eyebrows.glb', meshName: null };
@@ -272,6 +279,7 @@ class HairSystem {
     // Apply model-specific defaults if available
     const config = this.hairModels[style];
     if (config && config.defaults) {
+      this.params.density = config.defaults.density;
       this.params.posx = config.defaults.posx;
       this.params.posy = config.defaults.posy;
       this.params.posz = config.defaults.posz;
@@ -500,8 +508,10 @@ class HairSystem {
 
     // Density changes strand coverage and roughness while keeping the strands solid.
     // const d = Math.max(0, Math.min(HairSystem.MAX_HAIR_DENSITY, density)) / 100;
+    // Previous half-density behavior retained; the slider now uses its full value.
     // Keep the saved slider value; every hairstyle renders at half its density.
-    const d = Math.max(0, Math.min(HairSystem.MAX_HAIR_DENSITY, density)) / 200;
+    // const d = Math.max(0, Math.min(HairSystem.MAX_HAIR_DENSITY, density)) / 200;
+    const d = Math.max(0, Math.min(HairSystem.MAX_HAIR_DENSITY, density)) / 100;
     container.visible = d > 0;
     const baseDensity = Math.min(1, d);
     const uniforms = this._hairMat.userData.strandSheen?.uniforms;
@@ -1160,6 +1170,7 @@ class HairSystem {
       return null;
     }
     const defaults = {
+        density: HairSystem.DEFAULT_HAIR_DENSITY,
       posx: this.params.posx,
       posy: this.params.posy,
       posz: this.params.posz,

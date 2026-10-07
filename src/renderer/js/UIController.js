@@ -1107,6 +1107,7 @@ class UIController {
       let isDragging = false;
 
       slider.addEventListener('mousedown', () => {
+        if (isDragging) return;
         isDragging = true;
         this.caseManager.beginAction(`Changed skin ${cfg.param}`);
       });
@@ -1116,11 +1117,33 @@ class UIController {
         if (valEl) valEl.textContent = v;
 
         if (this.skinTextureSystem) {
+          /* The old slider handler discarded the original preview age.
           if (cfg.param === 'age' || cfg.param === 'poreDetail') {
             this.caseManager.updateAppearance('ageProgression', null);
             this._syncAgeProgressionUI();
           }
+          */
           this.skinTextureSystem.setParam(cfg.param, v);
+          const preview = this._getAgeProgressionState();
+          if (cfg.param === 'age' && preview) {
+            // const years = this.skinTextureSystem.params.age - preview.baseAge;
+            // this.skinTextureSystem.setParam('poreDetail', Math.min(100,
+            //   preview.basePoreDetail + Math.max(0, Math.min(40, years * 1.6))));
+            // this.caseManager.updateAppearance('ageProgression', { ...preview, years });
+            // const years = this.skinTextureSystem.params.age;
+            // this.skinTextureSystem.setParam('poreDetail', this._agePreviewPoreDetail(preview, years));
+            // this.caseManager.updateAppearance('ageProgression', { ...preview, years, mode: 'absolute' });
+            const years = this.skinTextureSystem.params.age - preview.baseAge;
+            this.skinTextureSystem.setParam('poreDetail', Math.min(100,
+              preview.basePoreDetail + Math.max(0, Math.min(40, years * 1.6))));
+            this.caseManager.updateAppearance('ageProgression', {
+              baseAge: preview.baseAge, basePoreDetail: preview.basePoreDetail, years,
+            });
+            this._syncSkinTextureUI(this.skinTextureSystem.getParams());
+          } else {
+            this.updateSliderFill(slider);
+            this._syncAgeProgressionUI();
+          }
 
           // setParam already sent this one to the shader, so there's no need to rebuild the maps.
           if (cfg.shaderOnly) return;
@@ -1134,6 +1157,9 @@ class UIController {
       });
 
       const onMouseUp = () => {
+        if (this.skinTextureSystem) {
+          this.caseManager.updateAppearance('skinTextureParams', this.skinTextureSystem.getParams());
+        }
         if (isDragging) {
           isDragging = false;
           if (this.skinTextureSystem) {
@@ -1225,7 +1251,11 @@ class UIController {
       if (p[cfg.param] === undefined) continue;
       const slider = document.getElementById(sliderId);
       const valEl = document.getElementById(cfg.valId);
-      if (slider) slider.value = p[cfg.param];
+      // if (slider) slider.value = p[cfg.param];
+      if (slider) {
+        slider.value = p[cfg.param];
+        this.updateSliderFill(slider);
+      }
       if (valEl) valEl.textContent = p[cfg.param];
     }
     const flushEl = document.getElementById('cheekFlushToggle');
@@ -1404,15 +1434,32 @@ class UIController {
     const state = this.caseManager.currentCase.appearance.ageProgression;
     const params = this.skinTextureSystem?.params;
     if (!state || !params || ![state.baseAge, state.basePoreDetail, state.years].every(Number.isFinite)) return null;
-    const age = Math.min(100, state.baseAge + state.years);
-    const pores = Math.min(100, state.basePoreDetail + Math.min(40, state.years * 1.6));
-    return params.age === age && params.poreDetail === pores ? state : null;
+    // const age = Math.min(100, state.baseAge + state.years);
+    // const pores = Math.min(100, state.basePoreDetail + Math.min(40, state.years * 1.6));
+    // return params.age === age && params.poreDetail === pores ? state : null;
+    // A preview keeps its original age even when skin controls are adjusted.
+    return state;
   }
 
   _syncAgeProgressionUI() {
     const state = this._getAgeProgressionState();
     document.querySelectorAll('.age-card').forEach(card => {
-      const active = !!state && Number(card.dataset.years) === state.years;
+      // const active = !!state && Number(card.dataset.years) === state.years;
+      const years = Number(card.dataset.years);
+      // const baseAge = state?.baseAge ?? this.skinTextureSystem?.params.age ?? 30;
+      const baseAge = state?.baseAge ?? this.skinTextureSystem?.params.age ?? 0;
+      // const targetAge = Math.min(100, baseAge + years);
+      // const active = !!state && years === state.years && this.skinTextureSystem?.params.age === targetAge;
+      // card.title = `Age ${targetAge}: +${years} years from age ${baseAge}`;
+      // const targetAge = years;
+      // const active = !!state && this.skinTextureSystem?.params.age === targetAge;
+      // card.title = `Set age to ${targetAge} years`;
+      const targetAge = Math.min(100, baseAge + years);
+      const active = !!state && years === state.years && this.skinTextureSystem?.params.age === targetAge;
+      card.title = `Age ${targetAge}: +${years} years from age ${baseAge}`;
+      const label = card.querySelector('.age-label');
+      // if (label) label.textContent = `${targetAge} Years`;
+      if (label) label.textContent = `+${years} Years`;
       card.classList.toggle('active', active);
       card.setAttribute('aria-pressed', String(active));
     });
@@ -1423,19 +1470,43 @@ class UIController {
   applyAgeProgression(years) {
     if (!this.skinTextureSystem || ![5, 10, 15, 20, 25].includes(years)) return;
     const state = this._getAgeProgressionState();
-    if (state?.years === years) return;
+    // if (state?.years === years) return;
     const baseAge = state?.baseAge ?? this.skinTextureSystem.params.age;
     const basePoreDetail = state?.basePoreDetail ?? this.skinTextureSystem.params.poreDetail;
+    // if (state?.years === years && this.skinTextureSystem.params.age === Math.min(100, baseAge + years)
+    //   && this.skinTextureSystem.params.poreDetail === Math.min(100, basePoreDetail + Math.min(40, years * 1.6))) return;
+    // this.caseManager.pushState(`Age progression: +${years} years`);
+    // this.skinTextureSystem.setParam('age', Math.min(100, baseAge + years));
+    // this.skinTextureSystem.setParam('poreDetail', Math.min(100, basePoreDetail + Math.min(40, years * 1.6)));
+    // const poreDetail = this._agePreviewPoreDetail({ baseAge, basePoreDetail }, years);
+    // if (state && this.skinTextureSystem.params.age === years && this.skinTextureSystem.params.poreDetail === poreDetail) return;
+    // this.caseManager.pushState(`Age preview: ${years} years`);
+    // this.skinTextureSystem.setParam('age', years);
+    const targetAge = Math.min(100, baseAge + years);
+    const poreDetail = Math.min(100, basePoreDetail + Math.min(40, years * 1.6));
+    if (state?.years === years && this.skinTextureSystem.params.age === targetAge
+      && this.skinTextureSystem.params.poreDetail === poreDetail) return;
     this.caseManager.pushState(`Age progression: +${years} years`);
-    this.skinTextureSystem.setParam('age', Math.min(100, baseAge + years));
-    this.skinTextureSystem.setParam('poreDetail', Math.min(100, basePoreDetail + Math.min(40, years * 1.6)));
+    this.skinTextureSystem.setParam('age', targetAge);
+    this.skinTextureSystem.setParam('poreDetail', poreDetail);
     this.skinTextureSystem.regenerate();
+    // this.caseManager.updateAppearance('ageProgression', { baseAge, basePoreDetail, years });
+    // this.caseManager.updateAppearance('ageProgression', { baseAge, basePoreDetail, years, mode: 'absolute' });
     this.caseManager.updateAppearance('ageProgression', { baseAge, basePoreDetail, years });
     this.caseManager.updateAppearance('skinTextureParams', this.skinTextureSystem.getParams());
     this._syncSkinTextureUI(this.skinTextureSystem.getParams());
+    // this.addHistory(`Applied +${years} years age progression (wrinkles and pores)`);
+    // this.addHistory(`Previewed age ${years} years`);
     this.addHistory(`Applied +${years} years age progression (wrinkles and pores)`);
     this.updatePropertyPanel();
   }
+
+  /* Absolute-age preview helper retained after reverting to increments.
+  _agePreviewPoreDetail(state, targetAge) {
+    const change = Math.max(-40, Math.min(40, (targetAge - state.baseAge) * 1.6));
+    return Math.max(0, Math.min(100, state.basePoreDetail + change));
+  }
+  */
 
   resetAgeProgression() {
     const state = this._getAgeProgressionState();
@@ -4577,6 +4648,15 @@ class UIController {
 
   // Updates the readout: edited morph count, hair style, skin, lip and eye colour, mark and decal counts, and vertex count.
   updatePropertyPanel() {
+    // Keep density in slider units on startup, style selection, reset and restore.
+    const densityControl = document.querySelector('[data-param="hairDensity"]');
+    const densitySlider = densityControl?.querySelector('.hair-slider');
+    const densityReadout = densityControl?.querySelector('.slider-value');
+    if (densitySlider) {
+      densitySlider.value = this.hair.params.density;
+      this.updateSliderFill(densitySlider);
+    }
+    if (densityReadout) densityReadout.textContent = this.hair.params.density;
     const modCount = document.getElementById('modifiedCount');
     if (modCount) modCount.textContent = this.morpher.getModifiedCount();
 

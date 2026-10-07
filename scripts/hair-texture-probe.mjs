@@ -98,10 +98,13 @@ try {
           finite: Object.values(c.geometry.attributes).every(a => a.array.every(Number.isFinite)),
           validTangents: c.geometry.attributes.aHairTangent?.array.every((_, i, a) => i % 3 !== 0 || Math.abs(Math.hypot(a[i], a[i + 1], a[i + 2]) - 1) < 0.01),
           shadows: !!c.customDepthMaterial && !!c.customDistanceMaterial,
+          layers: c.geometry.instanceCount,
         });
       });
       const textureSet = StrandShading._styles?.get(style);
-      return { style, meshes, texture: mat.alphaMap?.name, source: textureSet?.source, opacity: mat.opacity, transparent: mat.transparent, alphaTest: mat.alphaTest, toneMean: mat.userData.strandSheen?.uniforms.uToneMean.value };
+      // return { style, meshes, texture: mat.alphaMap?.name, source: textureSet?.source, opacity: mat.opacity, transparent: mat.transparent, alphaTest: mat.alphaTest, toneMean: mat.userData.strandSheen?.uniforms.uToneMean.value };
+      return { style, meshes, density: hs.params.density, densityUniform: mat.userData.strandSheen?.uniforms.uHairDensity.value,
+        texture: mat.alphaMap?.name, source: textureSet?.source, opacity: mat.opacity, transparent: mat.transparent, alphaTest: mat.alphaTest, toneMean: mat.userData.strandSheen?.uniforms.uToneMean.value };
     }, { style, beard });
     assert(result.meshes.length, style + ' must load');
     if (!before) {
@@ -114,6 +117,9 @@ try {
       assert(result.toneMean > 0.3 && result.toneMean < 0.9);
     }
     if (densityCheck) {
+      assert.equal(result.density, 500, style + ' defaults to slider density 500');
+      assert.equal(result.densityUniform, 5, style + ' renders full slider density 500');
+      assert(result.meshes.every(mesh => mesh.layers === 5), style + ' renders five strand layers by default');
       for (const value of [100, 300]) {
         await page.evaluate(value => hs.setParam('density', value), value);
         await shot(style + '-density-' + value, false, 0.55, true, 1.3);
@@ -151,7 +157,8 @@ try {
       const { samples, sameGeometry, noRecompile } = result.density;
       assert(sameGeometry && noRecompile, 'density changes reuse geometry and shaders');
       // assert(samples.slice(0, 5).every(s => s.layers === Math.ceil(s.value / 100) && s.densityUniform === s.value / 100), 'extended density reaches geometry and shader');
-      assert(samples.slice(0, 5).every(s => s.layers === Math.ceil(s.value / 200) && s.densityUniform === Math.max(1, s.value / 200)), 'half slider density reaches geometry and shader');
+      // assert(samples.slice(0, 5).every(s => s.layers === Math.ceil(s.value / 200) && s.densityUniform === Math.max(1, s.value / 200)), 'half slider density reaches geometry and shader');
+      assert(samples.slice(0, 5).every(s => s.layers === Math.ceil(s.value / 100) && s.densityUniform === Math.max(1, s.value / 100)), 'full slider density reaches geometry and shader');
       assert(samples[4].coverage > samples[0].coverage, style + ' gets more actual fibre coverage at 300');
       assert(samples.slice(1, 5).every((s, i) => s.coverage >= samples[i].coverage * 0.999), style + ' coverage increases through fractional density levels');
       assert.equal(samples[5].coverage, samples[0].coverage, 'returning to 100 restores the original coverage');

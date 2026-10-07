@@ -494,6 +494,19 @@ class SkinShader {
         height[y * W + x] += depth * taper * (.16 * shoulder - trough);
       }
     };
+    // A soft lower-lid cushion and its outer fold give the reference's eye-bag shape.
+    const lowerLid = Array.from({ length: 36 }, (_, j) => {
+      const t = j / 35 * 2 - 1;
+      return [t * .14, -.068 + .042 * t * t];
+    });
+    // stroke(lowerLid, .016, -.0046);
+    stroke(lowerLid, .023, -.009);
+    const bagEdge = Array.from({ length: 36 }, (_, j) => {
+      const t = j / 35 * 2 - 1;
+      return [t * .15, -.118 + .050 * t * t];
+    });
+    // stroke(bagEdge, .006, .0032);
+    stroke(bagEdge, .009, .0042);
     for (let i = 0; i < 4; i++) {
       const points = Array.from({length: 28}, (_, j) => {
         const t = j / 27 * 2 - 1;
@@ -501,7 +514,9 @@ class SkinShader {
           + (.0273 + i * .00312) * t * t + .0022 * Math.sin(t * 13 + i * 2)];
       });
       // The nearest two creases were too faint, so they are deeper now.
-      stroke(points, i < 2 ? .0024 : .0029, i < 2 ? .0021 : .0017);
+      // stroke(points, i < 2 ? .0024 : .0029, i < 2 ? .0021 : .0017);
+      // Fine lid creases sit on a broader soft fold rather than four engraved lines.
+      stroke(points, i < 2 ? .0028 : .0040, i < 2 ? .0014 : .0006);
     }
     for (let i = 0; i < 5; i++) {
       const points = Array.from({length: 25}, (_, j) => {
@@ -547,7 +562,8 @@ class SkinShader {
         }, undefined, () => resolve(null));
     });
     SkinShader._anatomyReady = Promise.all([
-      load('anatomy-fine-v1.png'), load('anatomy-age-v1.png'),
+      // load('anatomy-fine-v1.png'), load('anatomy-age-v1.png'),
+      load('anatomy-fine-v1.png'), load('anatomy-age-reference-v2.png'),
     ]).then(([fine, age]) => {
       if (!fine || !age) {
         fine?.dispose(); age?.dispose();
@@ -820,7 +836,10 @@ class SkinShader {
       complexionDetail: 0.10,
       wrinkleStrength: 1.0,
       // ageWrinkleStrength: 0.29419354838709677,
-      ageWrinkleStrength: 0.39,
+      // ageWrinkleStrength: 0.39,
+      // ageWrinkleStrength: 0.84,
+      // ageWrinkleStrength: 0.45,
+      ageWrinkleStrength: 0.0,
       underEyeStrength: 0.0,
       fineCreaseStrength: 1.0,
       faceColourStrength: 0.65,
@@ -1052,7 +1071,8 @@ class SkinShader {
           vec4 by = texture2D( uDetailB, p.xz + vec2( 0.53, 0.09 ) );
           vec4 bz = texture2D( uDetailB, p.xy );
           float poreGain = clamp( density * 1.45, 0.0, 1.0 );
-          lineGain *= 1.0 - uImageDetail;
+          // lineGain *= 1.0 - uImageDetail;
+          lineGain *= ( 1.0 - uImageDetail ) * clamp( uAgeWrinkleStrength, 0.0, 1.0 );
           vec2 nx = ( ax.xy * 2.0 - 1.0 ) * poreGain * uPoreScale
                   + ( bx.xy * 2.0 - 1.0 ) * lineGain * uLineScale;
           vec2 ny = ( ay.xy * 2.0 - 1.0 ) * poreGain * uPoreScale
@@ -1072,7 +1092,9 @@ class SkinShader {
           vec3 foreheadP = ( vSkinPosition - vec3( 0.0, 0.68, 1.03 ) ) / vec3( 0.52, 0.32, 0.42 );
           vec3 eyeP = ( vec3( abs( vSkinPosition.x ), vSkinPosition.yz ) - vec3( 0.34, 0.18, 0.99 ) ) / vec3( 0.21, 0.10, 0.22 );
           float foldRegion = max( exp( -dot( foreheadP, foreheadP ) ), exp( -dot( eyeP, eyeP ) ) );
-          float foldStrength = mix( 0.10, 0.32, foldRegion ) * poreGain * uPoreScale * uMicrofoldReady * resolved;
+          // float foldStrength = mix( 0.10, 0.32, foldRegion ) * poreGain * uPoreScale * uMicrofoldReady * resolved;
+          float foldStrength = mix( 0.10, 0.32, foldRegion ) * poreGain * uPoreScale * uMicrofoldReady * resolved
+            * clamp( uAgeWrinkleStrength, 0.0, 1.0 );
           skinDetailGradient += ( vec3( 0.0, foldX.x, foldX.y ) * w.x
             + vec3( foldY.x, 0.0, foldY.y ) * w.y + vec3( foldZ, 0.0 ) * w.z ) * foldStrength * wBoost;
           float pit = ( ax.z * w.x + ay.z * w.y + az.z * w.z ) * poreGain;
@@ -1126,7 +1148,9 @@ class SkinShader {
             * smoothstep( 0.0, 0.06, eyeUv.y ) * ( 1.0 - smoothstep( 0.94, 1.0, eyeUv.y ) );
           // float eyeStrength = liveEyeRegion * smoothstep( 0.10, 0.60, vSkinPosition.z ) * uUnderEyeStrength;
           float eyeStrength = liveEyeRegion * smoothstep( 0.10, 0.60, vSkinPosition.z )
-            * ( 0.08 + uAgeWrinkleStrength * 0.35 + uUnderEyeStrength );
+            // * ( 0.08 + uAgeWrinkleStrength * 0.35 + uUnderEyeStrength );
+            // * ( 0.30 + uAgeWrinkleStrength * 0.50 + uUnderEyeStrength );
+            * ( uAgeWrinkleStrength * 0.50 + uUnderEyeStrength );
           vec3 eyeFold = texture2D( uUnderEyeMap, eyeUv ).rgb;
           vec2 eyeGradient = ( eyeFold.rg * 255.0 - 128.0 ) / 127.0;
           skinEyeGradient = vec3( eyeAxisX * eyeGradient.x + eyeAxisY * eyeGradient.y, 0.0 ) * eyeStrength;

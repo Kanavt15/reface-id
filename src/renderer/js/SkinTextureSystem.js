@@ -55,7 +55,8 @@ class SkinTextureSystem {
   // Default skin slider values.
   static get DEFAULT_PARAMS() {
     return {
-      age: 30, roughness: 50, freckles: 0,
+      // age: 30, roughness: 50, freckles: 0,
+      age: 0, roughness: 50, freckles: 0,
       poreDetail: 0, wrinkleDepth: 100, skinOiliness: 0, sunDamage: 10,
       underEyeEnabled: false, underEyeIntensity: 50,
       // Depth of SkinShader's pore detail; a shader uniform, so changing it never rebuilds the maps.
@@ -579,10 +580,15 @@ class SkinTextureSystem {
   }
 
   // Soft human folds exist at the starting age and deepen continuously with age.
+  // Age zero is smooth; wrinkles ease in gently as progression increases.
   static ageToWrinkleStrength(age) {
-    const years = Number.isFinite(Number(age)) ? Number(age) : 30;
+    // const years = Number.isFinite(Number(age)) ? Number(age) : 30;
+    const years = Number.isFinite(Number(age)) ? Number(age) : SkinTextureSystem.DEFAULT_PARAMS.age;
     // return 0.12 + Math.max(0, Math.min(1, (years - 18) / 62)) * 0.90;
-    return 0.12 + Math.max(0, Math.min(1, years / 100)) * 0.90;
+    // return 0.12 + Math.max(0, Math.min(1, years / 100)) * 0.90;
+    // return 0.45 + Math.max(0, Math.min(1, years / 100)) * 1.30;
+    const progression = Math.max(0, Math.min(1, years / 100));
+    return progression * progression * (3 - 2 * progression) * 1.75;
   }
 
   // Applies the micro relief to every skin material.
