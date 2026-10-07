@@ -132,6 +132,37 @@ try {
   // assert.equal(baselinePixels.difference, 0, 'age, under-eye and microfold maps have no effect on the default face');
   assert(baselinePixels.difference < 20, 'age, under-eye and microfold maps have no visible effect on the default face');
   await page.locator('#viewport canvas').screenshot({ path: path.join(out, 'original.png') });
+  // Review the authored forehead folds at a readable age through the real slider.
+  const setReviewAge = age => page.evaluate(age => {
+    const slider = document.getElementById('sliderSkinAge');
+    slider.value = age;
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    slider.dispatchEvent(new Event('change', { bubbles: true }));
+    rfApp.ui.skinTextureSystem.regenerate();
+    rfApp.sceneManager.renderFrame();
+  }, age);
+  await setReviewAge(65);
+  await page.locator('#viewport canvas').screenshot({ path: path.join(out, 'forehead-age-65.png') });
+  console.log('eyebrow height', await page.evaluate(() => {
+    const bounds = new THREE.Box3().setFromObject(rfApp.ui.hair._eyebrowGroup);
+    return { min: bounds.min.y, max: bounds.max.y };
+  }));
+  await page.evaluate(() => {
+    const sm = rfApp.sceneManager;
+    sm.camera.position.x = 1.35;
+    sm.camera.position.z = 4.3;
+    sm.controls.update();
+    sm.renderFrame();
+  });
+  await page.locator('#viewport canvas').screenshot({ path: path.join(out, 'forehead-age-65-angle.png') });
+  await page.evaluate(() => {
+    const sm = rfApp.sceneManager;
+    sm.camera.position.x = 0;
+    sm.camera.position.z = 4.5;
+    sm.controls.update();
+  });
+  await setReviewAge(0);
+  assert.deepEqual((await state()).params, initial.params, 'the review slider returns to the smooth base');
   const samples = [];
   for (const years of [5, 10, 15, 20, 25]) {
     await page.locator(`#ageProgressionPanel .age-card[data-years="${years}"]`).click();

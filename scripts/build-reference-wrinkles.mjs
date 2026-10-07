@@ -33,6 +33,7 @@ function stroke(curve, width, depth, ridge = .22) {
   }
 }
 // Broad, gently curved folds with rounded shoulders rather than straight cuts.
+/* Previous widely spaced forehead curves retained for reference.
 for (const [i, cy, span, width, depth] of [
   [0, .535, .45, .010, .0084],
   [1, .655, .50, .0115, .0092],
@@ -44,12 +45,31 @@ for (const [i, cy, span, width, depth] of [
       + .0035 * Math.sin(u * 10 + i * 1.4)];
   }), width, depth);
 }
+*/
+// The reference groups three uneven folds above the brow, with a fuller middle fold.
+// Keep the lower arc above the eyebrows and let their soft shoulders blend naturally.
+for (const [i, cy, span, width, depth] of [
+  [0, .665, .405, .0105, .0055],
+  [1, .727, .465, .0125, .0068],
+  [2, .795, .425, .0090, .0042],
+]) {
+  stroke(points(64, t => {
+    const u = t * 2 - 1;
+    const bend = .026 * u * u - .008 * Math.cos(u * Math.PI);
+    const uneven = .0045 * Math.sin(u * 7.5 + i * 1.25)
+      + .0020 * Math.sin(u * 15.0 - i * .8) + .0030 * u;
+    return [u * span + .008 * Math.sin(i * 2.1), cy + bend + uneven];
+  }), width, depth, .24);
+}
 for (const side of [-1, 1]) {
   // stroke(points(25, t => [side * (.045 + .013 * Math.sin(t * 2.5)), .33 + t * .19]), .005, .0042);
   stroke(points(25, t => [side * (.047 + .012 * Math.sin(t * 2.5)), .44 + t * .14]), .007, .0020);
   // Nasolabial and mouth-corner folds stay outside the vermilion.
-  stroke(points(40, t => [side * (.118 + .225 * t - .072 * t * t), -.035 - .375 * t]), .0105, .0058, .28);
-  stroke(points(25, t => [side * (.245 + .025 * Math.sin(t * 2.1)), -.355 - .19 * t]), .007, .0024);
+  // stroke(points(40, t => [side * (.118 + .225 * t - .072 * t * t), -.035 - .375 * t]), .0105, .0058, .28);
+  // stroke(points(25, t => [side * (.245 + .025 * Math.sin(t * 2.1)), -.355 - .19 * t]), .007, .0024);
+  // Smile folds have broader, softer relief; the mouth-corner tail fades out early.
+  stroke(points(48, t => [side * (.118 + .225 * t - .072 * t * t), -.035 - .375 * t]), .0125, .0044, .26);
+  stroke(points(32, t => [side * (.245 + .025 * Math.sin(t * 2.1)), -.355 - .16 * t]), .008, .0014);
   for (let i = 0; i < 9; i++) {
     stroke(points(16, t => [side * (.355 + (i % 3) * .055 + t * .045),
       -.025 - Math.floor(i / 3) * .08 - .022 * t + .003 * Math.sin(t * 6 + i)]), .0021, .0008);
@@ -89,6 +109,7 @@ const header = Buffer.alloc(13);
 header.writeUInt32BE(R, 0); header.writeUInt32BE(R, 4); header[8] = 8; header[9] = 6;
 const png = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
   chunk('IHDR', header), chunk('IDAT', deflateSync(rgba)), chunk('IEND', Buffer.alloc(0))]);
-const target = path.join(root, 'assets/textures/skin/anatomy-age-reference-v2.png');
+// const target = path.join(root, 'assets/textures/skin/anatomy-age-reference-v2.png');
+const target = path.join(root, 'assets/textures/skin/anatomy-age-reference-v3.png');
 fs.writeFileSync(target, png);
 console.log(`Created ${path.relative(root, target)} (${R} x ${R}, ${png.length} bytes)`);

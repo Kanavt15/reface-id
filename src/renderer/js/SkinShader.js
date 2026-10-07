@@ -563,7 +563,8 @@ class SkinShader {
     });
     SkinShader._anatomyReady = Promise.all([
       // load('anatomy-fine-v1.png'), load('anatomy-age-v1.png'),
-      load('anatomy-fine-v1.png'), load('anatomy-age-reference-v2.png'),
+      // load('anatomy-fine-v1.png'), load('anatomy-age-reference-v2.png'),
+      load('anatomy-fine-v1.png'), load('anatomy-age-reference-v3.png'),
     ]).then(([fine, age]) => {
       if (!fine || !age) {
         fine?.dispose(); age?.dispose();
