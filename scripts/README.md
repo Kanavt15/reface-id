@@ -22,6 +22,7 @@ index.legacy.html ──▶ extract-ui-manifest.js ──▶ ui-manifest.json
 | `npm run ui:smoke` | launch the app, drive intake → editor, report console errors |
 | `npm run ui:workbench` | drive the working layer — typing a value, undo, revert, filter, the bench, the mode banner, sheet resize |
 | `npm run test:snapshots` | launch the app **twice**, capture snapshots in the first run and read them back in the second |
+| `npm run test:witness` | drive the witness view and the composite combiner, then check shortcuts in text fields and that nothing leaves the machine |
 | `npm run ui:vendor` | re-copy libraries, fonts and the icon sprite from `node_modules` |
 | `npm run ui:extract` | re-read the control inventory from `index.legacy.html` |
 

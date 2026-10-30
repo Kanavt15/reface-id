@@ -54,10 +54,10 @@ class HeadTracker {
     // Create small preview canvas (shown in corner when tracking)
     this._createPreview();
 
-    // Initialize MediaPipe Face Mesh
+    // Initialize MediaPipe Face Mesh from the copy installed with the app, so tracking works offline.
     this.faceMesh = new FaceMesh({
       locateFile: (file) => {
-        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+        return `../../node_modules/@mediapipe/face_mesh/${file}`;
       }
     });
 

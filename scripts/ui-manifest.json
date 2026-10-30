@@ -1781,7 +1781,7 @@
                       "hair-style-card",
                       "active"
                     ],
-                    "label": "Style 1",
+                    "label": "Crop & fringe",
                     "icon": "user",
                     "active": true,
                     "data": {
@@ -1795,7 +1795,7 @@
                     "cardClass": [
                       "hair-style-card"
                     ],
-                    "label": "Style 2",
+                    "label": "Tousled crop",
                     "icon": "user-tie",
                     "active": false,
                     "data": {
@@ -1809,7 +1809,7 @@
                     "cardClass": [
                       "hair-style-card"
                     ],
-                    "label": "Style 3",
+                    "label": "Shaggy, chin length",
                     "icon": "user-doctor",
                     "active": false,
                     "data": {
@@ -1823,7 +1823,7 @@
                     "cardClass": [
                       "hair-style-card"
                     ],
-                    "label": "Style 4",
+                    "label": "Layered, swept",
                     "icon": "user-ninja",
                     "active": false,
                     "data": {
@@ -1837,7 +1837,7 @@
                     "cardClass": [
                       "hair-style-card"
                     ],
-                    "label": "Style 5",
+                    "label": "Bowl cut",
                     "icon": "user",
                     "active": false,
                     "data": {
@@ -1851,7 +1851,7 @@
                     "cardClass": [
                       "hair-style-card"
                     ],
-                    "label": "Style 6",
+                    "label": "Swept up, tied",
                     "icon": "user-tie",
                     "active": false,
                     "data": {
@@ -1865,7 +1865,7 @@
                     "cardClass": [
                       "hair-style-card"
                     ],
-                    "label": "Style 7",
+                    "label": "Side-swept",
                     "icon": "user-secret",
                     "active": false,
                     "data": {
@@ -1879,7 +1879,7 @@
                     "cardClass": [
                       "hair-style-card"
                     ],
-                    "label": "Style 8",
+                    "label": "Slicked back",
                     "icon": "user-graduate",
                     "active": false,
                     "data": {
@@ -1893,7 +1893,7 @@
                     "cardClass": [
                       "hair-style-card"
                     ],
-                    "label": "Style 9",
+                    "label": "Deep side part",
                     "icon": "user",
                     "active": false,
                     "data": {
@@ -1907,7 +1907,7 @@
                     "cardClass": [
                       "hair-style-card"
                     ],
-                    "label": "Style 10",
+                    "label": "Man bun",
                     "icon": "user-tie",
                     "active": false,
                     "data": {
@@ -1921,7 +1921,7 @@
                     "cardClass": [
                       "hair-style-card"
                     ],
-                    "label": "Style 11",
+                    "label": "Side-parted short",
                     "icon": "user-shield",
                     "active": false,
                     "data": {
@@ -1935,7 +1935,7 @@
                     "cardClass": [
                       "hair-style-card"
                     ],
-                    "label": "Style 12",
+                    "label": "Spiky crop",
                     "icon": "user-astronaut",
                     "active": false,
                     "data": {
@@ -1949,7 +1949,7 @@
                     "cardClass": [
                       "hair-style-card"
                     ],
-                    "label": "Style 13",
+                    "label": "Quiff",
                     "icon": "user-plus",
                     "active": false,
                     "data": {
@@ -1963,7 +1963,7 @@
                     "cardClass": [
                       "hair-style-card"
                     ],
-                    "label": "Style 14",
+                    "label": "Side-swept, tight",
                     "icon": "user",
                     "active": false,
                     "data": {
@@ -8518,6 +8518,19 @@
                     "type": "verbatim",
                     "tag": "div",
                     "className": [
+                      "snapshot-fuse"
+                    ],
+                    "id": null,
+                    "known": true,
+                    "html": "<div class=\"snapshot-fuse\">\n                    <button class=\"btn btn-outline snapshot-fuse-open\" id=\"btnFuseMode\" style=\"display:none;\" title=\"Combine composites from several witnesses into one face\">\n                      <i class=\"fas fa-combine\"></i> Combine witness composites\n                    </button>\n                    <div class=\"snapshot-fuse-bar\" id=\"snapshotFuseBar\" style=\"display:none;\">\n                    <p class=\"rf-note\">Pick the composites to combine, base first. Face shape and colouring are averaged; hairstyle, beard, age and sex follow the majority; marks and worn items come from the first one picked. Combined composites from several witnesses have been rated better likenesses than any single one (Bruce et al., 2002).</p>\n                    <div class=\"snapshot-fuse-actions\">\n                      <span class=\"snapshot-fuse-count\" id=\"snapshotFuseCount\">Pick 2 more</span>\n                      <button class=\"btn btn-outline\" id=\"btnFuseCancel\">Cancel</button>\n                      <button class=\"btn btn-primary\" id=\"btnFuseApply\" disabled><i class=\"fas fa-combine\"></i> Combine</button>\n                    </div>\n                  </div>\n                  </div>"
+                  }
+                },
+                {
+                  "kind": "block",
+                  "block": {
+                    "type": "verbatim",
+                    "tag": "div",
+                    "className": [
                       "snapshot-list"
                     ],
                     "id": "snapshotList",
@@ -8832,6 +8845,258 @@
                     "id": "referenceFlipToggle",
                     "label": "Mirror horizontally",
                     "checked": false,
+                    "data": {}
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "group",
+          "id": null,
+          "title": "Witness Conditions",
+          "icon": "witness",
+          "resetGroup": null,
+          "actions": [],
+          "collapsed": false,
+          "children": [
+            {
+              "kind": "block",
+              "block": {
+                "type": "label",
+                "text": "Recreate the moment the witness saw the subject. The light, the distance and whether an eye or a camera did the seeing decide how much of the face could ever have been seen. A perceptual approximation, not a measurement."
+              }
+            },
+            {
+              "kind": "subgroup",
+              "id": null,
+              "title": "Light on the subject",
+              "icon": "daylight",
+              "actions": [],
+              "collapsed": false,
+              "children": [
+                {
+                  "kind": "block",
+                  "block": {
+                    "type": "cardGrid",
+                    "gridId": "witnessLightGrid",
+                    "gridClass": [
+                      "hair-style-grid"
+                    ],
+                    "cards": [
+                      {
+                        "cardClass": [
+                          "hair-style-card",
+                          "active"
+                        ],
+                        "label": "Daylight",
+                        "icon": "daylight",
+                        "active": true,
+                        "data": {
+                          "data-witness-light": "daylight"
+                        },
+                        "id": null,
+                        "title": "Direct daylight, about 10,000 lux"
+                      },
+                      {
+                        "cardClass": [
+                          "hair-style-card"
+                        ],
+                        "label": "Overcast",
+                        "icon": "overcast",
+                        "active": false,
+                        "data": {
+                          "data-witness-light": "overcast"
+                        },
+                        "id": null,
+                        "title": "Overcast day, about 1,000 lux"
+                      },
+                      {
+                        "cardClass": [
+                          "hair-style-card"
+                        ],
+                        "label": "Indoor",
+                        "icon": "indoor",
+                        "active": false,
+                        "data": {
+                          "data-witness-light": "indoor"
+                        },
+                        "id": null,
+                        "title": "Office or shop lighting, about 400 lux"
+                      },
+                      {
+                        "cardClass": [
+                          "hair-style-card"
+                        ],
+                        "label": "LED street",
+                        "icon": "streetlamp",
+                        "active": false,
+                        "data": {
+                          "data-witness-light": "led"
+                        },
+                        "id": null,
+                        "title": "White LED street lamp, about 15 lux"
+                      },
+                      {
+                        "cardClass": [
+                          "hair-style-card"
+                        ],
+                        "label": "Sodium street",
+                        "icon": "streetlamp",
+                        "active": false,
+                        "data": {
+                          "data-witness-light": "sodium"
+                        },
+                        "id": null,
+                        "title": "Orange sodium street lamp, about 15 lux. Renders colour very poorly."
+                      },
+                      {
+                        "cardClass": [
+                          "hair-style-card"
+                        ],
+                        "label": "Dusk",
+                        "icon": "dusk",
+                        "active": false,
+                        "data": {
+                          "data-witness-light": "dusk"
+                        },
+                        "id": null,
+                        "title": "End of twilight, about 3 lux"
+                      },
+                      {
+                        "cardClass": [
+                          "hair-style-card"
+                        ],
+                        "label": "Moonlight",
+                        "icon": "night",
+                        "active": false,
+                        "data": {
+                          "data-witness-light": "moonlight"
+                        },
+                        "id": null,
+                        "title": "Full moon, about 0.25 lux. No colour vision."
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "subgroup",
+              "id": null,
+              "title": "Distance",
+              "icon": "distance",
+              "actions": [],
+              "collapsed": false,
+              "children": [
+                {
+                  "kind": "block",
+                  "block": {
+                    "type": "slider",
+                    "param": "witnessDistance",
+                    "label": "Distance (metres)",
+                    "id": "witnessDistanceSlider",
+                    "controlId": null,
+                    "valueId": null,
+                    "sliderClass": [
+                      "witness-slider"
+                    ],
+                    "min": "1",
+                    "max": "50",
+                    "step": "1",
+                    "value": "5",
+                    "valueText": "5",
+                    "data": {
+                      "data-param": "witnessDistance"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "subgroup",
+              "id": null,
+              "title": "Seen by",
+              "icon": "witness",
+              "actions": [],
+              "collapsed": false,
+              "children": [
+                {
+                  "kind": "block",
+                  "block": {
+                    "type": "cardGrid",
+                    "gridId": "witnessSensorGrid",
+                    "gridClass": [
+                      "hair-style-grid"
+                    ],
+                    "cards": [
+                      {
+                        "cardClass": [
+                          "hair-style-card",
+                          "active"
+                        ],
+                        "label": "Witness",
+                        "icon": "witness",
+                        "active": true,
+                        "data": {
+                          "data-witness-sensor": "eye"
+                        },
+                        "id": null,
+                        "title": "The witness's own eyes"
+                      },
+                      {
+                        "cardClass": [
+                          "hair-style-card"
+                        ],
+                        "label": "CCTV camera",
+                        "icon": "cctv",
+                        "active": false,
+                        "data": {
+                          "data-witness-sensor": "cctv"
+                        },
+                        "id": null,
+                        "title": "A 720p camera with a 90° lens; infrared night mode under 5 lux"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "subgroup",
+              "id": null,
+              "title": "Assessment",
+              "icon": "info-circle",
+              "actions": [],
+              "collapsed": false,
+              "children": [
+                {
+                  "kind": "block",
+                  "block": {
+                    "type": "verbatim",
+                    "tag": "div",
+                    "className": [
+                      "rf-witness-readout"
+                    ],
+                    "id": "witnessReadout",
+                    "known": true,
+                    "html": "<div class=\"rf-witness-readout\" id=\"witnessReadout\"></div>"
+                  }
+                },
+                {
+                  "kind": "block",
+                  "block": {
+                    "type": "button",
+                    "id": "btnWitnessView",
+                    "label": "See it as the witness did",
+                    "icon": "eye",
+                    "title": null,
+                    "btnClass": [
+                      "btn",
+                      "btn-primary",
+                      "rf-full"
+                    ],
                     "data": {}
                   }
                 }

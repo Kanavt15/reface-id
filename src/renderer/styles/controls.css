@@ -1007,3 +1007,100 @@ label.checkbox-label {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Witness conditions: the verdict leads, then the figures behind it. Amber is data here — outside the rule — not decoration. */
+
+.rf-witness-readout {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 2px 0 8px;
+  padding: 9px 10px;
+  background: var(--k-raise);
+  border: 1px solid var(--k-hair);
+  border-left: 2px solid var(--ok);
+  border-radius: var(--r-2);
+}
+
+.rf-witness-readout.is-warn { border-left-color: var(--warn); }
+
+.rf-witness-verdict {
+  margin-bottom: 3px;
+  font-size: var(--s-sm);
+  font-weight: 560;
+  color: var(--ok);
+}
+
+.rf-witness-readout.is-warn .rf-witness-verdict { color: var(--warn); }
+
+.rf-witness-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: var(--s-micro);
+  color: var(--t-mute);
+}
+
+.rf-witness-row > span:last-child {
+  font-family: var(--f-num);
+  color: var(--t);
+  text-align: right;
+}
+
+.rf-witness-caution {
+  margin: 4px 0 0;
+  font-size: var(--s-micro);
+  line-height: 1.5;
+  color: var(--warn);
+}
+
+/* Combining composites: while picking, a card is a checkbox, so its actions step aside and the pick order shows instead. */
+
+.snapshot-fuse { display: flex; flex-direction: column; }
+
+.snapshot-fuse-open {
+  width: 100%;
+  margin-top: 7px;
+  justify-content: center;
+}
+
+.snapshot-fuse-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 4px 0 2px;
+}
+
+.snapshot-fuse-actions { display: flex; align-items: center; gap: 6px; }
+.snapshot-fuse-count {
+  flex: 1;
+  font-family: var(--f-num);
+  font-size: var(--s-micro);
+  color: var(--t-lo);
+}
+
+.snapshot-list.fuse-mode .snapshot-actions { visibility: hidden; }
+.snapshot-list.fuse-mode .snapshot-card:hover { transform: none; }
+
+.snapshot-card.fuse-selected {
+  border-color: var(--sig-line);
+  background: var(--sig-dim);
+}
+
+.snapshot-card.fuse-selected::after {
+  content: attr(data-fuse-order);
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: 17px;
+  height: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--sig);
+  color: var(--on-sig);
+  font-family: var(--f-num);
+  font-size: 10px;
+  font-weight: 600;
+}

@@ -88,6 +88,11 @@ async function toEditor(page, caseNumber) {
   await sleep(900);
   await page.click('.panel-tab[data-panel="snapshots"]');
   await sleep(600);
+  // Groups start collapsed, so open Snapshots before reaching for anything inside it.
+  if (await page.locator('.control-group-header.collapsed:has-text("Snapshots")').count()) {
+    await page.click('.control-group-header:has-text("Snapshots")');
+    await sleep(600);
+  }
 }
 
 // Waits until the backend answers, so a slow start isn't mistaken for a storage failure.

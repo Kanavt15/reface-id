@@ -102,6 +102,13 @@ const ICONS = {
   'arrow-left':    'arrow-left',
   'command':       'command',
   'corner-down':   'corner-down-left',
+  /* witness conditions and combining composites */
+  'cloud':         'cloud',
+  'lamp':          'lamp-ceiling',
+  'sunset':        'sunset',
+  'moon':          'moon',
+  'cctv':          'cctv',
+  'merge':         'merge',
 };
 
 // Creates a folder if it doesn't exist.

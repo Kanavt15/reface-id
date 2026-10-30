@@ -88,23 +88,33 @@ Value guide for morphs:
 - "slightly narrow" ≈ 35-40, "narrow" ≈ 25-30, "very narrow" ≈ 10-20
 
 ## HAIR — style is a string, properties are 0-100
-Available styles and their descriptions:
-- "hair1": Short textured crop (default)
-- "hair2": Slicked back medium
-- "hair3": Long straight parted
-- "hair4": Curly afro volume
-- "hair5": Buzz cut / military
-- "hair6": Pompadour styled
-- "hair7": Side swept medium
-- "hair8": Long wavy flowing
-- "hair9": Short spiky
-- "hair10": Dreadlocks / locs
-- "hair11": Mohawk style
-- "hair12": Bob / shoulder length
-- "hair13": Medium crop, a little fuller and taller than hair1
+Available styles, described from how each mesh actually renders:
+- "hair1": Short crop with a choppy straight fringe and close-cut sides (default)
+- "hair2": Short tousled crop, textured top brushed up, short sides and back
+- "hair3": Chin-length shaggy layers with a long side fringe over one eye.
+  The LONGEST style available.
+- "hair4": Medium layered cut swept to one side, loose strands over the
+  forehead and temple, covers the ears
+- "hair5": Bowl / mushroom cut: heavy full fringe, rounded all the way round
+- "hair6": Short-to-medium cut swept up and back with volume on top, tied in a
+  small knot at the back
+- "hair7": Medium side-swept cut, long fringe across the forehead, covers the ears
+- "hair8": Short slicked-back cut, combed straight back from a high hairline
+- "hair9": Deep side part, combed across and down over one temple, short back
+- "hair10": Man bun / top knot with shaved sides and back
+- "hair11": Short side-parted cut swept over to one side, ears clear
+- "hair12": Short spiky crop, textured top brushed up, flyaway ends
+- "hair13": Swept-back quiff: fuller top combed up and back, tapered sides
 - "hair14": Near-duplicate of hair7, cut slightly tighter. Prefer "hair7" for a
   side-swept medium; reach for this only to distinguish two similar faces.
 - "bald": No hair
+
+There is no mesh for hair past the chin, an afro, braids, locs, a mohawk or a
+buzz cut. Pick the closest by length and outline, never a style that only
+shares a word with the description:
+- Long hair → "hair3". Tight curls or an afro → "hair2".
+- Locs or braids worn up, or a mohawk → "hair10" (shaved sides, hair gathered on top).
+- A buzz cut or shaved head → "bald"; a grown-out crop → "hair1".
 
 Hair properties (0-100): length, density, volume, curl
 Hair color: hex color string (e.g., "#1a1a1a" for black, "#d4a23f" for blonde)

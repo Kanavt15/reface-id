@@ -721,9 +721,10 @@ class AIController {
 
   // Sets up voice recording state.
   _initVoiceRecognition() {
-    this._mediaRecorder = null;
-    this._audioChunks = [];
     this._audioStream = null;
+    this._audioCtx = null;
+    this._audioTap = null;
+    this._pcm = [];
   }
 
   // Starts or stops voice recording.
@@ -739,16 +740,24 @@ class AIController {
   async _startRecording() {
     try {
       this._audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      this._audioChunks = [];
-      this._mediaRecorder = new MediaRecorder(this._audioStream, { mimeType: 'audio/webm' });
+      this._pcm = [];
 
-      this._mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) this._audioChunks.push(e.data);
-      };
-
-      this._mediaRecorder.onstop = () => this._processRecording();
-
-      this._mediaRecorder.start();
+      // Raw samples straight off the microphone become a WAV the backend reads as is; a compressed MediaRecorder
+      // file would need ffmpeg there. They are taken with an AudioWorklet because ScriptProcessorNode and
+      // decodeAudioData both crash Electron 28's renderer on Windows.
+      this._audioCtx = new AudioContext();
+      const url = URL.createObjectURL(new Blob([AIController.PCM_TAP], { type: 'application/javascript' }));
+      try {
+        await this._audioCtx.audioWorklet.addModule(url);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+      const source = this._audioCtx.createMediaStreamSource(this._audioStream);
+      this._audioTap = new AudioWorkletNode(this._audioCtx, 'reface-pcm-tap');
+      this._audioTap.port.onmessage = (e) => this._pcm.push(e.data);
+      source.connect(this._audioTap);
+      // The tap writes nothing to its output; connecting it to the speakers just keeps it in the render graph.
+      this._audioTap.connect(this._audioCtx.destination);
       this._isListening = true;
 
       if (this.micBtn) {
@@ -765,10 +774,17 @@ class AIController {
     }
   }
 
-  // Stops recording and releases the microphone.
+  // Stops recording, releases the microphone and sends what was recorded.
   _stopRecording() {
-    if (this._mediaRecorder && this._mediaRecorder.state === 'recording') {
-      this._mediaRecorder.stop();
+    const rate = this._audioCtx ? this._audioCtx.sampleRate : 0;
+    if (this._audioTap) {
+      this._audioTap.port.onmessage = null;
+      this._audioTap.disconnect();
+      this._audioTap = null;
+    }
+    if (this._audioCtx) {
+      this._audioCtx.close();
+      this._audioCtx = null;
     }
     if (this._audioStream) {
       this._audioStream.getTracks().forEach(t => t.stop());
@@ -782,21 +798,28 @@ class AIController {
     if (this.chatInput) {
       this.chatInput.placeholder = 'Transcribing...';
     }
+    if (rate) this._processRecording(rate);
   }
 
   // Sends the recording to the backend for transcription and puts the text in the input box.
-  async _processRecording() {
-    if (this._audioChunks.length === 0) {
+  async _processRecording(rate) {
+    const length = this._pcm.reduce((n, chunk) => n + chunk.length, 0);
+    if (!length) {
       this._resetInputPlaceholder();
       return;
     }
 
     try {
-      const webmBlob = new Blob(this._audioChunks, { type: 'audio/webm' });
+      const samples = new Float32Array(length);
+      let offset = 0;
+      for (const chunk of this._pcm) {
+        samples.set(chunk, offset);
+        offset += chunk.length;
+      }
+      this._pcm = [];
 
-      // Send the audio to the backend, which handles format conversion.
       const formData = new FormData();
-      formData.append('audio', webmBlob, 'recording.webm');
+      formData.append('audio', this._encodeWav(samples, rate), 'recording.wav');
 
       const response = await fetch(`${this.api.baseUrl}/api/speech/transcribe`, {
         method: 'POST',
@@ -820,6 +843,44 @@ class AIController {
       this._resetInputPlaceholder();
       this._addMessage('assistant', `Transcription failed: ${err.message}`);
     }
+  }
+
+  // Audio worklet that posts a copy of each block of microphone samples back to the page.
+  static get PCM_TAP() {
+    return `registerProcessor('reface-pcm-tap', class extends AudioWorkletProcessor {
+      process(inputs) {
+        const channel = inputs[0] && inputs[0][0];
+        if (channel) {
+          const copy = channel.slice(0);
+          this.port.postMessage(copy, [copy.buffer]);
+        }
+        return true;
+      }
+    });`;
+  }
+
+  // Encodes mono samples as 16-bit PCM WAV.
+  _encodeWav(samples, rate) {
+    const view = new DataView(new ArrayBuffer(44 + samples.length * 2));
+    const text = (offset, s) => { for (let i = 0; i < s.length; i++) view.setUint8(offset + i, s.charCodeAt(i)); };
+    text(0, 'RIFF');
+    view.setUint32(4, 36 + samples.length * 2, true);
+    text(8, 'WAVE');
+    text(12, 'fmt ');
+    view.setUint32(16, 16, true);         // fmt chunk size
+    view.setUint16(20, 1, true);          // PCM
+    view.setUint16(22, 1, true);          // mono
+    view.setUint32(24, rate, true);
+    view.setUint32(28, rate * 2, true);   // bytes per second
+    view.setUint16(32, 2, true);          // bytes per frame
+    view.setUint16(34, 16, true);         // bits per sample
+    text(36, 'data');
+    view.setUint32(40, samples.length * 2, true);
+    for (let i = 0; i < samples.length; i++) {
+      const s = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    }
+    return new Blob([view.buffer], { type: 'audio/wav' });
   }
 
   // Restores the chat input's placeholder text.

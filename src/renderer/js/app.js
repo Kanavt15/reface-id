@@ -7,6 +7,10 @@
 
   const sceneManager = new SceneManager('viewport-canvas');
 
+  // Witness view: a pass over the finished frame, so the render loop asks it first whenever it is on.
+  const witnessView = new WitnessView(sceneManager);
+  sceneManager.witnessView = witnessView;
+
   // Procedural fallback (only used if OBJ fails to load)
   const baseFace = new BaseFaceGeometry();
   const proceduralGeometry = baseFace.create();
@@ -237,6 +241,8 @@
     console.log('[App] Initializing UIController...');
     ui.init();
     console.log('[App] UIController initialized successfully');
+    ui.witnessView = witnessView;
+    witnessView.bindUI(ui);
     ui.updatePropertyPanel();
     ui.addHistory(group ? 'Base face model loaded (OBJ)' : 'Using procedural head');
 
@@ -271,12 +277,14 @@
     ui.snapshotManager = snapshotManager;
     // Bind before loading, because the load calls back into these controls when it finishes.
     ui.bindSnapshotControls();
+    ui.witnessFusion = new WitnessFusion(ui);
+    ui.witnessFusion.bind();
     snapshotManager.loadForCurrentCase()
       .then((n) => console.log(`[App] Snapshot Manager initialized (${n} snapshot(s))`))
       .catch((e) => console.error('[App] Snapshot load failed', e));
 
     // Debug handle for DevTools and the test scripts; it must stay inside this callback where these variables exist.
-    window.rfApp = { ui, api, caseManager, sceneManager, snapshotManager };
+    window.rfApp = { ui, api, caseManager, sceneManager, snapshotManager, witnessView };
 
     // Built before the AI controller, since every AI feature asks it for a key first.
     const apiKeys = new ApiKeyGate(api);

@@ -4539,14 +4539,24 @@ class UIController {
 
   // Binds the keyboard shortcuts: undo, redo, save and number keys for views.
   bindKeyboardShortcuts() {
+    // Fields that take typed text; sliders, checkboxes and buttons don't, so shortcuts still work on them.
+    const NON_TEXT = new Set(['range', 'checkbox', 'radio', 'button', 'submit', 'color', 'file']);
+    const isTyping = (el) => !!el && (el.isContentEditable || el.tagName === 'TEXTAREA' ||
+      el.tagName === 'SELECT' || (el.tagName === 'INPUT' && !NON_TEXT.has(el.type)));
+
     document.addEventListener('keydown', (e) => {
+      // Inside a text field, digits are text and Ctrl+Z / Ctrl+Y undo the typing, not the face.
+      const typing = isTyping(e.target);
+
       if (e.ctrlKey || e.metaKey) {
         switch (e.key) {
           case 'z':
+            if (typing) break;
             e.preventDefault();
             this.undo();
             break;
           case 'y':
+            if (typing) break;
             e.preventDefault();
             this.redo();
             break;
@@ -4555,7 +4565,9 @@ class UIController {
             document.getElementById('btnSaveCase')?.click();
             break;
         }
+        return;
       }
+      if (typing) return;
 
       // Number keys for views
       if (e.key === '1') this.scene.setView('front');
@@ -4631,6 +4643,9 @@ class UIController {
     if (this.browPiercingSystem) {
       this.caseManager.updateAppearance('browPiercing', this.browPiercingSystem.exportState());
     }
+    if (this.witnessView) {
+      this.caseManager.currentCase.witnessConditions = this.witnessView.getConditions();
+    }
     this.caseManager.currentCase.cameraState = this.scene.getCameraState();
   }
 
@@ -4660,8 +4675,12 @@ class UIController {
     const modCount = document.getElementById('modifiedCount');
     if (modCount) modCount.textContent = this.morpher.getModifiedCount();
 
+    // Name the style the way its card does; fall back to the id for anything without a card.
     const hairStyleEl = document.getElementById('currentHairStyle');
-    if (hairStyleEl) hairStyleEl.textContent = this.formatStyleName(this.hair.currentStyle);
+    if (hairStyleEl) {
+      const card = document.querySelector(`#hairStyleGrid [data-style="${this.hair.currentStyle}"] span`);
+      hairStyleEl.textContent = card ? card.textContent : this.formatStyleName(this.hair.currentStyle);
+    }
 
     const skinToneEl = document.getElementById('currentSkinTone');
     const skinColor = this.caseManager.currentCase.appearance.skinColor;
@@ -5497,6 +5516,12 @@ class UIController {
       this.scene.loadCameraState(state.cameraState);
     }
 
+    // Restore the witness's viewing conditions; whether the view is on is left as it is.
+    if (state.witnessConditions && this.witnessView) {
+      this.witnessView.setConditions(state.witnessConditions);
+      this.witnessView.syncUI();
+    }
+
     this.updatePropertyPanel();
   }
 
@@ -5729,6 +5754,9 @@ class UIController {
         this._startSnapshotRename(snap.uid, nameEl);
       });
     });
+
+    // Re-mark cards picked for combining, since the redraw replaced them.
+    this.witnessFusion?.decorate();
   }
 
   // Restores a snapshot and briefly highlights its card.

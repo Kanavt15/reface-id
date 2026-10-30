@@ -321,9 +321,10 @@ class PostFX {
   }
 
   // Renders the scene through the effects chain, or straight to the screen when it is off.
-  render(scene, camera) {
-    if (!this.enabled || this._disposed || !this.sceneRT) {
-      this.renderer.setRenderTarget(null);
+  // With an output target the chain always runs, so a later pass (WitnessView) gets a finished, tone-mapped frame whatever the tier.
+  render(scene, camera, output = null) {
+    if ((!this.enabled && !output) || this._disposed || !this.sceneRT) {
+      this.renderer.setRenderTarget(output);
       this.renderer.render(scene, camera);
       return;
     }
@@ -352,10 +353,10 @@ class PostFX {
     this._blurMat.uniforms.uDirection.value.set(0, 1);
     this._blit(this._blurMat, this.bloomA);
 
-    // 4. Composite to the canvas.
+    // 4. Composite to the canvas, or to the caller's target.
     this._compositeMat.uniforms.tDiffuse.value = this.sceneRT.texture;
     this._compositeMat.uniforms.tBloom.value = this.bloomA.texture;
-    this._blit(this._compositeMat, null);
+    this._blit(this._compositeMat, output);
 
     this.renderer.setRenderTarget(prevTarget);
   }

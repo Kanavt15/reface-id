@@ -375,6 +375,39 @@
     <path d="M20 4v7a4 4 0 0 1-4 4H4" />
     <path d="m9 10-5 5 5 5" />
   </symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24">
+    <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+  </symbol>
+  <symbol id="i-lamp" viewBox="0 0 24 24">
+    <path d="M12 2v5" />
+    <path d="M14.829 15.998a3 3 0 1 1-5.658 0" />
+    <path d="M20.92 14.606A1 1 0 0 1 20 16H4a1 1 0 0 1-.92-1.394l3-7A1 1 0 0 1 7 7h10a1 1 0 0 1 .92.606z" />
+  </symbol>
+  <symbol id="i-sunset" viewBox="0 0 24 24">
+    <path d="M12 10V2" />
+    <path d="m4.93 10.93 1.41 1.41" />
+    <path d="M2 18h2" />
+    <path d="M20 18h2" />
+    <path d="m19.07 10.93-1.41 1.41" />
+    <path d="M22 22H2" />
+    <path d="m16 6-4 4-4-4" />
+    <path d="M16 18a4 4 0 0 0-8 0" />
+  </symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24">
+    <path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401" />
+  </symbol>
+  <symbol id="i-cctv" viewBox="0 0 24 24">
+    <path d="M16.75 12h3.632a1 1 0 0 1 .894 1.447l-2.034 4.069a1 1 0 0 1-1.708.134l-2.124-2.97" />
+    <path d="M17.106 9.053a1 1 0 0 1 .447 1.341l-3.106 6.211a1 1 0 0 1-1.342.447L3.61 12.3a2.92 2.92 0 0 1-1.3-3.91L3.69 5.6a2.92 2.92 0 0 1 3.92-1.3z" />
+    <path d="M2 19h3.76a2 2 0 0 0 1.8-1.1L9 15" />
+    <path d="M2 21v-4" />
+    <path d="M7 9h.01" />
+  </symbol>
+  <symbol id="i-merge" viewBox="0 0 24 24">
+    <path d="m8 6 4-4 4 4" />
+    <path d="M12 2v10.3a4 4 0 0 1-1.172 2.872L4 22" />
+    <path d="m20 22-5-5" />
+  </symbol>
 </svg>
 
 <div id="k-router">
@@ -414,7 +447,7 @@
             <button type="button" class="k-start-card" id="rf-hero-load-case">
               <div class="k-start-card-icon"><svg class="i" aria-hidden="true"><use href="#i-open"/></svg></div>
               <div class="k-start-card-title">Open existing</div>
-              <div class="k-start-card-note">Load a saved <code>.reface</code> case file.</div>
+              <div class="k-start-card-note">Load a saved <code>.json</code> case file.</div>
               <div class="k-start-card-go"><span>Browse</span><svg class="i" aria-hidden="true"><use href="#i-arrow-right"/></svg></div>
             </button>
           </div>
@@ -422,7 +455,7 @@
       </main>
 
       <footer class="k-intake-foot">
-        <span class="k-cap">Offline · nothing leaves this machine</span>
+        <span class="k-cap">Local-first · nothing leaves this machine unless you ask</span>
         <button type="button" class="k-btn k-btn-ghost" id="rf-hero-open-editor">
           <span>Skip to editor</span><svg class="i" aria-hidden="true"><use href="#i-arrow-right"/></svg>
         </button>
@@ -655,6 +688,7 @@
         <button type="button" class="k-dock-btn k-icon-only active" id="btnRenderMode" title="Render: Photoreal / Structure"><svg class="i" aria-hidden="true"><use href="#i-contrast"/></svg></button>
         <button type="button" class="k-dock-btn k-icon-only" id="btnQuality" title="Render quality"><svg class="i" aria-hidden="true"><use href="#i-sun"/></svg></button>
         <button type="button" class="k-dock-btn k-icon-only" id="rf-vp-reference" title="Reference overlay"><svg class="i" aria-hidden="true"><use href="#i-compare"/></svg></button>
+        <button type="button" class="k-dock-btn k-icon-only" id="btnWitnessDock" title="Witness view: as the witness saw it"><svg class="i" aria-hidden="true"><use href="#i-eyes"/></svg></button>
         <div class="k-dock-sep"></div>
         <button type="button" class="k-dock-btn k-icon-only" id="btnScreenshot" title="Capture frame"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg></button>
         <button type="button" class="k-dock-btn k-icon-only k-btn-danger" id="btnResetAll" title="Reset everything"><svg class="i" aria-hidden="true"><use href="#i-reset"/></svg></button>
@@ -1657,59 +1691,59 @@
             <div class="hair-style-grid" id="hairStyleGrid">
                 <div class="hair-style-card active" data-style="hair1" data-preview="Hair_1.mp4" role="button" tabindex="0">
                   <svg class="i k-card-icon" aria-hidden="true"><use href="#i-user"/></svg>
-                  <span>Style 1</span>
+                  <span>Crop &amp; fringe</span>
                 </div>
                 <div class="hair-style-card" data-style="hair2" data-preview="Hair_2.mp4" role="button" tabindex="0">
                   <svg class="i k-card-icon" aria-hidden="true"><use href="#i-user"/></svg>
-                  <span>Style 2</span>
+                  <span>Tousled crop</span>
                 </div>
                 <div class="hair-style-card" data-style="hair3" data-preview="Hair_3.mp4" role="button" tabindex="0">
                   <svg class="i k-card-icon" aria-hidden="true"><use href="#i-user"/></svg>
-                  <span>Style 3</span>
+                  <span>Shaggy, chin length</span>
                 </div>
                 <div class="hair-style-card" data-style="hair4" data-preview="Hair_4.mp4" role="button" tabindex="0">
                   <svg class="i k-card-icon" aria-hidden="true"><use href="#i-hair"/></svg>
-                  <span>Style 4</span>
+                  <span>Layered, swept</span>
                 </div>
                 <div class="hair-style-card" data-style="hair5" data-preview="Hair_5.mp4" role="button" tabindex="0">
                   <svg class="i k-card-icon" aria-hidden="true"><use href="#i-user"/></svg>
-                  <span>Style 5</span>
+                  <span>Bowl cut</span>
                 </div>
                 <div class="hair-style-card" data-style="hair6" data-preview="Hair_6.mp4" role="button" tabindex="0">
                   <svg class="i k-card-icon" aria-hidden="true"><use href="#i-user"/></svg>
-                  <span>Style 6</span>
+                  <span>Swept up, tied</span>
                 </div>
                 <div class="hair-style-card" data-style="hair7" data-preview="Hair_7.mp4" role="button" tabindex="0">
                   <svg class="i k-card-icon" aria-hidden="true"><use href="#i-hair"/></svg>
-                  <span>Style 7</span>
+                  <span>Side-swept</span>
                 </div>
                 <div class="hair-style-card" data-style="hair8" data-preview="Hair_8.mp4" role="button" tabindex="0">
                   <svg class="i k-card-icon" aria-hidden="true"><use href="#i-hair"/></svg>
-                  <span>Style 8</span>
+                  <span>Slicked back</span>
                 </div>
                 <div class="hair-style-card" data-style="hair9" data-preview="Hair_9.mp4" role="button" tabindex="0">
                   <svg class="i k-card-icon" aria-hidden="true"><use href="#i-user"/></svg>
-                  <span>Style 9</span>
+                  <span>Deep side part</span>
                 </div>
                 <div class="hair-style-card" data-style="hair10" data-preview="Hair_10.mp4" role="button" tabindex="0">
                   <svg class="i k-card-icon" aria-hidden="true"><use href="#i-user"/></svg>
-                  <span>Style 10</span>
+                  <span>Man bun</span>
                 </div>
                 <div class="hair-style-card" data-style="hair11" data-preview="Hair_11.mp4" role="button" tabindex="0">
                   <svg class="i k-card-icon" aria-hidden="true"><use href="#i-hair"/></svg>
-                  <span>Style 11</span>
+                  <span>Side-parted short</span>
                 </div>
                 <div class="hair-style-card" data-style="hair12" data-preview="Hair_12.mp4" role="button" tabindex="0">
                   <svg class="i k-card-icon" aria-hidden="true"><use href="#i-hair"/></svg>
-                  <span>Style 12</span>
+                  <span>Spiky crop</span>
                 </div>
                 <div class="hair-style-card" data-style="hair13" data-preview="Hair_13.mp4" role="button" tabindex="0">
                   <svg class="i k-card-icon" aria-hidden="true"><use href="#i-hair"/></svg>
-                  <span>Style 13</span>
+                  <span>Quiff</span>
                 </div>
                 <div class="hair-style-card" data-style="hair14" role="button" tabindex="0">
                   <svg class="i k-card-icon" aria-hidden="true"><use href="#i-user"/></svg>
-                  <span>Style 14</span>
+                  <span>Side-swept, tight</span>
                 </div>
                 <div class="hair-style-card" data-style="bald" data-preview="Hair_13(BALD).mp4" role="button" tabindex="0">
                   <svg class="i k-card-icon" aria-hidden="true"><use href="#i-error"/></svg>
@@ -1770,11 +1804,9 @@
             <div class="slider-control" data-param="hairDensity">
               <label>
                 <span>Density</span>
-                <!-- <span class="slider-value">70</span> -->
                 <span class="slider-value">500</span>
               </label>
               <div class="slider-row">
-                <!-- <input type="range" class="hair-slider" min="0" max="1200" value="70" /> -->
                 <input type="range" class="hair-slider" min="0" max="1200" value="500" />
               </div>
             </div>
@@ -2779,8 +2811,6 @@
             <div class="k-group-inner">
             <div class="k-verbatim">
               <div class="rf-note">
-                <!-- Select a time period to see how the face may appear after aging: -->
-                <!-- Select the target age for the face preview: -->
                 Select a time period to see how the face may appear after aging:
               </div>
             </div>
@@ -2788,36 +2818,26 @@
               <div class="age-progression-grid">
                 <button class="age-card" data-years="5">
                   <svg class="i" aria-hidden="true"><use href="#i-clock"/></svg>
-                  <!-- <span class="age-label">+5 Years</span> -->
-                  <!-- <span class="age-label">5 Years</span> -->
                   <span class="age-label">+5 Years</span>
                   <span class="age-desc">Subtle aging</span>
                 </button>
                 <button class="age-card" data-years="10">
                   <svg class="i" aria-hidden="true"><use href="#i-clock"/></svg>
-                  <!-- <span class="age-label">+10 Years</span> -->
-                  <!-- <span class="age-label">10 Years</span> -->
                   <span class="age-label">+10 Years</span>
                   <span class="age-desc">Early aging</span>
                 </button>
                 <button class="age-card" data-years="15">
                   <svg class="i" aria-hidden="true"><use href="#i-clock"/></svg>
-                  <!-- <span class="age-label">+15 Years</span> -->
-                  <!-- <span class="age-label">15 Years</span> -->
                   <span class="age-label">+15 Years</span>
                   <span class="age-desc">Moderate aging</span>
                 </button>
                 <button class="age-card" data-years="20">
                   <svg class="i" aria-hidden="true"><use href="#i-clock"/></svg>
-                  <!-- <span class="age-label">+20 Years</span> -->
-                  <!-- <span class="age-label">20 Years</span> -->
                   <span class="age-label">+20 Years</span>
                   <span class="age-desc">Advanced aging</span>
                 </button>
                 <button class="age-card" data-years="25">
                   <svg class="i" aria-hidden="true"><use href="#i-clock"/></svg>
-                  <!-- <span class="age-label">+25 Years</span> -->
-                  <!-- <span class="age-label">25 Years</span> -->
                   <span class="age-label">+25 Years</span>
                   <span class="age-desc">Significant aging</span>
                 </button>
@@ -2848,11 +2868,9 @@
             <div class="slider-control" data-param="skinAge">
               <label>
                 <span>Age</span>
-                <!-- <span class="slider-value" id="valSkinAge">30</span> -->
                 <span class="slider-value" id="valSkinAge">0</span>
               </label>
               <div class="slider-row">
-                <!-- <input type="range" id="sliderSkinAge" class="skin-texture-slider" min="0" max="100" value="30" /> -->
                 <input type="range" id="sliderSkinAge" class="skin-texture-slider" min="0" max="100" value="0" />
               </div>
             </div>
@@ -4872,6 +4890,21 @@
                   </div>
             </div>
             <div class="k-verbatim">
+              <div class="snapshot-fuse">
+                    <button class="btn btn-outline snapshot-fuse-open" id="btnFuseMode" style="display:none;" title="Combine composites from several witnesses into one face">
+                      <svg class="i" aria-hidden="true"><use href="#i-merge"/></svg> Combine witness composites
+                    </button>
+                    <div class="snapshot-fuse-bar" id="snapshotFuseBar" style="display:none;">
+                    <p class="rf-note">Pick the composites to combine, base first. Face shape and colouring are averaged; hairstyle, beard, age and sex follow the majority; marks and worn items come from the first one picked. Combined composites from several witnesses have been rated better likenesses than any single one (Bruce et al., 2002).</p>
+                    <div class="snapshot-fuse-actions">
+                      <span class="snapshot-fuse-count" id="snapshotFuseCount">Pick 2 more</span>
+                      <button class="btn btn-outline" id="btnFuseCancel">Cancel</button>
+                      <button class="btn btn-primary" id="btnFuseApply" disabled><svg class="i" aria-hidden="true"><use href="#i-merge"/></svg> Combine</button>
+                    </div>
+                  </div>
+                  </div>
+            </div>
+            <div class="k-verbatim">
               <div class="snapshot-list" id="snapshotList">
                     <div class="snapshot-empty" id="snapshotEmpty">
                       
@@ -5030,6 +5063,120 @@
                 <span>Mirror horizontally</span>
               </label>
             </div>
+              </div>
+            </div>
+          </div>
+            </div>
+          </div>
+        </div>
+        <div class="control-group">
+          <div class="control-group-header collapsed">
+            <svg class="i" aria-hidden="true"><use href="#i-eyes"/></svg>
+            <span>Witness Conditions</span>
+            
+            <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+          </div>
+          <div class="control-group-body collapsed">
+            <div class="k-group-inner">
+            <p class="k-note">Recreate the moment the witness saw the subject. The light, the distance and whether an eye or a camera did the seeing decide how much of the face could ever have been seen. A perceptual approximation, not a measurement.</p>
+          <div class="feature-sub-group">
+            <div class="sub-group-header">
+              <svg class="i" aria-hidden="true"><use href="#i-sun"/></svg>
+              <span>Light on the subject</span>
+              
+              <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+            </div>
+            <div class="sub-group-body">
+              <div class="k-sub-inner">
+            <div class="hair-style-grid" id="witnessLightGrid">
+                <div class="hair-style-card active" data-witness-light="daylight" title="Direct daylight, about 10,000 lux" role="button" tabindex="0">
+                  <svg class="i k-card-icon" aria-hidden="true"><use href="#i-sun"/></svg>
+                  <span>Daylight</span>
+                </div>
+                <div class="hair-style-card" data-witness-light="overcast" title="Overcast day, about 1,000 lux" role="button" tabindex="0">
+                  <svg class="i k-card-icon" aria-hidden="true"><use href="#i-cloud"/></svg>
+                  <span>Overcast</span>
+                </div>
+                <div class="hair-style-card" data-witness-light="indoor" title="Office or shop lighting, about 400 lux" role="button" tabindex="0">
+                  <svg class="i k-card-icon" aria-hidden="true"><use href="#i-zap"/></svg>
+                  <span>Indoor</span>
+                </div>
+                <div class="hair-style-card" data-witness-light="led" title="White LED street lamp, about 15 lux" role="button" tabindex="0">
+                  <svg class="i k-card-icon" aria-hidden="true"><use href="#i-lamp"/></svg>
+                  <span>LED street</span>
+                </div>
+                <div class="hair-style-card" data-witness-light="sodium" title="Orange sodium street lamp, about 15 lux. Renders colour very poorly." role="button" tabindex="0">
+                  <svg class="i k-card-icon" aria-hidden="true"><use href="#i-lamp"/></svg>
+                  <span>Sodium street</span>
+                </div>
+                <div class="hair-style-card" data-witness-light="dusk" title="End of twilight, about 3 lux" role="button" tabindex="0">
+                  <svg class="i k-card-icon" aria-hidden="true"><use href="#i-sunset"/></svg>
+                  <span>Dusk</span>
+                </div>
+                <div class="hair-style-card" data-witness-light="moonlight" title="Full moon, about 0.25 lux. No colour vision." role="button" tabindex="0">
+                  <svg class="i k-card-icon" aria-hidden="true"><use href="#i-moon"/></svg>
+                  <span>Moonlight</span>
+                </div>
+            </div>
+              </div>
+            </div>
+          </div>
+          <div class="feature-sub-group">
+            <div class="sub-group-header">
+              <svg class="i" aria-hidden="true"><use href="#i-ruler"/></svg>
+              <span>Distance</span>
+              
+              <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+            </div>
+            <div class="sub-group-body">
+              <div class="k-sub-inner">
+            <div class="slider-control" data-param="witnessDistance">
+              <label>
+                <span>Distance (metres)</span>
+                <span class="slider-value">5</span>
+              </label>
+              <div class="slider-row">
+                <input type="range" id="witnessDistanceSlider" class="witness-slider" min="1" max="50" step="1" value="5" />
+              </div>
+            </div>
+              </div>
+            </div>
+          </div>
+          <div class="feature-sub-group">
+            <div class="sub-group-header">
+              <svg class="i" aria-hidden="true"><use href="#i-eyes"/></svg>
+              <span>Seen by</span>
+              
+              <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+            </div>
+            <div class="sub-group-body">
+              <div class="k-sub-inner">
+            <div class="hair-style-grid" id="witnessSensorGrid">
+                <div class="hair-style-card active" data-witness-sensor="eye" title="The witness's own eyes" role="button" tabindex="0">
+                  <svg class="i k-card-icon" aria-hidden="true"><use href="#i-eyes"/></svg>
+                  <span>Witness</span>
+                </div>
+                <div class="hair-style-card" data-witness-sensor="cctv" title="A 720p camera with a 90° lens; infrared night mode under 5 lux" role="button" tabindex="0">
+                  <svg class="i k-card-icon" aria-hidden="true"><use href="#i-cctv"/></svg>
+                  <span>CCTV camera</span>
+                </div>
+            </div>
+              </div>
+            </div>
+          </div>
+          <div class="feature-sub-group">
+            <div class="sub-group-header">
+              <svg class="i" aria-hidden="true"><use href="#i-info"/></svg>
+              <span>Assessment</span>
+              
+              <svg class="i k-caret" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+            </div>
+            <div class="sub-group-body">
+              <div class="k-sub-inner">
+            <div class="k-verbatim">
+              <div class="rf-witness-readout" id="witnessReadout"></div>
+            </div>
+            <div class="k-btn-row"><button type="button" id="btnWitnessView" class="btn btn-primary k-btn-primary"><svg class="i" aria-hidden="true"><use href="#i-visible"/></svg><span>See it as the witness did</span></button></div>
               </div>
             </div>
           </div>
@@ -5336,6 +5483,7 @@
 <script src="js/ReferenceOverlay.js"></script>
 <script src="js/TurntableRecorder.js"></script>
 <script src="js/VariantPicker.js"></script>
+<script src="js/WitnessView.js"></script>
 <script src="js/SceneManager.js"></script>
 <script src="js/FacePointEditor.js"></script>
 <script src="js/SkinMarkSystem.js"></script>
@@ -5348,12 +5496,13 @@
 <script src="js/HairTintPainter.js"></script>
 <script src="js/MarkPositionMapper.js"></script>
 <script src="js/SnapshotManager.js"></script>
+<script src="js/WitnessFusion.js"></script>
 <script src="js/UIController.js"></script>
 <script src="js/BackendAPI.js"></script>
 <script src="js/ApiKeyGate.js"></script>
 <script src="js/CaseManager.js"></script>
 <script src="js/AIController.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+<script src="../../node_modules/@mediapipe/face_mesh/face_mesh.js"></script>
 <script src="js/HeadTracker.js"></script>
 <script src="js/FaceCaptureSystem.js"></script>
 <script src="js/ScreenRouter.js"></script>

@@ -52,9 +52,9 @@ class FaceCaptureSystem {
       this.videoEl.srcObject = this.stream;
       await this.videoEl.play();
 
-      // Reuse the FaceMesh library already loaded from the CDN for HeadTracker.
+      // Reuse the FaceMesh library HeadTracker loads from the copy installed with the app.
       this.faceMesh = new FaceMesh({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+        locateFile: (file) => `../../node_modules/@mediapipe/face_mesh/${file}`,
       });
       this.faceMesh.setOptions({
         maxNumFaces: 1,

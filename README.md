@@ -32,7 +32,9 @@ everything it sets is a control you can then take over by hand. The app runs
 without any API key at all.
 
 Morphing, rendering, exports and case storage stay on the machine. The only
-outbound calls are to the AI provider, and only when you ask for one.
+outbound calls are to the AI provider and, for dictation, Google's speech
+recogniser, and only when you ask for one. Face tracking runs on a MediaPipe
+copy installed with the app, so live capture works with no connection.
 
 ---
 
@@ -243,6 +245,52 @@ every round after a pick is jittered locally at zero cost.
 
 ---
 
+## Seeing it as the witness did
+
+<img src="screenshots/29-witness-conditions.png" alt="Witness conditions">
+
+A witness who saw someone for eight seconds under a street lamp ten metres away
+did not see what the studio render shows. **Witness conditions** (Case section,
+or the eye button in the camera dock) recreates the moment: the light on the
+subject, the distance, and whether a person or a CCTV camera did the seeing.
+
+<img src="screenshots/32-witness-strip.png" alt="One face under seven viewing conditions">
+
+- **Distance** removes the detail an eye could not resolve. The face's angular
+  size at that distance, times the eye's acuity at that light level, gives the
+  cycles of detail that survive; the frame is filtered to exactly that.
+- **Light** sets brightness, cast and colour. A sodium lamp or moonlight leaves
+  almost no colour vision, and the panel says so: *treat any hair, eye or skin
+  colour this witness reported with caution.*
+- **The verdict** for an eyewitness is the *rule of 15* (Wagenaar & van der
+  Schrier, 1996): identifications made from further than 15 m, or in under
+  15 lux, proved unreliable. For a camera it is the EN 62676-4 grade from pixels
+  per metre on the subject, with identification needing 250.
+
+It is a perceptual approximation, not a measurement, and the panel says that
+too. The conditions are saved with the case.
+
+---
+
+## Combining witnesses
+
+<img src="screenshots/33-combine-strip.png" alt="Three witness composites and their combination">
+
+When several witnesses each build a composite, each one errs in their own
+direction. Averaging them cancels much of that: Bruce, Ness, Hancock, Newman
+and Rarity (2002) found combined composites were rated better likenesses than
+the individual ones.
+
+In **Frames → Snapshots**, *Combine witness composites* lets you pick two or more
+snapshots. Face shape and colouring are averaged (colours in linear light),
+hairstyle, beard, age and sex follow the majority, and marks and worn items
+come from the first one picked. The result is applied as one undo step, saved
+as a new snapshot, and records which composites it came from.
+
+<img src="screenshots/31-combine-witnesses.png" alt="Picking composites to combine">
+
+---
+
 ## Working the case
 
 <table>
@@ -409,8 +457,9 @@ src/
   main/            Electron main process, menu, native dialogs, preload bridge
   renderer/
     index.html     generated, see the build pipeline below
-    js/            37 modules: morphing, hair, eyes, accessories, marks,
-                   decals, painters, AI, cases, snapshots, capture, shell
+    js/            47 modules: morphing, hair, eyes, accessories, marks,
+                   decals, painters, AI, cases, snapshots, capture,
+                   witness view and composite combining, shell
     js/vendor/     GLB / OBJ loaders, OrbitControls, DecalGeometry
     styles/        base · shell · controls · overlays · carried
     vendor/        GSAP, Motion One, Lenis, vendored, no bundler

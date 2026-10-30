@@ -51,6 +51,9 @@ const ICON_MAP = {
   'circle': 'record', 'circle-dot': 'record', 'dot-circle': 'record',
   'wave-square': 'settings', 'water': 'droplet', 'layer-group': 'skin', 'layers': 'skin',
   'hand-pointer': 'crosshair', 'wind': 'hair', 'scissors': 'hair', 'cut': 'hair',
+  // Controls added since the rebuild are named for what they mean, so no carried-over name changes its icon.
+  'witness': 'eyes', 'daylight': 'sun', 'overcast': 'cloud', 'indoor': 'zap', 'streetlamp': 'lamp',
+  'dusk': 'sunset', 'night': 'moon', 'cctv': 'cctv', 'distance': 'ruler', 'combine': 'merge',
 };
 
 // Helpers
@@ -505,7 +508,7 @@ ${SPRITE}
             <button type="button" class="k-start-card" id="rf-hero-load-case">
               <div class="k-start-card-icon">${icon('open')}</div>
               <div class="k-start-card-title">Open existing</div>
-              <div class="k-start-card-note">Load a saved <code>.reface</code> case file.</div>
+              <div class="k-start-card-note">Load a saved <code>.json</code> case file.</div>
               <div class="k-start-card-go"><span>Browse</span>${icon('arrow-right')}</div>
             </button>
           </div>
@@ -513,7 +516,7 @@ ${SPRITE}
       </main>
 
       <footer class="k-intake-foot">
-        <span class="k-cap">Offline · nothing leaves this machine</span>
+        <span class="k-cap">Local-first · nothing leaves this machine unless you ask</span>
         <button type="button" class="k-btn k-btn-ghost" id="rf-hero-open-editor">
           <span>Skip to editor</span>${icon('arrow-right')}
         </button>
@@ -712,6 +715,7 @@ ${SPRITE}
         <button type="button" class="k-dock-btn k-icon-only active" id="btnRenderMode" title="Render: Photoreal / Structure">${icon('contrast')}</button>
         <button type="button" class="k-dock-btn k-icon-only" id="btnQuality" title="Render quality">${icon('sun')}</button>
         <button type="button" class="k-dock-btn k-icon-only" id="rf-vp-reference" title="Reference overlay">${icon('compare')}</button>
+        <button type="button" class="k-dock-btn k-icon-only" id="btnWitnessDock" title="Witness view: as the witness saw it">${icon('eyes')}</button>
         <div class="k-dock-sep"></div>
         <button type="button" class="k-dock-btn k-icon-only" id="btnScreenshot" title="Capture frame">${icon('camera')}</button>
         <button type="button" class="k-dock-btn k-icon-only k-btn-danger" id="btnResetAll" title="Reset everything">${icon('reset')}</button>
@@ -978,6 +982,7 @@ ${SPRITE}
 <script src="js/ReferenceOverlay.js"></script>
 <script src="js/TurntableRecorder.js"></script>
 <script src="js/VariantPicker.js"></script>
+<script src="js/WitnessView.js"></script>
 <script src="js/SceneManager.js"></script>
 <script src="js/FacePointEditor.js"></script>
 <script src="js/SkinMarkSystem.js"></script>
@@ -990,12 +995,13 @@ ${SPRITE}
 <script src="js/HairTintPainter.js"></script>
 <script src="js/MarkPositionMapper.js"></script>
 <script src="js/SnapshotManager.js"></script>
+<script src="js/WitnessFusion.js"></script>
 <script src="js/UIController.js"></script>
 <script src="js/BackendAPI.js"></script>
 <script src="js/ApiKeyGate.js"></script>
 <script src="js/CaseManager.js"></script>
 <script src="js/AIController.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+<script src="../../node_modules/@mediapipe/face_mesh/face_mesh.js"></script>
 <script src="js/HeadTracker.js"></script>
 <script src="js/FaceCaptureSystem.js"></script>
 <script src="js/ScreenRouter.js"></script>

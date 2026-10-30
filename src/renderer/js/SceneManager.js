@@ -887,7 +887,9 @@ class SceneManager {
 
   // Draws the scene; every screenshot and capture goes through here so it matches the screen.
   renderFrame() {
-    if (this.postFX && this.postFX.enabled) {
+    if (this.witnessView && this.witnessView.active) {
+      this.witnessView.render(this.scene, this.camera);
+    } else if (this.postFX && this.postFX.enabled) {
       this.postFX.render(this.scene, this.camera);
     } else {
       this.renderer.render(this.scene, this.camera);

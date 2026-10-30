@@ -19,6 +19,7 @@
     "face:probe": "node scripts/face-probe.mjs",
     "face:verify": "node scripts/verify-realism.mjs",
     "test:snapshots": "node scripts/snapshot-check.mjs",
+    "test:witness": "node scripts/witness-probe.mjs",
     "ui": "npm run ui:build && npm run ui:verify"
   },
   "author": "REface ID Team",
@@ -34,6 +35,7 @@
     "playwright-core": "^1.62.1"
   },
   "dependencies": {
+    "@mediapipe/face_mesh": "0.4.1633559619",
     "express": "^4.18.2",
     "gsap": "^3.15.0",
     "lenis": "^1.3.26",
